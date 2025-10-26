@@ -264,6 +264,92 @@ ul {
   margin-bottom: 40px;
 }
 
+/* Contenedor de scroll horizontal */
+.categories-scroll-container {
+  overflow: hidden;
+  position: relative;
+  max-width: 100%;
+}
+
+.categories-grid-scroll {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  padding: 10px 5px 20px;
+  -webkit-overflow-scrolling: touch; /* Suaviza el scroll en iOS */
+  scrollbar-width: none; /* Firefox */
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+.categories-grid-scroll:active {
+  cursor: grabbing;
+  scroll-behavior: auto; /* Desactiva scroll suave durante el drag */
+}
+
+/* Ocultar scrollbar completamente */
+.categories-grid-scroll::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+
+/* Indicadores visuales sutiles en los bordes */
+.categories-scroll-container::before,
+.categories-scroll-container::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 20px;
+  width: 80px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.categories-scroll-container::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.7), transparent);
+}
+
+.categories-scroll-container::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(255, 255, 255, 1), rgba(255, 255, 255, 0.7), transparent);
+}
+
+.categories-scroll-container:hover::before,
+.categories-scroll-container:hover::after {
+  opacity: 0.9;
+}
+
+/* Indicador de scroll con puntos */
+.scroll-indicator {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 15px;
+  padding: 10px 0;
+}
+
+.scroll-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--gray-300);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.scroll-dot.active {
+  background: var(--primary-color);
+  width: 24px;
+  border-radius: 4px;
+}
+
 .categories-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -271,28 +357,80 @@ ul {
 }
 
 .category-card {
-  background-color: var(--gray-100);
+  background-color: #f8fafc;
   border-radius: 8px;
   padding: 24px;
   text-align: center;
-  transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
+  transition: all 0.3s ease;
   cursor: pointer;
+  border: 2px solid #e2e8f0;
+  flex-shrink: 0;
+  /* Mostrar exactamente 4 categorías a la vez */
+  min-width: calc((100% - 60px) / 4); /* 4 categorías con 3 gaps de 20px */
+  width: calc((100% - 60px) / 4);
+  /* Prevenir selección de texto */
+  pointer-events: auto;
+  -webkit-user-drag: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
 .category-card:hover {
-  background-color: #dbeafe; /* Light blue */
-  transform: translateY(-5px);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  background-color: #eff6ff;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+  border-color: rgba(37, 99, 235, 0.3);
+}
+
+.category-card.active {
+  background: linear-gradient(135deg, #60a5fa, #a78bfa);
+  color: var(--white);
+  border-color: #60a5fa;
+  box-shadow: 0 4px 16px rgba(96, 165, 250, 0.25);
+  transform: translateY(-2px);
+}
+
+.category-card.active .category-title {
+  color: var(--white);
+  font-weight: 700;
+}
+
+.category-card.active .category-icon {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 .category-icon {
   font-size: 2.5rem;
   margin-bottom: 16px;
+  transition: transform 0.3s ease;
+  filter: grayscale(0);
+}
+
+.category-card:hover .category-icon {
+  transform: scale(1.15);
+}
+
+.category-card.active .category-icon {
+  transform: scale(1.2);
 }
 
 .category-title {
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 600;
+  color: #1f2937;
+  transition: color 0.3s ease;
+}
+
+.category-card:hover .category-title {
+  color: #2563eb;
+}
+
+.category-card.active .category-title {
+  color: var(--white);
+  font-weight: 700;
 }
 
 /* Products Section */
@@ -609,8 +747,10 @@ ul {
     flex: 1;
   }
   
-  .categories-grid {
-    grid-template-columns: repeat(4, 1fr);
+  /* En tablets y desktop, siempre mostrar 4 categorías */
+  .category-card {
+    min-width: calc((100% - 60px) / 4);
+    width: calc((100% - 60px) / 4);
   }
   
   .products-grid {
@@ -644,6 +784,22 @@ ul {
   
   .footer-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  /* En móviles, mostrar 2 categorías a la vez */
+  .category-card {
+    min-width: calc((100% - 20px) / 2);
+    width: calc((100% - 20px) / 2);
+  }
+}
+
+@media (min-width: 480px) and (max-width: 767px) {
+  /* En móviles grandes, mostrar 3 categorías */
+  .category-card {
+    min-width: calc((100% - 40px) / 3);
+    width: calc((100% - 40px) / 3);
   }
 }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import Cart from './components/Cart';
 import './App.css';
 import './styles/LoginPage.css';
@@ -20,13 +20,23 @@ function App() {
   const [user, setUser] = useState(getCurrentUser());
   const [showLogin, setShowLogin] = useState(false);
   const [activePage, setActivePage] = useState('home');
+  const [selectedCategory, setSelectedCategory] = useState('todos');
+
+  // Ref para el scroll de categorías
+  const categoriesScrollRef = useRef(null);
+  const isDragging = useRef(false);
+  const startX = useRef(0);
+  const scrollLeft = useRef(0);
 
   // Categorías
   const categories = [
-    { id: 1, name: 'Smartphones', icon: '📱', slug: 'smartphones' },
-    { id: 2, name: 'Tablets', icon: '💻', slug: 'tablets' },
-    { id: 3, name: 'Auriculares', icon: '🎧', slug: 'headphones' },
-    { id: 4, name: 'Accesorios', icon: '⌚', slug: 'accessories' },
+    { id: 0, name: 'Todos', icon: '🏪', slug: 'todos' },
+    { id: 1, name: 'Smartphones', icon: '📱', slug: 'Smartphones' },
+    { id: 2, name: 'Luces LED', icon: '🔅', slug: 'Luces LED' },
+    { id: 3, name: 'Casa Inteligente', icon: '🏠', slug: 'Casa Inteligente' },
+    { id: 4, name: 'Auriculares', icon: '🎧', slug: 'Auriculares' },
+    { id: 5, name: 'Accesorios', icon: '🔌', slug: 'Accesorios' },
+    { id: 6, name: 'Estilo de Vida', icon: '✨', slug: 'Estilo de Vida' },
   ];
 
   // Funciones de manejo de autenticación (DECLARADAS ANTES DE SU USO)
@@ -107,18 +117,61 @@ function App() {
     setCartItems([]);
   };
 
+  // Función para cambiar de categoría
+  const handleCategoryChange = (categorySlug) => {
+    console.log('Cambiando a categoría:', categorySlug);
+    setSelectedCategory(categorySlug);
+    fetchProducts(categorySlug);
+  };
+
+  // Funciones para drag con mouse en categorías
+  const handleMouseDown = (e) => {
+    isDragging.current = true;
+    startX.current = e.pageX - categoriesScrollRef.current.offsetLeft;
+    scrollLeft.current = categoriesScrollRef.current.scrollLeft;
+    categoriesScrollRef.current.style.cursor = 'grabbing';
+  };
+
+  const handleMouseLeave = () => {
+    isDragging.current = false;
+    if (categoriesScrollRef.current) {
+      categoriesScrollRef.current.style.cursor = 'grab';
+    }
+  };
+
+  const handleMouseUp = () => {
+    isDragging.current = false;
+    if (categoriesScrollRef.current) {
+      categoriesScrollRef.current.style.cursor = 'grab';
+    }
+  };
+
+  const handleMouseMove = (e) => {
+    if (!isDragging.current) return;
+    e.preventDefault();
+    const x = e.pageX - categoriesScrollRef.current.offsetLeft;
+    const walk = (x - startX.current) * 2; // Multiplicador para velocidad de scroll
+    categoriesScrollRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
   // Effects
-  const fetchProducts = useCallback(async () => {
+  const fetchProducts = useCallback(async (category = 'todos') => {
     try {
       setLoading(true);
       setError(null);
-      const response = await fetch(`${API_URL}/products`);
+      const url = category === 'todos' 
+        ? `${API_URL}/products`
+        : `${API_URL}/products?category=${category}`;
+      
+      console.log('Fetching products from:', url);
+      const response = await fetch(url);
 
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Productos recibidos:', data);
       setProducts(data);
       setLoading(false);
     } catch (err) {
@@ -129,7 +182,7 @@ function App() {
   }, []);
 
   useEffect(() => {
-    fetchProducts();
+    fetchProducts('todos');
   }, [fetchProducts]);
 
   // Cargar carrito guardado si el usuario está logueado
@@ -230,13 +283,26 @@ function App() {
           <section className="categories-section">
             <div className="container">
               <h2 className="section-title">Explora Nuestras Categorías</h2>
-              <div className="categories-grid">
-                {categories.map(category => (
-                  <div key={category.id} className="category-card">
-                    <div className="category-icon">{category.icon}</div>
-                    <h3 className="category-title">{category.name}</h3>
-                  </div>
-                ))}
+              <div className="categories-scroll-container">
+                <div 
+                  className="categories-grid-scroll"
+                  ref={categoriesScrollRef}
+                  onMouseDown={handleMouseDown}
+                  onMouseLeave={handleMouseLeave}
+                  onMouseUp={handleMouseUp}
+                  onMouseMove={handleMouseMove}
+                >
+                  {categories.map(category => (
+                    <button
+                      key={category.id}
+                      className={`category-card ${selectedCategory === category.slug ? 'active' : ''}`}
+                      onClick={() => handleCategoryChange(category.slug)}
+                    >
+                      <div className="category-icon">{category.icon}</div>
+                      <h3 className="category-title">{category.name}</h3>
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </section>

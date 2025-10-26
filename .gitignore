@@ -48,6 +48,9 @@ Thumbs.db
 # Testing
 coverage/
 .nyc_output/
+playwright.config.js
+playwright/
+test-results/
 
 # Temporary files
 *.tmp
