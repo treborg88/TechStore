@@ -17,9 +17,14 @@ const corsOptions = {
     origin: [
         'https://8smgkh0x-5173.use2.devtunnels.ms',
         'http://localhost:5173',
+        'http://localhost:3000',
         'http://localhost:5001',
         'http://192.168.100.41:5173',
-        'http://192.168.100.41:5001'
+        'http://192.168.100.41:5001',
+        'http://143.47.118.165:3000',
+        'http://143.47.118.165',
+	'http://143.47.118.165:5173'
+
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
@@ -978,7 +983,7 @@ app.put('/api/users/:id/status', authenticateToken, (req, res) => {
 // --- Start Server ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`Acceso en red local: http://<tu-ip>:${PORT}`);
+    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
     console.log('Base de datos SQLite inicializada correctamente');
 });
 
