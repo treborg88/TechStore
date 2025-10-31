@@ -15,8 +15,10 @@ const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta_super_segura_camb
 // CORS con múltiples orígenes permitidos
 const corsOptions = {
     origin: [
-        'https://8smgkh0x-5173.use2.devtunnels.ms',
         'http://localhost:5173',
+        'http://143.47.118.165',
+        'http://Mi_dominio',
+        'https://3mml836n-5001.use2.devtunnels.ms',
         'http://localhost:5001',
         'http://192.168.100.41:5173',
         'http://192.168.100.41:5001'
@@ -37,12 +39,22 @@ app.use((req, res, next) => {
     next();
 });
 
-// Ensure the 'public/images' directory exists before serving static files from it
+// Ensure the 'images' directory exists before serving static files from it
 const publicImagesPath = path.join(__dirname, 'images');
 if (!fs.existsSync(publicImagesPath)) {
     fs.mkdirSync(publicImagesPath, { recursive: true });
 }
 app.use('/images', express.static(publicImagesPath));
+
+// Endpoint para servir la imagen 'Smartphone X.jpeg' desde /api/images/smartphone-x
+app.get('/api/images/smartphone-x', (req, res) => {
+    const imagePath = path.join(publicImagesPath, 'Smartphone X.jpeg');
+    if (fs.existsSync(imagePath)) {
+        res.sendFile(imagePath);
+    } else {
+        res.status(404).json({ message: 'Imagen no encontrada' });
+    }
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
