@@ -1070,6 +1070,7 @@ app.put('/api/users/:id/status', authenticateToken, (req, res) => {
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
     console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
+    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
     console.log('Base de datos SQLite inicializada correctamente');
 });
 
@@ -1141,3 +1142,4 @@ app.delete('/api/cart', authenticateToken, (req, res) => {
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
+

@@ -105,3 +105,4 @@
     isLoggedIn,
     getAuthToken
     };
+
