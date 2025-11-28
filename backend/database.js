@@ -33,9 +33,17 @@ db.exec(`
     price REAL NOT NULL,
     category TEXT NOT NULL,
     stock INTEGER DEFAULT 0,
-    image TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  -- Product images table
+  CREATE TABLE IF NOT EXISTS product_images (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    product_id INTEGER NOT NULL,
+    image_path TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
   );
 
   -- Cart table (one-to-many: user can have multiple cart items)
@@ -82,6 +90,18 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
 `);
 
+// Migration: Add payment_method to orders if it doesn't exist
+try {
+  const tableInfo = db.pragma('table_info(orders)');
+  const hasPaymentMethod = tableInfo.some(column => column.name === 'payment_method');
+  if (!hasPaymentMethod) {
+    console.log('Migrating database: Adding payment_method to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT "cash"');
+  }
+} catch (error) {
+  console.error('Error checking/migrating orders table:', error);
+}
+
 // Prepared statements for common operations
 const statements = {
   // Users
@@ -96,9 +116,15 @@ const statements = {
   getAllProducts: db.prepare('SELECT * FROM products ORDER BY created_at DESC'),
   getProductById: db.prepare('SELECT * FROM products WHERE id = ?'),
   getProductsByCategory: db.prepare('SELECT * FROM products WHERE category = ? ORDER BY created_at DESC'),
-  createProduct: db.prepare('INSERT INTO products (name, description, price, category, stock, image) VALUES (?, ?, ?, ?, ?, ?)'),
-  updateProduct: db.prepare('UPDATE products SET name = ?, description = ?, price = ?, category = ?, stock = ?, image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  createProduct: db.prepare('INSERT INTO products (name, description, price, category, stock) VALUES (?, ?, ?, ?, ?)'),
+  updateProduct: db.prepare('UPDATE products SET name = ?, description = ?, price = ?, category = ?, stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   deleteProduct: db.prepare('DELETE FROM products WHERE id = ?'),
+
+  // Product Images
+  getProductImages: db.prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY created_at ASC'),
+  addProductImage: db.prepare('INSERT INTO product_images (product_id, image_path) VALUES (?, ?)'),
+  deleteProductImage: db.prepare('DELETE FROM product_images WHERE id = ? AND product_id = ?'),
+  deleteAllProductImages: db.prepare('DELETE FROM product_images WHERE product_id = ?'),
 
   // Cart
   getCartByUserId: db.prepare(`

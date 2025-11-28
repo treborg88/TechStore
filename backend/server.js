@@ -15,13 +15,18 @@ const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta_super_segura_camb
 // CORS con múltiples orígenes permitidos
 const corsOptions = {
     origin: [
-        'http://localhost:5173',
-        'http://143.47.118.165',
-        'http://Mi_dominio',
+        'https://8smgkh0x-5173.use2.devtunnels.ms',
         'https://3mml836n-5001.use2.devtunnels.ms',
-        'http://localhost:5001',
         'http://192.168.100.41:5173',
-        'http://192.168.100.41:5001'
+        'http://143.47.118.165:5173',
+        'http://192.168.100.41:5001',
+        'http://143.47.118.165:3000',
+        'http://143.47.118.165',
+        'http://localhost:5173',
+        'http://localhost:3000',
+        'http://localhost:5001'
+        
+	    
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     credentials: true,
@@ -39,22 +44,12 @@ app.use((req, res, next) => {
     next();
 });
 
-// Ensure the 'images' directory exists before serving static files from it
+// Ensure the 'public/images' directory exists before serving static files from it
 const publicImagesPath = path.join(__dirname, 'images');
 if (!fs.existsSync(publicImagesPath)) {
     fs.mkdirSync(publicImagesPath, { recursive: true });
 }
 app.use('/images', express.static(publicImagesPath));
-
-// Endpoint para servir la imagen 'Smartphone X.jpeg' desde /api/images/smartphone-x
-app.get('/api/images/smartphone-x', (req, res) => {
-    const imagePath = path.join(publicImagesPath, 'Smartphone X.jpeg');
-    if (fs.existsSync(imagePath)) {
-        res.sendFile(imagePath);
-    } else {
-        res.status(404).json({ message: 'Imagen no encontrada' });
-    }
-});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -408,7 +403,21 @@ app.get('/api/products', (req, res) => {
         } else {
             products = statements.getAllProducts.all();
         }
-        res.json(products);
+
+        // Add images to each product and migrate legacy images
+        const productsWithImages = products.map(product => {
+            let images = statements.getProductImages.all(product.id);
+            
+            // Migrate legacy image to product_images table if needed
+            if (images.length === 0 && product.image) {
+                statements.addProductImage.run(product.id, product.image);
+                images = statements.getProductImages.all(product.id);
+            }
+            
+            return { ...product, images };
+        });
+
+        res.json(productsWithImages);
     } catch (error) {
         console.error('Error obteniendo productos:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -421,7 +430,18 @@ app.get('/api/products/:id', (req, res) => {
         const product = statements.getProductById.get(productId);
 
         if (product) {
-            res.json(product);
+            let images = statements.getProductImages.all(productId);
+            
+            // Migrate legacy image to product_images table if needed
+            if (images.length === 0 && product.image) {
+                const result = statements.addProductImage.run(productId, product.image);
+                images = statements.getProductImages.all(productId);
+                
+                // Optionally clear the legacy image column after migration
+                // statements.updateProduct.run(product.name, product.description, product.price, product.category, product.stock, null, productId);
+            }
+            
+            res.json({ ...product, images });
         } else {
             res.status(404).json({ message: 'Producto no encontrado' });
         }
@@ -431,15 +451,15 @@ app.get('/api/products/:id', (req, res) => {
     }
 });
 
-app.post('/api/products', upload.single('image'), (req, res) => {
+app.post('/api/products', upload.array('images', 10), (req, res) => {
     try {
         const { name, description, price, category, stock } = req.body;
 
         if (!name || !price || !category || stock === undefined) {
             return res.status(400).json({ message: 'Faltan campos requeridos (nombre, precio, categoría, stock).' });
         }
-        if (!req.file) {
-            return res.status(400).json({ message: 'No se recibió ningún archivo de imagen.' });
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'Se requiere al menos una imagen.' });
         }
 
         const result = statements.createProduct.run(
@@ -447,14 +467,21 @@ app.post('/api/products', upload.single('image'), (req, res) => {
             description || '',
             parseFloat(price),
             category,
-            parseInt(stock, 10),
-            `/images/${req.file.filename}`
+            parseInt(stock, 10)
         );
 
-        const newProduct = statements.getProductById.get(result.lastInsertRowid);
+        const productId = result.lastInsertRowid;
 
-        console.log('Producto guardado correctamente:', newProduct);
-        res.status(201).json(newProduct);
+        // Add images
+        for (const file of req.files) {
+            statements.addProductImage.run(productId, `/images/${file.filename}`);
+        }
+
+        const newProduct = statements.getProductById.get(productId);
+        const images = statements.getProductImages.all(productId);
+
+        console.log('Producto guardado correctamente:', { ...newProduct, images });
+        res.status(201).json({ ...newProduct, images });
 
     } catch (err) {
         console.error('Error al guardar producto:', err);
@@ -470,6 +497,9 @@ app.post('/api/products', upload.single('image'), (req, res) => {
 app.delete('/api/products/:id', (req, res) => {
     const productId = parseInt(req.params.id, 10);
     try {
+        // Delete all images first
+        statements.deleteAllProductImages.run(productId);
+
         const result = statements.deleteProduct.run(productId);
 
         if (result.changes > 0) {
@@ -499,16 +529,65 @@ app.put('/api/products/:id', (req, res) => {
             updatedData.price !== undefined ? parseFloat(updatedData.price) : existingProduct.price,
             updatedData.category || existingProduct.category,
             updatedData.stock !== undefined ? parseInt(updatedData.stock, 10) : existingProduct.stock,
-            updatedData.image || existingProduct.image,
             productId
         );
 
         const updatedProduct = statements.getProductById.get(productId);
+        const images = statements.getProductImages.all(productId);
 
-        console.log('Producto actualizado:', updatedProduct);
-        res.json(updatedProduct);
+        console.log('Producto actualizado:', { ...updatedProduct, images });
+        res.json({ ...updatedProduct, images });
     } catch (error) {
         console.error('Error actualizando producto:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+// Product Image Management
+app.post('/api/products/:id/images', upload.array('images', 10), (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    try {
+        const product = statements.getProductById.get(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Producto no encontrado' });
+        }
+
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({ message: 'No se recibió ningún archivo de imagen.' });
+        }
+
+        // Add images
+        for (const file of req.files) {
+            statements.addProductImage.run(productId, `/images/${file.filename}`);
+        }
+
+        const images = statements.getProductImages.all(productId);
+        res.status(201).json(images);
+    } catch (err) {
+        console.error('Error agregando imágenes:', err);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+app.delete('/api/products/:id/images/:imageId', (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    const imageId = parseInt(req.params.imageId, 10);
+    try {
+        const product = statements.getProductById.get(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Producto no encontrado' });
+        }
+
+        const result = statements.deleteProductImage.run(imageId, productId);
+
+        if (result.changes > 0) {
+            const images = statements.getProductImages.all(productId);
+            res.json({ message: 'Imagen eliminada exitosamente', images });
+        } else {
+            res.status(404).json({ message: 'Imagen no encontrada' });
+        }
+    } catch (error) {
+        console.error('Error eliminando imagen:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
@@ -990,7 +1069,7 @@ app.put('/api/users/:id/status', authenticateToken, (req, res) => {
 // --- Start Server ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`Acceso en red local: http://<tu-ip>:${PORT}`);
+    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
     console.log('Base de datos SQLite inicializada correctamente');
 });
 

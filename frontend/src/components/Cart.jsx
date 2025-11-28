@@ -17,7 +17,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
     // Función para aumentar cantidad
     const handleIncreaseQuantity = (item) => {
         if (onAdd) {
-            onAdd({ id: item.productId, ...item }, 1);
+            onAdd({ ...item, id: item.id }, 1);
         }
     };
 
@@ -50,7 +50,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
                     <>
                         <ul className="cart-list">
                             {cartItems.map(item => (
-                                <li key={`cart-${item.productId}`} className="cart-item">
+                                <li key={`cart-${item.id}`} className="cart-item">
                                     <img 
                                         src={item.image ? `${BASE_URL}${item.image}` : '/images/sin imagen.jpeg'} 
                                         alt={item.name} 

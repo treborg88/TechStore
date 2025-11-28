@@ -1,5 +1,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { API_URL, BASE_URL } from '../config';
+import { toast } from 'react-hot-toast';
+import LoadingSpinner from './LoadingSpinner';
 
 function blankProduct() {
 	return {
@@ -8,7 +10,7 @@ function blankProduct() {
 		price: '',
 		category: '',
 		stock: '',
-		imageFile: null,
+		imageFiles: [],
 	};
 }
 
@@ -16,7 +18,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 	const [newProduct, setNewProduct] = useState(blankProduct());
 	const [customCategory, setCustomCategory] = useState('');
 	const [editingProduct, setEditingProduct] = useState(null);
-	const [message, setMessage] = useState('');
+	const [newImagesForEdit, setNewImagesForEdit] = useState([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [filters, setFilters] = useState({ search: '', category: 'all' });
 	const [showAddForm, setShowAddForm] = useState(false);
@@ -25,7 +27,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 	const [users, setUsers] = useState([]);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
 	const [userFilters, setUserFilters] = useState({ search: '', role: 'all', status: 'all' });
-	const [activeTab, setActiveTab] = useState('products'); // 'products', 'users', 'orders'
+	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
 	// Orders management states
 	const [orders, setOrders] = useState([]);
@@ -86,19 +88,42 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 		});
 	}, [orders, orderFilters]);
 
-	// Load users on component mount
+	// Load data based on active tab
 	useEffect(() => {
 		if (activeTab === 'users') {
 			loadUsers();
 		} else if (activeTab === 'orders') {
 			loadOrders();
+		} else if (activeTab === 'overview') {
+			loadUsers();
+			loadOrders();
 		}
 	}, [activeTab]);
+
+	// Calculate stats for overview
+	const stats = useMemo(() => {
+		const totalRevenue = orders
+			.filter(o => o.status !== 'cancelled')
+			.reduce((sum, o) => sum + o.total, 0);
+		
+		const pendingOrders = orders.filter(o => o.status === 'pending').length;
+		const lowStockProducts = products.filter(p => p.stock < 5).length;
+		const activeUsers = users.filter(u => u.is_active).length;
+
+		return {
+			revenue: totalRevenue,
+			totalOrders: orders.length,
+			pendingOrders,
+			totalProducts: products.length,
+			lowStockProducts,
+			totalUsers: users.length,
+			activeUsers
+		};
+	}, [orders, products, users]);
 
 	const loadUsers = async () => {
 		try {
 			setIsLoadingUsers(true);
-			setMessage(''); // Limpiar mensajes anteriores
 			const token = localStorage.getItem('authToken');
 			
 			if (!token) {
@@ -128,7 +153,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			setUsers(data);
 		} catch (error) {
 			console.error('Error cargando usuarios:', error);
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsLoadingUsers(false);
 		}
@@ -156,10 +181,10 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				throw new Error(data.message || 'Error al actualizar el rol');
 			}
 
-			setMessage('Rol actualizado correctamente');
+			toast.success('Rol actualizado correctamente');
 			await loadUsers();
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -190,10 +215,10 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				throw new Error(data.message || 'Error al actualizar el estado');
 			}
 
-			setMessage(`Usuario ${action} correctamente`);
+			toast.success(`Usuario ${action} correctamente`);
 			await loadUsers();
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -202,7 +227,6 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 	const loadOrders = async () => {
 		try {
 			setIsLoadingOrders(true);
-			setMessage('');
 			const token = localStorage.getItem('authToken');
 			
 			if (!token) {
@@ -225,7 +249,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			setOrders(data);
 		} catch (error) {
 			console.error('Error cargando órdenes:', error);
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsLoadingOrders(false);
 		}
@@ -253,10 +277,10 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				throw new Error(data.message || 'Error al actualizar el estado');
 			}
 
-			setMessage('Estado de orden actualizado correctamente');
+			toast.success('Estado de orden actualizado correctamente');
 			await loadOrders();
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -297,12 +321,17 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				clean_address: cleanAddress
 			});
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		}
 	};
 
 	const closeOrderDetails = () => {
 		setSelectedOrder(null);
+	};
+
+	const cancelEditing = () => {
+		setEditingProduct(null);
+		setNewImagesForEdit([]);
 	};
 
 	const handleFieldChange = (field, value) => {
@@ -317,12 +346,10 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 		setNewProduct((prev) => ({ ...prev, category: '' }));
 	};
 
-	const handleImageChange = (event) => {
-		const file = event.target.files?.[0] ?? null;
-		setNewProduct((prev) => ({ ...prev, imageFile: file }));
-	};
-
-	const resetForm = () => {
+const handleImageChange = (event) => {
+	const files = Array.from(event.target.files);
+	setNewProduct((prev) => ({ ...prev, imageFiles: files }));
+};	const resetForm = () => {
 		setNewProduct(blankProduct());
 		setCustomCategory('');
 	};
@@ -331,11 +358,11 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 		event.preventDefault();
 		const categoryValue = (customCategory || newProduct.category).trim();
 		if (!categoryValue) {
-			setMessage('Selecciona o ingresa una categoría.');
+			toast.error('Selecciona o ingresa una categoría.');
 			return;
 		}
-		if (!newProduct.imageFile) {
-			setMessage('Selecciona una imagen para el producto.');
+		if (!newProduct.imageFiles || newProduct.imageFiles.length === 0) {
+			toast.error('Selecciona al menos una imagen para el producto.');
 			return;
 		}
 
@@ -345,7 +372,9 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 		formData.append('price', newProduct.price);
 		formData.append('category', categoryValue);
 		formData.append('stock', newProduct.stock);
-		formData.append('image', newProduct.imageFile);
+		newProduct.imageFiles.forEach((file) => {
+			formData.append('images', file);
+		});
 
 		try {
 			setIsSubmitting(true);
@@ -359,17 +388,24 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				throw new Error(data.message || 'No se pudo crear el producto.');
 			}
 
-			setMessage('Producto creado correctamente.');
+			toast.success('Producto creado correctamente.');
 			resetForm();
 			await onRefresh();
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsSubmitting(false);
 		}
 	};
 
 	const startEditing = (product) => {
+		// Handle legacy products that have single image vs new products with images array
+		let images = product.images || [];
+		if (images.length === 0 && product.image) {
+			// Convert legacy single image to images array format
+			images = [{ id: 'legacy', image_path: product.image }];
+		}
+
 		setEditingProduct({
 			id: product.id,
 			name: product.name,
@@ -377,6 +413,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			price: product.price,
 			category: product.category,
 			stock: product.stock,
+			images: images,
 		});
 	};
 
@@ -384,8 +421,55 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 		setEditingProduct((prev) => (prev ? { ...prev, [field]: value } : prev));
 	};
 
-	const cancelEditing = () => {
-		setEditingProduct(null);
+	const handleDeleteImage = async (imageId) => {
+		if (!editingProduct) return;
+
+		try {
+			const response = await fetch(`${API_URL}/products/${editingProduct.id}/images/${imageId}`, {
+				method: 'DELETE',
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.message || 'Error eliminando imagen');
+			}
+
+			const data = await response.json();
+			setEditingProduct((prev) => prev ? { ...prev, images: data.images } : null);
+			toast.success('Imagen eliminada correctamente');
+			await onRefresh();
+		} catch (error) {
+			toast.error(error.message);
+		}
+	};
+
+	const handleAddImages = async () => {
+		if (!editingProduct || newImagesForEdit.length === 0) return;
+
+		const formData = new FormData();
+		newImagesForEdit.forEach((file) => {
+			formData.append('images', file);
+		});
+
+		try {
+			const response = await fetch(`${API_URL}/products/${editingProduct.id}/images`, {
+				method: 'POST',
+				body: formData,
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.message || 'Error agregando imágenes');
+			}
+
+			const data = await response.json();
+			setEditingProduct((prev) => prev ? { ...prev, images: data } : null);
+			setNewImagesForEdit([]);
+			toast.success('Imágenes agregadas correctamente');
+			await onRefresh();
+		} catch (error) {
+			toast.error(error.message);
+		}
 	};
 
 	const handleUpdate = async (event) => {
@@ -415,11 +499,11 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				throw new Error(data.message || 'No se pudo actualizar el producto.');
 			}
 
-			setMessage('Producto actualizado correctamente.');
+			toast.success('Producto actualizado correctamente.');
 			setEditingProduct(null);
 			await onRefresh();
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -441,13 +525,13 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				throw new Error(data.message || 'No se pudo eliminar el producto.');
 			}
 
-			setMessage('Producto eliminado.');
+			toast.success('Producto eliminado.');
 			if (editingProduct?.id === productId) {
 				setEditingProduct(null);
 			}
 			await onRefresh();
 		} catch (error) {
-			setMessage(error.message);
+			toast.error(error.message);
 		} finally {
 			setIsSubmitting(false);
 		}
@@ -455,14 +539,15 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 
 	return (
 		<div className="admin-dashboard">
-			{message && (
-				<div className="admin-header">
-					<div className="admin-message">{message}</div>
-				</div>
-			)}
-
 			{/* Tabs Navigation */}
 			<div className="admin-tabs">
+				<button
+					type="button"
+					className={`admin-tab ${activeTab === 'overview' ? 'active' : ''}`}
+					onClick={() => setActiveTab('overview')}
+				>
+					📊 Resumen
+				</button>
 				<button
 					type="button"
 					className={`admin-tab ${activeTab === 'products' ? 'active' : ''}`}
@@ -485,6 +570,80 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 					👥 Administrar Accesos
 				</button>
 			</div>
+
+			{/* Overview Tab */}
+			{activeTab === 'overview' && (
+				<section className="admin-section">
+					<div className="admin-section-header">
+						<h3>Panel General</h3>
+						<span>Vista rápida del negocio</span>
+					</div>
+					
+					<div className="stats-grid">
+						<div className="stat-card revenue">
+							<div className="stat-icon">💰</div>
+							<div className="stat-info">
+								<h4>Ingresos Totales</h4>
+								<p className="stat-value">${stats.revenue.toFixed(2)}</p>
+								<span className="stat-sub">En {stats.totalOrders} órdenes</span>
+							</div>
+						</div>
+
+						<div className="stat-card orders">
+							<div className="stat-icon">🛍️</div>
+							<div className="stat-info">
+								<h4>Órdenes Pendientes</h4>
+								<p className="stat-value">{stats.pendingOrders}</p>
+								<span className="stat-sub">De {stats.totalOrders} totales</span>
+							</div>
+						</div>
+
+						<div className="stat-card products">
+							<div className="stat-icon">📦</div>
+							<div className="stat-info">
+								<h4>Productos</h4>
+								<p className="stat-value">{stats.totalProducts}</p>
+								<span className="stat-sub">{stats.lowStockProducts} con stock bajo</span>
+							</div>
+						</div>
+
+						<div className="stat-card users">
+							<div className="stat-icon">👥</div>
+							<div className="stat-info">
+								<h4>Usuarios</h4>
+								<p className="stat-value">{stats.totalUsers}</p>
+								<span className="stat-sub">{stats.activeUsers} activos</span>
+							</div>
+						</div>
+					</div>
+
+					{/* Recent Activity / Quick Actions could go here */}
+					<div className="admin-dashboard-widgets">
+						<div className="dashboard-widget">
+							<h4>⚠️ Alertas de Stock</h4>
+							{stats.lowStockProducts > 0 ? (
+								<ul className="alert-list">
+									{products
+										.filter(p => p.stock < 5)
+										.slice(0, 5)
+										.map(p => (
+											<li key={p.id} className="alert-item">
+												<span>{p.name}</span>
+												<span className="stock-badge critical">{p.stock} unid.</span>
+											</li>
+										))
+									}
+									{stats.lowStockProducts > 5 && (
+										<li className="more-items">...y {stats.lowStockProducts - 5} más</li>
+									)}
+								</ul>
+							) : (
+								<p className="empty-widget">Todo el inventario está saludable.</p>
+							)}
+						</div>
+					</div>
+				</section>
+			)}
 
 			{/* Products Tab */}
 			{activeTab === 'products' && (
@@ -561,8 +720,8 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 										onChange={(event) => handleFieldChange('description', event.target.value)}
 									/>
 								</label>
-								<label>Imagen
-									<input type="file" accept="image/*" onChange={handleImageChange} />
+								<label>Imágenes
+									<input type="file" accept="image/*" multiple onChange={handleImageChange} />
 								</label>
 								<button type="submit" className="admin-submit" disabled={isSubmitting}>
 									{isSubmitting ? 'Guardando...' : 'Crear producto'}
@@ -585,7 +744,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 						<input
 							id="admin-search"
 							type="search"
-							placeholder="Nombre o descripción"
+							placeholder="Buscar por nombre o descripción"
 							value={filters.search}
 							onChange={(event) => setFilters((prev) => ({ ...prev, search: event.target.value }))}
 						/>
@@ -607,7 +766,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 				</div>
 
 				{isLoading ? (
-					<div className="admin-empty">Cargando productos...</div>
+					<div className="admin-empty"><LoadingSpinner /></div>
 				) : filteredProducts.length === 0 ? (
 					<div className="admin-empty">No hay productos que coincidan con el filtro actual.</div>
 				) : (
@@ -631,13 +790,25 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 										<>
 											<tr key={product.id} className={isEditing ? 'editing-row' : ''}>
 												<td className="admin-table-image">
-													<img
-														src={product.image ? `${BASE_URL}${product.image}` : '/images/sin imagen.jpeg'}
-														alt={product.name}
-														onError={(event) => {
-															event.currentTarget.src = '/images/sin imagen.jpeg';
-														}}
-													/>
+													{(product.images || []).length > 0 ? (
+														<div className="image-gallery">
+															<img
+																src={`${BASE_URL}${product.images[0].image_path}`}
+																alt={product.name}
+																onError={(event) => {
+																	event.currentTarget.src = '/images/sin imagen.jpeg';
+																}}
+															/>
+															{(product.images || []).length > 1 && (
+																<span className="image-count">+{(product.images || []).length - 1}</span>
+															)}
+														</div>
+													) : (
+														<img
+															src={product.image ? `${BASE_URL}${product.image}` : '/images/sin imagen.jpeg'}
+															alt={product.name}
+														/>
+													)}
 												</td>
 												<td className="admin-table-name">{product.name}</td>
 												<td>
@@ -725,6 +896,47 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 																		/>
 																	</label>
 																</div>
+																<div className="images-section">
+																	<label>Imágenes actuales</label>
+																	<div className="current-images">
+																		{(editingProduct.images || []).map((img) => (
+																			<div key={img.id} className="image-item">
+																				<img
+																					src={`${BASE_URL}${img.image_path}`}
+																					alt="Producto"
+																					onError={(event) => {
+																						event.currentTarget.src = '/images/sin imagen.jpeg';
+																					}}
+																				/>
+																				{img.id !== 'legacy' && (
+																					<button
+																						type="button"
+																						className="delete-image-btn"
+																						onClick={() => handleDeleteImage(img.id)}
+																					>
+																						✕
+																					</button>
+																				)}
+																			</div>
+																		))}
+																	</div>
+																	<label>Agregar nuevas imágenes</label>
+																	<input
+																		type="file"
+																		accept="image/*"
+																		multiple
+																		onChange={(event) => setNewImagesForEdit(Array.from(event.target.files))}
+																	/>
+																	{newImagesForEdit.length > 0 && (
+																		<button
+																			type="button"
+																			className="admin-btn"
+																			onClick={handleAddImages}
+																		>
+																			Agregar {newImagesForEdit.length} imagen(es)
+																		</button>
+																	)}
+																</div>
 																<div className="admin-card-actions">
 																	<button type="button" onClick={cancelEditing} className="admin-btn ghost">
 																		Cancelar
@@ -788,7 +1000,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 					</div>
 
 					{isLoadingOrders ? (
-						<div className="admin-empty">Cargando órdenes...</div>
+						<div className="admin-empty"><LoadingSpinner /></div>
 					) : filteredOrders.length === 0 ? (
 						<div className="admin-empty">No hay órdenes que coincidan con el filtro actual.</div>
 					) : (
@@ -920,13 +1132,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 						</span>
 					</div>
 
-					{message && message.includes('Acceso denegado') && (
-						<div className="admin-help-box">
-							<h4>⚠️ Acceso Restringido</h4>
-							<p>{message}</p>
-							<p><strong>Nota:</strong> Si acabas de ser promovido a administrador, necesitas cerrar sesión y volver a iniciar sesión para que los cambios surtan efecto.</p>
-						</div>
-					)}
+
 
 					<div className="admin-filter-bar">
 						<div className="filter-field">
@@ -966,7 +1172,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 					</div>
 
 					{isLoadingUsers ? (
-						<div className="admin-empty">Cargando usuarios...</div>
+						<div className="admin-empty"><LoadingSpinner /></div>
 					) : filteredUsers.length === 0 ? (
 						<div className="admin-empty">No hay usuarios que coincidan con el filtro actual.</div>
 					) : (
