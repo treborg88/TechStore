@@ -11,6 +11,12 @@ function Home({ products, loading, error, addToCart, fetchProducts }) {
   const startX = useRef(0);
   const scrollLeft = useRef(0);
 
+  // Ref para el scroll de productos
+  const productsScrollRef = useRef(null);
+  const isDraggingProducts = useRef(false);
+  const startXProducts = useRef(0);
+  const scrollLeftProducts = useRef(0);
+
   // Categorías
   const categories = [
     { id: 0, name: 'Todos', icon: '🏪', slug: 'todos' },
@@ -57,6 +63,36 @@ function Home({ products, loading, error, addToCart, fetchProducts }) {
     const x = e.pageX - categoriesScrollRef.current.offsetLeft;
     const walk = (x - startX.current) * 2; // Multiplicador para velocidad de scroll
     categoriesScrollRef.current.scrollLeft = scrollLeft.current - walk;
+  };
+
+  // Funciones para drag con mouse en productos
+  const handleProductsMouseDown = (e) => {
+    isDraggingProducts.current = true;
+    startXProducts.current = e.pageX - productsScrollRef.current.offsetLeft;
+    scrollLeftProducts.current = productsScrollRef.current.scrollLeft;
+    productsScrollRef.current.style.cursor = 'grabbing';
+  };
+
+  const handleProductsMouseLeave = () => {
+    isDraggingProducts.current = false;
+    if (productsScrollRef.current) {
+      productsScrollRef.current.style.cursor = 'grab';
+    }
+  };
+
+  const handleProductsMouseUp = () => {
+    isDraggingProducts.current = false;
+    if (productsScrollRef.current) {
+      productsScrollRef.current.style.cursor = 'grab';
+    }
+  };
+
+  const handleProductsMouseMove = (e) => {
+    if (!isDraggingProducts.current) return;
+    e.preventDefault();
+    const x = e.pageX - productsScrollRef.current.offsetLeft;
+    const walk = (x - startXProducts.current) * 2;
+    productsScrollRef.current.scrollLeft = scrollLeftProducts.current - walk;
   };
 
   return (
@@ -116,34 +152,43 @@ function Home({ products, loading, error, addToCart, fetchProducts }) {
           {error && <div className="error-message">{error}</div>}
           
           {!loading && !error && (
-            <div className="products-grid">
-              {products.length > 0 ? (
-                products.map(product => (
-                  <div key={product.id} className="product-card">
-                    <ProductImageGallery
-                      images={product.images || product.image}
-                      productName={product.name}
-                      className="product-image"
-                    />
-                    <div className="product-content">
-                      <span className="product-category">{product.category}</span>
-                      <h3 className="product-title">{product.name}</h3>
-                      <p className="product-description">{product.description}</p>
-                      <div className="product-footer">
-                        <span className="product-price">${product.price}</span>
-                        <button
-                          onClick={() => addToCart(product)}
-                          className="add-to-cart-button"
-                        >
-                          Agregar
-                        </button>
+            <div className="products-scroll-container">
+              <div 
+                className="products-grid"
+                ref={productsScrollRef}
+                onMouseDown={handleProductsMouseDown}
+                onMouseLeave={handleProductsMouseLeave}
+                onMouseUp={handleProductsMouseUp}
+                onMouseMove={handleProductsMouseMove}
+              >
+                {products.length > 0 ? (
+                  products.map(product => (
+                    <div key={product.id} className="product-card">
+                      <ProductImageGallery
+                        images={product.images || product.image}
+                        productName={product.name}
+                        className="product-image"
+                      />
+                      <div className="product-content">
+                        <span className="product-category">{product.category}</span>
+                        <h3 className="product-title">{product.name}</h3>
+                        <p className="product-description">{product.description}</p>
+                        <div className="product-footer">
+                          <span className="product-price">${product.price}</span>
+                          <button
+                            onClick={() => addToCart(product)}
+                            className="add-to-cart-button"
+                          >
+                            Agregar
+                          </button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))
-              ) : (
-                <div className="no-products-message">No hay productos disponibles.</div>
-              )}
+                  ))
+                ) : (
+                  <div className="no-products-message">No hay productos disponibles.</div>
+                )}
+              </div>
             </div>
           )}
         </div>

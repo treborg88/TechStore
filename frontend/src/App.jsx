@@ -290,10 +290,7 @@ function App() {
           </div>
           
           <nav className="main-nav">
-            <Link to="/" className="nav-link">Inicio</Link>
             <Link to="/" className="nav-link">Productos</Link>
-            <Link to="/" className="nav-link">Ofertas</Link>
-            <Link to="/" className="nav-link">Soporte</Link>
             <Link to="/" className="nav-link">Contacto</Link>
             <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); }}>Ordenes</a>
             {user && user.role === 'admin' && (

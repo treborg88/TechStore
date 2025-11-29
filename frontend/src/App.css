@@ -75,7 +75,7 @@ ul {
 
 .container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 0 20px;
 }
@@ -90,7 +90,7 @@ ul {
 
 .header-container {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
   gap: 20px;
 }
@@ -118,7 +118,6 @@ ul {
 
 .main-nav {
   display: none;
-  flex: 1;
 }
 
 .nav-link {
@@ -134,7 +133,6 @@ ul {
   display: flex;
   align-items: center;
   gap: 15px;
-  margin-left: auto;
   flex-shrink: 0;
 }
 
@@ -2992,5 +2990,73 @@ ul {
     width: 100%;
     padding: 16px;
     font-size: 1.1rem;
+  }
+}
+
+/* Mobile Product Swipe (Horizontal Scroll) */
+@media (max-width: 767px) {
+  .products-scroll-container {
+    width: 100%;
+    position: relative;
+    margin: 0 -20px; /* Extend to edges of screen (counteracting container padding) */
+    padding: 0 20px; /* Restore visual padding */
+    overflow: hidden;
+  }
+
+  .products-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 20px;
+    padding-bottom: 20px; /* Space for shadow/scrollbar */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Firefox */
+    cursor: grab;
+  }
+
+  .products-grid:active {
+    cursor: grabbing;
+    scroll-behavior: auto;
+  }
+
+  .products-grid::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Edge */
+  }
+
+  .product-card {
+    min-width: 280px;
+    max-width: 280px;
+    flex-shrink: 0;
+    margin-bottom: 0; /* Remove bottom margin if any */
+  }
+  
+  /* Fade effect on edges to indicate scrollability */
+  .products-scroll-container::before,
+  .products-scroll-container::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 20px;
+    width: 40px;
+    pointer-events: none;
+    z-index: 2;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  .products-scroll-container::before {
+    left: 0;
+    background: linear-gradient(to right, rgba(243, 244, 246, 1), rgba(243, 244, 246, 0));
+  }
+
+  .products-scroll-container::after {
+    right: 0;
+    background: linear-gradient(to left, rgba(243, 244, 246, 1), rgba(243, 244, 246, 0));
+  }
+  
+  /* Show fade indicators when content is scrollable (simplified: always show on mobile or on hover) */
+  .products-scroll-container:hover::before,
+  .products-scroll-container:hover::after {
+    opacity: 1;
   }
 }
