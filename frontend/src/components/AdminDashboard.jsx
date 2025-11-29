@@ -26,13 +26,13 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 	// User management states
 	const [users, setUsers] = useState([]);
 	const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-	const [userFilters, setUserFilters] = useState({ search: '', role: 'all', status: 'all' });
+	const [userFilters, setUserFilters] = useState({ search: '', role: 'all', status: 'all', type: 'all' });
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
 	// Orders management states
 	const [orders, setOrders] = useState([]);
 	const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-	const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all' });
+	const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all' });
 	const [selectedOrder, setSelectedOrder] = useState(null);
 
 	const categories = useMemo(() => {
@@ -67,11 +67,13 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			const matchesRole = userFilters.role === 'all' || user.role === userFilters.role;
 			const matchesStatus = userFilters.status === 'all' || 
 				(userFilters.status === 'active' ? user.is_active : !user.is_active);
+			const matchesType = userFilters.type === 'all' ||
+				(userFilters.type === 'guest' ? user.is_guest : !user.is_guest);
 			const matchesSearch =
 				searchTerm.length === 0 ||
 				user.name.toLowerCase().includes(searchTerm) ||
 				user.email.toLowerCase().includes(searchTerm);
-			return matchesRole && matchesStatus && matchesSearch;
+			return matchesRole && matchesStatus && matchesType && matchesSearch;
 		});
 	}, [users, userFilters]);
 
@@ -79,12 +81,16 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 		const searchTerm = orderFilters.search.trim().toLowerCase();
 		return orders.filter((order) => {
 			const matchesStatus = orderFilters.status === 'all' || order.status === orderFilters.status;
+			const matchesType = orderFilters.type === 'all' || 
+				(orderFilters.type === 'guest' ? !order.user_id : order.user_id);
+			const customerName = order.customer_name || '';
+			const customerEmail = order.customer_email || '';
 			const matchesSearch =
 				searchTerm.length === 0 ||
 				order.id.toString().includes(searchTerm) ||
-				order.customer_name.toLowerCase().includes(searchTerm) ||
-				order.customer_email.toLowerCase().includes(searchTerm);
-			return matchesStatus && matchesSearch;
+				customerName.toLowerCase().includes(searchTerm) ||
+				customerEmail.toLowerCase().includes(searchTerm);
+			return matchesStatus && matchesType && matchesSearch;
 		});
 	}, [orders, orderFilters]);
 
@@ -301,25 +307,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 
 			const data = await response.json();
 			
-			// Extraer teléfono de la dirección si existe
-			let phone = 'N/A';
-			let cleanAddress = data.shipping_address;
-			
-			if (data.shipping_address) {
-				// Buscar patrón "Tel: " o "Teléfono: "
-				const phoneMatch = data.shipping_address.match(/Tel(?:éfono)?:\s*([^\n.]+)/i);
-				if (phoneMatch) {
-					phone = phoneMatch[1].trim();
-					// Limpiar el teléfono de la dirección
-					cleanAddress = data.shipping_address.replace(/\.\s*Tel(?:éfono)?:[^\n.]+/gi, '').trim();
-				}
-			}
-			
-			setSelectedOrder({
-				...data,
-				phone: phone,
-				clean_address: cleanAddress
-			});
+			setSelectedOrder(data);
 		} catch (error) {
 			toast.error(error.message);
 		}
@@ -789,7 +777,7 @@ const handleImageChange = (event) => {
 									return (
 										<>
 											<tr key={product.id} className={isEditing ? 'editing-row' : ''}>
-												<td className="admin-table-image">
+												<td className="admin-table-image" data-label="Imagen">
 													{(product.images || []).length > 0 ? (
 														<div className="image-gallery">
 															<img
@@ -810,20 +798,20 @@ const handleImageChange = (event) => {
 														/>
 													)}
 												</td>
-												<td className="admin-table-name">{product.name}</td>
-												<td>
+												<td className="admin-table-name" data-label="Nombre">{product.name}</td>
+												<td data-label="Categoría">
 													<span className="admin-chip">{product.category}</span>
 												</td>
-												<td className="admin-table-description">
+												<td className="admin-table-description" data-label="Descripción">
 													{product.description || 'Sin descripción'}
 												</td>
-												<td className="admin-table-price">${product.price}</td>
-												<td>
+												<td className="admin-table-price" data-label="Precio">${product.price}</td>
+												<td data-label="Stock">
 													<span className={`admin-stock ${product.stock > 0 ? 'in-stock' : 'out-stock'}`}>
 														{product.stock}
 													</span>
 												</td>
-												<td className="admin-table-actions">
+												<td className="admin-table-actions" data-label="Acciones">
 													<button
 														type="button"
 														className="admin-btn ghost"
@@ -997,6 +985,18 @@ const handleImageChange = (event) => {
 								<option value="cancelled">Cancelado</option>
 							</select>
 						</div>
+						<div className="filter-field">
+							<label htmlFor="order-type">Tipo</label>
+							<select
+								id="order-type"
+								value={orderFilters.type}
+								onChange={(event) => setOrderFilters((prev) => ({ ...prev, type: event.target.value }))}
+							>
+								<option value="all">Todos</option>
+								<option value="registered">Registrados</option>
+								<option value="guest">Invitados</option>
+							</select>
+						</div>
 					</div>
 
 					{isLoadingOrders ? (
@@ -1021,11 +1021,14 @@ const handleImageChange = (event) => {
 								<tbody>
 									{filteredOrders.map((order) => (
 										<tr key={order.id}>
-											<td>#{order.id}</td>
-											<td className="admin-table-name">{order.customer_name}</td>
-											<td>{order.customer_email}</td>
-											<td className="admin-table-price">${order.total.toFixed(2)}</td>
-											<td>
+											<td data-label="ID">#{order.id}</td>
+											<td className="admin-table-name" data-label="Cliente">
+												{order.customer_name}
+												{!order.user_id && <span className="guest-badge-small" title="Usuario Invitado">👤</span>}
+											</td>
+											<td data-label="Email">{order.customer_email}</td>
+											<td className="admin-table-price" data-label="Total">${order.total.toFixed(2)}</td>
+											<td data-label="Pago">
 												<span className={`admin-chip payment-${order.payment_method || 'cash'}`}>
 													{(order.payment_method === 'cash' || !order.payment_method) && '💵 Efectivo'}
 													{order.payment_method === 'transfer' && '🏦 Transferencia'}
@@ -1033,7 +1036,7 @@ const handleImageChange = (event) => {
 													{order.payment_method === 'card' && '💳 Tarjeta'}
 												</span>
 											</td>
-											<td>
+											<td data-label="Estado">
 												<span className={`admin-chip status-${order.status}`}>
 													{order.status === 'pending' && '⏳ Pendiente'}
 													{order.status === 'processing' && '⚙️ Procesando'}
@@ -1042,8 +1045,8 @@ const handleImageChange = (event) => {
 													{order.status === 'cancelled' && '❌ Cancelado'}
 												</span>
 											</td>
-											<td>{new Date(order.created_at).toLocaleString()}</td>
-											<td className="admin-table-actions">
+											<td data-label="Fecha">{new Date(order.created_at).toLocaleString()}</td>
+											<td className="admin-table-actions" data-label="Acciones">
 												<button
 													type="button"
 													className="admin-btn ghost"
@@ -1083,7 +1086,7 @@ const handleImageChange = (event) => {
 									<div className="order-info">
 										<p><strong>Cliente:</strong> {selectedOrder.customer_name || 'N/A'}</p>
 										<p><strong>Email:</strong> {selectedOrder.customer_email || 'N/A'}</p>
-										<p><strong>Teléfono:</strong> {selectedOrder.phone || 'N/A'}</p>
+										<p><strong>Teléfono:</strong> {selectedOrder.customer_phone || 'N/A'}</p>
 										<p><strong>Estado:</strong> {selectedOrder.status}</p>
 										<p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>
 										<p>
@@ -1096,7 +1099,11 @@ const handleImageChange = (event) => {
 											</span>
 										</p>
 										<p><strong>Fecha:</strong> {new Date(selectedOrder.created_at).toLocaleString()}</p>
-										<p><strong>Dirección de envío:</strong> {selectedOrder.clean_address || selectedOrder.shipping_address}</p>
+										<div className="address-block">
+											<p><strong>Dirección de envío:</strong></p>
+											<p>{selectedOrder.shipping_street}</p>
+											<p>{selectedOrder.shipping_city}, CP {selectedOrder.shipping_postal_code}</p>
+										</div>
 									</div>
 									<h4>Productos</h4>
 									<div className="order-items">
@@ -1169,6 +1176,18 @@ const handleImageChange = (event) => {
 								<option value="inactive">Inactivos</option>
 							</select>
 						</div>
+						<div className="filter-field">
+							<label htmlFor="user-type">Tipo</label>
+							<select
+								id="user-type"
+								value={userFilters.type}
+								onChange={(event) => setUserFilters((prev) => ({ ...prev, type: event.target.value }))}
+							>
+								<option value="all">Todos</option>
+								<option value="customer">Clientes</option>
+								<option value="guest">Invitados</option>
+							</select>
+						</div>
 					</div>
 
 					{isLoadingUsers ? (
@@ -1183,6 +1202,7 @@ const handleImageChange = (event) => {
 										<th>ID</th>
 										<th>Nombre</th>
 										<th>Email</th>
+										<th>Tipo</th>
 										<th>Rol</th>
 										<th>Estado</th>
 										<th>Registro</th>
@@ -1193,27 +1213,32 @@ const handleImageChange = (event) => {
 								<tbody>
 									{filteredUsers.map((user) => (
 										<tr key={user.id}>
-											<td>{user.id}</td>
-											<td className="admin-table-name">{user.name}</td>
-											<td>{user.email}</td>
-											<td>
+											<td data-label="ID">{user.id}</td>
+											<td className="admin-table-name" data-label="Nombre">{user.name}</td>
+											<td data-label="Email">{user.email}</td>
+											<td data-label="Tipo">
+												<span className={`admin-chip ${user.is_guest ? 'guest-badge' : 'customer-badge'}`}>
+													{user.is_guest ? '👤 Invitado' : '✅ Cliente'}
+												</span>
+											</td>
+											<td data-label="Rol">
 												<span className={`admin-chip ${user.role === 'admin' ? 'role-admin' : 'role-customer'}`}>
 													{user.role === 'admin' ? '👑 Admin' : '👤 Cliente'}
 												</span>
 											</td>
-											<td>
+											<td data-label="Estado">
 												<span className={`admin-stock ${user.is_active ? 'in-stock' : 'out-stock'}`}>
 													{user.is_active ? '✓ Activo' : '✗ Inactivo'}
 												</span>
 											</td>
-											<td>{new Date(user.created_at).toLocaleDateString()}</td>
-											<td>
+											<td data-label="Registro">{new Date(user.created_at).toLocaleDateString()}</td>
+											<td data-label="Último Acceso">
 												{user.last_login 
 													? new Date(user.last_login).toLocaleString()
 													: 'Nunca'
 												}
 											</td>
-											<td className="admin-table-actions">
+											<td className="admin-table-actions" data-label="Acciones">
 												<select
 													value={user.role}
 													onChange={(e) => handleRoleChange(user.id, e.target.value)}

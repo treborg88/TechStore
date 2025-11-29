@@ -29,75 +29,75 @@ setError(''); // Limpiar errores al escribir
 const handleSubmit = async (e) => {
 e.preventDefault();
 
-try {
-    setIsSubmitting(true);
-    setError('');
+    try {
+        setIsSubmitting(true);
+        setError('');
 
-    // Validar que se haya seleccionado un método de pago
-    if (!formData.paymentMethod) {
-        setError('Por favor selecciona un método de pago');
-        setIsSubmitting(false);
-        return;
-    }
+        // Validar que se haya seleccionado un método de pago
+        if (!formData.paymentMethod) {
+            setError('Por favor selecciona un método de pago');
+            setIsSubmitting(false);
+            return;
+        }
 
-    // Validar si el método de pago está disponible
-    if (formData.paymentMethod !== 'cash' && formData.paymentMethod !== 'transfer') {
-        setError('Este método de pago estará disponible próximamente. Por favor selecciona "Pago Contra Entrega" o "Transferencia Bancaria"');
-        setIsSubmitting(false);
-        return;
-    }
+        // Validar si el método de pago está disponible
+        if (formData.paymentMethod !== 'cash' && formData.paymentMethod !== 'transfer') {
+            setError('Este método de pago estará disponible próximamente. Por favor selecciona "Pago Contra Entrega" o "Transferencia Bancaria"');
+            setIsSubmitting(false);
+            return;
+        }
 
-    const token = localStorage.getItem('authToken');
-    const isAuthenticated = !!token;
+        const token = localStorage.getItem('authToken');
+        const isAuthenticated = !!token;
 
-    // Construir dirección completa
-    const shippingAddress = `${formData.address}, ${formData.city}, CP ${formData.postalCode}`;
+        // Preparar items para el backend
+        const orderItems = cartItems.map(item => ({
+            product_id: item.id,
+            quantity: item.quantity
+        }));
 
-    // Preparar items para el backend
-    const orderItems = cartItems.map(item => ({
-        product_id: item.id,
-        quantity: item.quantity
-    }));
+        let response;
 
-    let response;
-
-    if (isAuthenticated) {
-        // Usuario autenticado - usar endpoint protegido
-        const fullAddress = `${shippingAddress}. Tel: ${formData.phone}. Contacto: ${formData.firstName} ${formData.lastName} (${formData.email})`;
-        
-        response = await fetch(`${API_URL}/orders`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-                shipping_address: fullAddress,
-                items: orderItems,
-                payment_method: formData.paymentMethod
-            })
-        });
-    } else {
-        // Usuario invitado - usar endpoint público
-        response = await fetch(`${API_URL}/orders/guest`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                shipping_address: shippingAddress,
-                items: orderItems,
-                payment_method: formData.paymentMethod,
-                customer_info: {
-                    name: `${formData.firstName} ${formData.lastName}`,
-                    email: formData.email,
-                    phone: formData.phone
-                }
-            })
-        });
-    }
-
-    if (!response.ok) {
+        if (isAuthenticated) {
+            // Usuario autenticado - enviar datos estructurados
+            response = await fetch(`${API_URL}/orders`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({
+                    items: orderItems,
+                    payment_method: formData.paymentMethod,
+                    customer_name: `${formData.firstName} ${formData.lastName}`,
+                    customer_email: formData.email,
+                    customer_phone: formData.phone,
+                    shipping_street: formData.address,
+                    shipping_city: formData.city,
+                    shipping_postal_code: formData.postalCode
+                })
+            });
+        } else {
+            // Usuario invitado - enviar datos estructurados
+            response = await fetch(`${API_URL}/orders/guest`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    items: orderItems,
+                    payment_method: formData.paymentMethod,
+                    shipping_street: formData.address,
+                    shipping_city: formData.city,
+                    shipping_postal_code: formData.postalCode,
+                    customer_info: {
+                        name: `${formData.firstName} ${formData.lastName}`,
+                        email: formData.email,
+                        phone: formData.phone
+                    }
+                })
+            });
+        }    if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
         throw new Error(errorData.message || 'Error al crear la orden');
     }

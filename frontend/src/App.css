@@ -1675,6 +1675,19 @@ ul {
   font-weight: 700;
 }
 
+/* Guest/Customer Type Chips */
+.admin-chip.guest-badge {
+  background: linear-gradient(135deg, rgba(156, 163, 175, 0.18), rgba(107, 114, 128, 0.18));
+  color: var(--gray-600);
+  font-weight: 700;
+}
+
+.admin-chip.customer-badge {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.18), rgba(5, 150, 105, 0.18));
+  color: #059669;
+  font-weight: 700;
+}
+
 /* Admin Help Box */
 .admin-help-box {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.1));
@@ -2857,4 +2870,127 @@ ul {
   background: var(--surface-muted);
   border-radius: 10px;
   border: 1px dashed var(--divider-color);
+}  
+.guest-badge-small { font-size: 0.8rem; margin-left: 6px; cursor: help; } 
+
+/* Responsive Tables for Mobile */
+@media (max-width: 768px) {
+  .admin-table thead {
+    display: none;
+  }
+
+  .admin-table, 
+  .admin-table tbody, 
+  .admin-table tr, 
+  .admin-table td {
+    display: block;
+    width: 100%;
+  }
+
+  .admin-table tr {
+    margin-bottom: 15px;
+    border: 1px solid var(--divider-color);
+    border-radius: 12px;
+    background: var(--white);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    overflow: hidden;
+  }
+
+  .admin-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right;
+    padding: 12px 15px;
+    border-bottom: 1px solid var(--gray-100);
+    min-height: 45px;
+  }
+
+  .admin-table td:last-child {
+    border-bottom: none;
+  }
+
+  .admin-table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--gray-600);
+    text-transform: uppercase;
+    font-size: 0.85rem;
+    margin-right: 15px;
+    text-align: left;
+  }
+
+  /* Special handling for image cells */
+  .admin-table-image {
+    justify-content: center;
+    background: var(--gray-50);
+  }
+  
+  .admin-table-image::before {
+    display: none;
+  }
+
+  /* Adjust actions column */
+  .admin-table-actions {
+    justify-content: flex-end;
+    gap: 8px;
+    background: var(--gray-50);
+  }
+
+  .admin-table-actions::before {
+    display: none;
+  }
+
+  /* Admin Tabs Optimization */
+  .admin-tabs {
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .admin-tab {
+    flex: 1 1 calc(50% - 8px);
+    font-size: 0.85rem;
+    padding: 12px 8px;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: normal;
+    line-height: 1.2;
+  }
+
+  /* Admin Filter Bar Optimization */
+  .admin-filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filter-field {
+    min-width: 100%;
+  }
+
+  /* Admin Form Optimization */
+  .admin-form .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .collapsible-header {
+    padding: 16px;
+    font-size: 1.1rem;
+  }
+
+  .admin-form input,
+  .admin-form select,
+  .admin-form textarea {
+    font-size: 16px; /* Prevent zoom on iOS */
+    padding: 14px; /* Larger touch target */
+  }
+  
+  .admin-submit {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+  }
 }

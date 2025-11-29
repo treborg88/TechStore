@@ -62,7 +62,7 @@ db.exec(`
   -- Orders table
   CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
+    user_id INTEGER,
     total REAL NOT NULL,
     status TEXT DEFAULT 'pending',
     shipping_address TEXT,
@@ -102,12 +102,112 @@ try {
   console.error('Error checking/migrating orders table:', error);
 }
 
+// Migration: Add structured address fields to orders if they don't exist
+try {
+  const tableInfo = db.pragma('table_info(orders)');
+  const columns = tableInfo.map(col => col.name);
+  
+  if (!columns.includes('customer_name')) {
+    console.log('Migrating database: Adding customer_name to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN customer_name TEXT');
+  }
+  if (!columns.includes('customer_email')) {
+    console.log('Migrating database: Adding customer_email to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN customer_email TEXT');
+  }
+  if (!columns.includes('customer_phone')) {
+    console.log('Migrating database: Adding customer_phone to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN customer_phone TEXT');
+  }
+  if (!columns.includes('shipping_street')) {
+    console.log('Migrating database: Adding shipping_street to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN shipping_street TEXT');
+  }
+  if (!columns.includes('shipping_city')) {
+    console.log('Migrating database: Adding shipping_city to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN shipping_city TEXT');
+  }
+  if (!columns.includes('shipping_postal_code')) {
+    console.log('Migrating database: Adding shipping_postal_code to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN shipping_postal_code TEXT');
+  }
+} catch (error) {
+  console.error('Error migrating structured address fields:', error);
+}
+
+// Migration: Add is_guest to users table to distinguish guest checkouts from real customers
+try {
+  const tableInfo = db.pragma('table_info(users)');
+  const hasIsGuest = tableInfo.some(column => column.name === 'is_guest');
+  if (!hasIsGuest) {
+    console.log('Migrating database: Adding is_guest to users table...');
+    db.exec('ALTER TABLE users ADD COLUMN is_guest BOOLEAN DEFAULT 0');
+  }
+} catch (error) {
+  console.error('Error migrating is_guest column:', error);
+}
+
+// Migration: Allow NULL user_id in orders table so guest orders do not require user records
+try {
+  const ordersTableInfo = db.pragma('table_info(orders)');
+  const userIdColumn = ordersTableInfo.find(column => column.name === 'user_id');
+  if (userIdColumn && userIdColumn.notnull === 1) {
+    console.log('Migrating database: Allowing NULL user_id in orders table...');
+
+    db.exec('PRAGMA foreign_keys = OFF');
+    db.exec('BEGIN TRANSACTION');
+
+    db.exec(`
+      CREATE TABLE orders_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        total REAL NOT NULL,
+        status TEXT DEFAULT 'pending',
+        shipping_address TEXT,
+        payment_method TEXT DEFAULT 'cash',
+        customer_name TEXT,
+        customer_email TEXT,
+        customer_phone TEXT,
+        shipping_street TEXT,
+        shipping_city TEXT,
+        shipping_postal_code TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      )
+    `);
+
+    db.exec(`
+      INSERT INTO orders_new (
+        id, user_id, total, status, shipping_address, payment_method,
+        customer_name, customer_email, customer_phone,
+        shipping_street, shipping_city, shipping_postal_code,
+        created_at, updated_at
+      )
+      SELECT
+        id, user_id, total, status, shipping_address, payment_method,
+        customer_name, customer_email, customer_phone,
+        shipping_street, shipping_city, shipping_postal_code,
+        created_at, updated_at
+      FROM orders
+    `);
+
+    db.exec('DROP TABLE orders');
+    db.exec('ALTER TABLE orders_new RENAME TO orders');
+    db.exec('COMMIT');
+    db.exec('PRAGMA foreign_keys = ON');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)');
+  }
+} catch (error) {
+  console.error('Error migrating nullable user_id for orders table:', error);
+}
+
 // Prepared statements for common operations
 const statements = {
   // Users
-  getUserById: db.prepare('SELECT id, name, email, role, is_active, created_at, updated_at, last_login FROM users WHERE id = ?'),
+  getUserById: db.prepare('SELECT id, name, email, role, is_active, is_guest, created_at, updated_at, last_login FROM users WHERE id = ?'),
   getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
-  createUser: db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)'),
+  createUser: db.prepare('INSERT INTO users (name, email, password, role, is_guest) VALUES (?, ?, ?, ?, ?)'),
   updateUser: db.prepare('UPDATE users SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   updateUserPassword: db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   updateLastLogin: db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?'),
@@ -128,7 +228,11 @@ const statements = {
 
   // Cart
   getCartByUserId: db.prepare(`
-    SELECT c.id, c.product_id, c.quantity, p.name, p.price, p.image, p.stock
+    SELECT c.id, c.product_id, c.quantity, p.name, p.price, p.stock,
+           COALESCE(
+             (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY created_at ASC LIMIT 1),
+             p.image
+           ) as image
     FROM cart c
     JOIN products p ON c.product_id = p.id
     WHERE c.user_id = ?
@@ -141,14 +245,23 @@ const statements = {
   getCartItem: db.prepare('SELECT * FROM cart WHERE user_id = ? AND product_id = ?'),
 
   // Orders
-  createOrder: db.prepare('INSERT INTO orders (user_id, total, shipping_address) VALUES (?, ?, ?)'),
+  createOrder: db.prepare('INSERT INTO orders (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   getOrdersByUserId: db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC'),
   getOrderById: db.prepare('SELECT * FROM orders WHERE id = ?'),
   updateOrderStatus: db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
 
   // Order Items
   addOrderItem: db.prepare('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)'),
-  getOrderItems: db.prepare('SELECT oi.*, p.name, p.image FROM order_items oi JOIN products p ON oi.product_id = p.id WHERE oi.order_id = ?')
+  getOrderItems: db.prepare(`
+    SELECT oi.*, p.name,
+           COALESCE(
+             (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY created_at ASC LIMIT 1),
+             p.image
+           ) as image
+    FROM order_items oi 
+    JOIN products p ON oi.product_id = p.id 
+    WHERE oi.order_id = ?
+  `)
 };
 
 module.exports = { db, statements };

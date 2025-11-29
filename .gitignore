@@ -33,6 +33,7 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.md
 
 # IDE
 .vscode/
@@ -56,6 +57,7 @@ test-results/
 *.tmp
 *.temp
 .cache/
+USABILITY_REPORT.md
 
 # Images uploads (keep the folder structure)
 backend/images/*

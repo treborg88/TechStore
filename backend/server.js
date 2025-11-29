@@ -160,12 +160,13 @@ app.post('/api/auth/register', async (req, res) => {
         const saltRounds = 10;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Crear nuevo usuario
+        // Crear nuevo usuario (not a guest)
         const result = statements.createUser.run(
             name.trim(),
             email.toLowerCase().trim(),
             hashedPassword,
-            'customer'
+            'customer',
+            0  // is_guest = false (real customer account)
         );
 
         const newUserId = result.lastInsertRowid;
@@ -680,9 +681,12 @@ app.get('/api/orders', authenticateToken, (req, res) => {
 
     try {
         const orders = db.prepare(`
-            SELECT o.*, u.name as customer_name, u.email as customer_email
+            SELECT 
+                o.*, 
+                COALESCE(u.name, o.customer_name) as customer_name, 
+                COALESCE(u.email, o.customer_email) as customer_email
             FROM orders o
-            JOIN users u ON o.user_id = u.id
+            LEFT JOIN users u ON o.user_id = u.id
             ORDER BY o.created_at DESC
         `).all();
         res.json(orders);
@@ -699,7 +703,10 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
     try {
         // Get order with customer information
         const getOrderWithCustomer = db.prepare(`
-            SELECT o.*, u.name as customer_name, u.email as customer_email
+            SELECT 
+                o.*, 
+                COALESCE(u.name, o.customer_name) as customer_name, 
+                COALESCE(u.email, o.customer_email) as customer_email
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             WHERE o.id = ?
@@ -730,14 +737,14 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
 
 // Create new order
 app.post('/api/orders', authenticateToken, (req, res) => {
-    const { shipping_address, items, payment_method } = req.body;
+    const { shipping_address, items, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
     }
 
-    if (!shipping_address) {
-        return res.status(400).json({ message: 'La dirección de envío es requerida' });
+    if (!shipping_street || !shipping_city || !shipping_postal_code) {
+        return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad, código postal)' });
     }
 
     try {
@@ -756,10 +763,27 @@ app.post('/api/orders', authenticateToken, (req, res) => {
             total += product.price * item.quantity;
         }
 
-        // Create order with payment method
+        // Create order with structured address fields
         const paymentMethodValue = payment_method || 'cash';
-        const createOrderStmt = db.prepare('INSERT INTO orders (user_id, total, shipping_address, payment_method) VALUES (?, ?, ?, ?)');
-        const orderResult = createOrderStmt.run(req.user.id, total, shipping_address, paymentMethodValue);
+        // Keep shipping_address for backward compatibility (can be used for notes)
+        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_city}, CP ${shipping_postal_code}`;
+        
+        const resolvedCustomerName = (customer_name && customer_name.trim()) || req.user.name;
+        const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
+        const resolvedCustomerPhone = customer_phone ? customer_phone.trim() : '';
+
+        const orderResult = statements.createOrder.run(
+            req.user.id, 
+            total, 
+            legacyAddress,
+            paymentMethodValue,
+            resolvedCustomerName,
+            resolvedCustomerEmail,
+            resolvedCustomerPhone,
+            shipping_street,
+            shipping_city,
+            shipping_postal_code
+        );
         const orderId = orderResult.lastInsertRowid;
 
         // Add order items and update stock
@@ -775,7 +799,6 @@ app.post('/api/orders', authenticateToken, (req, res) => {
                 product.price,
                 product.category,
                 newStock,
-                product.image,
                 item.product_id
             );
         }
@@ -794,14 +817,14 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 
 // Create order as guest (no authentication required)
 app.post('/api/orders/guest', (req, res) => {
-    const { shipping_address, items, customer_info, payment_method } = req.body;
+    const { shipping_address, items, customer_info, payment_method, shipping_street, shipping_city, shipping_postal_code } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
     }
 
-    if (!shipping_address) {
-        return res.status(400).json({ message: 'La dirección de envío es requerida' });
+    if (!shipping_street || !shipping_city || !shipping_postal_code) {
+        return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad, código postal)' });
     }
 
     if (!customer_info || !customer_info.email) {
@@ -824,31 +847,26 @@ app.post('/api/orders/guest', (req, res) => {
             total += product.price * item.quantity;
         }
 
-        // Create or get guest user
-        let guestUser = statements.getUserByEmail.get(customer_info.email.toLowerCase());
-        
-        if (!guestUser) {
-            // Create a guest user with a random password (they won't use it)
-            const randomPassword = Math.random().toString(36).substring(2, 15);
-            const bcrypt = require('bcrypt');
-            const hashedPassword = bcrypt.hashSync(randomPassword, 10);
-            
-            const userResult = statements.createUser.run(
-                customer_info.name || 'Cliente Invitado',
-                customer_info.email.toLowerCase(),
-                hashedPassword,
-                'customer'
-            );
-            
-            guestUser = statements.getUserById.get(userResult.lastInsertRowid);
-        }
-
-        // Create order with full customer info in shipping address and payment method
-        const fullAddress = `${shipping_address}\nCliente: ${customer_info.name}\nEmail: ${customer_info.email}\nTeléfono: ${customer_info.phone || 'N/A'}`;
+        // Create order with structured address fields
         const paymentMethodValue = payment_method || 'cash';
-        
-        const createOrderStmt = db.prepare('INSERT INTO orders (user_id, total, shipping_address, payment_method) VALUES (?, ?, ?, ?)');
-        const orderResult = createOrderStmt.run(guestUser.id, total, fullAddress, paymentMethodValue);
+        // Keep shipping_address for backward compatibility or additional notes
+        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_city}, CP ${shipping_postal_code}`;
+        const guestName = (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado';
+        const guestEmail = customer_info.email.trim().toLowerCase();
+        const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
+
+        const orderResult = statements.createOrder.run(
+            null,
+            total,
+            legacyAddress,
+            paymentMethodValue,
+            guestName,
+            guestEmail,
+            guestPhone,
+            shipping_street,
+            shipping_city,
+            shipping_postal_code
+        );
         const orderId = orderResult.lastInsertRowid;
 
         // Add order items and update stock
@@ -864,7 +882,6 @@ app.post('/api/orders/guest', (req, res) => {
                 product.price,
                 product.category,
                 newStock,
-                product.image,
                 item.product_id
             );
         }
@@ -916,7 +933,10 @@ app.get('/api/orders/track/:id', (req, res) => {
 
     try {
         const getOrderWithCustomer = db.prepare(`
-            SELECT o.*, u.name as customer_name, u.email as customer_email
+            SELECT 
+                o.*, 
+                COALESCE(u.name, o.customer_name) as customer_name, 
+                COALESCE(u.email, o.customer_email) as customer_email
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
             WHERE o.id = ?
@@ -943,32 +963,26 @@ app.get('/api/orders/track/:id', (req, res) => {
 
 // Track orders by email (public - no authentication required)
 app.get('/api/orders/track/email/:email', (req, res) => {
-    const email = req.params.email.toLowerCase();
+    const email = req.params.email.trim().toLowerCase();
 
     try {
-        // First get the user by email
-        const user = statements.getUserByEmail.get(email);
-        
-        if (!user) {
-            return res.status(404).json({ message: 'No se encontraron órdenes para este email' });
-        }
-
-        // Get all orders for this user with customer info
         const getOrdersByEmail = db.prepare(`
-            SELECT o.*, u.name as customer_name, u.email as customer_email
+            SELECT 
+                o.*,
+                COALESCE(u.name, o.customer_name) as customer_name,
+                COALESCE(u.email, o.customer_email) as customer_email
             FROM orders o
             LEFT JOIN users u ON o.user_id = u.id
-            WHERE u.email = ?
+            WHERE LOWER(o.customer_email) = ? OR (u.email IS NOT NULL AND LOWER(u.email) = ?)
             ORDER BY o.created_at DESC
         `);
         
-        const orders = getOrdersByEmail.all(email);
+        const orders = getOrdersByEmail.all(email, email);
         
         if (!orders || orders.length === 0) {
             return res.status(404).json({ message: 'No se encontraron órdenes' });
         }
 
-        // For each order, get its items
         const ordersWithItems = orders.map(order => ({
             ...order,
             items: statements.getOrderItems.all(order.id)
