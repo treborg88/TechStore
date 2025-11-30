@@ -11,6 +11,7 @@
     "test:e2e": "playwright test --config=playwright.config.js"
   },
   "dependencies": {
+    "framer-motion": "^12.23.24",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-hot-toast": "^2.6.0",

@@ -167,6 +167,7 @@ function Home({ products, loading, error, addToCart, fetchProducts }) {
                       <ProductImageGallery
                         images={product.images || product.image}
                         productName={product.name}
+                        productDescription={product.description}
                         className="product-image"
                       />
                       <div className="product-content">
