@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { BASE_URL } from '../config';
 import '../styles/ProductImageGallery.css';
 
-function ProductImageGallery({ images, productName, productDescription, className = '' }) {
+function ProductImageGallery({ images, productName, productDescription, className = '', onAddToCart }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -349,13 +349,31 @@ function ProductImageGallery({ images, productName, productDescription, classNam
             </div>
             
             <div className="modal-info">
-              <h3>{productName}</h3>
-              {showCarousel && <p>Imagen {currentIndex + 1} de {displayImages.length}</p>}
-              {productDescription && (
-                <p style={{ fontSize: '0.9rem', marginTop: '10px', lineHeight: '1.4' }}>
-                  {productDescription}
-                </p>
-              )}
+              <div className="modal-info-header">
+                <h3>{productName}</h3>
+                {showCarousel && <span className="image-counter">Imagen {currentIndex + 1} de {displayImages.length}</span>}
+              </div>
+              
+              <div className="modal-info-content">
+                {productDescription && (
+                  <p className="modal-description">
+                    {productDescription}
+                  </p>
+                )}
+                
+                {onAddToCart && (
+                  <button 
+                    className="add-to-cart-button modal-add-btn" 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAddToCart();
+                      toggleModal();
+                    }}
+                  >
+                    Agregar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>,

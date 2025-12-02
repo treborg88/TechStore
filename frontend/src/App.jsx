@@ -13,6 +13,7 @@ const Cart = lazy(() => import('./components/Cart'));
 const LoginPage = lazy(() => import('./components/LoginPage'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const OrderTrackerModal = lazy(() => import('./components/OrderTrackerModal'));
+const UserProfile = lazy(() => import('./components/UserProfile'));
 const Home = lazy(() => import('./pages/Home'));
 
 function App() {
@@ -20,6 +21,8 @@ function App() {
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,6 +48,8 @@ function App() {
     }
     navigate('/admin');
   };
+
+  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const handleLoginSuccess = async (userData) => {
     // Sync guest cart if exists
@@ -89,26 +94,23 @@ function App() {
         toast.error("Error de conexión");
       }
     } else {
-      setCartItems(prev => {
-        const exist = prev.find(item => item.id === product.id);
-        if (exist) {
-          if (exist.quantity < product.stock) {
-            toast.success("Cantidad actualizada");
-            return prev.map(item =>
-              item.id === product.id
-                ? { ...item, quantity: item.quantity + 1 }
-                : item
-            );
-          } else {
-            toast.error("No hay más stock disponible.");
-            return prev;
-          }
+      const exist = cartItems.find(item => item.id === product.id);
+      if (exist) {
+        if (exist.quantity < product.stock) {
+          toast.success("Cantidad actualizada");
+          setCartItems(prev => prev.map(item =>
+            item.id === product.id
+              ? { ...item, quantity: item.quantity + 1 }
+              : item
+          ));
         } else {
-          const image = product.images && product.images.length > 0 ? product.images[0].image_path : product.image;
-          toast.success("Producto agregado al carrito");
-          return [...prev, { ...product, image, quantity: 1 }];
+          toast.error("No hay más stock disponible.");
         }
-      });
+      } else {
+        const image = product.images && product.images.length > 0 ? product.images[0].image_path : product.image;
+        toast.success("Producto agregado al carrito");
+        setCartItems(prev => [...prev, { ...product, image, quantity: 1 }]);
+      }
     }
   };
 
@@ -284,6 +286,14 @@ function App() {
         {/* Header/Navbar */}
       <header className="header">
         <div className="container header-container">
+          <button 
+            className="mobile-menu-btn"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="Menu"
+          >
+            ☰
+          </button>
+
           <div className="logo-container">
             <div className="logo">🛍️</div>
             <h1 className="site-title">TechStore</h1>
@@ -295,6 +305,17 @@ function App() {
             <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); }}>Ordenes</a>
             {user && user.role === 'admin' && (
               <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
+            )}
+          </nav>
+
+          <div className={`mobile-nav-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu}></div>
+          <nav className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}>
+            <button className="close-mobile-nav" onClick={closeMobileMenu}>×</button>
+            <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Productos</Link>
+            <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Contacto</Link>
+            <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); closeMobileMenu(); }}>Ordenes</a>
+            {user && user.role === 'admin' && (
+              <a href="#" className="mobile-nav-link" onClick={(e) => { handleAdminNav(e); closeMobileMenu(); }}>Administrar</a>
             )}
           </nav>
 
@@ -310,7 +331,13 @@ function App() {
 
             {user ? (
               <>
-                <span className="user-name">Hola, {user.name}</span>
+                <button 
+                  className="user-name-btn" 
+                  onClick={() => setProfileOpen(true)}
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
+                >
+                  Hola, {user.name}
+                </button>
                 <button className="login-button" onClick={handleLogout}>Cerrar Sesión</button>
               </>
             ) : (
@@ -370,6 +397,18 @@ function App() {
         {/* Order Tracker Modal */}
         {ordersOpen && (
           <OrderTrackerModal onClose={() => setOrdersOpen(false)} user={user} />
+        )}
+
+        {/* User Profile Modal */}
+        {profileOpen && (
+          <UserProfile 
+            onClose={() => setProfileOpen(false)} 
+            onLogout={() => {
+              setProfileOpen(false);
+              handleLogout();
+            }}
+            onUpdate={(updatedUser) => setUser(updatedUser)}
+          />
         )}
       </Suspense>
 

@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
+import { getCurrentUser } from '../services/authService';
+import Invoice from './Invoice';
 
 function Checkout({ cartItems, total, onSubmit, onClose, onClearCart }) {
 const [formData, setFormData] = useState({
@@ -7,16 +9,51 @@ firstName: '',
 lastName: '',
 email: '',
 address: '',
+sector: '',
 city: '',
-postalCode: '',
 phone: '',
 paymentMethod: '' // Nuevo campo para método de pago
 });
 
 const [step, setStep] = useState(1);
-const [isSubmitting, setIsSubmitting] = useState(false);
-const [error, setError] = useState('');
-const [orderCreated, setOrderCreated] = useState(null);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error, setError] = useState('');
+    const [orderCreated, setOrderCreated] = useState(null);
+    const [confirmedItems, setConfirmedItems] = useState([]);
+
+    useEffect(() => {
+    const user = getCurrentUser();
+    if (user) {
+        const nameParts = user.name ? user.name.split(' ') : [''];
+        const firstName = nameParts[0] || '';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        
+        // Try to load saved address
+        const savedAddr = localStorage.getItem('user_default_address');
+        let addressData = {};
+        if (savedAddr) {
+            try {
+                const parsed = JSON.parse(savedAddr);
+                addressData = {
+                    address: parsed.street || '',
+                    sector: parsed.sector || '',
+                    city: parsed.city || ''
+                };
+            } catch (e) {
+                console.error('Error parsing saved address', e);
+            }
+        }
+
+        setFormData(prev => ({
+            ...prev,
+            firstName: firstName,
+            lastName: lastName,
+            email: user.email || '',
+            phone: user.phone || '',
+            ...addressData
+        }));
+    }
+}, []);
 
 const handleInputChange = (e) => {
 setFormData({
@@ -74,7 +111,7 @@ e.preventDefault();
                     customer_phone: formData.phone,
                     shipping_street: formData.address,
                     shipping_city: formData.city,
-                    shipping_postal_code: formData.postalCode
+                    shipping_sector: formData.sector
                 })
             });
         } else {
@@ -89,7 +126,7 @@ e.preventDefault();
                     payment_method: formData.paymentMethod,
                     shipping_street: formData.address,
                     shipping_city: formData.city,
-                    shipping_postal_code: formData.postalCode,
+                    shipping_sector: formData.sector,
                     customer_info: {
                         name: `${formData.firstName} ${formData.lastName}`,
                         email: formData.email,
@@ -105,6 +142,9 @@ e.preventDefault();
     const order = await response.json();
     console.log('Orden creada exitosamente:', order);
     
+    // Guardar items confirmados para la factura antes de limpiar el carrito
+    setConfirmedItems([...cartItems]);
+
     // Mostrar confirmación
     setOrderCreated(order);
     
@@ -132,58 +172,12 @@ return (
     <button className="close-checkout" onClick={onClose} disabled={isSubmitting}>✖</button>
     
     {orderCreated ? (
-        // Pantalla de éxito
-        <div className="order-success">
-            <div className="success-icon">✅</div>
-            <h2>¡Pedido Confirmado!</h2>
-            <p className="order-number">Orden #{orderCreated.id}</p>
-            <p className="success-message">
-                Tu pedido ha sido recibido y está siendo procesado.
-                {!localStorage.getItem('authToken') && (
-                    <><br/>📧 Recibirás la confirmación en <strong>{formData.email}</strong></>
-                )}
-            </p>
-            <div className="order-summary-success">
-                <p><strong>Total:</strong> ${orderCreated.total.toFixed(2)}</p>
-                <p><strong>Método de Pago:</strong> 
-                    {formData.paymentMethod === 'cash' && ' 💵 Pago Contra Entrega'}
-                    {formData.paymentMethod === 'transfer' && ' 🏦 Transferencia Bancaria'}
-                    {formData.paymentMethod === 'online' && ' 💳 Pago en Línea'}
-                    {formData.paymentMethod === 'card' && ' 💳 Tarjeta de Crédito/Débito'}
-                </p>
-                <p><strong>Estado:</strong> <span className="status-badge">{orderCreated.status}</span></p>
-                <p><strong>Envío a:</strong> {formData.address}, {formData.city}</p>
-            </div>
-            {formData.paymentMethod === 'cash' && (
-                <div className="payment-note">
-                    💰 Prepara el monto exacto: <strong>${orderCreated.total.toFixed(2)}</strong>
-                </div>
-            )}
-            {formData.paymentMethod === 'transfer' && (
-                <div className="payment-note transfer-note">
-                    <h4>📋 Instrucciones de Transferencia</h4>
-                    <div className="bank-details">
-                        <p><strong>Banco:</strong> Banco Ejemplo</p>
-                        <p><strong>Titular:</strong> Mi Tienda Online</p>
-                        <p><strong>Cuenta:</strong> 1234-5678-9012-3456</p>
-                        <p><strong>CLABE:</strong> 012345678901234567</p>
-                        <p><strong>Monto:</strong> <span className="amount">${orderCreated.total.toFixed(2)}</span></p>
-                    </div>
-                    <p className="transfer-instructions">
-                        ⚠️ Envía tu comprobante de pago por email a <strong>pagos@mitienda.com</strong> 
-                        indicando el número de orden <strong>#{orderCreated.id}</strong>
-                    </p>
-                </div>
-            )}
-            {!localStorage.getItem('authToken') && (
-                <div className="guest-info">
-                    💡 <strong>Tip:</strong> Crea una cuenta para hacer seguimiento de tus pedidos.
-                </div>
-            )}
-            <button className="continue-shopping-btn" onClick={onClose}>
-                Continuar Comprando
-            </button>
-        </div>
+        <Invoice 
+            order={orderCreated}
+            customerInfo={formData}
+            items={confirmedItems}
+            onClose={onClose}
+        />
     ) : (
         <>
             <h2>Proceso de Compra</h2>
@@ -199,7 +193,8 @@ return (
             <div className="checkout-steps">
                 <div className={`step ${step >= 1 ? 'active' : ''}`}>Datos</div>
                 <div className={`step ${step >= 2 ? 'active' : ''}`}>Envío</div>
-                <div className={`step ${step >= 3 ? 'active' : ''}`}>Pago</div>
+                <div className={`step ${step >= 3 ? 'active' : ''}`}>Confirmación</div>
+                <div className={`step ${step >= 4 ? 'active' : ''}`}>Pago</div>
             </div>
 
             {step === 1 && (
@@ -249,8 +244,19 @@ return (
                     <input
                     type="text"
                     name="address"
-                    placeholder="Dirección"
+                    placeholder="Calle y Número"
                     value={formData.address}
+                    onChange={handleInputChange}
+                    required
+                    disabled={isSubmitting}
+                    />
+                </div>
+                <div className="form-group">
+                    <input
+                    type="text"
+                    name="sector"
+                    placeholder="Sector"
+                    value={formData.sector}
                     onChange={handleInputChange}
                     required
                     disabled={isSubmitting}
@@ -270,12 +276,10 @@ return (
                 <div className="form-group">
                     <input
                     type="text"
-                    name="postalCode"
-                    placeholder="Código Postal"
-                    value={formData.postalCode}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
+                    name="country"
+                    value="Republica Dominicana"
+                    disabled
+                    style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed', color: '#666' }}
                     />
                 </div>
                 <div className="form-group">
@@ -301,6 +305,54 @@ return (
             )}
 
             {step === 3 && (
+                <div className="confirmation-section">
+                    <h3>Confirmar Pedido</h3>
+                    
+                    <div className="confirmation-details" style={{ marginBottom: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px' }}>
+                        <div className="detail-group" style={{ marginBottom: '15px' }}>
+                            <h4 style={{ marginBottom: '5px', color: '#555' }}>Datos de Contacto</h4>
+                            <p style={{ margin: '2px 0' }}><strong>Nombre:</strong> {formData.firstName} {formData.lastName}</p>
+                            <p style={{ margin: '2px 0' }}><strong>Email:</strong> {formData.email}</p>
+                            <p style={{ margin: '2px 0' }}><strong>Teléfono:</strong> {formData.phone}</p>
+                        </div>
+                        
+                        <div className="detail-group" style={{ marginBottom: '15px' }}>
+                            <h4 style={{ marginBottom: '5px', color: '#555' }}>Dirección de Envío</h4>
+                            <p style={{ margin: '2px 0' }}>{formData.address}</p>
+                            <p style={{ margin: '2px 0' }}>{formData.sector}, {formData.city}</p>
+                            <p style={{ margin: '2px 0' }}>República Dominicana</p>
+                        </div>
+                    </div>
+
+                    <h3>Resumen del Pedido</h3>
+                    <div className="order-summary">
+                        {cartItems.map(item => (
+                        <div key={item.id} className="summary-item">
+                            <span>{item.name} x {item.quantity}</span>
+                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        </div>
+                        ))}
+                        <div className="summary-total">
+                        <strong>Total: ${total.toFixed(2)}</strong>
+                        </div>
+                    </div>
+
+                    <div className="button-group">
+                        <button type="button" onClick={() => setStep(2)} disabled={isSubmitting}>
+                        Anterior
+                        </button>
+                        <button 
+                            type="button" 
+                            onClick={() => setStep(4)} 
+                            disabled={isSubmitting}
+                        >
+                            Siguiente
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {step === 4 && (
                 <div className="payment-section">
                 <h3>Método de Pago</h3>
                 
@@ -335,8 +387,8 @@ return (
                     </div>
 
                     <div 
-                        className={`payment-option ${formData.paymentMethod === 'online' ? 'selected' : ''}`}
-                        onClick={() => setFormData({...formData, paymentMethod: 'online'})}
+                        className="payment-option disabled"
+                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
                     >
                         <div className="payment-icon">💳</div>
                         <div className="payment-info">
@@ -345,13 +397,12 @@ return (
                             <span className="coming-soon">Próximamente</span>
                         </div>
                         <div className="payment-check">
-                            {formData.paymentMethod === 'online' && '✓'}
                         </div>
                     </div>
 
                     <div 
-                        className={`payment-option ${formData.paymentMethod === 'card' ? 'selected' : ''}`}
-                        onClick={() => setFormData({...formData, paymentMethod: 'card'})}
+                        className="payment-option disabled"
+                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
                     >
                         <div className="payment-icon">💳</div>
                         <div className="payment-info">
@@ -360,7 +411,6 @@ return (
                             <span className="coming-soon">Próximamente</span>
                         </div>
                         <div className="payment-check">
-                            {formData.paymentMethod === 'card' && '✓'}
                         </div>
                     </div>
                 </div>
@@ -385,9 +435,8 @@ return (
                     <strong>Total: ${total.toFixed(2)}</strong>
                     </div>
                 </div>
-
                 <div className="button-group">
-                    <button type="button" onClick={() => setStep(2)} disabled={isSubmitting}>
+                    <button type="button" onClick={() => setStep(3)} disabled={isSubmitting}>
                     Anterior
                     </button>
                     <button 

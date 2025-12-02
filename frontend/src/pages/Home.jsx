@@ -169,6 +169,7 @@ function Home({ products, loading, error, addToCart, fetchProducts }) {
                         productName={product.name}
                         productDescription={product.description}
                         className="product-image"
+                        onAddToCart={() => addToCart(product)}
                       />
                       <div className="product-content">
                         <span className="product-category">{product.category}</span>

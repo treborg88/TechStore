@@ -131,6 +131,10 @@ try {
     console.log('Migrating database: Adding shipping_postal_code to orders table...');
     db.exec('ALTER TABLE orders ADD COLUMN shipping_postal_code TEXT');
   }
+  if (!columns.includes('shipping_sector')) {
+    console.log('Migrating database: Adding shipping_sector to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN shipping_sector TEXT');
+  }
 } catch (error) {
   console.error('Error migrating structured address fields:', error);
 }
@@ -145,6 +149,35 @@ try {
   }
 } catch (error) {
   console.error('Error migrating is_guest column:', error);
+}
+
+// Migration: Add profile fields to users table
+try {
+  const tableInfo = db.pragma('table_info(users)');
+  const columns = tableInfo.map(col => col.name);
+
+  if (!columns.includes('phone')) {
+      console.log('Migrating database: Adding phone to users table...');
+      db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
+  }
+  if (!columns.includes('street')) {
+      console.log('Migrating database: Adding street to users table...');
+      db.exec('ALTER TABLE users ADD COLUMN street TEXT');
+  }
+  if (!columns.includes('sector')) {
+      console.log('Migrating database: Adding sector to users table...');
+      db.exec('ALTER TABLE users ADD COLUMN sector TEXT');
+  }
+  if (!columns.includes('city')) {
+      console.log('Migrating database: Adding city to users table...');
+      db.exec('ALTER TABLE users ADD COLUMN city TEXT');
+  }
+  if (!columns.includes('country')) {
+      console.log('Migrating database: Adding country to users table...');
+      db.exec('ALTER TABLE users ADD COLUMN country TEXT');
+  }
+} catch (error) {
+  console.error('Error migrating user profile fields:', error);
 }
 
 // Migration: Allow NULL user_id in orders table so guest orders do not require user records
@@ -205,10 +238,10 @@ try {
 // Prepared statements for common operations
 const statements = {
   // Users
-  getUserById: db.prepare('SELECT id, name, email, role, is_active, is_guest, created_at, updated_at, last_login FROM users WHERE id = ?'),
+  getUserById: db.prepare('SELECT id, name, email, role, phone, street, sector, city, country, is_active, is_guest, created_at, updated_at, last_login FROM users WHERE id = ?'),
   getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
   createUser: db.prepare('INSERT INTO users (name, email, password, role, is_guest) VALUES (?, ?, ?, ?, ?)'),
-  updateUser: db.prepare('UPDATE users SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  updateUser: db.prepare('UPDATE users SET name = ?, phone = ?, street = ?, sector = ?, city = ?, country = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   updateUserPassword: db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
   updateLastLogin: db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?'),
 
@@ -245,7 +278,7 @@ const statements = {
   getCartItem: db.prepare('SELECT * FROM cart WHERE user_id = ? AND product_id = ?'),
 
   // Orders
-  createOrder: db.prepare('INSERT INTO orders (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
+  createOrder: db.prepare('INSERT INTO orders (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
   getOrdersByUserId: db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC'),
   getOrderById: db.prepare('SELECT * FROM orders WHERE id = ?'),
   updateOrderStatus: db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),

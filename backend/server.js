@@ -266,6 +266,11 @@ app.post('/api/auth/login', async (req, res) => {
             id: user.id,
             name: user.name,
             email: user.email,
+            phone: user.phone,
+            street: user.street,
+            sector: user.sector,
+            city: user.city,
+            country: user.country,
             role: user.role,
             createdAt: user.created_at,
             lastLogin: user.last_login
@@ -300,6 +305,11 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
             id: user.id,
             name: user.name,
             email: user.email,
+            phone: user.phone,
+            street: user.street,
+            sector: user.sector,
+            city: user.city,
+            country: user.country,
             role: user.role,
             createdAt: user.created_at,
             lastLogin: user.last_login
@@ -316,7 +326,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
     try {
-        const { name, currentPassword, newPassword } = req.body;
+        const { name, phone, street, sector, city, country, currentPassword, newPassword } = req.body;
         const user = statements.getUserById.get(req.user.id);
 
         if (!user) {
@@ -325,10 +335,16 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
             });
         }
 
-        // Actualizar nombre si se proporciona
-        if (name && name.trim()) {
-            statements.updateUser.run(name.trim(), user.id);
-        }
+        // Actualizar datos de perfil
+        statements.updateUser.run(
+            name !== undefined ? name.trim() : user.name,
+            phone !== undefined ? phone.trim() : (user.phone || ''),
+            street !== undefined ? street.trim() : (user.street || ''),
+            sector !== undefined ? sector.trim() : (user.sector || ''),
+            city !== undefined ? city.trim() : (user.city || ''),
+            country !== undefined ? country.trim() : (user.country || ''),
+            user.id
+        );
 
         // Cambiar contraseña si se proporciona
         if (newPassword) {
@@ -362,6 +378,11 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
             id: updatedUser.id,
             name: updatedUser.name,
             email: updatedUser.email,
+            phone: updatedUser.phone,
+            street: updatedUser.street,
+            sector: updatedUser.sector,
+            city: updatedUser.city,
+            country: updatedUser.country,
             role: updatedUser.role,
             updatedAt: updatedUser.updated_at
         };
@@ -737,14 +758,14 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
 
 // Create new order
 app.post('/api/orders', authenticateToken, (req, res) => {
-    const { shipping_address, items, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code } = req.body;
+    const { shipping_address, items, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
     }
 
-    if (!shipping_street || !shipping_city || !shipping_postal_code) {
-        return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad, código postal)' });
+    if (!shipping_street || !shipping_city) {
+        return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad)' });
     }
 
     try {
@@ -766,7 +787,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
         // Create order with structured address fields
         const paymentMethodValue = payment_method || 'cash';
         // Keep shipping_address for backward compatibility (can be used for notes)
-        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_city}, CP ${shipping_postal_code}`;
+        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_sector || ''}, ${shipping_city}`;
         
         const resolvedCustomerName = (customer_name && customer_name.trim()) || req.user.name;
         const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
@@ -782,7 +803,8 @@ app.post('/api/orders', authenticateToken, (req, res) => {
             resolvedCustomerPhone,
             shipping_street,
             shipping_city,
-            shipping_postal_code
+            shipping_postal_code || '',
+            shipping_sector || ''
         );
         const orderId = orderResult.lastInsertRowid;
 
@@ -817,14 +839,14 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 
 // Create order as guest (no authentication required)
 app.post('/api/orders/guest', (req, res) => {
-    const { shipping_address, items, customer_info, payment_method, shipping_street, shipping_city, shipping_postal_code } = req.body;
+    const { shipping_address, items, customer_info, payment_method, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
     }
 
-    if (!shipping_street || !shipping_city || !shipping_postal_code) {
-        return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad, código postal)' });
+    if (!shipping_street || !shipping_city) {
+        return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad)' });
     }
 
     if (!customer_info || !customer_info.email) {
@@ -850,7 +872,7 @@ app.post('/api/orders/guest', (req, res) => {
         // Create order with structured address fields
         const paymentMethodValue = payment_method || 'cash';
         // Keep shipping_address for backward compatibility or additional notes
-        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_city}, CP ${shipping_postal_code}`;
+        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_sector || ''}, ${shipping_city}`;
         const guestName = (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado';
         const guestEmail = customer_info.email.trim().toLowerCase();
         const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
@@ -865,7 +887,8 @@ app.post('/api/orders/guest', (req, res) => {
             guestPhone,
             shipping_street,
             shipping_city,
-            shipping_postal_code
+            shipping_postal_code || '',
+            shipping_sector || ''
         );
         const orderId = orderResult.lastInsertRowid;
 
