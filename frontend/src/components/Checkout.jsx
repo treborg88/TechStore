@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 import { getCurrentUser } from '../services/authService';
 import Invoice from './Invoice';
+import EmailVerification from './EmailVerification';
 
 function Checkout({ cartItems, total, onSubmit, onClose, onClearCart }) {
 const [formData, setFormData] = useState({
@@ -20,6 +21,8 @@ const [step, setStep] = useState(1);
     const [error, setError] = useState('');
     const [orderCreated, setOrderCreated] = useState(null);
     const [confirmedItems, setConfirmedItems] = useState([]);
+    const [isEmailVerified, setIsEmailVerified] = useState(false);
+    const [showVerification, setShowVerification] = useState(false);
 
     useEffect(() => {
     const user = getCurrentUser();
@@ -52,6 +55,7 @@ const [step, setStep] = useState(1);
             phone: user.phone || '',
             ...addressData
         }));
+        setIsEmailVerified(true);
     }
 }, []);
 
@@ -198,7 +202,16 @@ return (
             </div>
 
             {step === 1 && (
-                <form onSubmit={(e) => {e.preventDefault(); setStep(2)}}>
+                !showVerification ? (
+                <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const user = getCurrentUser();
+                    if (user || isEmailVerified) {
+                        setStep(2);
+                    } else {
+                        setShowVerification(true);
+                    }
+                }}>
                 <div className="form-group">
                     <input
                     type="text"
@@ -227,7 +240,13 @@ return (
                     name="email"
                     placeholder="Email"
                     value={formData.email}
-                    onChange={handleInputChange}
+                    onChange={(e) => {
+                        handleInputChange(e);
+                        const user = getCurrentUser();
+                        if (!user) {
+                            setIsEmailVerified(false);
+                        }
+                    }}
                     required
                     disabled={isSubmitting}
                     />
@@ -236,6 +255,28 @@ return (
                     Siguiente
                 </button>
                 </form>
+                ) : (
+                    <div className="verification-step">
+                        <EmailVerification
+                            initialEmail={formData.email}
+                            autoSend={true}
+                            purpose="guest_checkout"
+                            onVerified={(verifiedEmail) => {
+                                setFormData(prev => ({ ...prev, email: verifiedEmail }));
+                                setIsEmailVerified(true);
+                                setShowVerification(false);
+                                setStep(2);
+                            }}
+                        />
+                        <button 
+                            className="back-btn" 
+                            onClick={() => setShowVerification(false)}
+                            style={{ marginTop: '10px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', textDecoration: 'underline' }}
+                        >
+                            Volver a editar datos
+                        </button>
+                    </div>
+                )
             )}
 
             {step === 2 && (

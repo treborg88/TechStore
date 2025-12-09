@@ -88,6 +88,17 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart(user_id);
   CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
   CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
+
+  -- Verification codes table
+  CREATE TABLE IF NOT EXISTS verification_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL,
+    code TEXT NOT NULL,
+    purpose TEXT,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+  CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON verification_codes(email);
 `);
 
 // Migration: Add payment_method to orders if it doesn't exist
@@ -291,10 +302,16 @@ const statements = {
              (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY created_at ASC LIMIT 1),
              p.image
            ) as image
-    FROM order_items oi 
-    JOIN products p ON oi.product_id = p.id 
+    FROM order_items oi
+    JOIN products p ON oi.product_id = p.id
     WHERE oi.order_id = ?
-  `)
+  `),
+
+  // Verification Codes
+  createVerificationCode: db.prepare('INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES (?, ?, ?, ?)'),
+  getVerificationCode: db.prepare('SELECT * FROM verification_codes WHERE email = ? AND code = ? AND purpose = ? AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1'),
+  deleteVerificationCodes: db.prepare('DELETE FROM verification_codes WHERE email = ? AND purpose = ?'),
+  cleanupExpiredCodes: db.prepare('DELETE FROM verification_codes WHERE expires_at <= CURRENT_TIMESTAMP')
 };
 
 module.exports = { db, statements };

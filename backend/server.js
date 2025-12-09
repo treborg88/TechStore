@@ -1,4 +1,5 @@
 // server/server.js
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const fs = require('fs');
@@ -6,6 +7,7 @@ const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
+const nodemailer = require('nodemailer');
 const { db, statements } = require('./database');
 const app = express();
 
@@ -1099,6 +1101,96 @@ app.put('/api/users/:id/status', authenticateToken, (req, res) => {
         }
     } catch (error) {
         console.error('Error actualizando estado de usuario:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+// --- Email Configuration ---
+const transporter = nodemailer.createTransport({
+    service: 'gmail', // O tu proveedor de preferencia
+    auth: {
+        user: process.env.EMAIL_USER || 'tu_email@gmail.com',
+        pass: process.env.EMAIL_PASS || 'tu_app_password'
+    }
+});
+
+// --- Verification Routes ---
+
+// Enviar código de verificación
+app.post('/api/verification/send-code', async (req, res) => {
+    const { email, purpose } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Email es requerido' });
+    }
+
+    // Generar código de 6 dígitos
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Expiración en 10 minutos
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    try {
+        // Eliminar códigos anteriores para este email y propósito
+        statements.deleteVerificationCodes.run(email, purpose || 'general');
+
+        // Guardar nuevo código
+        statements.createVerificationCode.run(email, code, purpose || 'general', expiresAt);
+
+        // Enviar email
+        const mailOptions = {
+            from: process.env.EMAIL_USER || 'noreply@techstore.com',
+            to: email,
+            subject: 'Tu código de verificación - TechStore',
+            text: `Tu código de verificación es: ${code}. Este código expira en 10 minutos.`,
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #007bff;">Código de Verificación</h2>
+                    <p>Hola,</p>
+                    <p>Tu código de verificación para TechStore es:</p>
+                    <h1 style="letter-spacing: 5px; background: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">${code}</h1>
+                    <p>Este código expira en 10 minutos.</p>
+                    <p>Si no solicitaste este código, puedes ignorar este correo.</p>
+                </div>
+            `
+        };
+
+        // Intentar enviar correo
+        try {
+            await transporter.sendMail(mailOptions);
+        } catch (emailError) {
+            console.error('Error enviando email:', emailError);
+            return res.status(500).json({ message: 'Error al enviar el correo de verificación' });
+        }
+
+        res.json({ success: true, message: 'Código enviado correctamente' });
+
+    } catch (error) {
+        console.error('Error generando código:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+// Verificar código
+app.post('/api/verification/verify-code', (req, res) => {
+    const { email, code, purpose } = req.body;
+
+    if (!email || !code) {
+        return res.status(400).json({ message: 'Email y código son requeridos' });
+    }
+
+    try {
+        const record = statements.getVerificationCode.get(email, code, purpose || 'general');
+
+        if (record) {
+            // Código válido, eliminarlo para que no se use de nuevo
+            statements.deleteVerificationCodes.run(email, purpose || 'general');
+            res.json({ success: true, message: 'Código verificado correctamente' });
+        } else {
+            res.status(400).json({ message: 'Código inválido o expirado' });
+        }
+    } catch (error) {
+        console.error('Error verificando código:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });

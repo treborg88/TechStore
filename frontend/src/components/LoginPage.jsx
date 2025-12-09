@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { login, register } from '../services/authService';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
+import EmailVerification from './EmailVerification';
 
 export default function LoginPage({ onLoginSuccess, onBackToHome }) {
 const [isRegister, setIsRegister] = useState(false);
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState('');
+const [showVerification, setShowVerification] = useState(false);
 const [formData, setFormData] = useState({
     nombre: "",
     email: "",
@@ -53,6 +55,23 @@ const handleChange = (e) => {
         
         return true;
     };
+
+    const handleRegisterAfterVerification = async () => {
+        setLoading(true);
+        try {
+            const userData = await register(formData.nombre, formData.email, formData.password);
+            toast.success('¡Cuenta creada exitosamente!');
+            onLoginSuccess(userData);
+        } catch (err) {
+            const msg = err.message || 'Ha ocurrido un error. Inténtalo de nuevo.';
+            setError(msg);
+            toast.error(msg);
+            setShowVerification(false); // Volver al formulario si falla el registro final
+        } finally {
+            setLoading(false);
+        }
+    };
+
 const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -60,15 +79,17 @@ const handleSubmit = async (e) => {
     return;
     }
 
-    setLoading(true);
     setError('');
 
+    if (isRegister && !showVerification) {
+        setShowVerification(true);
+        return;
+    }
+
+    setLoading(true);
+
     try {
-    if (isRegister) {
-        const userData = await register(formData.nombre, formData.email, formData.password);
-        toast.success('¡Cuenta creada exitosamente!');
-        onLoginSuccess(userData);
-    } else {
+    if (!isRegister) {
         const userData = await login(formData.email, formData.password);
         toast.success('¡Bienvenido de nuevo!');
         onLoginSuccess(userData);
@@ -84,6 +105,7 @@ const handleSubmit = async (e) => {
 
 const toggleMode = () => {
     setIsRegister(!isRegister);
+    setShowVerification(false);
     setError('');
     setFormData({
     nombre: "",
@@ -137,6 +159,31 @@ return (
             </div>
         )}
 
+        {showVerification ? (
+            <div className="verification-container">
+                <EmailVerification
+                    initialEmail={formData.email}
+                    autoSend={true}
+                    purpose="register"
+                    onVerified={() => handleRegisterAfterVerification()}
+                />
+                <button 
+                    className="back-button-text" 
+                    onClick={() => setShowVerification(false)}
+                    style={{ 
+                        marginTop: '15px', 
+                        background: 'none', 
+                        border: 'none', 
+                        color: '#666', 
+                        cursor: 'pointer', 
+                        textDecoration: 'underline',
+                        width: '100%'
+                    }}
+                >
+                    Volver a editar datos
+                </button>
+            </div>
+        ) : (
         <form onSubmit={handleSubmit} className="login-form">
             {isRegister && (
             <div className="form-group">
@@ -219,8 +266,9 @@ return (
             )}
             </button>
         </form>
+        )}
 
-        {!isRegister && (
+        {!isRegister && !showVerification && (
             <div className="forgot-password">
             <a href="#" className="forgot-link">
                 ¿Olvidaste tu contraseña?
@@ -228,6 +276,8 @@ return (
             </div>
         )}
 
+        {!showVerification && (
+        <>
         <div className="divider">
             <span>o</span>
         </div>
@@ -242,6 +292,8 @@ return (
             ? "¿Ya tienes cuenta? Inicia sesión aquí"
             : "¿No tienes cuenta? Regístrate gratis"}
         </button>
+        </>
+        )}
 
         {/* Información adicional para registro */}
         {isRegister && (

@@ -1,0 +1,118 @@
+.email-verification-container {
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 20px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.email-verification-title {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+  color: #333;
+  text-align: center;
+}
+
+.email-verification-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.verification-input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.verification-input-group label {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.verification-input {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 1rem;
+}
+
+.verification-input:focus {
+  border-color: #007bff;
+  outline: none;
+}
+
+.verification-button {
+  padding: 10px 15px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background-color 0.2s;
+}
+
+.verification-button:hover {
+  background-color: #0056b3;
+}
+
+.verification-button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.verification-button.secondary {
+  background-color: #6c757d;
+}
+
+.verification-button.secondary:hover {
+  background-color: #5a6268;
+}
+
+.verification-message {
+  margin-top: 10px;
+  padding: 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.verification-message.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.verification-message.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.verification-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.resend-link {
+  color: #007bff;
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+  text-decoration: underline;
+  font-size: 0.9rem;
+}
+
+.resend-link:disabled {
+  color: #ccc;
+  cursor: not-allowed;
+  text-decoration: none;
+}
