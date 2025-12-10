@@ -88,6 +88,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			const matchesSearch =
 				searchTerm.length === 0 ||
 				order.id.toString().includes(searchTerm) ||
+				(order.order_number && order.order_number.toLowerCase().includes(searchTerm)) ||
 				customerName.toLowerCase().includes(searchTerm) ||
 				customerEmail.toLowerCase().includes(searchTerm);
 			return matchesStatus && matchesType && matchesSearch;
@@ -284,6 +285,35 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			}
 
 			toast.success('Estado de orden actualizado correctamente');
+			await loadOrders();
+		} catch (error) {
+			toast.error(error.message);
+		} finally {
+			setIsSubmitting(false);
+		}
+	};
+
+	const handleDeleteOrder = async (orderId) => {
+		if (!window.confirm(`¿Estás seguro de que deseas eliminar la orden #${orderId}? Esta acción no se puede deshacer.`)) {
+			return;
+		}
+
+		try {
+			setIsSubmitting(true);
+			const token = localStorage.getItem('authToken');
+			const response = await fetch(`${API_URL}/orders/${orderId}`, {
+				method: 'DELETE',
+				headers: {
+					'Authorization': `Bearer ${token}`
+				}
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.message || 'Error al eliminar la orden');
+			}
+
+			toast.success('Orden eliminada correctamente');
 			await loadOrders();
 		} catch (error) {
 			toast.error(error.message);
@@ -1021,10 +1051,20 @@ const handleImageChange = (event) => {
 								<tbody>
 									{filteredOrders.map((order) => (
 										<tr key={order.id}>
-											<td data-label="ID">#{order.id}</td>
+											<td data-label="ID">{order.order_number || `#${order.id}`}</td>
 											<td className="admin-table-name" data-label="Cliente">
+												<span 
+													title={order.user_id ? "Usuario Registrado" : "Usuario Invitado"}
+													style={{ 
+														marginRight: '5px', 
+														fontSize: '0.80em',
+														color: order.user_id ? 'transparent' : 'inherit',
+														textShadow: order.user_id ? '0 0 0 #0b913cff' : 'none'
+													}}
+												>
+													👤
+												</span>
 												{order.customer_name}
-												{!order.user_id && <span className="guest-badge-small" title="Usuario Invitado">👤</span>}
 											</td>
 											<td data-label="Email">{order.customer_email}</td>
 											<td className="admin-table-price" data-label="Total">${order.total.toFixed(2)}</td>
@@ -1045,7 +1085,7 @@ const handleImageChange = (event) => {
 													{order.status === 'cancelled' && '❌ Cancelado'}
 												</span>
 											</td>
-											<td data-label="Fecha">{new Date(order.created_at).toLocaleString()}</td>
+											<td data-label="Fecha">{new Date(order.created_at).toLocaleDateString()}</td>
 											<td className="admin-table-actions" data-label="Acciones">
 												<button
 													type="button"
@@ -1053,6 +1093,14 @@ const handleImageChange = (event) => {
 													onClick={() => viewOrderDetails(order.id)}
 												>
 													Ver
+												</button>
+												<button
+													type="button"
+													className="admin-btn danger"
+													onClick={() => handleDeleteOrder(order.id)}
+													disabled={isSubmitting}
+												>
+													Eliminar
 												</button>
 												<select
 													value={order.status}
@@ -1079,7 +1127,7 @@ const handleImageChange = (event) => {
 						<div className="order-modal-overlay" onClick={closeOrderDetails}>
 							<div className="order-modal" onClick={(e) => e.stopPropagation()}>
 								<div className="order-modal-header">
-									<h3>Detalles de Orden #{selectedOrder.id}</h3>
+									<h3>Detalles de Orden {selectedOrder.order_number || `#${selectedOrder.id}`}</h3>
 									<button className="close-modal" onClick={closeOrderDetails}>✕</button>
 								</div>
 								<div className="order-modal-body">

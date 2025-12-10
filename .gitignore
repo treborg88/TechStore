@@ -30,6 +30,7 @@ backend/data/app.db
 # OS files
 .DS_Store
 Thumbs.db
+USABILITY_REPORT.md
 *.swp
 *.swo
 *~
@@ -52,6 +53,7 @@ coverage/
 playwright.config.js
 playwright/
 test-results/
+playwright-report/
 
 # Temporary files
 *.tmp

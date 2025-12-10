@@ -100,6 +100,16 @@ function saveJsonData(filePath, data) {
     }
 }
 
+function generateOrderNumber(id) {
+    const date = new Date();
+    const year = date.getFullYear().toString().slice(-2);
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    const dateStr = `${year}${month}${day}`;
+    const idPadded = id.toString().padStart(5, '0');
+    return `W-${dateStr}-${idPadded}`;
+}
+
 // --- Middleware de Autenticación ---
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -810,6 +820,10 @@ app.post('/api/orders', authenticateToken, (req, res) => {
         );
         const orderId = orderResult.lastInsertRowid;
 
+        // Generate and update order number
+        const orderNumber = generateOrderNumber(orderId);
+        statements.updateOrderNumber.run(orderNumber, orderId);
+
         // Add order items and update stock
         for (const item of items) {
             const product = statements.getProductById.get(item.product_id);
@@ -894,6 +908,10 @@ app.post('/api/orders/guest', (req, res) => {
         );
         const orderId = orderResult.lastInsertRowid;
 
+        // Generate and update order number
+        const orderNumber = generateOrderNumber(orderId);
+        statements.updateOrderNumber.run(orderNumber, orderId);
+
         // Add order items and update stock
         for (const item of items) {
             const product = statements.getProductById.get(item.product_id);
@@ -952,29 +970,69 @@ app.put('/api/orders/:id/status', authenticateToken, (req, res) => {
     }
 });
 
-// Track order by ID (public - no authentication required)
-app.get('/api/orders/track/:id', (req, res) => {
+// Delete order (admin only)
+app.delete('/api/orders/:id', authenticateToken, (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Acceso denegado' });
+    }
+
     const orderId = parseInt(req.params.id, 10);
 
     try {
-        const getOrderWithCustomer = db.prepare(`
-            SELECT 
-                o.*, 
-                COALESCE(u.name, o.customer_name) as customer_name, 
-                COALESCE(u.email, o.customer_email) as customer_email
-            FROM orders o
-            LEFT JOIN users u ON o.user_id = u.id
-            WHERE o.id = ?
-        `);
+        const result = statements.deleteOrder.run(orderId);
         
-        const order = getOrderWithCustomer.get(orderId);
+        if (result.changes > 0) {
+            console.log('Orden eliminada:', orderId);
+            res.json({ message: 'Orden eliminada exitosamente' });
+        } else {
+            res.status(404).json({ message: 'Orden no encontrada' });
+        }
+    } catch (error) {
+        console.error('Error eliminando orden:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+// Track order by ID or Order Number (public - no authentication required)
+app.get('/api/orders/track/:id', (req, res) => {
+    const param = req.params.id;
+    const orderId = parseInt(param, 10);
+
+    try {
+        let order;
+        
+        // If param is a number, search by ID
+        if (!isNaN(orderId) && orderId.toString() === param) {
+            const getOrderWithCustomer = db.prepare(`
+                SELECT 
+                    o.*, 
+                    COALESCE(u.name, o.customer_name) as customer_name, 
+                    COALESCE(u.email, o.customer_email) as customer_email
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.id
+                WHERE o.id = ?
+            `);
+            order = getOrderWithCustomer.get(orderId);
+        } else {
+            // Search by order_number
+            const getOrderWithCustomerByNumber = db.prepare(`
+                SELECT 
+                    o.*, 
+                    COALESCE(u.name, o.customer_name) as customer_name, 
+                    COALESCE(u.email, o.customer_email) as customer_email
+                FROM orders o
+                LEFT JOIN users u ON o.user_id = u.id
+                WHERE o.order_number = ?
+            `);
+            order = getOrderWithCustomerByNumber.get(param);
+        }
         
         if (!order) {
             return res.status(404).json({ message: 'Orden no encontrada' });
         }
 
         // Get order items
-        const orderItems = statements.getOrderItems.all(orderId);
+        const orderItems = statements.getOrderItems.all(order.id);
         
         res.json({
             ...order,

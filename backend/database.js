@@ -146,6 +146,11 @@ try {
     console.log('Migrating database: Adding shipping_sector to orders table...');
     db.exec('ALTER TABLE orders ADD COLUMN shipping_sector TEXT');
   }
+  if (!columns.includes('order_number')) {
+    console.log('Migrating database: Adding order_number to orders table...');
+    db.exec('ALTER TABLE orders ADD COLUMN order_number TEXT');
+    db.exec('CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)');
+  }
 } catch (error) {
   console.error('Error migrating structured address fields:', error);
 }
@@ -293,6 +298,8 @@ const statements = {
   getOrdersByUserId: db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC'),
   getOrderById: db.prepare('SELECT * FROM orders WHERE id = ?'),
   updateOrderStatus: db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
+  updateOrderNumber: db.prepare('UPDATE orders SET order_number = ? WHERE id = ?'),
+  deleteOrder: db.prepare('DELETE FROM orders WHERE id = ?'),
 
   // Order Items
   addOrderItem: db.prepare('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)'),

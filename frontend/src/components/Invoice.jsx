@@ -204,7 +204,7 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
         companyLocation: 'República Dominicana',
         customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
         customerEmail: customerInfo.email,
-        source: order.id.toString(),
+        source: order.order_number || order.id.toString(),
         currency: 'RD$',
         items: items.map(item => ({
             description: item.name,
@@ -221,7 +221,7 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
         <div className="order-success printable-area">
             <div className="success-icon no-print">✅</div>
             <h2>¡Pedido Confirmado!</h2>
-            <p className="order-number">Orden #{order.id}</p>
+            <p className="order-number">Orden {order.order_number || `#${order.id}`}</p>
             <p className="success-message no-print">
                 Tu pedido ha sido recibido y está siendo procesado.
                 {!isAuthenticated && (
@@ -252,7 +252,7 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
                     </div>
                     <div className="info-row">
                         <span className="info-label">Source</span>
-                        <span className="info-value">#{order.id}</span>
+                        <span className="info-value">{order.order_number || `#${order.id}`}</span>
                     </div>
                 </div>
 

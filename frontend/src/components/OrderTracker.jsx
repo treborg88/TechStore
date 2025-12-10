@@ -127,7 +127,7 @@ function OrderTracker() {
                         <div className="search-input-group">
                             <input
                                 type={searchType === 'email' ? 'email' : 'text'}
-                                placeholder={searchType === 'id' ? 'Ej: 123' : 'Ej: cliente@email.com'}
+                                placeholder={searchType === 'id' ? 'Ej: W-241210-00125' : 'Ej: cliente@email.com'}
                                 value={searchValue}
                                 onChange={(e) => setSearchValue(e.target.value)}
                                 className="search-input"
@@ -160,7 +160,7 @@ function OrderTracker() {
                                     <div key={order.id} className="order-result-card">
                                         <div className="order-result-header">
                                             <div>
-                                                <h4>Orden #{order.id}</h4>
+                                                <h4>Orden {order.order_number || `#${order.id}`}</h4>
                                                 <p className="order-date">
                                                     {new Date(order.created_at).toLocaleDateString('es-ES', {
                                                         year: 'numeric',
@@ -196,7 +196,7 @@ function OrderTracker() {
                 <div className="order-modal-overlay" onClick={closeOrderDetails}>
                     <div className="order-detail-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="order-modal-header">
-                            <h3>Detalles de Orden #{selectedOrder.id}</h3>
+                            <h3>Detalles de Orden {selectedOrder.order_number || `#${selectedOrder.id}`}</h3>
                             <button className="close-modal" onClick={closeOrderDetails}>✕</button>
                         </div>
                         <div className="order-modal-body">
