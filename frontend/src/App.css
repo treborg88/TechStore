@@ -90,7 +90,7 @@ ul {
   color: var(--white);
   font-size: 1.5rem;
   padding: 5px;
-  margin-right: 10px;
+  margin-right: 6px;
   cursor: pointer;
 }
 
@@ -146,17 +146,17 @@ ul {
   align-self: flex-end;
   background: none;
   border: none;
-  font-size: 2rem;
+  font-size: 1.6rem;
   color: var(--white);
   cursor: pointer;
-  padding: 0 10px;
+  padding: 0 6px;
 }
 
 .mobile-nav-link {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   color: var(--white);
-  padding: 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.341);
+  padding: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.28);
   font-weight: 500;
 }
 
@@ -177,13 +177,13 @@ ul {
   display: flex;
   justify-content: center;
   align-items: center;
-  gap: 20px;
+  gap: 8px;
 }
 
 .logo-container {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 5px;
   flex-shrink: 0;
 }
 
@@ -206,8 +206,8 @@ ul {
 }
 
 .nav-link {
-  padding: 8px 16px;
-  transition: color 0.3s;
+  padding: 6px 8px;
+  transition: color 0.2s;
 }
 
 .nav-link:hover {
@@ -217,7 +217,7 @@ ul {
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 15px;
+  gap: 8px;
   flex-shrink: 0;
 }
 
@@ -229,7 +229,6 @@ ul {
   position: absolute;
   top: -8px;
   right: -8px;
-  background-color: #ef4444;
   color: white;
   border-radius: 50%;
   width: 20px;
@@ -243,8 +242,19 @@ ul {
 .cart-button {
   background: none;
   font-size: 1.25rem;
-  padding: 8px;
+  padding: 5px;
   color: var(--white);
+}
+
+/* user name button (header) */
+.user-name-btn {
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 0.95rem;
+  font-weight: bold;
+  padding: 10px 6px;
+  margin-right: 6px;
 }
 
 .user-name {
@@ -255,16 +265,20 @@ ul {
 }
 
 .login-button {
-  background-color: var(--white);
+  background-color:rgb(223, 223, 240);
   color: var(--primary-color);
-  padding: 8px 16px;
-  border-radius: 4px;
-  transition: background-color 0.3s;
+  padding: 1px 6px; /* reduced padding to make button visually smaller */
+  border-radius: 6px;
+  border: 0px solid rgba(0,0,0,0.08); /* subtle thin border */
+  transition: background-color 0.2s, border-color 0.2s;
   white-space: nowrap;
+  box-shadow: none;
+  font-size: 0.9rem;
 }
 
 .login-button:hover {
   background-color: var(--gray-100);
+  border-color: rgba(0,0,0,0.2);
 }
 
 /* Hero Section */
@@ -854,7 +868,7 @@ ul {
 @media (min-width: 768px) {
   .main-nav {
     display: flex;
-    gap: 10px;
+    gap: 0px;
   }
 
   .user-name {
@@ -876,8 +890,8 @@ ul {
   
   /* En tablets y desktop, siempre mostrar 4 categorías */
   .category-card {
-    min-width: calc((100% - 60px) / 4);
-    width: calc((100% - 60px) / 4);
+    min-width: calc((100% - 60px) / 5);
+    width: calc((100% - 60px) / 5);
   }
   
   .products-grid {

@@ -336,9 +336,9 @@ function App() {
                   onClick={() => setProfileOpen(true)}
                   style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
                 >
-                  Hola, {user.name}
+                  Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
                 </button>
-                <button className="login-button" onClick={handleLogout}>Cerrar Sesión</button>
+                <button className="login-button" onClick={handleLogout}>Cerrar</button>
               </>
             ) : (
               <button className="login-button" onClick={() => navigate('/login')}>Iniciar Sesión</button>
