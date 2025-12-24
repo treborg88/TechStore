@@ -12,6 +12,41 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Helper functions to mimic the old "statements" behavior but with Supabase (Async)
 const statements = {
+  // Storage
+  uploadImage: async (file) => {
+    // Obtener nombre sin extensión y sanitizarlo
+    const originalName = file.originalname.split('.').slice(0, -1).join('.');
+    const fileExt = file.originalname.split('.').pop();
+    
+    // Sanitización: minúsculas, quitar acentos, reemplazar espacios y caracteres especiales por guiones
+    const sanitizedName = originalName
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "") // Quitar acentos
+      .replace(/[^a-z0-9]/g, '-')      // Reemplazar no alfanuméricos por guiones
+      .replace(/-+/g, '-')             // Quitar guiones duplicados
+      .replace(/^-|-$/g, '');          // Quitar guiones al inicio o final
+
+    // Añadir un pequeño sufijo único para evitar colisiones si dos archivos se llaman igual
+    const fileName = `${sanitizedName}-${Date.now()}.${fileExt}`;
+    const filePath = `products/${fileName}`;
+
+    const { data, error } = await supabase.storage
+      .from('products')
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false
+      });
+
+    if (error) throw error;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('products')
+      .getPublicUrl(filePath);
+
+    return publicUrl;
+  },
+
   // Users
   getUserById: async (id) => {
     const { data, error } = await supabase
@@ -174,13 +209,11 @@ const statements = {
 
     return data.map(item => {
       const product = item.products;
-      let image = product.image;
+      // Priorizar la primera imagen de la galería (product_images) ya que es la que se migra a Supabase
+      let image = (product.product_images && product.product_images.length > 0) 
+        ? product.product_images[0].image_path 
+        : product.image;
       
-      // Si no hay imagen principal, usar la primera de product_images
-      if (!image && product.product_images && product.product_images.length > 0) {
-        image = product.product_images[0].image_path;
-      }
-
       return {
         id: item.id,
         product_id: item.product_id,

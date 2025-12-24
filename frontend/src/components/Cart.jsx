@@ -52,7 +52,13 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
                             {cartItems.map(item => (
                                 <li key={`cart-${item.id}`} className="cart-item">
                                     <img 
-                                        src={item.image ? `${BASE_URL}${item.image}` : '/images/sin imagen.jpeg'} 
+                                        src={item.image ? (
+                                            item.image.startsWith('http') 
+                                                ? item.image 
+                                                : (item.image.startsWith('/images/') 
+                                                    ? `${BASE_URL}${item.image}` 
+                                                    : `${BASE_URL}/images/${item.image}`)
+                                        ) : '/images/sin imagen.jpeg'} 
                                         alt={item.name} 
                                         className="cart-item-img" 
                                         onError={(e) => {

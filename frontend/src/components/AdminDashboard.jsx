@@ -811,7 +811,13 @@ const handleImageChange = (event) => {
 													{(product.images || []).length > 0 ? (
 														<div className="image-gallery">
 															<img
-																src={`${BASE_URL}${product.images[0].image_path}`}
+																src={product.images[0].image_path ? (
+																	product.images[0].image_path.startsWith('http') 
+																		? product.images[0].image_path 
+																		: (product.images[0].image_path.startsWith('/images/') 
+																			? `${BASE_URL}${product.images[0].image_path}` 
+																			: `${BASE_URL}/images/${product.images[0].image_path}`)
+																) : '/images/sin imagen.jpeg'}
 																alt={product.name}
 																onError={(event) => {
 																	event.currentTarget.src = '/images/sin imagen.jpeg';
@@ -823,7 +829,13 @@ const handleImageChange = (event) => {
 														</div>
 													) : (
 														<img
-															src={product.image ? `${BASE_URL}${product.image}` : '/images/sin imagen.jpeg'}
+															src={product.image ? (
+																product.image.startsWith('http') 
+																	? product.image 
+																	: (product.image.startsWith('/images/') 
+																		? `${BASE_URL}${product.image}` 
+																		: `${BASE_URL}/images/${product.image}`)
+															) : '/images/sin imagen.jpeg'}
 															alt={product.name}
 														/>
 													)}
@@ -920,7 +932,7 @@ const handleImageChange = (event) => {
 																		{(editingProduct.images || []).map((img) => (
 																			<div key={img.id} className="image-item">
 																				<img
-																					src={`${BASE_URL}${img.image_path}`}
+																					src={img.image_path.startsWith('http') ? img.image_path : `${BASE_URL}${img.image_path}`}
 																					alt="Producto"
 																					onError={(event) => {
 																						event.currentTarget.src = '/images/sin imagen.jpeg';
@@ -1157,7 +1169,13 @@ const handleImageChange = (event) => {
 									<div className="order-items">
 										{selectedOrder.items && selectedOrder.items.map((item) => (
 											<div key={item.id} className="order-item">
-												<img src={`${BASE_URL}${item.image}`} alt={item.name} />
+												<img src={item.image ? (
+													item.image.startsWith('http') 
+														? item.image 
+														: (item.image.startsWith('/images/') 
+															? `${BASE_URL}${item.image}` 
+															: `${BASE_URL}/images/${item.image}`)
+												) : '/images/sin imagen.jpeg'} alt={item.name} />
 												<div className="order-item-info">
 													<p className="order-item-name">{item.name}</p>
 													<p className="order-item-details">

@@ -3,7 +3,6 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -23,10 +22,12 @@ const PORT = process.env.PORT || 5001;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 if (!JWT_SECRET) {
-    console.warn('⚠️ ADVERTENCIA: JWT_SECRET no está definido en el archivo .env. Usando una clave por defecto para desarrollo.');
+    console.error('❌ ERROR CRÍTICO: JWT_SECRET no está definido en el archivo .env.');
+    console.error('El servidor no puede iniciar sin una clave secreta para los tokens JWT por motivos de seguridad.');
+    process.exit(1);
 }
 
-const FINAL_JWT_SECRET = JWT_SECRET || 'tu_clave_secreta_super_segura_cambiala_en_produccion';
+const FINAL_JWT_SECRET = JWT_SECRET;
 
 // CORS con múltiples orígenes permitidos
 const corsOptions = {
@@ -83,24 +84,11 @@ app.use('/api/auth/forgot-password', authLimiter);
 app.use('/api/auth/reset-password', authLimiter);
 app.use('/api/verification/send-code', authLimiter);
 
-// Ensure the 'public/images' directory exists before serving static files from it
-const publicImagesPath = path.join(__dirname, 'images');
-if (!fs.existsSync(publicImagesPath)) {
-    fs.mkdirSync(publicImagesPath, { recursive: true });
-}
-app.use('/images', express.static(publicImagesPath));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // --- File Paths ---
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, publicImagesPath);
-    },
-    filename: (req, file, cb) => {
-        cb(null, file.originalname);
-    }
-});
+const storage = multer.memoryStorage();
 
 const imageFileFilter = (req, file, cb) => {
     if (file.mimetype.startsWith('image/')) {
@@ -114,28 +102,6 @@ const upload = multer({
     storage: storage,
     fileFilter: imageFileFilter
 });
-
-// --- Helper Functions for Reading/Writing JSON ---
-function loadJsonData(filePath, defaultValue = []) {
-    try {
-        if (fs.existsSync(filePath)) {
-            const json = fs.readFileSync(filePath, 'utf-8');
-            return json ? JSON.parse(json) : defaultValue;
-        }
-        return defaultValue;
-    } catch (err) {
-        console.error(`Error reading JSON from ${path.basename(filePath)}:`, err);
-        return defaultValue;
-    }
-}
-
-function saveJsonData(filePath, data) {
-    try {
-        fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
-    } catch (err) {
-        console.error(`Error writing JSON to ${path.basename(filePath)}:`, err);
-    }
-}
 
 function generateOrderNumber(id) {
     const date = new Date();
@@ -659,9 +625,10 @@ app.post('/api/products', upload.array('images', 10), async (req, res) => {
 
         const productId = result.lastInsertRowid;
 
-        // Add images
+        // Add images to Supabase Storage
         for (const file of req.files) {
-            await statements.addProductImage(productId, `/images/${file.filename}`);
+            const publicUrl = await statements.uploadImage(file);
+            await statements.addProductImage(productId, publicUrl);
         }
 
         const newProduct = await statements.getProductById(productId);
@@ -751,9 +718,10 @@ app.post('/api/products/:id/images', upload.array('images', 10), async (req, res
             return res.status(400).json({ message: 'No se recibió ningún archivo de imagen.' });
         }
 
-        // Add images
+        // Add images to Supabase Storage
         for (const file of req.files) {
-            await statements.addProductImage(productId, `/images/${file.filename}`);
+            const publicUrl = await statements.uploadImage(file);
+            await statements.addProductImage(productId, publicUrl);
         }
 
         const images = await statements.getProductImages(productId);

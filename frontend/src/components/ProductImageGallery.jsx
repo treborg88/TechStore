@@ -237,7 +237,13 @@ function ProductImageGallery({ images, productName, productDescription, classNam
             {infiniteImages.map((image, index) => (
               <div key={`${image.id}-${index}`} className="carousel-slide">
                 <img
-                  src={`${BASE_URL}${image.image_path}`}
+                  src={image.image_path ? (
+                    image.image_path.startsWith('http') 
+                      ? image.image_path 
+                      : (image.image_path.startsWith('/images/') 
+                          ? `${BASE_URL}${image.image_path}` 
+                          : `${BASE_URL}/images/${image.image_path}`)
+                  ) : '/images/sin imagen.jpeg'}
                   alt={`${productName} - Imagen`}
                   className="main-product-image"
                   draggable={false}
@@ -310,7 +316,13 @@ function ProductImageGallery({ images, productName, productDescription, classNam
                 {infiniteImages.map((image, index) => (
                   <div key={`modal-${image.id}-${index}`} className="modal-carousel-slide">
                     <img
-                      src={`${BASE_URL}${image.image_path}`}
+                      src={image.image_path ? (
+                        image.image_path.startsWith('http') 
+                          ? image.image_path 
+                          : (image.image_path.startsWith('/images/') 
+                              ? `${BASE_URL}${image.image_path}` 
+                              : `${BASE_URL}/images/${image.image_path}`)
+                      ) : '/images/sin imagen.jpeg'}
                       alt={`${productName} - Imagen`}
                       className="modal-image"
                       style={{ transform: `scale(${zoom})` }}

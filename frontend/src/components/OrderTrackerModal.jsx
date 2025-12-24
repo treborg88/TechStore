@@ -286,7 +286,13 @@ function OrderTrackerModal({ onClose, user }) {
                                         {selectedOrder.items.map((item) => (
                                             <div key={item.id} className="order-item-row">
                                                 <img 
-                                                    src={`${BASE_URL}${item.image}`} 
+                                                    src={item.image ? (
+                                                        item.image.startsWith('http') 
+                                                            ? item.image 
+                                                            : (item.image.startsWith('/images/') 
+                                                                ? `${BASE_URL}${item.image}` 
+                                                                : `${BASE_URL}/images/${item.image}`)
+                                                    ) : '/images/sin imagen.jpeg'} 
                                                     alt={item.name}
                                                     className="item-image"
                                                     onError={(e) => {

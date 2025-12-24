@@ -3,12 +3,7 @@
 // export const API_URL = 'http://143.47.118.165:5001/api';
 // export const BASE_URL = 'http://143.47.118.165:5001';
 
-
-// export const API_URL = 'http://localhost:5001/api';
-// export const BASE_URL = 'http://localhost:5001';
-
-
-export const API_URL = 'http://192.168.100.41:5001/api';
+export const API_URL  = 'http://192.168.100.41:5001/api';
 export const BASE_URL = 'http://192.168.100.41:5001';
 
 // export const API_URL = 'http://3mml836n-5001.use2.devtunnels.ms/api';
