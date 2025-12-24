@@ -31,7 +31,7 @@
     }
     };
 
-    export const register = async (name, email, password) => {
+    export const register = async (name, email, password, code) => {
     try {
         const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
@@ -41,7 +41,8 @@
         body: JSON.stringify({ 
             name, 
             email, 
-            password 
+            password,
+            code
         }),
         });
 
@@ -95,6 +96,38 @@
 
     export const getAuthToken = () => {
     return localStorage.getItem('authToken');
+    };
+
+    export const forgotPassword = async (email) => {
+    try {
+        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Error al enviar código');
+        return data;
+    } catch (error) {
+        console.error('Error en forgotPassword:', error);
+        throw error;
+    }
+    };
+
+    export const resetPassword = async (email, code, newPassword) => {
+    try {
+        const response = await fetch(`${API_URL}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, code, newPassword }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.message || 'Error al restablecer contraseña');
+        return data;
+    } catch (error) {
+        console.error('Error en resetPassword:', error);
+        throw error;
+    }
     };
 
     export default {

@@ -1,11 +1,13 @@
 import React, { useState } from "react";
-import { login, register } from '../services/authService';
+import { login, register, forgotPassword, resetPassword } from '../services/authService';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 import EmailVerification from './EmailVerification';
 
 export default function LoginPage({ onLoginSuccess, onBackToHome }) {
 const [isRegister, setIsRegister] = useState(false);
+const [isForgotPassword, setIsForgotPassword] = useState(false);
+const [showPassword, setShowPassword] = useState(false);
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState('');
 const [showVerification, setShowVerification] = useState(false);
@@ -15,6 +17,15 @@ const [formData, setFormData] = useState({
     password: "",
     confirmPassword: ""
 });
+
+const [resetData, setResetData] = useState({
+    email: "",
+    code: "",
+    newPassword: "",
+    confirmNewPassword: ""
+});
+
+const [resetStep, setResetStep] = useState('input_email'); // input_email, verify_code, success
 
 const handleChange = (e) => {
     setFormData({
@@ -37,8 +48,9 @@ const handleChange = (e) => {
             toast.error('Las contraseñas no coinciden');
             return false;
         }
-        if (formData.password.length < 6) {
-            toast.error('La contraseña debe tener al menos 6 caracteres');
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(formData.password)) {
+            toast.error('La contraseña debe tener al menos 8 caracteres, una mayúscula y un número');
             return false;
         }
         }
@@ -56,10 +68,10 @@ const handleChange = (e) => {
         return true;
     };
 
-    const handleRegisterAfterVerification = async () => {
+    const handleRegisterAfterVerification = async (email, code) => {
         setLoading(true);
         try {
-            const userData = await register(formData.nombre, formData.email, formData.password);
+            const userData = await register(formData.nombre, email, formData.password, code);
             toast.success('¡Cuenta creada exitosamente!');
             onLoginSuccess(userData);
         } catch (err) {
@@ -67,6 +79,52 @@ const handleChange = (e) => {
             setError(msg);
             toast.error(msg);
             setShowVerification(false); // Volver al formulario si falla el registro final
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleForgotPassword = async (e) => {
+        if (e) e.preventDefault();
+        setLoading(true);
+        try {
+            await forgotPassword(formData.email);
+            toast.success('Código de recuperación enviado');
+            setIsForgotPassword(true);
+            setResetStep('verify_code');
+        } catch (err) {
+            toast.error(err.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleResetPassword = async (email, code) => {
+        setResetData({ ...resetData, email, code });
+        setResetStep('new_password');
+    };
+
+    const handleFinalReset = async (e) => {
+        e.preventDefault();
+        if (resetData.newPassword !== resetData.confirmNewPassword) {
+            toast.error('Las contraseñas no coinciden');
+            return;
+        }
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(resetData.newPassword)) {
+            toast.error('La contraseña debe tener al menos 8 caracteres, una mayúscula y un número');
+            return;
+        }
+
+        setLoading(true);
+        try {
+            await resetPassword(resetData.email, resetData.code, resetData.newPassword);
+            toast.success('Contraseña actualizada correctamente');
+            setIsForgotPassword(false);
+            setResetStep('input_email');
+            setIsRegister(false);
+        } catch (err) {
+            toast.error(err.message);
         } finally {
             setLoading(false);
         }
@@ -138,18 +196,25 @@ return (
 
         {/* Contenido del formulario */}
         <div className="login-content">
-        <div className="login-logo">
+        <div 
+            className="login-logo" 
+            onClick={handleBackToHome}
+            style={{ cursor: 'pointer' }}
+            title="Volver al inicio"
+        >
             <h1>🛍️ TechStore</h1>
         </div>
 
         <h2 className="login-title">
-            {isRegister ? "Crear Nueva Cuenta" : "Bienvenido de Nuevo"}
+            {isForgotPassword ? "Recuperar Contraseña" : (isRegister ? "Crear Nueva Cuenta" : "Bienvenido de Nuevo")}
         </h2>
         
         <p className="login-subtitle">
-            {isRegister 
-            ? "Únete a nuestra comunidad y disfruta de ofertas exclusivas" 
-            : "Inicia sesión para continuar con tus compras"
+            {isForgotPassword 
+                ? "Te enviaremos un código para restablecer tu contraseña"
+                : (isRegister 
+                    ? "Únete a nuestra comunidad y disfruta de ofertas exclusivas" 
+                    : "Inicia sesión para continuar con tus compras")
             }
         </p>
 
@@ -159,13 +224,87 @@ return (
             </div>
         )}
 
-        {showVerification ? (
+        {isForgotPassword ? (
+            <div className="forgot-password-container">
+                {resetStep === 'verify_code' ? (
+                    <EmailVerification
+                        initialEmail={formData.email}
+                        autoSend={false}
+                        purpose="password_reset"
+                        onVerified={(email, code) => handleResetPassword(email, code)}
+                    />
+                ) : resetStep === 'new_password' ? (
+                    <form onSubmit={handleFinalReset} className="login-form">
+                        <div className="form-group">
+                            <label htmlFor="newPassword">Nueva Contraseña</label>
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    id="newPassword"
+                                    type={showPassword ? "text" : "password"}
+                                    placeholder="Mínimo 8 caracteres, 1 mayúscula, 1 número"
+                                    value={resetData.newPassword}
+                                    onChange={(e) => setResetData({...resetData, newPassword: e.target.value})}
+                                    required
+                                    style={{ width: '100%', paddingRight: '80px' }}
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    style={{
+                                        position: 'absolute',
+                                        right: '10px',
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        background: 'none',
+                                        border: 'none',
+                                        color: '#007bff',
+                                        cursor: 'pointer',
+                                        fontSize: '0.8rem'
+                                    }}
+                                >
+                                    {showPassword ? "Ocultar" : "Mostrar"}
+                                </button>
+                            </div>
+                        </div>
+                        <div className="form-group">
+                            <label htmlFor="confirmNewPassword">Confirmar Nueva Contraseña</label>
+                            <input
+                                id="confirmNewPassword"
+                                type={showPassword ? "text" : "password"}
+                                placeholder="Confirma tu nueva contraseña"
+                                value={resetData.confirmNewPassword}
+                                onChange={(e) => setResetData({...resetData, confirmNewPassword: e.target.value})}
+                                required
+                            />
+                        </div>
+                        <button type="submit" className="submit-button" disabled={loading}>
+                            {loading ? <LoadingSpinner size="small" color="#ffffff" /> : "Actualizar Contraseña"}
+                        </button>
+                    </form>
+                ) : null}
+                <button 
+                    className="back-button-text" 
+                    onClick={() => setIsForgotPassword(false)}
+                    style={{ 
+                        marginTop: '15px', 
+                        background: 'none', 
+                        border: 'none', 
+                        color: '#666', 
+                        cursor: 'pointer', 
+                        textDecoration: 'underline',
+                        width: '100%'
+                    }}
+                >
+                    Volver al inicio de sesión
+                </button>
+            </div>
+        ) : showVerification ? (
             <div className="verification-container">
                 <EmailVerification
                     initialEmail={formData.email}
                     autoSend={true}
                     purpose="register"
-                    onVerified={() => handleRegisterAfterVerification()}
+                    onVerified={(email, code) => handleRegisterAfterVerification(email, code)}
                 />
                 <button 
                     className="back-button-text" 
@@ -219,18 +358,37 @@ return (
 
             <div className="form-group">
             <label htmlFor="password">Contraseña</label>
-            <input
-                id="password"
-                type="password"
-                name="password"
-                placeholder={isRegister ? "Mínimo 6 caracteres" : "Ingresa tu contraseña"}
-                value={formData.password}
-                onChange={handleChange}
-                required
-                disabled={loading}
-                autoComplete={isRegister ? "new-password" : "current-password"}
-                minLength={isRegister ? 6 : undefined}
-            />
+            <div className="password-input-container" style={{ position: 'relative' }}>
+                <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    name="password"
+                    placeholder={isRegister ? "Mínimo 8 caracteres, 1 mayúscula, 1 número" : "Ingresa tu contraseña"}
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    disabled={loading}
+                    autoComplete={isRegister ? "new-password" : "current-password"}
+                    style={{ width: '100%', paddingRight: '80px' }}
+                />
+                <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    style={{
+                        position: 'absolute',
+                        right: '10px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        background: 'none',
+                        border: 'none',
+                        color: '#007bff',
+                        cursor: 'pointer',
+                        fontSize: '0.8rem'
+                    }}
+                >
+                    {showPassword ? "Ocultar" : "Mostrar"}
+                </button>
+            </div>
             </div>
 
             {isRegister && (
@@ -238,7 +396,7 @@ return (
                 <label htmlFor="confirmPassword">Confirmar contraseña</label>
                 <input
                 id="confirmPassword"
-                type="password"
+                type={showPassword ? "text" : "password"}
                 name="confirmPassword"
                 placeholder="Confirma tu contraseña"
                 value={formData.confirmPassword}
@@ -268,15 +426,20 @@ return (
         </form>
         )}
 
-        {!isRegister && !showVerification && (
+        {!isRegister && !showVerification && !isForgotPassword && (
             <div className="forgot-password">
-            <a href="#" className="forgot-link">
+            <button 
+                type="button" 
+                className="forgot-link" 
+                onClick={handleForgotPassword}
+                style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', padding: 0 }}
+            >
                 ¿Olvidaste tu contraseña?
-            </a>
+            </button>
             </div>
         )}
 
-        {!showVerification && (
+        {!showVerification && !isForgotPassword && (
         <>
         <div className="divider">
             <span>o</span>

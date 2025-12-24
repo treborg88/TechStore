@@ -2,17 +2,31 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
 const fs = require('fs');
 const path = require('path');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
+const rateLimit = require('express-rate-limit');
 const { db, statements } = require('./database');
 const app = express();
 
+// --- Security Middleware ---
+app.use(helmet({
+    crossOriginResourcePolicy: { policy: "cross-origin" }, // Permitir cargar imágenes desde el frontend
+    contentSecurityPolicy: false, // Desactivar si causa problemas con el frontend en desarrollo
+}));
+
 const PORT = process.env.PORT || 5001;
-const JWT_SECRET = process.env.JWT_SECRET || 'tu_clave_secreta_super_segura_cambiala_en_produccion';
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+    console.warn('⚠️ ADVERTENCIA: JWT_SECRET no está definido en el archivo .env. Usando una clave por defecto para desarrollo.');
+}
+
+const FINAL_JWT_SECRET = JWT_SECRET || 'tu_clave_secreta_super_segura_cambiala_en_produccion';
 
 // CORS con múltiples orígenes permitidos
 const corsOptions = {
@@ -27,10 +41,8 @@ const corsOptions = {
         'http://localhost:5173',
         'http://localhost:3000',
         'http://localhost:5001'
-        
-	    
     ],
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     credentials: true,
     optionsSuccessStatus: 200
 };
@@ -39,12 +51,37 @@ app.use(cors(corsOptions));
 
 // Add these headers to all responses
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', req.headers.origin);
+    const origin = req.headers.origin;
+    if (corsOptions.origin.includes(origin)) {
+        res.header('Access-Control-Allow-Origin', origin);
+    }
     res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Handle preflight
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
     next();
 });
+
+// --- Rate Limiting ---
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutos
+    max: 10, // Limitar cada IP a 10 peticiones por ventana
+    message: { message: 'Demasiados intentos desde esta IP, por favor intenta de nuevo en 15 minutos' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: (req) => req.method === 'OPTIONS', // No contar preflights en el límite
+});
+
+// Aplicar limitador a rutas sensibles
+app.use('/api/auth/login', authLimiter);
+app.use('/api/auth/register', authLimiter);
+app.use('/api/auth/forgot-password', authLimiter);
+app.use('/api/auth/reset-password', authLimiter);
+app.use('/api/verification/send-code', authLimiter);
 
 // Ensure the 'public/images' directory exists before serving static files from it
 const publicImagesPath = path.join(__dirname, 'images');
@@ -119,7 +156,7 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ message: 'Token de acceso requerido' });
     }
 
-    jwt.verify(token, JWT_SECRET, (err, user) => {
+    jwt.verify(token, FINAL_JWT_SECRET, (err, user) => {
         if (err) {
             return res.status(403).json({ message: 'Token inválido o expirado' });
         }
@@ -136,12 +173,20 @@ const authenticateToken = (req, res, next) => {
  */
 app.post('/api/auth/register', async (req, res) => {
     try {
-        const { name, email, password } = req.body;
+        const { name, email, password, code } = req.body;
 
         // Validación básica
-        if (!name || !email || !password) {
+        if (!name || !email || !password || !code) {
             return res.status(400).json({ 
-                message: 'Nombre, email y contraseña son requeridos' 
+                message: 'Nombre, email, contraseña y código de verificación son requeridos' 
+            });
+        }
+
+        // Validar código de verificación
+        const verificationRecord = statements.getVerificationCode.get(email.toLowerCase(), code, 'register');
+        if (!verificationRecord) {
+            return res.status(400).json({ 
+                message: 'Código de verificación inválido o expirado' 
             });
         }
 
@@ -153,10 +198,11 @@ app.post('/api/auth/register', async (req, res) => {
             });
         }
 
-        // Validar longitud de contraseña
-        if (password.length < 6) {
+        // Validar longitud y complejidad de contraseña
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+        if (!passwordRegex.test(password)) {
             return res.status(400).json({ 
-                message: 'La contraseña debe tener al menos 6 caracteres' 
+                message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número' 
             });
         }
 
@@ -184,6 +230,9 @@ app.post('/api/auth/register', async (req, res) => {
         const newUserId = result.lastInsertRowid;
         const newUser = statements.getUserById.get(newUserId);
 
+        // Eliminar el código de verificación usado
+        statements.deleteVerificationCodes.run(email.toLowerCase(), 'register');
+
         // Generar token JWT
         const token = jwt.sign(
             { 
@@ -192,7 +241,7 @@ app.post('/api/auth/register', async (req, res) => {
                 name: newUser.name,
                 role: newUser.role 
             },
-            JWT_SECRET,
+            FINAL_JWT_SECRET,
             { expiresIn: '7d' } // Token válido por 7 días
         );
 
@@ -269,7 +318,7 @@ app.post('/api/auth/login', async (req, res) => {
                 name: user.name,
                 role: user.role 
             },
-            JWT_SECRET,
+            FINAL_JWT_SECRET,
             { expiresIn: '7d' }
         );
 
@@ -300,6 +349,105 @@ app.post('/api/auth/login', async (req, res) => {
         res.status(500).json({ 
             message: 'Error interno del servidor' 
         });
+    }
+});
+
+/**
+ * POST /api/auth/forgot-password
+ * Envía un código de verificación para restablecer la contraseña
+ */
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ message: 'Email es requerido' });
+    }
+
+    try {
+        const user = statements.getUserByEmail.get(email.toLowerCase());
+        if (!user) {
+            // Por seguridad, no revelamos si el email existe o no
+            return res.json({ 
+                success: true, 
+                message: 'Si el email está registrado, recibirás un código de verificación' 
+            });
+        }
+
+        // Generar código de 6 dígitos
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+        statements.deleteVerificationCodes.run(email.toLowerCase(), 'password_reset');
+        statements.createVerificationCode.run(email.toLowerCase(), code, 'password_reset', expiresAt);
+
+        const mailOptions = {
+            from: process.env.EMAIL_USER || 'noreply@techstore.com',
+            to: email,
+            subject: 'Restablecer contraseña - TechStore',
+            text: `Tu código para restablecer la contraseña es: ${code}. Expira en 10 minutos.`,
+            html: `
+                <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
+                    <h2 style="color: #007bff;">Restablecer Contraseña</h2>
+                    <p>Has solicitado restablecer tu contraseña en TechStore.</p>
+                    <p>Tu código de verificación es:</p>
+                    <h1 style="letter-spacing: 5px; background: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">${code}</h1>
+                    <p>Este código expira en 10 minutos.</p>
+                    <p>Si no solicitaste esto, puedes ignorar este correo.</p>
+                </div>
+            `
+        };
+
+        await transporter.sendMail(mailOptions);
+        res.json({ success: true, message: 'Código enviado correctamente' });
+
+    } catch (error) {
+        console.error('Error en forgot-password:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/auth/reset-password
+ * Restablece la contraseña usando un código de verificación
+ */
+app.post('/api/auth/reset-password', async (req, res) => {
+    const { email, code, newPassword } = req.body;
+
+    if (!email || !code || !newPassword) {
+        return res.status(400).json({ 
+            message: 'Email, código y nueva contraseña son requeridos' 
+        });
+    }
+
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+    if (!passwordRegex.test(newPassword)) {
+        return res.status(400).json({ 
+            message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número' 
+        });
+    }
+
+    try {
+        const verificationRecord = statements.getVerificationCode.get(email.toLowerCase(), code, 'password_reset');
+        if (!verificationRecord) {
+            return res.status(400).json({ 
+                message: 'Código de verificación inválido o expirado' 
+            });
+        }
+
+        const user = statements.getUserByEmail.get(email.toLowerCase());
+        if (!user) {
+            return res.status(404).json({ message: 'Usuario no encontrado' });
+        }
+
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        statements.updateUserPassword.run(hashedPassword, user.id);
+        statements.deleteVerificationCodes.run(email.toLowerCase(), 'password_reset');
+
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+
+    } catch (error) {
+        console.error('Error en reset-password:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
 
@@ -1182,6 +1330,8 @@ app.post('/api/verification/send-code', async (req, res) => {
         return res.status(400).json({ message: 'Email es requerido' });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
+
     // Generar código de 6 dígitos
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -1190,15 +1340,15 @@ app.post('/api/verification/send-code', async (req, res) => {
 
     try {
         // Eliminar códigos anteriores para este email y propósito
-        statements.deleteVerificationCodes.run(email, purpose || 'general');
+        statements.deleteVerificationCodes.run(normalizedEmail, purpose || 'general');
 
         // Guardar nuevo código
-        statements.createVerificationCode.run(email, code, purpose || 'general', expiresAt);
+        statements.createVerificationCode.run(normalizedEmail, code, purpose || 'general', expiresAt);
 
         // Enviar email
         const mailOptions = {
             from: process.env.EMAIL_USER || 'noreply@techstore.com',
-            to: email,
+            to: normalizedEmail,
             subject: 'Tu código de verificación - TechStore',
             text: `Tu código de verificación es: ${code}. Este código expira en 10 minutos.`,
             html: `
@@ -1238,11 +1388,16 @@ app.post('/api/verification/verify-code', (req, res) => {
     }
 
     try {
-        const record = statements.getVerificationCode.get(email, code, purpose || 'general');
+        const normalizedEmail = email.toLowerCase().trim();
+        const record = statements.getVerificationCode.get(normalizedEmail, code, purpose || 'general');
 
         if (record) {
-            // Código válido, eliminarlo para que no se use de nuevo
-            statements.deleteVerificationCodes.run(email, purpose || 'general');
+            // Código válido
+            // No eliminar si es para registro o restablecimiento de contraseña, 
+            // ya que esas rutas necesitan verificar el código una segunda vez al procesar la acción final.
+            if (purpose !== 'register' && purpose !== 'password_reset') {
+                statements.deleteVerificationCodes.run(normalizedEmail, purpose || 'general');
+            }
             res.json({ success: true, message: 'Código verificado correctamente' });
         } else {
             res.status(400).json({ message: 'Código inválido o expirado' });

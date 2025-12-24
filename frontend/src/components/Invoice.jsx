@@ -343,7 +343,6 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
                     document={<InvoicePDF invoiceData={invoiceData} />}
                     fileName={`factura-${order.id}.pdf`}
                     className="download-invoice-btn"
-                    style={{ textDecoration: 'none', color: 'white', display: 'inline-block', textAlign: 'center' }}
                 >
                     {({ loading }) => (loading ? 'Generando PDF...' : '📄 Descargar Factura (PDF)')}
                 </PDFDownloadLink>

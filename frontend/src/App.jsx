@@ -294,10 +294,10 @@ function App() {
             ☰
           </button>
 
-          <div className="logo-container">
+          <Link to="/" className="logo-container" style={{ textDecoration: 'none', color: 'inherit' }}>
             <div className="logo">🛍️</div>
             <h1 className="site-title">TechStore</h1>
-          </div>
+          </Link>
           
           <nav className="main-nav">
             <Link to="/" className="nav-link">Productos</Link>
@@ -323,7 +323,15 @@ function App() {
             <div className="cart-container">
               <button className="cart-button" onClick={() => setCartOpen(true)}>
                 🛒
-                <span className="cart-badge">
+                <span 
+                  className="cart-badge"
+                  style={{ 
+                    color: cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0 ? 'red' : 'white',
+                    backgroundColor: 'transparent',
+                    fontSize: '1.3rem',
+                    //fontWeight: 'bold'
+                  }}
+                >
                   {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
                 </span>
               </button>

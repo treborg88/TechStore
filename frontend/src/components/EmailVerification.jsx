@@ -83,7 +83,7 @@ const EmailVerification = ({ initialEmail = '', onVerified, purpose = 'general',
       setStep('success');
       toast.success('¡Correo verificado exitosamente!');
       if (onVerified) {
-        onVerified(email);
+        onVerified(email, code);
       }
     } catch (err) {
       setError(err.message || 'Código inválido o expirado.');

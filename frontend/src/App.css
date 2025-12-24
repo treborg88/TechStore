@@ -2122,6 +2122,35 @@ ul {
   font-size: 0.9rem;
 }
 
+.success-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 30px;
+  align-items: center;
+}
+
+.download-invoice-btn {
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: white !important;
+  text-decoration: none;
+  padding: 14px 32px;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-block;
+  text-align: center;
+  width: 100%;
+  max-width: 300px;
+}
+
+.download-invoice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
 .continue-shopping-btn {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: var(--white);
@@ -2132,6 +2161,8 @@ ul {
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
+  width: 100%;
+  max-width: 300px;
 }
 
 .continue-shopping-btn:hover {
