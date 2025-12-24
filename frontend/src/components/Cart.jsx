@@ -89,7 +89,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
                                         onClick={() => handleRemoveItem(item)}
                                         title="Eliminar producto del carrito"
                                     >
-                                        🗑️ Eliminar
+                                        ✖
                                     </button>
                                 </li>
                             ))}

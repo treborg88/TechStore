@@ -1,324 +1,480 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+require('dotenv').config();
+const { createClient } = require('@supabase/supabase-js');
 
-// Path to the database file
-const dbPath = path.join(__dirname, 'data', 'app.db');
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
 
-// Create database connection
-const db = new Database(dbPath);
-
-// Enable WAL mode for better performance and concurrency
-db.pragma('journal_mode = WAL');
-
-// Create tables if they don't exist
-db.exec(`
-  -- Users table
-  CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL,
-    role TEXT DEFAULT 'customer',
-    is_active BOOLEAN DEFAULT 1,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    last_login DATETIME
-  );
-
-  -- Products table
-  CREATE TABLE IF NOT EXISTS products (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT,
-    price REAL NOT NULL,
-    category TEXT NOT NULL,
-    stock INTEGER DEFAULT 0,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-
-  -- Product images table
-  CREATE TABLE IF NOT EXISTS product_images (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    product_id INTEGER NOT NULL,
-    image_path TEXT NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  );
-
-  -- Cart table (one-to-many: user can have multiple cart items)
-  CREATE TABLE IF NOT EXISTS cart (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE,
-    UNIQUE(user_id, product_id)
-  );
-
-  -- Orders table
-  CREATE TABLE IF NOT EXISTS orders (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    user_id INTEGER,
-    total REAL NOT NULL,
-    status TEXT DEFAULT 'pending',
-    shipping_address TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
-  -- Order items table (many-to-many: order can have multiple products)
-  CREATE TABLE IF NOT EXISTS order_items (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    order_id INTEGER NOT NULL,
-    product_id INTEGER NOT NULL,
-    quantity INTEGER NOT NULL,
-    price REAL NOT NULL,
-    FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-  );
-
-  -- Create indexes for better performance
-  CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-  CREATE INDEX IF NOT EXISTS idx_products_category ON products(category);
-  CREATE INDEX IF NOT EXISTS idx_cart_user_id ON cart(user_id);
-  CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id);
-  CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON order_items(order_id);
-
-  -- Verification codes table
-  CREATE TABLE IF NOT EXISTS verification_codes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    email TEXT NOT NULL,
-    code TEXT NOT NULL,
-    purpose TEXT,
-    expires_at DATETIME NOT NULL,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-  );
-  CREATE INDEX IF NOT EXISTS idx_verification_codes_email ON verification_codes(email);
-`);
-
-// Migration: Add payment_method to orders if it doesn't exist
-try {
-  const tableInfo = db.pragma('table_info(orders)');
-  const hasPaymentMethod = tableInfo.some(column => column.name === 'payment_method');
-  if (!hasPaymentMethod) {
-    console.log('Migrating database: Adding payment_method to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT "cash"');
-  }
-} catch (error) {
-  console.error('Error checking/migrating orders table:', error);
+if (!supabaseUrl || !supabaseKey) {
+  console.error('❌ Error: SUPABASE_URL y SUPABASE_KEY deben estar definidos en el archivo .env');
 }
 
-// Migration: Add structured address fields to orders if they don't exist
-try {
-  const tableInfo = db.pragma('table_info(orders)');
-  const columns = tableInfo.map(col => col.name);
-  
-  if (!columns.includes('customer_name')) {
-    console.log('Migrating database: Adding customer_name to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN customer_name TEXT');
-  }
-  if (!columns.includes('customer_email')) {
-    console.log('Migrating database: Adding customer_email to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN customer_email TEXT');
-  }
-  if (!columns.includes('customer_phone')) {
-    console.log('Migrating database: Adding customer_phone to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN customer_phone TEXT');
-  }
-  if (!columns.includes('shipping_street')) {
-    console.log('Migrating database: Adding shipping_street to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN shipping_street TEXT');
-  }
-  if (!columns.includes('shipping_city')) {
-    console.log('Migrating database: Adding shipping_city to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN shipping_city TEXT');
-  }
-  if (!columns.includes('shipping_postal_code')) {
-    console.log('Migrating database: Adding shipping_postal_code to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN shipping_postal_code TEXT');
-  }
-  if (!columns.includes('shipping_sector')) {
-    console.log('Migrating database: Adding shipping_sector to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN shipping_sector TEXT');
-  }
-  if (!columns.includes('order_number')) {
-    console.log('Migrating database: Adding order_number to orders table...');
-    db.exec('ALTER TABLE orders ADD COLUMN order_number TEXT');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)');
-  }
-} catch (error) {
-  console.error('Error migrating structured address fields:', error);
-}
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Migration: Add is_guest to users table to distinguish guest checkouts from real customers
-try {
-  const tableInfo = db.pragma('table_info(users)');
-  const hasIsGuest = tableInfo.some(column => column.name === 'is_guest');
-  if (!hasIsGuest) {
-    console.log('Migrating database: Adding is_guest to users table...');
-    db.exec('ALTER TABLE users ADD COLUMN is_guest BOOLEAN DEFAULT 0');
-  }
-} catch (error) {
-  console.error('Error migrating is_guest column:', error);
-}
-
-// Migration: Add profile fields to users table
-try {
-  const tableInfo = db.pragma('table_info(users)');
-  const columns = tableInfo.map(col => col.name);
-
-  if (!columns.includes('phone')) {
-      console.log('Migrating database: Adding phone to users table...');
-      db.exec('ALTER TABLE users ADD COLUMN phone TEXT');
-  }
-  if (!columns.includes('street')) {
-      console.log('Migrating database: Adding street to users table...');
-      db.exec('ALTER TABLE users ADD COLUMN street TEXT');
-  }
-  if (!columns.includes('sector')) {
-      console.log('Migrating database: Adding sector to users table...');
-      db.exec('ALTER TABLE users ADD COLUMN sector TEXT');
-  }
-  if (!columns.includes('city')) {
-      console.log('Migrating database: Adding city to users table...');
-      db.exec('ALTER TABLE users ADD COLUMN city TEXT');
-  }
-  if (!columns.includes('country')) {
-      console.log('Migrating database: Adding country to users table...');
-      db.exec('ALTER TABLE users ADD COLUMN country TEXT');
-  }
-} catch (error) {
-  console.error('Error migrating user profile fields:', error);
-}
-
-// Migration: Allow NULL user_id in orders table so guest orders do not require user records
-try {
-  const ordersTableInfo = db.pragma('table_info(orders)');
-  const userIdColumn = ordersTableInfo.find(column => column.name === 'user_id');
-  if (userIdColumn && userIdColumn.notnull === 1) {
-    console.log('Migrating database: Allowing NULL user_id in orders table...');
-
-    db.exec('PRAGMA foreign_keys = OFF');
-    db.exec('BEGIN TRANSACTION');
-
-    db.exec(`
-      CREATE TABLE orders_new (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER,
-        total REAL NOT NULL,
-        status TEXT DEFAULT 'pending',
-        shipping_address TEXT,
-        payment_method TEXT DEFAULT 'cash',
-        customer_name TEXT,
-        customer_email TEXT,
-        customer_phone TEXT,
-        shipping_street TEXT,
-        shipping_city TEXT,
-        shipping_postal_code TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-      )
-    `);
-
-    db.exec(`
-      INSERT INTO orders_new (
-        id, user_id, total, status, shipping_address, payment_method,
-        customer_name, customer_email, customer_phone,
-        shipping_street, shipping_city, shipping_postal_code,
-        created_at, updated_at
-      )
-      SELECT
-        id, user_id, total, status, shipping_address, payment_method,
-        customer_name, customer_email, customer_phone,
-        shipping_street, shipping_city, shipping_postal_code,
-        created_at, updated_at
-      FROM orders
-    `);
-
-    db.exec('DROP TABLE orders');
-    db.exec('ALTER TABLE orders_new RENAME TO orders');
-    db.exec('COMMIT');
-    db.exec('PRAGMA foreign_keys = ON');
-    db.exec('CREATE INDEX IF NOT EXISTS idx_orders_user_id ON orders(user_id)');
-  }
-} catch (error) {
-  console.error('Error migrating nullable user_id for orders table:', error);
-}
-
-// Prepared statements for common operations
+// Helper functions to mimic the old "statements" behavior but with Supabase (Async)
 const statements = {
   // Users
-  getUserById: db.prepare('SELECT id, name, email, role, phone, street, sector, city, country, is_active, is_guest, created_at, updated_at, last_login FROM users WHERE id = ?'),
-  getUserByEmail: db.prepare('SELECT * FROM users WHERE email = ?'),
-  createUser: db.prepare('INSERT INTO users (name, email, password, role, is_guest) VALUES (?, ?, ?, ?, ?)'),
-  updateUser: db.prepare('UPDATE users SET name = ?, phone = ?, street = ?, sector = ?, city = ?, country = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
-  updateUserPassword: db.prepare('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
-  updateLastLogin: db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?'),
+  getUserById: async (id) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, phone, street, sector, city, country, is_active, is_guest, created_at, updated_at, last_login')
+      .eq('id', id)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Error getUserById:', error);
+    return data;
+  },
+  getUserByEmail: async (email) => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Error getUserByEmail:', error);
+    return data;
+  },
+  createUser: async (name, email, password, role, is_guest) => {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{ name, email, password, role, is_guest: !!is_guest }])
+      .select()
+      .single();
+    if (error) throw error;
+    return { lastInsertRowid: data.id };
+  },
+  updateUser: async (name, phone, street, sector, city, country, id) => {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ name, phone, street, sector, city, country, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+  updateUserPassword: async (password, id) => {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+  updateLastLogin: async (id) => {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ last_login: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
 
   // Products
-  getAllProducts: db.prepare('SELECT * FROM products ORDER BY created_at DESC'),
-  getProductById: db.prepare('SELECT * FROM products WHERE id = ?'),
-  getProductsByCategory: db.prepare('SELECT * FROM products WHERE category = ? ORDER BY created_at DESC'),
-  createProduct: db.prepare('INSERT INTO products (name, description, price, category, stock) VALUES (?, ?, ?, ?, ?)'),
-  updateProduct: db.prepare('UPDATE products SET name = ?, description = ?, price = ?, category = ?, stock = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
-  deleteProduct: db.prepare('DELETE FROM products WHERE id = ?'),
+  getAllProducts: async () => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) console.error('Error getAllProducts:', error);
+    return data || [];
+  },
+  getProductById: async (id) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Error getProductById:', error);
+    return data;
+  },
+  getProductsByCategory: async (category) => {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('category', category)
+      .order('created_at', { ascending: false });
+    if (error) console.error('Error getProductsByCategory:', error);
+    return data || [];
+  },
+  createProduct: async (name, description, price, category, stock) => {
+    const { data, error } = await supabase
+      .from('products')
+      .insert([{ name, description, price, category, stock }])
+      .select()
+      .single();
+    if (error) throw error;
+    return { lastInsertRowid: data.id };
+  },
+  updateProduct: async (name, description, price, category, stock, id) => {
+    const { data, error } = await supabase
+      .from('products')
+      .update({ name, description, price, category, stock, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+  deleteProduct: async (id) => {
+    const { error } = await supabase
+      .from('products')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  },
 
   // Product Images
-  getProductImages: db.prepare('SELECT * FROM product_images WHERE product_id = ? ORDER BY created_at ASC'),
-  addProductImage: db.prepare('INSERT INTO product_images (product_id, image_path) VALUES (?, ?)'),
-  deleteProductImage: db.prepare('DELETE FROM product_images WHERE id = ? AND product_id = ?'),
-  deleteAllProductImages: db.prepare('DELETE FROM product_images WHERE product_id = ?'),
+  getProductImages: async (product_id) => {
+    const { data, error } = await supabase
+      .from('product_images')
+      .select('*')
+      .eq('product_id', product_id)
+      .order('created_at', { ascending: true });
+    if (error) console.error('Error getProductImages:', error);
+    return data || [];
+  },
+  addProductImage: async (product_id, image_path) => {
+    const { data, error } = await supabase
+      .from('product_images')
+      .insert([{ product_id, image_path }]);
+    if (error) throw error;
+    return data;
+  },
+  deleteProductImage: async (id, product_id) => {
+    const { error } = await supabase
+      .from('product_images')
+      .delete()
+      .eq('id', id)
+      .eq('product_id', product_id);
+    if (error) throw error;
+    return true;
+  },
+  deleteAllProductImages: async (product_id) => {
+    const { error } = await supabase
+      .from('product_images')
+      .delete()
+      .eq('product_id', product_id);
+    if (error) throw error;
+    return true;
+  },
 
   // Cart
-  getCartByUserId: db.prepare(`
-    SELECT c.id, c.product_id, c.quantity, p.name, p.price, p.stock,
-           COALESCE(
-             (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY created_at ASC LIMIT 1),
-             p.image
-           ) as image
-    FROM cart c
-    JOIN products p ON c.product_id = p.id
-    WHERE c.user_id = ?
-    ORDER BY c.created_at DESC
-  `),
-  addToCart: db.prepare('INSERT OR REPLACE INTO cart (user_id, product_id, quantity, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)'),
-  updateCartItem: db.prepare('UPDATE cart SET quantity = ?, updated_at = CURRENT_TIMESTAMP WHERE user_id = ? AND product_id = ?'),
-  removeFromCart: db.prepare('DELETE FROM cart WHERE user_id = ? AND product_id = ?'),
-  clearCart: db.prepare('DELETE FROM cart WHERE user_id = ?'),
-  getCartItem: db.prepare('SELECT * FROM cart WHERE user_id = ? AND product_id = ?'),
+  getCartByUserId: async (user_id) => {
+    const { data, error } = await supabase
+      .from('cart')
+      .select(`
+        id, product_id, quantity,
+        products (
+          name, price, stock, image,
+          product_images (image_path)
+        )
+      `)
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error getCartByUserId:', error);
+      return [];
+    }
+
+    return data.map(item => {
+      const product = item.products;
+      let image = product.image;
+      
+      // Si no hay imagen principal, usar la primera de product_images
+      if (!image && product.product_images && product.product_images.length > 0) {
+        image = product.product_images[0].image_path;
+      }
+
+      return {
+        id: item.id,
+        product_id: item.product_id,
+        quantity: item.quantity,
+        name: product.name,
+        price: product.price,
+        stock: product.stock,
+        image: image
+      };
+    });
+  },
+  addToCart: async (user_id, product_id, quantity) => {
+    const { data, error } = await supabase
+      .from('cart')
+      .upsert({ user_id, product_id, quantity, updated_at: new Date().toISOString() }, { onConflict: 'user_id, product_id' });
+    if (error) throw error;
+    return data;
+  },
+  updateCartItem: async (quantity, user_id, product_id) => {
+    const { data, error } = await supabase
+      .from('cart')
+      .update({ quantity, updated_at: new Date().toISOString() })
+      .eq('user_id', user_id)
+      .eq('product_id', product_id);
+    if (error) throw error;
+    return data;
+  },
+  removeFromCart: async (user_id, product_id) => {
+    const { error } = await supabase
+      .from('cart')
+      .delete()
+      .eq('user_id', user_id)
+      .eq('product_id', product_id);
+    if (error) throw error;
+    return true;
+  },
+  clearCart: async (user_id) => {
+    const { error } = await supabase
+      .from('cart')
+      .delete()
+      .eq('user_id', user_id);
+    if (error) throw error;
+    return true;
+  },
+  getCartItem: async (user_id, product_id) => {
+    const { data, error } = await supabase
+      .from('cart')
+      .select('*')
+      .eq('user_id', user_id)
+      .eq('product_id', product_id)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Error getCartItem:', error);
+    return data;
+  },
 
   // Orders
-  createOrder: db.prepare('INSERT INTO orders (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'),
-  getOrdersByUserId: db.prepare('SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC'),
-  getOrderById: db.prepare('SELECT * FROM orders WHERE id = ?'),
-  updateOrderStatus: db.prepare('UPDATE orders SET status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?'),
-  updateOrderNumber: db.prepare('UPDATE orders SET order_number = ? WHERE id = ?'),
-  deleteOrder: db.prepare('DELETE FROM orders WHERE id = ?'),
+  createOrder: async (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .insert([{ 
+        user_id, total, shipping_address, payment_method, 
+        customer_name, customer_email, customer_phone, 
+        shipping_street, shipping_city, shipping_postal_code, shipping_sector 
+      }])
+      .select()
+      .single();
+    if (error) throw error;
+    return { lastInsertRowid: data.id };
+  },
+  getOrdersByUserId: async (user_id) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('user_id', user_id)
+      .order('created_at', { ascending: false });
+    if (error) console.error('Error getOrdersByUserId:', error);
+    return data || [];
+  },
+  getOrderById: async (id) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', id)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Error getOrderById:', error);
+    return data;
+  },
+  updateOrderStatus: async (status, id) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+  updateOrderNumber: async (order_number, id) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ order_number })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+  deleteOrder: async (id) => {
+    const { error } = await supabase
+      .from('orders')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    return true;
+  },
+  getAllOrdersWithCustomer: async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        users (name, email)
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error getAllOrdersWithCustomer:', error);
+      return [];
+    }
+
+    return data.map(order => ({
+      ...order,
+      customer_name: order.users ? order.users.name : order.customer_name,
+      customer_email: order.users ? order.users.email : order.customer_email
+    }));
+  },
+  getOrderWithCustomerById: async (id) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        users (name, email)
+      `)
+      .eq('id', id)
+      .single();
+    
+    if (error) {
+      if (error.code !== 'PGRST116') console.error('Error getOrderWithCustomerById:', error);
+      return null;
+    }
+
+    return {
+      ...data,
+      customer_name: data.users ? data.users.name : data.customer_name,
+      customer_email: data.users ? data.users.email : data.customer_email
+    };
+  },
+  getOrderByNumber: async (order_number) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        users (name, email)
+      `)
+      .eq('order_number', order_number)
+      .single();
+    
+    if (error) {
+      if (error.code !== 'PGRST116') console.error('Error getOrderByNumber:', error);
+      return null;
+    }
+
+    return {
+      ...data,
+      customer_name: data.users ? data.users.name : data.customer_name,
+      customer_email: data.users ? data.users.email : data.customer_email
+    };
+  },
+  getOrdersByEmail: async (email) => {
+    // This is a bit more complex because we need to check both orders.customer_email and users.email
+    // We'll do two queries or a complex one. Let's do a simple approach.
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        users (name, email)
+      `)
+      .or(`customer_email.ilike.${email},users.email.ilike.${email}`)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error getOrdersByEmail:', error);
+      return [];
+    }
+
+    return data.map(order => ({
+      ...order,
+      customer_name: order.users ? order.users.name : order.customer_name,
+      customer_email: order.users ? order.users.email : order.customer_email
+    }));
+  },
 
   // Order Items
-  addOrderItem: db.prepare('INSERT INTO order_items (order_id, product_id, quantity, price) VALUES (?, ?, ?, ?)'),
-  getOrderItems: db.prepare(`
-    SELECT oi.*, p.name,
-           COALESCE(
-             (SELECT image_path FROM product_images WHERE product_id = p.id ORDER BY created_at ASC LIMIT 1),
-             p.image
-           ) as image
-    FROM order_items oi
-    JOIN products p ON oi.product_id = p.id
-    WHERE oi.order_id = ?
-  `),
+  addOrderItem: async (order_id, product_id, quantity, price) => {
+    const { data, error } = await supabase
+      .from('order_items')
+      .insert([{ order_id, product_id, quantity, price }]);
+    if (error) throw error;
+    return data;
+  },
+  getOrderItems: async (order_id) => {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select(`
+        *,
+        products (name, image)
+      `)
+      .eq('order_id', order_id);
+    
+    if (error) {
+      console.error('Error getOrderItems:', error);
+      return [];
+    }
+
+    return data.map(item => ({
+      ...item,
+      name: item.products.name,
+      image: item.products.image
+    }));
+  },
+
+  // Users Admin
+  getAllUsers: async () => {
+    const { data, error } = await supabase
+      .from('users')
+      .select('id, name, email, role, is_active, created_at, updated_at, last_login')
+      .order('created_at', { ascending: false });
+    if (error) {
+      console.error('Error getAllUsers:', error);
+      return [];
+    }
+    return data;
+  },
+  updateUserRole: async (role, id) => {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ role, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
+  updateUserStatus: async (is_active, id) => {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ is_active, updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (error) throw error;
+    return data;
+  },
 
   // Verification Codes
-  createVerificationCode: db.prepare('INSERT INTO verification_codes (email, code, purpose, expires_at) VALUES (?, ?, ?, ?)'),
-  getVerificationCode: db.prepare('SELECT * FROM verification_codes WHERE email = ? AND code = ? AND purpose = ? AND expires_at > CURRENT_TIMESTAMP ORDER BY created_at DESC LIMIT 1'),
-  deleteVerificationCodes: db.prepare('DELETE FROM verification_codes WHERE email = ? AND purpose = ?'),
-  cleanupExpiredCodes: db.prepare('DELETE FROM verification_codes WHERE expires_at <= CURRENT_TIMESTAMP')
+  createVerificationCode: async (email, code, purpose, expires_at) => {
+    const { data, error } = await supabase
+      .from('verification_codes')
+      .insert([{ email, code, purpose, expires_at }]);
+    if (error) throw error;
+    return data;
+  },
+  getVerificationCode: async (email, code, purpose) => {
+    const { data, error } = await supabase
+      .from('verification_codes')
+      .select('*')
+      .eq('email', email)
+      .eq('code', code)
+      .eq('purpose', purpose)
+      .gt('expires_at', new Date().toISOString())
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    if (error && error.code !== 'PGRST116') console.error('Error getVerificationCode:', error);
+    return data;
+  },
+  deleteVerificationCodes: async (email, purpose) => {
+    const { error } = await supabase
+      .from('verification_codes')
+      .delete()
+      .eq('email', email)
+      .eq('purpose', purpose);
+    if (error) throw error;
+    return true;
+  },
+  cleanupExpiredCodes: async () => {
+    const { error } = await supabase
+      .from('verification_codes')
+      .delete()
+      .lte('expires_at', new Date().toISOString());
+    if (error) throw error;
+    return true;
+  }
 };
 
-module.exports = { db, statements };
+module.exports = { supabase, statements };

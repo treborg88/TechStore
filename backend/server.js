@@ -10,7 +10,7 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
-const { db, statements } = require('./database');
+const { statements } = require('./database');
 const app = express();
 
 // --- Security Middleware ---
@@ -183,7 +183,7 @@ app.post('/api/auth/register', async (req, res) => {
         }
 
         // Validar código de verificación
-        const verificationRecord = statements.getVerificationCode.get(email.toLowerCase(), code, 'register');
+        const verificationRecord = await statements.getVerificationCode(email.toLowerCase(), code, 'register');
         if (!verificationRecord) {
             return res.status(400).json({ 
                 message: 'Código de verificación inválido o expirado' 
@@ -207,7 +207,7 @@ app.post('/api/auth/register', async (req, res) => {
         }
 
         // Verificar si el email ya existe
-        const existingUser = statements.getUserByEmail.get(email.toLowerCase());
+        const existingUser = await statements.getUserByEmail(email.toLowerCase());
         if (existingUser) {
             return res.status(409).json({ 
                 message: 'El email ya está registrado' 
@@ -219,7 +219,7 @@ app.post('/api/auth/register', async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
         // Crear nuevo usuario (not a guest)
-        const result = statements.createUser.run(
+        const result = await statements.createUser(
             name.trim(),
             email.toLowerCase().trim(),
             hashedPassword,
@@ -228,10 +228,10 @@ app.post('/api/auth/register', async (req, res) => {
         );
 
         const newUserId = result.lastInsertRowid;
-        const newUser = statements.getUserById.get(newUserId);
+        const newUser = await statements.getUserById(newUserId);
 
         // Eliminar el código de verificación usado
-        statements.deleteVerificationCodes.run(email.toLowerCase(), 'register');
+        await statements.deleteVerificationCodes(email.toLowerCase(), 'register');
 
         // Generar token JWT
         const token = jwt.sign(
@@ -285,7 +285,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         // Buscar usuario por email
-        const user = statements.getUserByEmail.get(email.toLowerCase());
+        const user = await statements.getUserByEmail(email.toLowerCase());
         if (!user) {
             return res.status(401).json({ 
                 message: 'Credenciales inválidas' 
@@ -308,7 +308,7 @@ app.post('/api/auth/login', async (req, res) => {
         }
 
         // Actualizar último login
-        statements.updateLastLogin.run(user.id);
+        await statements.updateLastLogin(user.id);
 
         // Generar token JWT
         const token = jwt.sign(
@@ -364,7 +364,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
     }
 
     try {
-        const user = statements.getUserByEmail.get(email.toLowerCase());
+        const user = await statements.getUserByEmail(email.toLowerCase());
         if (!user) {
             // Por seguridad, no revelamos si el email existe o no
             return res.json({ 
@@ -377,8 +377,8 @@ app.post('/api/auth/forgot-password', async (req, res) => {
         const code = Math.floor(100000 + Math.random() * 900000).toString();
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
 
-        statements.deleteVerificationCodes.run(email.toLowerCase(), 'password_reset');
-        statements.createVerificationCode.run(email.toLowerCase(), code, 'password_reset', expiresAt);
+        await statements.deleteVerificationCodes(email.toLowerCase(), 'password_reset');
+        await statements.createVerificationCode(email.toLowerCase(), code, 'password_reset', expiresAt);
 
         const mailOptions = {
             from: process.env.EMAIL_USER || 'noreply@techstore.com',
@@ -427,21 +427,21 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 
     try {
-        const verificationRecord = statements.getVerificationCode.get(email.toLowerCase(), code, 'password_reset');
+        const verificationRecord = await statements.getVerificationCode(email.toLowerCase(), code, 'password_reset');
         if (!verificationRecord) {
             return res.status(400).json({ 
                 message: 'Código de verificación inválido o expirado' 
             });
         }
 
-        const user = statements.getUserByEmail.get(email.toLowerCase());
+        const user = await statements.getUserByEmail(email.toLowerCase());
         if (!user) {
             return res.status(404).json({ message: 'Usuario no encontrado' });
         }
 
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        statements.updateUserPassword.run(hashedPassword, user.id);
-        statements.deleteVerificationCodes.run(email.toLowerCase(), 'password_reset');
+        await statements.updateUserPassword(hashedPassword, user.id);
+        await statements.deleteVerificationCodes(email.toLowerCase(), 'password_reset');
 
         res.json({ success: true, message: 'Contraseña actualizada correctamente' });
 
@@ -451,9 +451,9 @@ app.post('/api/auth/reset-password', async (req, res) => {
     }
 });
 
-app.get('/api/auth/me', authenticateToken, (req, res) => {
+app.get('/api/auth/me', authenticateToken, async (req, res) => {
     try {
-        const user = statements.getUserById.get(req.user.id);
+        const user = await statements.getUserById(req.user.id);
 
         if (!user) {
             return res.status(404).json({ 
@@ -487,7 +487,7 @@ app.get('/api/auth/me', authenticateToken, (req, res) => {
 app.put('/api/auth/profile', authenticateToken, async (req, res) => {
     try {
         const { name, phone, street, sector, city, country, currentPassword, newPassword } = req.body;
-        const user = statements.getUserById.get(req.user.id);
+        const user = await statements.getUserById(req.user.id);
 
         if (!user) {
             return res.status(404).json({ 
@@ -496,7 +496,7 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
         }
 
         // Actualizar datos de perfil
-        statements.updateUser.run(
+        await statements.updateUser(
             name !== undefined ? name.trim() : user.name,
             phone !== undefined ? phone.trim() : (user.phone || ''),
             street !== undefined ? street.trim() : (user.street || ''),
@@ -528,11 +528,11 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
             }
 
             const hashedNewPassword = await bcrypt.hash(newPassword, 10);
-            statements.updateUserPassword.run(hashedNewPassword, user.id);
+            await statements.updateUserPassword(hashedNewPassword, user.id);
         }
 
         // Get updated user
-        const updatedUser = statements.getUserById.get(user.id);
+        const updatedUser = await statements.getUserById(user.id);
 
         const userResponse = {
             id: updatedUser.id,
@@ -576,28 +576,32 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
 // (Mantener todas las rutas existentes...)
 
 // == Products ==
-app.get('/api/products', (req, res) => {
+app.get('/api/products', async (req, res) => {
     const categoryFilter = req.query.category;
     try {
         let products;
         if (categoryFilter && categoryFilter.toLowerCase() !== 'todos') {
-            products = statements.getProductsByCategory.all(categoryFilter);
+            products = await statements.getProductsByCategory(categoryFilter);
         } else {
-            products = statements.getAllProducts.all();
+            products = await statements.getAllProducts();
         }
 
         // Add images to each product and migrate legacy images
-        const productsWithImages = products.map(product => {
-            let images = statements.getProductImages.all(product.id);
+        const productsWithImages = await Promise.all(products.map(async (product) => {
+            let images = await statements.getProductImages(product.id);
             
             // Migrate legacy image to product_images table if needed
             if (images.length === 0 && product.image) {
-                statements.addProductImage.run(product.id, product.image);
-                images = statements.getProductImages.all(product.id);
+                await statements.addProductImage(product.id, product.image);
+                images = await statements.getProductImages(product.id);
             }
             
-            return { ...product, images };
-        });
+            return { 
+                ...product, 
+                images,
+                image: images.length > 0 ? images[0].image_path : product.image
+            };
+        }));
 
         res.json(productsWithImages);
     } catch (error) {
@@ -606,24 +610,25 @@ app.get('/api/products', (req, res) => {
     }
 });
 
-app.get('/api/products/:id', (req, res) => {
+app.get('/api/products/:id', async (req, res) => {
     const productId = parseInt(req.params.id, 10);
     try {
-        const product = statements.getProductById.get(productId);
+        const product = await statements.getProductById(productId);
 
         if (product) {
-            let images = statements.getProductImages.all(productId);
+            let images = await statements.getProductImages(productId);
             
             // Migrate legacy image to product_images table if needed
             if (images.length === 0 && product.image) {
-                const result = statements.addProductImage.run(productId, product.image);
-                images = statements.getProductImages.all(productId);
-                
-                // Optionally clear the legacy image column after migration
-                // statements.updateProduct.run(product.name, product.description, product.price, product.category, product.stock, null, productId);
+                await statements.addProductImage(productId, product.image);
+                images = await statements.getProductImages(productId);
             }
             
-            res.json({ ...product, images });
+            res.json({ 
+                ...product, 
+                images,
+                image: images.length > 0 ? images[0].image_path : product.image
+            });
         } else {
             res.status(404).json({ message: 'Producto no encontrado' });
         }
@@ -633,7 +638,7 @@ app.get('/api/products/:id', (req, res) => {
     }
 });
 
-app.post('/api/products', upload.array('images', 10), (req, res) => {
+app.post('/api/products', upload.array('images', 10), async (req, res) => {
     try {
         const { name, description, price, category, stock } = req.body;
 
@@ -644,7 +649,7 @@ app.post('/api/products', upload.array('images', 10), (req, res) => {
             return res.status(400).json({ message: 'Se requiere al menos una imagen.' });
         }
 
-        const result = statements.createProduct.run(
+        const result = await statements.createProduct(
             name,
             description || '',
             parseFloat(price),
@@ -656,14 +661,20 @@ app.post('/api/products', upload.array('images', 10), (req, res) => {
 
         // Add images
         for (const file of req.files) {
-            statements.addProductImage.run(productId, `/images/${file.filename}`);
+            await statements.addProductImage(productId, `/images/${file.filename}`);
         }
 
-        const newProduct = statements.getProductById.get(productId);
-        const images = statements.getProductImages.all(productId);
+        const newProduct = await statements.getProductById(productId);
+        const images = await statements.getProductImages(productId);
 
-        console.log('Producto guardado correctamente:', { ...newProduct, images });
-        res.status(201).json({ ...newProduct, images });
+        const productWithImage = {
+            ...newProduct,
+            images,
+            image: images.length > 0 ? images[0].image_path : newProduct.image
+        };
+
+        console.log('Producto guardado correctamente:', productWithImage);
+        res.status(201).json(productWithImage);
 
     } catch (err) {
         console.error('Error al guardar producto:', err);
@@ -676,36 +687,32 @@ app.post('/api/products', upload.array('images', 10), (req, res) => {
     }
 });
 
-app.delete('/api/products/:id', (req, res) => {
+app.delete('/api/products/:id', async (req, res) => {
     const productId = parseInt(req.params.id, 10);
     try {
         // Delete all images first
-        statements.deleteAllProductImages.run(productId);
+        await statements.deleteAllProductImages(productId);
 
-        const result = statements.deleteProduct.run(productId);
+        await statements.deleteProduct(productId);
 
-        if (result.changes > 0) {
-            res.json({ message: 'Producto eliminado exitosamente' });
-        } else {
-            res.status(404).json({ message: 'Producto no encontrado para eliminar' });
-        }
+        res.json({ message: 'Producto eliminado exitosamente' });
     } catch (error) {
         console.error('Error eliminando producto:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
 
-app.put('/api/products/:id', (req, res) => {
+app.put('/api/products/:id', async (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const updatedData = req.body;
     try {
-        const existingProduct = statements.getProductById.get(productId);
+        const existingProduct = await statements.getProductById(productId);
 
         if (!existingProduct) {
             return res.status(404).json({ message: 'Producto no encontrado para actualizar' });
         }
 
-        statements.updateProduct.run(
+        await statements.updateProduct(
             updatedData.name || existingProduct.name,
             updatedData.description !== undefined ? updatedData.description : existingProduct.description,
             updatedData.price !== undefined ? parseFloat(updatedData.price) : existingProduct.price,
@@ -714,11 +721,17 @@ app.put('/api/products/:id', (req, res) => {
             productId
         );
 
-        const updatedProduct = statements.getProductById.get(productId);
-        const images = statements.getProductImages.all(productId);
+        const updatedProduct = await statements.getProductById(productId);
+        const images = await statements.getProductImages(productId);
 
-        console.log('Producto actualizado:', { ...updatedProduct, images });
-        res.json({ ...updatedProduct, images });
+        const productWithImage = {
+            ...updatedProduct,
+            images,
+            image: images.length > 0 ? images[0].image_path : updatedProduct.image
+        };
+
+        console.log('Producto actualizado:', productWithImage);
+        res.json(productWithImage);
     } catch (error) {
         console.error('Error actualizando producto:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -726,10 +739,10 @@ app.put('/api/products/:id', (req, res) => {
 });
 
 // Product Image Management
-app.post('/api/products/:id/images', upload.array('images', 10), (req, res) => {
+app.post('/api/products/:id/images', upload.array('images', 10), async (req, res) => {
     const productId = parseInt(req.params.id, 10);
     try {
-        const product = statements.getProductById.get(productId);
+        const product = await statements.getProductById(productId);
         if (!product) {
             return res.status(404).json({ message: 'Producto no encontrado' });
         }
@@ -740,10 +753,10 @@ app.post('/api/products/:id/images', upload.array('images', 10), (req, res) => {
 
         // Add images
         for (const file of req.files) {
-            statements.addProductImage.run(productId, `/images/${file.filename}`);
+            await statements.addProductImage(productId, `/images/${file.filename}`);
         }
 
-        const images = statements.getProductImages.all(productId);
+        const images = await statements.getProductImages(productId);
         res.status(201).json(images);
     } catch (err) {
         console.error('Error agregando imágenes:', err);
@@ -751,23 +764,19 @@ app.post('/api/products/:id/images', upload.array('images', 10), (req, res) => {
     }
 });
 
-app.delete('/api/products/:id/images/:imageId', (req, res) => {
+app.delete('/api/products/:id/images/:imageId', async (req, res) => {
     const productId = parseInt(req.params.id, 10);
     const imageId = parseInt(req.params.imageId, 10);
     try {
-        const product = statements.getProductById.get(productId);
+        const product = await statements.getProductById(productId);
         if (!product) {
             return res.status(404).json({ message: 'Producto no encontrado' });
         }
 
-        const result = statements.deleteProductImage.run(imageId, productId);
+        await statements.deleteProductImage(imageId, productId);
 
-        if (result.changes > 0) {
-            const images = statements.getProductImages.all(productId);
-            res.json({ message: 'Imagen eliminada exitosamente', images });
-        } else {
-            res.status(404).json({ message: 'Imagen no encontrada' });
-        }
+        const images = await statements.getProductImages(productId);
+        res.json({ message: 'Imagen eliminada exitosamente', images });
     } catch (error) {
         console.error('Error eliminando imagen:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -776,9 +785,9 @@ app.delete('/api/products/:id/images/:imageId', (req, res) => {
 
 // == Cart == (Rutas protegidas para usuarios autenticados)
 
-app.get('/api/cart', authenticateToken, (req, res) => {
+app.get('/api/cart', authenticateToken, async (req, res) => {
     try {
-        const cart = statements.getCartByUserId.all(req.user.id);
+        const cart = await statements.getCartByUserId(req.user.id);
         res.json(cart);
     } catch (error) {
         console.error('Error obteniendo carrito:', error);
@@ -786,7 +795,7 @@ app.get('/api/cart', authenticateToken, (req, res) => {
     }
 });
 
-app.post('/api/cart', authenticateToken, (req, res) => {
+app.post('/api/cart', authenticateToken, async (req, res) => {
     const { productId, quantity } = req.body;
 
     if (typeof productId !== 'number' || typeof quantity !== 'number' || quantity <= 0) {
@@ -794,7 +803,7 @@ app.post('/api/cart', authenticateToken, (req, res) => {
     }
 
     try {
-        const product = statements.getProductById.get(productId);
+        const product = await statements.getProductById(productId);
 
         if (!product) {
             return res.status(404).json({ message: 'Producto no encontrado' });
@@ -803,7 +812,7 @@ app.post('/api/cart', authenticateToken, (req, res) => {
             return res.status(400).json({ message: `Producto "${product.name}" está agotado.` });
         }
 
-        const existingItem = statements.getCartItem.get(req.user.id, productId);
+        const existingItem = await statements.getCartItem(req.user.id, productId);
 
         if (existingItem) {
             const newQuantity = existingItem.quantity + quantity;
@@ -814,7 +823,7 @@ app.post('/api/cart', authenticateToken, (req, res) => {
                     currentCartQuantity: existingItem.quantity
                 });
             }
-            statements.updateCartItem.run(newQuantity, req.user.id, productId);
+            await statements.updateCartItem(newQuantity, req.user.id, productId);
         } else {
             if (quantity > product.stock) {
                 return res.status(400).json({
@@ -822,10 +831,10 @@ app.post('/api/cart', authenticateToken, (req, res) => {
                     availableStock: product.stock
                 });
             }
-            statements.addToCart.run(req.user.id, productId, quantity);
+            await statements.addToCart(req.user.id, productId, quantity);
         }
 
-        const cart = statements.getCartByUserId.all(req.user.id);
+        const cart = await statements.getCartByUserId(req.user.id);
         console.log('Carrito actualizado para usuario', req.user.id, ':', cart);
         res.status(201).json(cart);
     } catch (error) {
@@ -834,18 +843,14 @@ app.post('/api/cart', authenticateToken, (req, res) => {
     }
 });
 
-app.delete('/api/cart/:productId', authenticateToken, (req, res) => {
+app.delete('/api/cart/:productId', authenticateToken, async (req, res) => {
     const productId = parseInt(req.params.productId, 10);
     try {
-        const result = statements.removeFromCart.run(req.user.id, productId);
+        await statements.removeFromCart(req.user.id, productId);
 
-        if (result.changes > 0) {
-            const cart = statements.getCartByUserId.all(req.user.id);
-            console.log('Item eliminado del carrito del usuario', req.user.id, ':', cart);
-            res.json(cart);
-        } else {
-            res.status(404).json({ message: 'Item no encontrado en el carrito' });
-        }
+        const cart = await statements.getCartByUserId(req.user.id);
+        console.log('Item eliminado del carrito del usuario', req.user.id, ':', cart);
+        res.json(cart);
     } catch (error) {
         console.error('Error eliminando del carrito:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -855,21 +860,13 @@ app.delete('/api/cart/:productId', authenticateToken, (req, res) => {
 // == Orders == 
 
 // Get all orders (admin only)
-app.get('/api/orders', authenticateToken, (req, res) => {
+app.get('/api/orders', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
 
     try {
-        const orders = db.prepare(`
-            SELECT 
-                o.*, 
-                COALESCE(u.name, o.customer_name) as customer_name, 
-                COALESCE(u.email, o.customer_email) as customer_email
-            FROM orders o
-            LEFT JOIN users u ON o.user_id = u.id
-            ORDER BY o.created_at DESC
-        `).all();
+        const orders = await statements.getAllOrdersWithCustomer();
         res.json(orders);
     } catch (error) {
         console.error('Error obteniendo órdenes:', error);
@@ -878,22 +875,11 @@ app.get('/api/orders', authenticateToken, (req, res) => {
 });
 
 // Get order details with items
-app.get('/api/orders/:id', authenticateToken, (req, res) => {
+app.get('/api/orders/:id', authenticateToken, async (req, res) => {
     const orderId = parseInt(req.params.id, 10);
 
     try {
-        // Get order with customer information
-        const getOrderWithCustomer = db.prepare(`
-            SELECT 
-                o.*, 
-                COALESCE(u.name, o.customer_name) as customer_name, 
-                COALESCE(u.email, o.customer_email) as customer_email
-            FROM orders o
-            LEFT JOIN users u ON o.user_id = u.id
-            WHERE o.id = ?
-        `);
-        
-        const order = getOrderWithCustomer.get(orderId);
+        const order = await statements.getOrderWithCustomerById(orderId);
         
         if (!order) {
             return res.status(404).json({ message: 'Orden no encontrada' });
@@ -904,7 +890,7 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
             return res.status(403).json({ message: 'Acceso denegado' });
         }
 
-        const orderItems = statements.getOrderItems.all(orderId);
+        const orderItems = await statements.getOrderItems(orderId);
         
         res.json({
             ...order,
@@ -917,7 +903,7 @@ app.get('/api/orders/:id', authenticateToken, (req, res) => {
 });
 
 // Create new order
-app.post('/api/orders', authenticateToken, (req, res) => {
+app.post('/api/orders', authenticateToken, async (req, res) => {
     const { shipping_address, items, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
 
     if (!items || items.length === 0) {
@@ -932,7 +918,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
         // Calculate total
         let total = 0;
         for (const item of items) {
-            const product = statements.getProductById.get(item.product_id);
+            const product = await statements.getProductById(item.product_id);
             if (!product) {
                 return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
             }
@@ -953,7 +939,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
         const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
         const resolvedCustomerPhone = customer_phone ? customer_phone.trim() : '';
 
-        const orderResult = statements.createOrder.run(
+        const orderResult = await statements.createOrder(
             req.user.id, 
             total, 
             legacyAddress,
@@ -970,16 +956,16 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 
         // Generate and update order number
         const orderNumber = generateOrderNumber(orderId);
-        statements.updateOrderNumber.run(orderNumber, orderId);
+        await statements.updateOrderNumber(orderNumber, orderId);
 
         // Add order items and update stock
         for (const item of items) {
-            const product = statements.getProductById.get(item.product_id);
-            statements.addOrderItem.run(orderId, item.product_id, item.quantity, product.price);
+            const product = await statements.getProductById(item.product_id);
+            await statements.addOrderItem(orderId, item.product_id, item.quantity, product.price);
             
             // Update stock
             const newStock = product.stock - item.quantity;
-            statements.updateProduct.run(
+            await statements.updateProduct(
                 product.name,
                 product.description,
                 product.price,
@@ -990,9 +976,9 @@ app.post('/api/orders', authenticateToken, (req, res) => {
         }
 
         // Clear cart
-        statements.clearCart.run(req.user.id);
+        await statements.clearCart(req.user.id);
 
-        const order = statements.getOrderById.get(orderId);
+        const order = await statements.getOrderById(orderId);
         console.log('Orden creada:', order);
         res.status(201).json(order);
     } catch (error) {
@@ -1002,7 +988,7 @@ app.post('/api/orders', authenticateToken, (req, res) => {
 });
 
 // Create order as guest (no authentication required)
-app.post('/api/orders/guest', (req, res) => {
+app.post('/api/orders/guest', async (req, res) => {
     const { shipping_address, items, customer_info, payment_method, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
 
     if (!items || items.length === 0) {
@@ -1021,7 +1007,7 @@ app.post('/api/orders/guest', (req, res) => {
         // Calculate total
         let total = 0;
         for (const item of items) {
-            const product = statements.getProductById.get(item.product_id);
+            const product = await statements.getProductById(item.product_id);
             if (!product) {
                 return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
             }
@@ -1041,7 +1027,7 @@ app.post('/api/orders/guest', (req, res) => {
         const guestEmail = customer_info.email.trim().toLowerCase();
         const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
 
-        const orderResult = statements.createOrder.run(
+        const orderResult = await statements.createOrder(
             null,
             total,
             legacyAddress,
@@ -1058,16 +1044,16 @@ app.post('/api/orders/guest', (req, res) => {
 
         // Generate and update order number
         const orderNumber = generateOrderNumber(orderId);
-        statements.updateOrderNumber.run(orderNumber, orderId);
+        await statements.updateOrderNumber(orderNumber, orderId);
 
         // Add order items and update stock
         for (const item of items) {
-            const product = statements.getProductById.get(item.product_id);
-            statements.addOrderItem.run(orderId, item.product_id, item.quantity, product.price);
+            const product = await statements.getProductById(item.product_id);
+            await statements.addOrderItem(orderId, item.product_id, item.quantity, product.price);
             
             // Update stock
             const newStock = product.stock - item.quantity;
-            statements.updateProduct.run(
+            await statements.updateProduct(
                 product.name,
                 product.description,
                 product.price,
@@ -1077,7 +1063,7 @@ app.post('/api/orders/guest', (req, res) => {
             );
         }
 
-        const order = statements.getOrderById.get(orderId);
+        const order = await statements.getOrderById(orderId);
         console.log('Orden de invitado creada:', order);
         res.status(201).json(order);
     } catch (error) {
@@ -1087,7 +1073,7 @@ app.post('/api/orders/guest', (req, res) => {
 });
 
 // Update order status (admin only)
-app.put('/api/orders/:id/status', authenticateToken, (req, res) => {
+app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
@@ -1103,10 +1089,10 @@ app.put('/api/orders/:id/status', authenticateToken, (req, res) => {
     }
 
     try {
-        const result = statements.updateOrderStatus.run(status, orderId);
+        const result = await statements.updateOrderStatus(status, orderId);
         
-        if (result.changes > 0) {
-            const order = statements.getOrderById.get(orderId);
+        if (result) {
+            const order = await statements.getOrderById(orderId);
             console.log('Estado de orden actualizado:', order);
             res.json({ message: 'Estado actualizado exitosamente', order });
         } else {
@@ -1119,7 +1105,7 @@ app.put('/api/orders/:id/status', authenticateToken, (req, res) => {
 });
 
 // Delete order (admin only)
-app.delete('/api/orders/:id', authenticateToken, (req, res) => {
+app.delete('/api/orders/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
@@ -1127,9 +1113,9 @@ app.delete('/api/orders/:id', authenticateToken, (req, res) => {
     const orderId = parseInt(req.params.id, 10);
 
     try {
-        const result = statements.deleteOrder.run(orderId);
+        const result = await statements.deleteOrder(orderId);
         
-        if (result.changes > 0) {
+        if (result) {
             console.log('Orden eliminada:', orderId);
             res.json({ message: 'Orden eliminada exitosamente' });
         } else {
@@ -1142,7 +1128,7 @@ app.delete('/api/orders/:id', authenticateToken, (req, res) => {
 });
 
 // Track order by ID or Order Number (public - no authentication required)
-app.get('/api/orders/track/:id', (req, res) => {
+app.get('/api/orders/track/:id', async (req, res) => {
     const param = req.params.id;
     const orderId = parseInt(param, 10);
 
@@ -1151,28 +1137,10 @@ app.get('/api/orders/track/:id', (req, res) => {
         
         // If param is a number, search by ID
         if (!isNaN(orderId) && orderId.toString() === param) {
-            const getOrderWithCustomer = db.prepare(`
-                SELECT 
-                    o.*, 
-                    COALESCE(u.name, o.customer_name) as customer_name, 
-                    COALESCE(u.email, o.customer_email) as customer_email
-                FROM orders o
-                LEFT JOIN users u ON o.user_id = u.id
-                WHERE o.id = ?
-            `);
-            order = getOrderWithCustomer.get(orderId);
+            order = await statements.getOrderWithCustomerById(orderId);
         } else {
             // Search by order_number
-            const getOrderWithCustomerByNumber = db.prepare(`
-                SELECT 
-                    o.*, 
-                    COALESCE(u.name, o.customer_name) as customer_name, 
-                    COALESCE(u.email, o.customer_email) as customer_email
-                FROM orders o
-                LEFT JOIN users u ON o.user_id = u.id
-                WHERE o.order_number = ?
-            `);
-            order = getOrderWithCustomerByNumber.get(param);
+            order = await statements.getOrderByNumber(param);
         }
         
         if (!order) {
@@ -1180,7 +1148,7 @@ app.get('/api/orders/track/:id', (req, res) => {
         }
 
         // Get order items
-        const orderItems = statements.getOrderItems.all(order.id);
+        const orderItems = await statements.getOrderItems(order.id);
         
         res.json({
             ...order,
@@ -1193,31 +1161,20 @@ app.get('/api/orders/track/:id', (req, res) => {
 });
 
 // Track orders by email (public - no authentication required)
-app.get('/api/orders/track/email/:email', (req, res) => {
+app.get('/api/orders/track/email/:email', async (req, res) => {
     const email = req.params.email.trim().toLowerCase();
 
     try {
-        const getOrdersByEmail = db.prepare(`
-            SELECT 
-                o.*,
-                COALESCE(u.name, o.customer_name) as customer_name,
-                COALESCE(u.email, o.customer_email) as customer_email
-            FROM orders o
-            LEFT JOIN users u ON o.user_id = u.id
-            WHERE LOWER(o.customer_email) = ? OR (u.email IS NOT NULL AND LOWER(u.email) = ?)
-            ORDER BY o.created_at DESC
-        `);
-        
-        const orders = getOrdersByEmail.all(email, email);
+        const orders = await statements.getOrdersByEmail(email);
         
         if (!orders || orders.length === 0) {
             return res.status(404).json({ message: 'No se encontraron órdenes' });
         }
 
-        const ordersWithItems = orders.map(order => ({
+        const ordersWithItems = await Promise.all(orders.map(async (order) => ({
             ...order,
-            items: statements.getOrderItems.all(order.id)
-        }));
+            items: await statements.getOrderItems(order.id)
+        })));
         
         res.json(ordersWithItems);
     } catch (error) {
@@ -1228,14 +1185,13 @@ app.get('/api/orders/track/email/:email', (req, res) => {
 
 // --- RUTAS DE ADMINISTRACIÓN DE USUARIOS (Opcional) ---
 
-app.get('/api/users', authenticateToken, (req, res) => {
+app.get('/api/users', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
 
     try {
-        // Get all users from database
-        const users = db.prepare('SELECT id, name, email, role, is_active, created_at, updated_at, last_login FROM users ORDER BY created_at DESC').all();
+        const users = await statements.getAllUsers();
         res.json(users);
     } catch (error) {
         console.error('Error obteniendo usuarios:', error);
@@ -1244,7 +1200,7 @@ app.get('/api/users', authenticateToken, (req, res) => {
 });
 
 // Update user role
-app.put('/api/users/:id/role', authenticateToken, (req, res) => {
+app.put('/api/users/:id/role', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
@@ -1262,10 +1218,10 @@ app.put('/api/users/:id/role', authenticateToken, (req, res) => {
     }
 
     try {
-        const result = db.prepare('UPDATE users SET role = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(role, userId);
+        const result = await statements.updateUserRole(role, userId);
         
-        if (result.changes > 0) {
-            const updatedUser = db.prepare('SELECT id, name, email, role, is_active, created_at, updated_at, last_login FROM users WHERE id = ?').get(userId);
+        if (result) {
+            const updatedUser = await statements.getUserById(userId);
             console.log('Rol de usuario actualizado:', updatedUser);
             res.json({ message: 'Rol actualizado exitosamente', user: updatedUser });
         } else {
@@ -1278,7 +1234,7 @@ app.put('/api/users/:id/role', authenticateToken, (req, res) => {
 });
 
 // Toggle user active status
-app.put('/api/users/:id/status', authenticateToken, (req, res) => {
+app.put('/api/users/:id/status', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
@@ -1296,10 +1252,10 @@ app.put('/api/users/:id/status', authenticateToken, (req, res) => {
     }
 
     try {
-        const result = db.prepare('UPDATE users SET is_active = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(is_active ? 1 : 0, userId);
+        const result = await statements.updateUserStatus(is_active, userId);
         
-        if (result.changes > 0) {
-            const updatedUser = db.prepare('SELECT id, name, email, role, is_active, created_at, updated_at, last_login FROM users WHERE id = ?').get(userId);
+        if (result) {
+            const updatedUser = await statements.getUserById(userId);
             console.log('Estado de usuario actualizado:', updatedUser);
             res.json({ message: 'Estado actualizado exitosamente', user: updatedUser });
         } else {
@@ -1340,10 +1296,10 @@ app.post('/api/verification/send-code', async (req, res) => {
 
     try {
         // Eliminar códigos anteriores para este email y propósito
-        statements.deleteVerificationCodes.run(normalizedEmail, purpose || 'general');
+        await statements.deleteVerificationCodes(normalizedEmail, purpose || 'general');
 
         // Guardar nuevo código
-        statements.createVerificationCode.run(normalizedEmail, code, purpose || 'general', expiresAt);
+        await statements.createVerificationCode(normalizedEmail, code, purpose || 'general', expiresAt);
 
         // Enviar email
         const mailOptions = {
@@ -1380,7 +1336,7 @@ app.post('/api/verification/send-code', async (req, res) => {
 });
 
 // Verificar código
-app.post('/api/verification/verify-code', (req, res) => {
+app.post('/api/verification/verify-code', async (req, res) => {
     const { email, code, purpose } = req.body;
 
     if (!email || !code) {
@@ -1389,14 +1345,14 @@ app.post('/api/verification/verify-code', (req, res) => {
 
     try {
         const normalizedEmail = email.toLowerCase().trim();
-        const record = statements.getVerificationCode.get(normalizedEmail, code, purpose || 'general');
+        const record = await statements.getVerificationCode(normalizedEmail, code, purpose || 'general');
 
         if (record) {
             // Código válido
             // No eliminar si es para registro o restablecimiento de contraseña, 
             // ya que esas rutas necesitan verificar el código una segunda vez al procesar la acción final.
             if (purpose !== 'register' && purpose !== 'password_reset') {
-                statements.deleteVerificationCodes.run(normalizedEmail, purpose || 'general');
+                await statements.deleteVerificationCodes(normalizedEmail, purpose || 'general');
             }
             res.json({ success: true, message: 'Código verificado correctamente' });
         } else {
@@ -1413,13 +1369,11 @@ app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
     console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
     console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
-    console.log('Base de datos SQLite inicializada correctamente');
 });
 
 // Graceful shutdown
 process.on('SIGINT', () => {
     console.log('Cerrando servidor...');
-    db.close();
     process.exit(0);
 });
 
@@ -1427,7 +1381,7 @@ process.on('SIGINT', () => {
 
 // Agregar esta ruta a tu server.js después de las rutas existentes del carrito
 
-app.put('/api/cart/:productId', authenticateToken, (req, res) => {
+app.put('/api/cart/:productId', authenticateToken, async (req, res) => {
     const productId = parseInt(req.params.productId, 10);
     const { quantity } = req.body;
 
@@ -1438,20 +1392,20 @@ app.put('/api/cart/:productId', authenticateToken, (req, res) => {
 
     try {
         // Verificar que el producto existe
-        const product = statements.getProductById.get(productId);
+        const product = await statements.getProductById(productId);
         if (!product) {
             return res.status(404).json({ message: 'Producto no encontrado' });
         }
 
         // Verificar que el item existe en el carrito
-        const existingItem = statements.getCartItem.get(req.user.id, productId);
+        const existingItem = await statements.getCartItem(req.user.id, productId);
         if (!existingItem) {
             return res.status(404).json({ message: 'Producto no encontrado en el carrito' });
         }
 
         // Si la cantidad es 0, eliminar el item
         if (quantity === 0) {
-            statements.removeFromCart.run(req.user.id, productId);
+            await statements.removeFromCart(req.user.id, productId);
         } else {
             // Verificar stock disponible
             if (quantity > product.stock) {
@@ -1462,10 +1416,10 @@ app.put('/api/cart/:productId', authenticateToken, (req, res) => {
             }
 
             // Actualizar cantidad
-            statements.updateCartItem.run(quantity, req.user.id, productId);
+            await statements.updateCartItem(quantity, req.user.id, productId);
         }
 
-        const cart = statements.getCartByUserId.all(req.user.id);
+        const cart = await statements.getCartByUserId(req.user.id);
         console.log('Carrito actualizado para usuario', req.user.id, ':', cart);
         res.json(cart);
     } catch (error) {
@@ -1474,9 +1428,9 @@ app.put('/api/cart/:productId', authenticateToken, (req, res) => {
     }
 });
 
-app.delete('/api/cart', authenticateToken, (req, res) => {
+app.delete('/api/cart', authenticateToken, async (req, res) => {
     try {
-        statements.clearCart.run(req.user.id);
+        await statements.clearCart(req.user.id);
         console.log('Carrito vaciado para usuario', req.user.id);
         res.json({ message: 'Carrito vaciado exitosamente', cart: [] });
     } catch (error) {
