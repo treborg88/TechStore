@@ -68,11 +68,17 @@ function OrderTracker() {
 
     const getStatusText = (status) => {
         const statusMap = {
-            'pending': '⏳ Pendiente',
-            'processing': '⚙️ Procesando',
+            'pending_payment': '⏳ Pendiente de Pago',
+            'paid': '💰 Pagado',
+            'to_ship': '📦 Para Enviar',
             'shipped': '🚚 Enviado',
             'delivered': '✅ Entregado',
-            'cancelled': '❌ Cancelado'
+            'return': '↩️ Devolución',
+            'refund': '💸 Reembolso',
+            'cancelled': '❌ Cancelado',
+            // Fallback for old statuses
+            'pending': '⏳ Pendiente',
+            'processing': '⚙️ Procesando'
         };
         return statusMap[status] || status;
     };

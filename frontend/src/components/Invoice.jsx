@@ -195,7 +195,15 @@ const InvoicePDF = ({ invoiceData }) => (
   </Document>
 );
 
-const Invoice = ({ order, customerInfo, items, onClose }) => {
+const STATUS_STEPS = [
+    { id: 'pending_payment', label: 'Pendiente Pago', icon: '⏳' },
+    { id: 'paid', label: 'Pagado', icon: '💰' },
+    { id: 'to_ship', label: 'Para Enviar', icon: '📦' },
+    { id: 'shipped', label: 'Enviado', icon: '🚚' },
+    { id: 'delivered', label: 'Entregado', icon: '✅' }
+];
+
+const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange }) => {
     const isAuthenticated = !!localStorage.getItem('authToken');
 
     // Prepare data for PDF
@@ -219,15 +227,19 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
 
     return (
         <div className="order-success printable-area">
-            <div className="success-icon no-print">✅</div>
-            <h2>¡Pedido Confirmado!</h2>
-            <p className="order-number">Orden {order.order_number || `#${order.id}`}</p>
-            <p className="success-message no-print">
-                Tu pedido ha sido recibido y está siendo procesado.
-                {!isAuthenticated && (
-                    <><br/>📧 Recibirás la confirmación en <strong>{customerInfo.email}</strong></>
-                )}
-            </p>
+            {showSuccess && (
+                <>
+                    <div className="success-icon no-print">✅</div>
+                    <h2>¡Pedido Confirmado!</h2>
+                    <p className="order-number">Orden {order.order_number || `#${order.id}`}</p>
+                    <p className="success-message no-print">
+                        Tu pedido ha sido recibido y está siendo procesado.
+                        {!isAuthenticated && (
+                            <><br/>📧 Recibirás la confirmación en <strong>{customerInfo.email}</strong></>
+                        )}
+                    </p>
+                </>
+            )}
             
             {/* Invoice Header for Print (HTML version - kept for consistency/fallback) */}
             <div className="invoice-container only-print">
@@ -299,7 +311,128 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
                 </div>
             </div>
 
-            <div className="order-summary-success no-print">
+            {/* Professional Screen View */}
+            <div className="invoice-screen-view no-print">
+                {/* Status Stepper for Admin */}
+                {!showSuccess && onStatusChange && (
+                    <div className="order-status-stepper-wrapper">
+                        {['cancelled', 'return', 'refund'].includes(order.status) ? (
+                            <div className="special-status-banner">
+                                {order.status === 'cancelled' && '❌ Esta orden ha sido CANCELADA'}
+                                {order.status === 'return' && '↩️ Esta orden está en proceso de DEVOLUCIÓN'}
+                                {order.status === 'refund' && '💸 Esta orden ha sido REEMBOLSADA'}
+                            </div>
+                        ) : (
+                            <>
+                                <div className="order-status-stepper">
+                                    {STATUS_STEPS.map((step, index) => {
+                                        const currentIdx = STATUS_STEPS.findIndex(s => s.id === order.status);
+                                        const isCompleted = currentIdx >= index;
+                                        const isActive = order.status === step.id;
+                                        const isNext = currentIdx + 1 === index;
+                                        
+                                        return (
+                                            <div 
+                                                key={step.id} 
+                                                className={`status-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''} ${isNext ? 'clickable' : ''}`}
+                                                onClick={() => isNext && onStatusChange(step.id)}
+                                                title={isNext ? `Cambiar a ${step.label}` : ''}
+                                            >
+                                                <span className="step-text">
+                                                    {step.icon} {step.label}
+                                                </span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                )}
+
+                <div className="invoice-header">
+                    <div className="invoice-logo">
+                        📷 <span>TechStore</span>
+                    </div>
+                    <div className="invoice-meta">
+                        <h3>FACTURA</h3>
+                        <p><strong>Orden:</strong> {order.order_number || `#${order.id}`}</p>
+                        <p><strong>Fecha:</strong> {new Date(order.created_at).toLocaleDateString()}</p>
+                    </div>
+                </div>
+
+                <div className="invoice-addresses">
+                    <div className="address-col">
+                        <h4>Facturar a:</h4>
+                        <p><strong>{customerInfo.firstName} {customerInfo.lastName}</strong></p>
+                        <p>{customerInfo.email}</p>
+                        <p>{customerInfo.phone}</p>
+                    </div>
+                    <div className="address-col">
+                        <h4>Enviar a:</h4>
+                        <p>{customerInfo.address}</p>
+                        <p>{customerInfo.sector}, {customerInfo.city}</p>
+                        <p>República Dominicana</p>
+                    </div>
+                </div>
+
+                <div className="invoice-details-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Cant.</th>
+                                <th>Precio</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {items.map(item => (
+                                <tr key={item.id}>
+                                    <td>{item.name}</td>
+                                    <td>{item.quantity}</td>
+                                    <td>${item.price.toFixed(2)}</td>
+                                    <td>${(item.price * item.quantity).toFixed(2)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="invoice-summary-footer">
+                    <div className="payment-info-box">
+                        <h4>Método de Pago</h4>
+                        <p>
+                            {customerInfo.paymentMethod === 'cash' && '💵 Pago Contra Entrega'}
+                            {customerInfo.paymentMethod === 'transfer' && '🏦 Transferencia Bancaria'}
+                            {customerInfo.paymentMethod === 'online' && '💳 Pago en Línea'}
+                            {customerInfo.paymentMethod === 'card' && '💳 Tarjeta de Crédito/Débito'}
+                        </p>
+                        <div className={`status-tag status-${order.status}`}>
+                            {order.status === 'pending_payment' && '⏳ Pendiente de Pago'}
+                            {order.status === 'paid' && '💰 Pagado'}
+                            {order.status === 'to_ship' && '📦 Para Enviar'}
+                            {order.status === 'shipped' && '🚚 Enviado'}
+                            {order.status === 'delivered' && '✅ Entregado'}
+                            {order.status === 'return' && '↩️ Devolución'}
+                            {order.status === 'refund' && '💸 Reembolso'}
+                            {order.status === 'cancelled' && '❌ Cancelado'}
+                        </div>
+                    </div>
+                    <div className="totals-box">
+                        <div className="total-row">
+                            <span>Subtotal:</span>
+                            <span>${order.total.toFixed(2)}</span>
+                        </div>
+                        <div className="total-row grand-total">
+                            <span>TOTAL:</span>
+                            <span>${order.total.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div className="order-summary-success no-print" style={{display: 'none'}}>
                 <p><strong>Total:</strong> ${order.total.toFixed(2)}</p>
                 <p><strong>Método de Pago:</strong> 
                     {customerInfo.paymentMethod === 'cash' && ' 💵 Pago Contra Entrega'}
@@ -307,16 +440,27 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
                     {customerInfo.paymentMethod === 'online' && ' 💳 Pago en Línea'}
                     {customerInfo.paymentMethod === 'card' && ' 💳 Tarjeta de Crédito/Débito'}
                 </p>
-                <p><strong>Estado:</strong> <span className="status-badge">{order.status}</span></p>
+                <p><strong>Estado:</strong> <span className="status-badge">
+                    {order.status === 'pending_payment' && '⏳ Pendiente de Pago'}
+                    {order.status === 'paid' && '💰 Pagado'}
+                    {order.status === 'to_ship' && '📦 Para Enviar'}
+                    {order.status === 'shipped' && '🚚 Enviado'}
+                    {order.status === 'delivered' && '✅ Entregado'}
+                    {order.status === 'return' && '↩️ Devolución'}
+                    {order.status === 'refund' && '💸 Reembolso'}
+                    {order.status === 'cancelled' && '❌ Cancelado'}
+                    {/* Fallback */}
+                    {!['pending_payment', 'paid', 'to_ship', 'shipped', 'delivered', 'return', 'refund', 'cancelled'].includes(order.status) && order.status}
+                </span></p>
                 <p><strong>Envío a:</strong> {customerInfo.address}, {customerInfo.city}</p>
             </div>
 
-            {customerInfo.paymentMethod === 'cash' && (
+            {showSuccess && customerInfo.paymentMethod === 'cash' && (
                 <div className="payment-note no-print">
                     💰 Prepara el monto exacto: <strong>${order.total.toFixed(2)}</strong>
                 </div>
             )}
-            {customerInfo.paymentMethod === 'transfer' && (
+            {showSuccess && customerInfo.paymentMethod === 'transfer' && (
                 <div className="payment-note transfer-note no-print">
                     <h4>📋 Instrucciones de Transferencia</h4>
                     <div className="bank-details">
@@ -332,13 +476,19 @@ const Invoice = ({ order, customerInfo, items, onClose }) => {
                     </p>
                 </div>
             )}
-            {!isAuthenticated && (
+            {showSuccess && !isAuthenticated && (
                 <div className="guest-info no-print">
                     💡 <strong>Tip:</strong> Crea una cuenta para hacer seguimiento de tus pedidos.
                 </div>
             )}
             
             <div className="success-actions no-print">
+                <button 
+                    className="print-invoice-btn" 
+                    onClick={() => window.print()}
+                >
+                    🖨️ Imprimir Factura
+                </button>
                 <PDFDownloadLink
                     document={<InvoicePDF invoiceData={invoiceData} />}
                     fileName={`factura-${order.id}.pdf`}

@@ -907,6 +907,11 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
         const resolvedCustomerPhone = customer_phone ? customer_phone.trim() : '';
 
+        // Set initial status based on payment method
+        // transfer -> pending_payment
+        // cash -> pending_payment (waiting for delivery/payment)
+        const initialStatus = 'pending_payment';
+
         const orderResult = await statements.createOrder(
             req.user.id, 
             total, 
@@ -921,6 +926,9 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
             shipping_sector || ''
         );
         const orderId = orderResult.lastInsertRowid;
+
+        // Update status explicitly to ensure it matches our new system
+        await statements.updateOrderStatus(initialStatus, orderId);
 
         // Generate and update order number
         const orderNumber = generateOrderNumber(orderId);
@@ -995,6 +1003,9 @@ app.post('/api/orders/guest', async (req, res) => {
         const guestEmail = customer_info.email.trim().toLowerCase();
         const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
 
+        // Set initial status based on payment method
+        const initialStatus = 'pending_payment';
+
         const orderResult = await statements.createOrder(
             null,
             total,
@@ -1009,6 +1020,9 @@ app.post('/api/orders/guest', async (req, res) => {
             shipping_sector || ''
         );
         const orderId = orderResult.lastInsertRowid;
+
+        // Update status explicitly to ensure it matches our new system
+        await statements.updateOrderStatus(initialStatus, orderId);
 
         // Generate and update order number
         const orderNumber = generateOrderNumber(orderId);
@@ -1049,7 +1063,18 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     const orderId = parseInt(req.params.id, 10);
     const { status } = req.body;
 
-    const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = [
+        'pending_payment', 
+        'paid', 
+        'to_ship', 
+        'shipped', 
+        'delivered', 
+        'return', 
+        'refund', 
+        'cancelled',
+        'pending',
+        'processing'
+    ];
     if (!validStatuses.includes(status)) {
         return res.status(400).json({ 
             message: `Estado inválido. Debe ser uno de: ${validStatuses.join(', ')}` 

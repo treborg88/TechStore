@@ -79,17 +79,19 @@ const statements = {
     const { data, error } = await supabase
       .from('users')
       .update({ name, phone, street, sector, city, country, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
   updateUserPassword: async (password, id) => {
     const { data, error } = await supabase
       .from('users')
       .update({ password, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
   updateLastLogin: async (id) => {
     const { data, error } = await supabase
@@ -140,9 +142,10 @@ const statements = {
     const { data, error } = await supabase
       .from('products')
       .update({ name, description, price, category, stock, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
   deleteProduct: async (id) => {
     const { error } = await supabase
@@ -305,17 +308,19 @@ const statements = {
     const { data, error } = await supabase
       .from('orders')
       .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
   updateOrderNumber: async (order_number, id) => {
     const { data, error } = await supabase
       .from('orders')
       .update({ order_number })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
   deleteOrder: async (id) => {
     const { error } = await supabase
@@ -456,17 +461,19 @@ const statements = {
     const { data, error } = await supabase
       .from('users')
       .update({ role, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
   updateUserStatus: async (is_active, id) => {
     const { data, error } = await supabase
       .from('users')
       .update({ is_active, updated_at: new Date().toISOString() })
-      .eq('id', id);
+      .eq('id', id)
+      .select();
     if (error) throw error;
-    return data;
+    return data && data.length > 0 ? data[0] : null;
   },
 
   // Verification Codes

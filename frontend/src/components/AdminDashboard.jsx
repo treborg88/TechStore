@@ -2,6 +2,19 @@ import { useMemo, useState, useEffect } from 'react';
 import { API_URL, BASE_URL } from '../config';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
+import Invoice from './Invoice';
+
+const ORDER_FILTER_STEPS = [
+	{ id: 'all', label: 'Todos', icon: '📋' },
+	{ id: 'pending_payment', label: 'Pendiente Pago', icon: '⏳' },
+	{ id: 'paid', label: 'Pagado', icon: '💰' },
+	{ id: 'to_ship', label: 'Para Enviar', icon: '📦' },
+	{ id: 'shipped', label: 'Enviado', icon: '🚚' },
+	{ id: 'delivered', label: 'Entregado', icon: '✅' },
+	{ id: 'return', label: 'Devolución', icon: '↩️' },
+	{ id: 'refund', label: 'Reembolso', icon: '💸' },
+	{ id: 'cancelled', label: 'Cancelado', icon: '❌' }
+];
 
 function blankProduct() {
 	return {
@@ -110,10 +123,15 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 	// Calculate stats for overview
 	const stats = useMemo(() => {
 		const totalRevenue = orders
-			.filter(o => o.status !== 'cancelled')
+			.filter(o => o.status !== 'cancelled' && o.status !== 'refund')
 			.reduce((sum, o) => sum + o.total, 0);
 		
-		const pendingOrders = orders.filter(o => o.status === 'pending').length;
+		const pendingOrders = orders.filter(o => 
+			o.status === 'pending' || 
+			o.status === 'pending_payment' || 
+			o.status === 'paid' || 
+			o.status === 'to_ship'
+		).length;
 		const lowStockProducts = products.filter(p => p.stock < 5).length;
 		const activeUsers = users.filter(u => u.is_active).length;
 
@@ -286,6 +304,11 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 
 			toast.success('Estado de orden actualizado correctamente');
 			await loadOrders();
+			
+			// Update selectedOrder if it's currently open
+			if (selectedOrder && selectedOrder.id === orderId) {
+				setSelectedOrder(prev => ({ ...prev, status: newStatus }));
+			}
 		} catch (error) {
 			toast.error(error.message);
 		} finally {
@@ -1013,21 +1036,6 @@ const handleImageChange = (event) => {
 							/>
 						</div>
 						<div className="filter-field">
-							<label htmlFor="order-status">Estado</label>
-							<select
-								id="order-status"
-								value={orderFilters.status}
-								onChange={(event) => setOrderFilters((prev) => ({ ...prev, status: event.target.value }))}
-							>
-								<option value="all">Todos los estados</option>
-								<option value="pending">Pendiente</option>
-								<option value="processing">Procesando</option>
-								<option value="shipped">Enviado</option>
-								<option value="delivered">Entregado</option>
-								<option value="cancelled">Cancelado</option>
-							</select>
-						</div>
-						<div className="filter-field">
 							<label htmlFor="order-type">Tipo</label>
 							<select
 								id="order-type"
@@ -1038,6 +1046,27 @@ const handleImageChange = (event) => {
 								<option value="registered">Registrados</option>
 								<option value="guest">Invitados</option>
 							</select>
+						</div>
+						<div className="filter-field full-width">
+							<label>Filtrar por Estado</label>
+							<div className="admin-filter-stepper">
+								{ORDER_FILTER_STEPS.map((step, index) => {
+									const currentIdx = ORDER_FILTER_STEPS.findIndex(s => s.id === orderFilters.status);
+									const isHighlighted = orderFilters.status !== 'all' && index > 0 && index < currentIdx;
+									const isActive = orderFilters.status === step.id;
+									
+									return (
+										<div 
+											key={step.id} 
+											className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
+											onClick={() => setOrderFilters((prev) => ({ ...prev, status: step.id }))}
+										>
+											<span className="step-icon">{step.icon}</span>
+											<span className="step-label">{step.label}</span>
+										</div>
+									);
+								})}
+							</div>
 						</div>
 					</div>
 
@@ -1062,7 +1091,12 @@ const handleImageChange = (event) => {
 								</thead>
 								<tbody>
 									{filteredOrders.map((order) => (
-										<tr key={order.id}>
+										<tr 
+											key={order.id}
+											onClick={() => viewOrderDetails(order.id)}
+											style={{ cursor: 'pointer' }}
+											className="admin-table-row-clickable"
+										>
 											<td data-label="ID">{order.order_number || `#${order.id}`}</td>
 											<td className="admin-table-name" data-label="Cliente">
 												<span 
@@ -1090,42 +1124,119 @@ const handleImageChange = (event) => {
 											</td>
 											<td data-label="Estado">
 												<span className={`admin-chip status-${order.status}`}>
-													{order.status === 'pending' && '⏳ Pendiente'}
-													{order.status === 'processing' && '⚙️ Procesando'}
+													{order.status === 'pending_payment' && '⏳ Pendiente de Pago'}
+													{order.status === 'paid' && '💰 Pagado'}
+													{order.status === 'to_ship' && '📦 Para Enviar'}
 													{order.status === 'shipped' && '🚚 Enviado'}
 													{order.status === 'delivered' && '✅ Entregado'}
+													{order.status === 'return' && '↩️ Devolución'}
+													{order.status === 'refund' && '💸 Reembolso'}
 													{order.status === 'cancelled' && '❌ Cancelado'}
+													{/* Fallback for old statuses */}
+													{order.status === 'pending' && '⏳ Pendiente'}
+													{order.status === 'processing' && '⚙️ Procesando'}
 												</span>
 											</td>
 											<td data-label="Fecha">{new Date(order.created_at).toLocaleDateString()}</td>
 											<td className="admin-table-actions" data-label="Acciones">
-												<button
-													type="button"
-													className="admin-btn ghost"
-													onClick={() => viewOrderDetails(order.id)}
-												>
-													Ver
-												</button>
-												<button
-													type="button"
-													className="admin-btn danger"
-													onClick={() => handleDeleteOrder(order.id)}
-													disabled={isSubmitting}
-												>
-													Eliminar
-												</button>
-												<select
-													value={order.status}
-													onChange={(e) => handleOrderStatusChange(order.id, e.target.value)}
-													className="admin-role-select"
-													disabled={isSubmitting}
-												>
-													<option value="pending">Pendiente</option>
-													<option value="processing">Procesando</option>
-													<option value="shipped">Enviado</option>
-													<option value="delivered">Entregado</option>
-													<option value="cancelled">Cancelado</option>
-												</select>
+												<div className="action-buttons-group" onClick={(e) => e.stopPropagation()}>
+													{/* Quick Action Button based on current status */}
+													{order.status === 'pending_payment' && (
+														<button 
+															className="admin-btn success sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'paid')}
+															title="Marcar como Pagado"
+														>
+															💰
+														</button>
+													)}
+													{order.status === 'paid' && (
+														<button 
+															className="admin-btn primary sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'to_ship')}
+															title="Pasar a Preparación"
+														>
+															📦
+														</button>
+													)}
+													{order.status === 'to_ship' && (
+														<button 
+															className="admin-btn primary sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'shipped')}
+															title="Marcar como Enviado"
+														>
+															🚚
+														</button>
+													)}
+													{order.status === 'shipped' && (
+														<button 
+															className="admin-btn success sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'delivered')}
+															title="Marcar como Entregado"
+														>
+															✅
+														</button>
+													)}
+													{order.status === 'delivered' && (
+														<button 
+															className="admin-btn warning sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'return')}
+															title="Marcar como Devolución"
+														>
+															↩️
+														</button>
+													)}
+													{order.status === 'return' && (
+														<button 
+															className="admin-btn danger sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'refund')}
+															title="Procesar Reembolso"
+														>
+															💸
+														</button>
+													)}
+													
+													<select
+														value={order.status}
+														onChange={(e) => handleOrderStatusChange(order.id, e.target.value)}
+														className="admin-status-select sm"
+														disabled={isSubmitting}
+													>
+														<option value="pending_payment">Pendiente Pago</option>
+														<option value="paid">Pagado</option>
+														<option value="to_ship">Para Enviar</option>
+														<option value="shipped">Enviado</option>
+														<option value="delivered">Entregado</option>
+														<option value="return">Devolución</option>
+														<option value="refund">Reembolso</option>
+														<option value="cancelled">Cancelado</option>
+													</select>
+
+													{/* Cancel option for early stages - moved to end */}
+													{(order.status === 'pending_payment' || order.status === 'paid' || order.status === 'to_ship') && (
+														<button 
+															className="admin-btn ghost sm" 
+															onClick={() => handleOrderStatusChange(order.id, 'cancelled')}
+															title="Cancelar Orden"
+															style={{ color: '#ef4444' }}
+														>
+															❌
+														</button>
+													)}
+
+													{/* Delete only for cancelled orders */}
+													{order.status === 'cancelled' && (
+														<button
+															type="button"
+															className="admin-btn danger sm"
+															onClick={() => handleDeleteOrder(order.id)}
+															disabled={isSubmitting}
+															title="Eliminar"
+														>
+															🗑️
+														</button>
+													)}
+												</div>
 											</td>
 										</tr>
 									))}
@@ -1143,51 +1254,23 @@ const handleImageChange = (event) => {
 									<button className="close-modal" onClick={closeOrderDetails}>✕</button>
 								</div>
 								<div className="order-modal-body">
-									<div className="order-info">
-										<p><strong>Cliente:</strong> {selectedOrder.customer_name || 'N/A'}</p>
-										<p><strong>Email:</strong> {selectedOrder.customer_email || 'N/A'}</p>
-										<p><strong>Teléfono:</strong> {selectedOrder.customer_phone || 'N/A'}</p>
-										<p><strong>Estado:</strong> {selectedOrder.status}</p>
-										<p><strong>Total:</strong> ${selectedOrder.total.toFixed(2)}</p>
-										<p>
-											<strong>Método de Pago:</strong>{' '}
-											<span className={`admin-chip payment-${selectedOrder.payment_method || 'cash'}`}>
-												{(selectedOrder.payment_method === 'cash' || !selectedOrder.payment_method) && '💵 Pago Contra Entrega'}
-												{selectedOrder.payment_method === 'transfer' && '🏦 Transferencia Bancaria'}
-												{selectedOrder.payment_method === 'online' && '💳 Pago en Línea'}
-												{selectedOrder.payment_method === 'card' && '💳 Tarjeta de Crédito/Débito'}
-											</span>
-										</p>
-										<p><strong>Fecha:</strong> {new Date(selectedOrder.created_at).toLocaleString()}</p>
-										<div className="address-block">
-											<p><strong>Dirección de envío:</strong></p>
-											<p>{selectedOrder.shipping_street}</p>
-											<p>{selectedOrder.shipping_city}, CP {selectedOrder.shipping_postal_code}</p>
-										</div>
-									</div>
-									<h4>Productos</h4>
-									<div className="order-items">
-										{selectedOrder.items && selectedOrder.items.map((item) => (
-											<div key={item.id} className="order-item">
-												<img src={item.image ? (
-													item.image.startsWith('http') 
-														? item.image 
-														: (item.image.startsWith('/images/') 
-															? `${BASE_URL}${item.image}` 
-															: `${BASE_URL}/images/${item.image}`)
-												) : '/images/sin imagen.jpeg'} alt={item.name} />
-												<div className="order-item-info">
-													<p className="order-item-name">{item.name}</p>
-													<p className="order-item-details">
-														Cantidad: {item.quantity} × ${item.price.toFixed(2)}
-													</p>
-												</div>
-												<p className="order-item-total">
-													${(item.quantity * item.price).toFixed(2)}
-												</p>
-											</div>
-										))}
-									</div>
+									<Invoice 
+										order={selectedOrder}
+										customerInfo={{
+											firstName: selectedOrder.customer_name?.split(' ')[0] || '',
+											lastName: selectedOrder.customer_name?.split(' ').slice(1).join(' ') || '',
+											email: selectedOrder.customer_email,
+											address: selectedOrder.shipping_street,
+											sector: selectedOrder.shipping_sector,
+											city: selectedOrder.shipping_city,
+											phone: selectedOrder.customer_phone,
+											paymentMethod: selectedOrder.payment_method
+										}}
+										items={selectedOrder.items || []}
+										onClose={closeOrderDetails}
+										showSuccess={false}
+										onStatusChange={(newStatus) => handleOrderStatusChange(selectedOrder.id, newStatus)}
+									/>
 								</div>
 							</div>
 						</div>
