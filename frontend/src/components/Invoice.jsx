@@ -203,6 +203,13 @@ const STATUS_STEPS = [
     { id: 'delivered', label: 'Entregado', icon: '✅' }
 ];
 
+const COD_STATUS_STEPS = [
+    { id: 'to_ship', label: 'Para Enviar', icon: '📦' },
+    { id: 'shipped', label: 'Enviado', icon: '🚚' },
+    { id: 'delivered', label: 'Entregado', icon: '✅' },
+    { id: 'paid', label: 'Pagado', icon: '💰' }
+];
+
 const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange }) => {
     const isAuthenticated = !!localStorage.getItem('authToken');
 
@@ -325,8 +332,9 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         ) : (
                             <>
                                 <div className="order-status-stepper">
-                                    {STATUS_STEPS.map((step, index) => {
-                                        const currentIdx = STATUS_STEPS.findIndex(s => s.id === order.status);
+                                    {(customerInfo.paymentMethod === 'cash' ? COD_STATUS_STEPS : STATUS_STEPS).map((step, index) => {
+                                        const steps = customerInfo.paymentMethod === 'cash' ? COD_STATUS_STEPS : STATUS_STEPS;
+                                        const currentIdx = steps.findIndex(s => s.id === order.status);
                                         const isCompleted = currentIdx >= index;
                                         const isActive = order.status === step.id;
                                         const isNext = currentIdx + 1 === index;

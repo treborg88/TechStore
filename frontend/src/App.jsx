@@ -24,6 +24,7 @@ function App() {
   const [profileOpen, setProfileOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(getCurrentUser());
@@ -232,13 +233,37 @@ function App() {
   };
 
   // Effects
-  const fetchProducts = useCallback(async (category = 'todos') => {
+  const fetchProducts = useCallback(async (category = 'todos', page = 1) => {
     try {
       setLoading(true);
       setError(null);
-      const url = category === 'todos' 
-        ? `${API_URL}/products`
-        : `${API_URL}/products?category=${category}`;
+      
+      const queryParams = new URLSearchParams({
+          page: page.toString(),
+          limit: '20'
+      });
+      
+      if (category !== 'todos') {
+          queryParams.append('category', category);
+      }
+
+      const cacheKey = `products_cache_${category}_${page}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      
+      if (cachedData) {
+          const parsedCache = JSON.parse(cachedData);
+          // Check if cache is valid (e.g., less than 5 minutes old)
+          const now = new Date().getTime();
+          if (now - parsedCache.timestamp < 5 * 60 * 1000) {
+              console.log('Using cached products');
+              setProducts(parsedCache.data);
+              setPagination(parsedCache.pagination);
+              setLoading(false);
+              // Optional: Continue to fetch in background to revalidate
+          }
+      }
+
+      const url = `${API_URL}/products?${queryParams}`;
       
       console.log('Fetching products from:', url);
       const response = await fetch(url);
@@ -247,13 +272,42 @@ function App() {
         throw new Error(`Error: ${response.status}`);
       }
 
-      const data = await response.json();
-      console.log('Productos recibidos:', data);
-      setProducts(data);
+      const result = await response.json();
+      console.log('Productos recibidos:', result.data ? result.data.length : 0);
+      
+      if (result.data) {
+          setProducts(result.data);
+          setPagination({
+              page: result.page,
+              limit: result.limit,
+              total: result.total,
+              totalPages: result.totalPages
+          });
+          
+          // Update cache
+          localStorage.setItem(cacheKey, JSON.stringify({
+              timestamp: new Date().getTime(),
+              data: result.data,
+              pagination: {
+                  page: result.page,
+                  limit: result.limit,
+                  total: result.total,
+                  totalPages: result.totalPages
+              }
+          }));
+      } else {
+          // Fallback for legacy response or error
+          setProducts(Array.isArray(result) ? result : []);
+      }
+      
       setLoading(false);
     } catch (err) {
       console.error('Error fetching products:', err);
-      setError('No se pudieron cargar los productos. Por favor, inténtalo de nuevo más tarde.');
+      // If fetch fails but we have cache, we might want to keep showing it
+      // But here we just show error if no cache was loaded
+      if (!localStorage.getItem(`products_cache_${category}_${page}`)) {
+          setError('No se pudieron cargar los productos. Por favor, inténtalo de nuevo más tarde.');
+      }
       setLoading(false);
     }
   }, []);
@@ -364,6 +418,7 @@ function App() {
               error={error} 
               addToCart={addToCart} 
               fetchProducts={fetchProducts}
+              pagination={pagination}
             />
           } />
           <Route path="/login" element={
@@ -380,7 +435,7 @@ function App() {
             user && user.role === 'admin' ? (
               <main className="admin-wrapper">
                 <div className="container">
-                  <AdminDashboard products={products} onRefresh={fetchProducts} isLoading={loading} />
+                  <AdminDashboard products={products} onRefresh={fetchProducts} isLoading={loading} pagination={pagination} />
                 </div>
               </main>
             ) : (

@@ -111,6 +111,31 @@ const statements = {
     if (error) console.error('Error getAllProducts:', error);
     return data || [];
   },
+  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '') => {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('products')
+      .select('*', { count: 'exact' });
+
+    if (search) {
+      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+    }
+    if (category && category !== 'all') {
+      query = query.eq('category', category);
+    }
+
+    const { data, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error('Error getProductsPaginated:', error);
+      return { data: [], total: 0 };
+    }
+    return { data, total: count };
+  },
   getProductById: async (id) => {
     const { data, error } = await supabase
       .from('products')
@@ -313,6 +338,15 @@ const statements = {
     if (error) throw error;
     return data && data.length > 0 ? data[0] : null;
   },
+  updateOrder: async (id, updates) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .update({ ...updates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select();
+    if (error) throw error;
+    return data && data.length > 0 ? data[0] : null;
+  },
   updateOrderNumber: async (order_number, id) => {
     const { data, error } = await supabase
       .from('orders')
@@ -349,6 +383,45 @@ const statements = {
       customer_name: order.users ? order.users.name : order.customer_name,
       customer_email: order.users ? order.users.email : order.customer_email
     }));
+  },
+  getOrdersPaginated: async (page = 1, limit = 20, search = '', status = 'all', paymentType = 'all', type = 'all') => {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('orders')
+      .select(`
+        *,
+        users (name, email)
+      `, { count: 'exact' });
+
+    if (status !== 'all') query = query.eq('status', status);
+    if (paymentType === 'online') query = query.neq('payment_method', 'cash');
+    if (paymentType === 'cod') query = query.eq('payment_method', 'cash');
+    if (type === 'registered') query = query.not('user_id', 'is', null);
+    if (type === 'guest') query = query.is('user_id', null);
+
+    if (search) {
+        const searchNum = isNaN(search) ? -1 : search;
+        query = query.or(`order_number.ilike.%${search}%,customer_name.ilike.%${search}%,customer_email.ilike.%${search}%,id.eq.${searchNum}`);
+    }
+
+    const { data, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error('Error getOrdersPaginated:', error);
+      return { data: [], total: 0 };
+    }
+
+    const formattedData = data.map(order => ({
+      ...order,
+      customer_name: order.users ? order.users.name : order.customer_name,
+      customer_email: order.users ? order.users.email : order.customer_email
+    }));
+
+    return { data: formattedData, total: count };
   },
   getOrderWithCustomerById: async (id) => {
     const { data, error } = await supabase
@@ -456,6 +529,33 @@ const statements = {
       return [];
     }
     return data;
+  },
+  getUsersPaginated: async (page = 1, limit = 20, search = '', role = 'all', status = 'all') => {
+    const from = (page - 1) * limit;
+    const to = from + limit - 1;
+
+    let query = supabase
+      .from('users')
+      .select('id, name, email, role, is_active, created_at, updated_at, last_login', { count: 'exact' });
+
+    if (role !== 'all') query = query.eq('role', role);
+    if (status === 'active') query = query.eq('is_active', true);
+    if (status === 'inactive') query = query.eq('is_active', false);
+
+    if (search) {
+        query = query.or(`name.ilike.%${search}%,email.ilike.%${search}%`);
+    }
+
+    const { data, count, error } = await query
+      .order('created_at', { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error('Error getUsersPaginated:', error);
+      return { data: [], total: 0 };
+    }
+
+    return { data, total: count };
   },
   updateUserRole: async (role, id) => {
     const { data, error } = await supabase

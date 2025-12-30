@@ -544,13 +544,18 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
 // == Products ==
 app.get('/api/products', async (req, res) => {
     const categoryFilter = req.query.category;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+
     try {
-        let products;
-        if (categoryFilter && categoryFilter.toLowerCase() !== 'todos') {
-            products = await statements.getProductsByCategory(categoryFilter);
-        } else {
-            products = await statements.getAllProducts();
-        }
+        // Use paginated function
+        const { data: products, total } = await statements.getProductsPaginated(
+            page, 
+            limit, 
+            search, 
+            categoryFilter && categoryFilter.toLowerCase() !== 'todos' ? categoryFilter : 'all'
+        );
 
         // Add images to each product and migrate legacy images
         const productsWithImages = await Promise.all(products.map(async (product) => {
@@ -569,7 +574,13 @@ app.get('/api/products', async (req, res) => {
             };
         }));
 
-        res.json(productsWithImages);
+        res.json({
+            data: productsWithImages,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         console.error('Error obteniendo productos:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -833,9 +844,23 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
 
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const status = req.query.status || 'all';
+    const paymentType = req.query.paymentType || 'all';
+    const type = req.query.type || 'all';
+
     try {
-        const orders = await statements.getAllOrdersWithCustomer();
-        res.json(orders);
+        const { data: orders, total } = await statements.getOrdersPaginated(page, limit, search, status, paymentType, type);
+        
+        res.json({
+            data: orders,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         console.error('Error obteniendo órdenes:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
@@ -1071,6 +1096,92 @@ app.post('/api/orders/guest', async (req, res) => {
     }
 });
 
+// Update order details (admin only)
+app.put('/api/orders/:id', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Acceso denegado' });
+    }
+
+    const orderId = parseInt(req.params.id, 10);
+    const updates = req.body;
+
+    // Filter allowed fields to prevent overwriting critical data like ID or user_id
+    const allowedFields = ['status', 'internal_notes', 'carrier', 'tracking_number', 'shipping_address', 'shipping_street', 'shipping_city', 'shipping_sector', 'shipping_postal_code'];
+    const filteredUpdates = {};
+    
+    Object.keys(updates).forEach(key => {
+        if (allowedFields.includes(key)) {
+            filteredUpdates[key] = updates[key];
+        }
+    });
+
+    if (Object.keys(filteredUpdates).length === 0) {
+        return res.status(400).json({ message: 'No se proporcionaron campos válidos para actualizar' });
+    }
+
+    if (filteredUpdates.status) {
+        const validStatuses = [
+            'pending_payment', 'paid', 'to_ship', 'shipped', 'delivered', 
+            'return', 'refund', 'cancelled', 'pending', 'processing'
+        ];
+        if (!validStatuses.includes(filteredUpdates.status)) {
+            return res.status(400).json({ 
+                message: `Estado inválido. Debe ser uno de: ${validStatuses.join(', ')}` 
+            });
+        }
+    }
+
+    try {
+        // Get current order status BEFORE update
+        const currentOrder = await statements.getOrderById(orderId);
+        if (!currentOrder) {
+             return res.status(404).json({ message: 'Orden no encontrada' });
+        }
+
+        const result = await statements.updateOrder(orderId, filteredUpdates);
+        
+        if (result) {
+            // Check for stock reversion
+            const newStatus = filteredUpdates.status;
+            const oldStatus = currentOrder.status;
+            const isCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(newStatus);
+            const wasCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(oldStatus);
+
+            if (newStatus && isCancelledOrReturn && !wasCancelledOrReturn) {
+                console.log(`Restoring stock for order ${orderId} (Status: ${oldStatus} -> ${newStatus})`);
+                const orderItems = await statements.getOrderItems(orderId);
+                for (const item of orderItems) {
+                    const product = await statements.getProductById(item.product_id);
+                    if (product) {
+                        const newStock = product.stock + item.quantity;
+                        await statements.updateProduct(
+                            product.name,
+                            product.description,
+                            product.price,
+                            product.category,
+                            newStock,
+                            item.product_id
+                        );
+                    }
+                }
+            }
+
+            const order = await statements.getOrderById(orderId);
+            console.log('Orden actualizada:', order);
+            res.json({ message: 'Orden actualizada exitosamente', order });
+        } else {
+            res.status(404).json({ message: 'Orden no encontrada' });
+        }
+    } catch (error) {
+        console.error('Error actualizando orden:', error);
+        // Return the actual error message in development or a specific message for column errors
+        if (error.code === '42703') { // Postgres error code for undefined column
+            return res.status(500).json({ message: 'Error de base de datos: Faltan columnas (internal_notes, carrier, tracking_number). Por favor ejecuta la migración.' });
+        }
+        res.status(500).json({ message: 'Error interno del servidor: ' + error.message });
+    }
+});
+
 // Update order status (admin only)
 app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') {
@@ -1099,9 +1210,40 @@ app.put('/api/orders/:id/status', authenticateToken, async (req, res) => {
     }
 
     try {
+        // Get current order status BEFORE update
+        const currentOrder = await statements.getOrderById(orderId);
+        if (!currentOrder) {
+             return res.status(404).json({ message: 'Orden no encontrada' });
+        }
+
         const result = await statements.updateOrderStatus(status, orderId);
         
         if (result) {
+            // Check for stock reversion
+            const newStatus = status;
+            const oldStatus = currentOrder.status;
+            const isCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(newStatus);
+            const wasCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(oldStatus);
+
+            if (isCancelledOrReturn && !wasCancelledOrReturn) {
+                console.log(`Restoring stock for order ${orderId} (Status: ${oldStatus} -> ${newStatus})`);
+                const orderItems = await statements.getOrderItems(orderId);
+                for (const item of orderItems) {
+                    const product = await statements.getProductById(item.product_id);
+                    if (product) {
+                        const newStock = product.stock + item.quantity;
+                        await statements.updateProduct(
+                            product.name,
+                            product.description,
+                            product.price,
+                            product.category,
+                            newStock,
+                            item.product_id
+                        );
+                    }
+                }
+            }
+
             const order = await statements.getOrderById(orderId);
             console.log('Estado de orden actualizado:', order);
             res.json({ message: 'Estado actualizado exitosamente', order });
@@ -1200,9 +1342,22 @@ app.get('/api/users', authenticateToken, async (req, res) => {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
 
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const search = req.query.search || '';
+    const role = req.query.role || 'all';
+    const status = req.query.status || 'all';
+
     try {
-        const users = await statements.getAllUsers();
-        res.json(users);
+        const { data: users, total } = await statements.getUsersPaginated(page, limit, search, role, status);
+        
+        res.json({
+            data: users,
+            total,
+            page,
+            limit,
+            totalPages: Math.ceil(total / limit)
+        });
     } catch (error) {
         console.error('Error obteniendo usuarios:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
