@@ -13,6 +13,7 @@ address: '',
 sector: '',
 city: '',
 phone: '',
+notes: '', // Nuevo campo opcional para notas/referencias
 paymentMethod: '' // Nuevo campo para método de pago
 });
 
@@ -115,7 +116,8 @@ e.preventDefault();
                     customer_phone: formData.phone,
                     shipping_street: formData.address,
                     shipping_city: formData.city,
-                    shipping_sector: formData.sector
+                    shipping_sector: formData.sector,
+                    notes: formData.notes
                 })
             });
         } else {
@@ -131,6 +133,7 @@ e.preventDefault();
                     shipping_street: formData.address,
                     shipping_city: formData.city,
                     shipping_sector: formData.sector,
+                    notes: formData.notes,
                     customer_info: {
                         name: `${formData.firstName} ${formData.lastName}`,
                         email: formData.email,
@@ -334,6 +337,17 @@ return (
                     disabled={isSubmitting}
                     />
                 </div>
+                <div className="form-group">
+                    <textarea
+                    name="notes"
+                    placeholder="Notas o referencias de la dirección (Opcional)"
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    disabled={isSubmitting}
+                    rows="3"
+                    className="checkout-textarea"
+                    ></textarea>
+                </div>
                 <div className="button-group">
                     <button type="button" onClick={() => setStep(1)} disabled={isSubmitting}>
                     Anterior
@@ -347,47 +361,82 @@ return (
 
             {step === 3 && (
                 <div className="confirmation-section">
-                    <h3>Confirmar Pedido</h3>
+                    <h3 className="section-subtitle">Resumen de Facturación</h3>
                     
-                    <div className="confirmation-details" style={{ marginBottom: '20px', padding: '15px', background: '#f9f9f9', borderRadius: '8px' }}>
-                        <div className="detail-group" style={{ marginBottom: '15px' }}>
-                            <h4 style={{ marginBottom: '5px', color: '#555' }}>Datos de Contacto</h4>
-                            <p style={{ margin: '2px 0' }}><strong>Nombre:</strong> {formData.firstName} {formData.lastName}</p>
-                            <p style={{ margin: '2px 0' }}><strong>Email:</strong> {formData.email}</p>
-                            <p style={{ margin: '2px 0' }}><strong>Teléfono:</strong> {formData.phone}</p>
+                    <div className="order-info-section" style={{ background: 'var(--gray-50)', padding: '20px', borderRadius: '16px', border: '1px solid var(--gray-200)' }}>
+                        <div className="info-row">
+                            <span className="info-label">Cliente:</span>
+                            <span className="info-value">{formData.firstName} {formData.lastName}</span>
                         </div>
-                        
-                        <div className="detail-group" style={{ marginBottom: '15px' }}>
-                            <h4 style={{ marginBottom: '5px', color: '#555' }}>Dirección de Envío</h4>
-                            <p style={{ margin: '2px 0' }}>{formData.address}</p>
-                            <p style={{ margin: '2px 0' }}>{formData.sector}, {formData.city}</p>
-                            <p style={{ margin: '2px 0' }}>República Dominicana</p>
+                        <div className="info-row">
+                            <span className="info-label">Email:</span>
+                            <span className="info-value">{formData.email}</span>
                         </div>
-                    </div>
-
-                    <h3>Resumen del Pedido</h3>
-                    <div className="order-summary">
-                        {cartItems.map(item => (
-                        <div key={item.id} className="summary-item">
-                            <span>{item.name} x {item.quantity}</span>
-                            <span>${(item.price * item.quantity).toFixed(2)}</span>
+                        <div className="info-row">
+                            <span className="info-label">Teléfono:</span>
+                            <span className="info-value">{formData.phone}</span>
                         </div>
-                        ))}
-                        <div className="summary-total">
-                        <strong>Total: ${total.toFixed(2)}</strong>
+                        <div className="info-row full-width">
+                            <span className="info-label">Dirección de Envío:</span>
+                            <span className="info-value">
+                                {formData.address}, {formData.sector}<br />
+                                {formData.city}, República Dominicana
+                            </span>
                         </div>
                     </div>
 
-                    <div className="button-group">
-                        <button type="button" onClick={() => setStep(2)} disabled={isSubmitting}>
-                        Anterior
+                    <div className="order-items-section">
+                        <h4>Productos a Confirmar</h4>
+                        <div className="order-items-list">
+                            {cartItems.map((item) => (
+                                <div key={item.id} className="order-item-row">
+                                    <img 
+                                        src={item.image ? (
+                                            item.image.startsWith('http') 
+                                                ? item.image 
+                                                : (item.image.startsWith('/images/') 
+                                                    ? `${API_URL.replace('/api', '')}${item.image}` 
+                                                    : `${API_URL.replace('/api', '')}/images/${item.image}`)
+                                        ) : '/images/sin imagen.jpeg'} 
+                                        alt={item.name}
+                                        className="item-image"
+                                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }}
+                                        onError={(e) => {
+                                            e.target.src = '/images/sin imagen.jpeg';
+                                        }}
+                                    />
+                                    <div className="item-info">
+                                        <p className="item-name" style={{ margin: 0, fontWeight: '600' }}>{item.name}</p>
+                                        <p className="item-quantity" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--gray-500)' }}>
+                                            {item.quantity} × ${item.price.toFixed(2)}
+                                        </p>
+                                    </div>
+                                    <div className="item-total" style={{ fontWeight: '700', color: 'var(--primary-color)' }}>
+                                        ${(item.quantity * item.price).toFixed(2)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="summary-divider" style={{ margin: '25px 0' }}></div>
+                    
+                    <div className="total-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.5rem', fontWeight: '800' }}>
+                        <span>Total a Pagar:</span>
+                        <span style={{ color: 'var(--primary-color)' }}>${total.toFixed(2)}</span>
+                    </div>
+
+                    <div className="button-group" style={{ marginTop: '35px' }}>
+                        <button type="button" className="back-btn" onClick={() => setStep(2)} disabled={isSubmitting}>
+                            Anterior
                         </button>
                         <button 
                             type="button" 
+                            className="next-step-btn"
                             onClick={() => setStep(4)} 
                             disabled={isSubmitting}
                         >
-                            Siguiente
+                            Siguiente: Método de Pago
                         </button>
                     </div>
                 </div>

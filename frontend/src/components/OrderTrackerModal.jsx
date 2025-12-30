@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL, BASE_URL } from '../config';
+import '../styles/OrderTrackerModal.css';
 
 function OrderTrackerModal({ onClose, user }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
@@ -11,11 +12,43 @@ function OrderTrackerModal({ onClose, user }) {
 
     // Cargar órdenes automáticamente si el usuario está logueado
     useEffect(() => {
-        if (user && user.email) {
-            searchOrdersByEmail(user.email);
+        if (user) {
+            fetchMyOrders();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
+
+    const fetchMyOrders = async () => {
+        setLoading(true);
+        setError('');
+        setOrders([]);
+
+        try {
+            const token = localStorage.getItem('authToken');
+            const response = await fetch(`${API_URL}/orders/my`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                if (response.status === 404) {
+                    setError('No se encontraron órdenes');
+                } else {
+                    throw new Error('Error al cargar tus órdenes');
+                }
+                setLoading(false);
+                return;
+            }
+
+            const data = await response.json();
+            setOrders(data);
+        } catch (err) {
+            setError(err.message || 'Error al cargar órdenes');
+        } finally {
+            setLoading(false);
+        }
+    };
 
     const searchOrdersByEmail = async (email) => {
         setLoading(true);
@@ -129,20 +162,24 @@ function OrderTrackerModal({ onClose, user }) {
     return (
         <div className="cart-modal">
             <div className="cart-modal-content order-tracker-modal">
-                <button className="close-cart" onClick={onClose}>✖</button>
-                <h2>📦 {user ? 'Mis Órdenes' : 'Rastrear Órdenes'}</h2>
-                <p className="tracker-subtitle">
-                    {user 
-                        ? `Órdenes de ${user.name}` 
-                        : 'Busca tu orden por número de pedido o correo electrónico'
-                    }
-                </p>
+                <div className="cart-modal-header">
+                    <h2>📦 {user ? 'Mis Órdenes' : 'Rastrear Órdenes'}</h2>
+                    <button className="close-modal" onClick={onClose}>✕</button>
+                </div>
+                
+                <div className="order-tracker-body">
+                    <p className="tracker-subtitle">
+                        {user 
+                            ? `Gestiona y revisa el estado de tus pedidos recientes` 
+                            : 'Busca tu orden por número de pedido o correo electrónico'
+                        }
+                    </p>
 
-                {loading && !orders.length && (
-                    <div className="loading-message">
-                        🔄 Cargando órdenes...
-                    </div>
-                )}
+                    {loading && !orders.length && (
+                        <div className="loading-message">
+                            🔄 Cargando órdenes...
+                        </div>
+                    )}
 
                 {!user && (
                     <form onSubmit={handleSearch} className="order-search-form-modal">
@@ -222,7 +259,7 @@ function OrderTrackerModal({ onClose, user }) {
                                 <div key={order.id} className="order-card-modal">
                                     <div className="order-card-header">
                                         <div>
-                                            <h4>Orden #{order.id}</h4>
+                                            <h4>Orden #{order.order_number || order.id}</h4>
                                             <p className="order-date-modal">
                                                 {new Date(order.created_at).toLocaleDateString('es-ES')}
                                             </p>
@@ -232,8 +269,8 @@ function OrderTrackerModal({ onClose, user }) {
                                         </span>
                                     </div>
                                     <div className="order-card-body">
-                                        <p><strong>Total:</strong> ${order.total.toFixed(2)}</p>
-                                        <p><strong>Pago:</strong> {getPaymentText(order.payment_method || 'cash')}</p>
+                                        <p><span>Total:</span> <strong>${order.total.toFixed(2)}</strong></p>
+                                        <p><span>Pago:</span> <strong>{getPaymentText(order.payment_method || 'cash')}</strong></p>
                                     </div>
                                     <button 
                                         className="view-details-btn-modal"
@@ -246,40 +283,52 @@ function OrderTrackerModal({ onClose, user }) {
                         </div>
                     </div>
                 )}
+                </div>
             </div>
 
             {selectedOrder && (
                 <div className="order-detail-overlay" onClick={closeOrderDetails}>
                     <div className="order-detail-modal" onClick={(e) => e.stopPropagation()}>
                         <div className="order-modal-header">
-                            <h3>Detalles de Orden #{selectedOrder.id}</h3>
+                            <h3>Detalles de Orden #{selectedOrder.order_number || selectedOrder.id}</h3>
                             <button className="close-modal" onClick={closeOrderDetails}>✕</button>
                         </div>
                         <div className="order-modal-body">
                             <div className="order-info-section">
                                 <div className="info-row">
-                                    <span className="info-label">Estado:</span>
+                                    <span className="info-label">Estado</span>
                                     <span className={`order-status-badge-modal status-${selectedOrder.status}`}>
                                         {getStatusText(selectedOrder.status)}
                                     </span>
                                 </div>
                                 <div className="info-row">
-                                    <span className="info-label">Total:</span>
+                                    <span className="info-label">Total</span>
                                     <span className="info-value">${selectedOrder.total.toFixed(2)}</span>
                                 </div>
                                 <div className="info-row">
-                                    <span className="info-label">Método de Pago:</span>
+                                    <span className="info-label">Método de Pago</span>
                                     <span className="info-value">{getPaymentText(selectedOrder.payment_method || 'cash')}</span>
                                 </div>
                                 <div className="info-row">
-                                    <span className="info-label">Fecha:</span>
+                                    <span className="info-label">Fecha</span>
                                     <span className="info-value">
                                         {new Date(selectedOrder.created_at).toLocaleString('es-ES')}
                                     </span>
                                 </div>
-                                {selectedOrder.shipping_address && (
+                                
+                                {(selectedOrder.shipping_street || selectedOrder.shipping_city) && (
                                     <div className="info-row full-width">
-                                        <span className="info-label">Dirección de envío:</span>
+                                        <span className="info-label">Dirección</span>
+                                        <span className="info-value">
+                                            {[selectedOrder.shipping_street, selectedOrder.shipping_sector, selectedOrder.shipping_city].filter(Boolean).join(', ')}
+                                        </span>
+                                    </div>
+                                )}
+
+                                {selectedOrder.shipping_address && 
+                                 selectedOrder.shipping_address !== [selectedOrder.shipping_street, selectedOrder.shipping_sector, selectedOrder.shipping_city].filter(Boolean).join(', ') && (
+                                    <div className="info-row full-width">
+                                        <span className="info-label">Notas/Referencias</span>
                                         <span className="info-value">{selectedOrder.shipping_address}</span>
                                     </div>
                                 )}
@@ -308,7 +357,7 @@ function OrderTrackerModal({ onClose, user }) {
                                                 <div className="item-info">
                                                     <p className="item-name">{item.name}</p>
                                                     <p className="item-quantity">
-                                                        {item.quantity} × ${item.price.toFixed(2)}
+                                                        Cantidad: {item.quantity} × ${item.price.toFixed(2)}
                                                     </p>
                                                 </div>
                                                 <div className="item-total">

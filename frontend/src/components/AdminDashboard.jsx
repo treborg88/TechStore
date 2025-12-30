@@ -47,6 +47,10 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 	const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 	const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all' });
 	const [selectedOrder, setSelectedOrder] = useState(null);
+	
+	// Analytics states
+	const [salesPeriod, setSalesPeriod] = useState('week'); // 'day', 'week', 'month', 'year'
+	const [topProductsLimit, setTopProductsLimit] = useState(5);
 
 	const categories = useMemo(() => {
 		const unique = new Set(
@@ -145,6 +149,102 @@ export default function AdminDashboard({ products, onRefresh, isLoading }) {
 			activeUsers
 		};
 	}, [orders, products, users]);
+
+	// Analytics: Sales by period
+	const salesByPeriod = useMemo(() => {
+		const now = new Date();
+		const periods = [];
+		const periodCount = salesPeriod === 'day' ? 7 : salesPeriod === 'week' ? 8 : salesPeriod === 'month' ? 6 : 12;
+
+		// Generate period labels and data
+		for (let i = periodCount - 1; i >= 0; i--) {
+			const periodDate = new Date(now);
+			let label = '';
+			
+			if (salesPeriod === 'day') {
+				periodDate.setDate(now.getDate() - i);
+				label = periodDate.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric' });
+			} else if (salesPeriod === 'week') {
+				periodDate.setDate(now.getDate() - (i * 7));
+				const weekStart = new Date(periodDate);
+				weekStart.setDate(periodDate.getDate() - periodDate.getDay());
+				label = `${weekStart.getDate()}/${weekStart.getMonth() + 1}`;
+			} else if (salesPeriod === 'month') {
+				periodDate.setMonth(now.getMonth() - i);
+				label = periodDate.toLocaleDateString('es-ES', { month: 'short' });
+			} else if (salesPeriod === 'year') {
+				periodDate.setFullYear(now.getFullYear() - i);
+				label = periodDate.getFullYear().toString();
+			}
+
+			const periodOrders = orders.filter(order => {
+				if (order.status === 'cancelled' || order.status === 'refund') return false;
+				const orderDate = new Date(order.created_at);
+				
+				if (salesPeriod === 'day') {
+					return orderDate.toDateString() === periodDate.toDateString();
+				} else if (salesPeriod === 'week') {
+					const weekStart = new Date(periodDate);
+					weekStart.setDate(periodDate.getDate() - periodDate.getDay());
+					const weekEnd = new Date(weekStart);
+					weekEnd.setDate(weekStart.getDate() + 6);
+					return orderDate >= weekStart && orderDate <= weekEnd;
+				} else if (salesPeriod === 'month') {
+					return orderDate.getMonth() === periodDate.getMonth() && 
+						   orderDate.getFullYear() === periodDate.getFullYear();
+				} else if (salesPeriod === 'year') {
+					return orderDate.getFullYear() === periodDate.getFullYear();
+				}
+				return false;
+			});
+
+			const revenue = periodOrders.reduce((sum, o) => sum + o.total, 0);
+			periods.push({ label, revenue, orders: periodOrders.length });
+		}
+
+		const maxRevenue = Math.max(...periods.map(p => p.revenue), 1);
+		return periods.map(p => ({ ...p, percentage: (p.revenue / maxRevenue) * 100 }));
+	}, [orders, salesPeriod]);
+
+	// Analytics: Top selling products
+	const topSellingProducts = useMemo(() => {
+		const productSales = {};
+		
+		orders.forEach(order => {
+			if (order.status === 'cancelled' || order.status === 'refund') return;
+			(order.items || []).forEach(item => {
+				if (!productSales[item.product_id]) {
+					productSales[item.product_id] = {
+						productId: item.product_id,
+						name: item.product_name || 'Producto desconocido',
+						quantity: 0,
+						revenue: 0
+					};
+				}
+				productSales[item.product_id].quantity += item.quantity;
+				productSales[item.product_id].revenue += item.price * item.quantity;
+			});
+		});
+
+		return Object.values(productSales)
+			.sort((a, b) => b.revenue - a.revenue)
+			.slice(0, topProductsLimit)
+			.map((product, index) => {
+				const maxRevenue = productSales[Object.keys(productSales)[0]]?.revenue || 1;
+				return {
+					...product,
+					percentage: (product.revenue / Object.values(productSales).reduce((sum, p) => sum + p.revenue, 0)) * 100,
+					rank: index + 1
+				};
+			});
+	}, [orders, topProductsLimit]);
+
+	// Recent orders for overview
+	const recentOrders = useMemo(() => {
+		return [...orders]
+			.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+			.slice(0, 5);
+	}, [orders]);
 
 	const loadUsers = async () => {
 		try {
@@ -614,12 +714,13 @@ const handleImageChange = (event) => {
 
 			{/* Overview Tab */}
 			{activeTab === 'overview' && (
-				<section className="admin-section">
+				<section className="admin-section overview-section">
 					<div className="admin-section-header">
-						<h3>Panel General</h3>
-						<span>Vista rápida del negocio</span>
+						<h3>📊 Panel General</h3>
+						<span>Vista completa de tu negocio</span>
 					</div>
 					
+					{/* KPI Cards */}
 					<div className="stats-grid">
 						<div className="stat-card revenue">
 							<div className="stat-icon">💰</div>
@@ -658,8 +759,106 @@ const handleImageChange = (event) => {
 						</div>
 					</div>
 
-					{/* Recent Activity / Quick Actions could go here */}
+					{/* Analytics Section */}
+					<div className="analytics-container">
+						{/* Sales Chart */}
+						<div className="analytics-card sales-chart-card">
+							<div className="analytics-header">
+								<h4>📈 Ventas por Período</h4>
+								<div className="period-selector">
+									<button 
+										className={`period-btn ${salesPeriod === 'day' ? 'active' : ''}`}
+										onClick={() => setSalesPeriod('day')}
+									>
+										Día
+									</button>
+									<button 
+										className={`period-btn ${salesPeriod === 'week' ? 'active' : ''}`}
+										onClick={() => setSalesPeriod('week')}
+									>
+										Semana
+									</button>
+									<button 
+										className={`period-btn ${salesPeriod === 'month' ? 'active' : ''}`}
+										onClick={() => setSalesPeriod('month')}
+									>
+										Mes
+									</button>
+									<button 
+										className={`period-btn ${salesPeriod === 'year' ? 'active' : ''}`}
+										onClick={() => setSalesPeriod('year')}
+									>
+										Año
+									</button>
+								</div>
+							</div>
+							<div className="chart-container">
+								<div className="bar-chart">
+									{salesByPeriod.map((period, index) => (
+										<div key={index} className="bar-wrapper">
+											<div className="bar-label-top">${period.revenue.toFixed(0)}</div>
+											<div className="bar-column">
+												<div 
+													className="bar-fill"
+													style={{ height: `${period.percentage}%` }}
+													title={`${period.label}: $${period.revenue.toFixed(2)} (${period.orders} órdenes)`}
+												/>
+											</div>
+											<div className="bar-label">{period.label}</div>
+										</div>
+									))}
+								</div>
+								<div className="chart-summary">
+									<span>Total del período: <strong>${salesByPeriod.reduce((sum, p) => sum + p.revenue, 0).toFixed(2)}</strong></span>
+									<span>Promedio: <strong>${(salesByPeriod.reduce((sum, p) => sum + p.revenue, 0) / salesByPeriod.length).toFixed(2)}</strong></span>
+								</div>
+							</div>
+						</div>
+
+						{/* Top Products */}
+						<div className="analytics-card top-products-card">
+							<div className="analytics-header">
+								<h4>🏆 Productos Más Vendidos</h4>
+								<select 
+									className="limit-selector"
+									value={topProductsLimit}
+									onChange={(e) => setTopProductsLimit(Number(e.target.value))}
+								>
+									<option value={5}>Top 5</option>
+									<option value={10}>Top 10</option>
+									<option value={15}>Top 15</option>
+								</select>
+							</div>
+							<div className="top-products-list">
+								{topSellingProducts.length > 0 ? (
+									topSellingProducts.map((product) => (
+										<div key={product.productId} className="top-product-item">
+											<div className="product-rank">#{product.rank}</div>
+											<div className="product-info">
+												<div className="product-name">{product.name}</div>
+												<div className="product-stats">
+													<span className="quantity">{product.quantity} vendidos</span>
+													<span className="revenue">${product.revenue.toFixed(2)}</span>
+												</div>
+												<div className="progress-bar">
+													<div 
+														className="progress-fill"
+														style={{ width: `${product.percentage}%` }}
+													/>
+												</div>
+											</div>
+										</div>
+									))
+								) : (
+									<div className="empty-state">No hay datos de ventas aún</div>
+								)}
+							</div>
+						</div>
+					</div>
+
+					{/* Widgets Grid */}
 					<div className="admin-dashboard-widgets">
+						{/* Stock Alerts */}
 						<div className="dashboard-widget">
 							<h4>⚠️ Alertas de Stock</h4>
 							{stats.lowStockProducts > 0 ? (
@@ -669,17 +868,68 @@ const handleImageChange = (event) => {
 										.slice(0, 5)
 										.map(p => (
 											<li key={p.id} className="alert-item">
-												<span>{p.name}</span>
+												<span className="alert-product-name">{p.name}</span>
 												<span className="stock-badge critical">{p.stock} unid.</span>
 											</li>
 										))
 									}
 									{stats.lowStockProducts > 5 && (
-										<li className="more-items">...y {stats.lowStockProducts - 5} más</li>
+										<li className="more-items">
+											<button 
+												className="view-all-btn"
+												onClick={() => setActiveTab('products')}
+											>
+												Ver todos los {stats.lowStockProducts} productos con stock bajo →
+											</button>
+										</li>
 									)}
 								</ul>
 							) : (
-								<p className="empty-widget">Todo el inventario está saludable.</p>
+								<p className="empty-widget">✓ Todo el inventario está saludable</p>
+							)}
+						</div>
+
+						{/* Recent Orders */}
+						<div className="dashboard-widget">
+							<h4>🕐 Órdenes Recientes</h4>
+							{recentOrders.length > 0 ? (
+								<ul className="recent-orders-list">
+									{recentOrders.map(order => (
+										<li 
+											key={order.id} 
+											className="recent-order-item"
+											onClick={() => {
+												setActiveTab('orders');
+												setTimeout(() => viewOrderDetails(order.id), 100);
+											}}
+										>
+											<div className="order-header">
+												<span className="order-number">{order.order_number || `#${order.id}`}</span>
+												<span className={`order-status status-${order.status}`}>
+													{order.status === 'pending_payment' && '⏳'}
+													{order.status === 'paid' && '💰'}
+													{order.status === 'to_ship' && '📦'}
+													{order.status === 'shipped' && '🚚'}
+													{order.status === 'delivered' && '✅'}
+												</span>
+											</div>
+											<div className="order-details">
+												<span className="customer-name">{order.customer_name}</span>
+												<span className="order-total">${order.total.toFixed(2)}</span>
+											</div>
+											<div className="order-date">
+												{new Date(order.created_at).toLocaleDateString('es-ES', { 
+													day: 'numeric', 
+													month: 'short',
+													hour: '2-digit',
+													minute: '2-digit'
+												})}
+											</div>
+										</li>
+									))}
+								</ul>
+							) : (
+								<p className="empty-widget">No hay órdenes aún</p>
 							)}
 						</div>
 					</div>

@@ -842,6 +842,23 @@ app.get('/api/orders', authenticateToken, async (req, res) => {
     }
 });
 
+// Get current user's orders
+app.get('/api/orders/my', authenticateToken, async (req, res) => {
+    try {
+        const orders = await statements.getOrdersByUserId(req.user.id);
+        
+        const ordersWithItems = await Promise.all(orders.map(async (order) => ({
+            ...order,
+            items: await statements.getOrderItems(order.id)
+        })));
+        
+        res.json(ordersWithItems);
+    } catch (error) {
+        console.error('Error obteniendo mis órdenes:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
 // Get order details with items
 app.get('/api/orders/:id', authenticateToken, async (req, res) => {
     const orderId = parseInt(req.params.id, 10);
@@ -872,7 +889,7 @@ app.get('/api/orders/:id', authenticateToken, async (req, res) => {
 
 // Create new order
 app.post('/api/orders', authenticateToken, async (req, res) => {
-    const { shipping_address, items, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
+    const { notes, shipping_address, items, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
@@ -900,8 +917,8 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 
         // Create order with structured address fields
         const paymentMethodValue = payment_method || 'cash';
-        // Keep shipping_address for backward compatibility (can be used for notes)
-        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_sector || ''}, ${shipping_city}`;
+        // Use notes if provided, otherwise fallback to legacy address format
+        const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
         
         const resolvedCustomerName = (customer_name && customer_name.trim()) || req.user.name;
         const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
@@ -965,7 +982,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
 
 // Create order as guest (no authentication required)
 app.post('/api/orders/guest', async (req, res) => {
-    const { shipping_address, items, customer_info, payment_method, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
+    const { notes, shipping_address, items, customer_info, payment_method, shipping_street, shipping_city, shipping_postal_code, shipping_sector } = req.body;
 
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
@@ -997,8 +1014,8 @@ app.post('/api/orders/guest', async (req, res) => {
 
         // Create order with structured address fields
         const paymentMethodValue = payment_method || 'cash';
-        // Keep shipping_address for backward compatibility or additional notes
-        const legacyAddress = shipping_address || `${shipping_street}, ${shipping_sector || ''}, ${shipping_city}`;
+        // Use notes if provided, otherwise fallback to legacy address format
+        const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
         const guestName = (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado';
         const guestEmail = customer_info.email.trim().toLowerCase();
         const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';

@@ -39,90 +39,113 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
         <div className="cart-modal">
             <div className="cart-modal-content">
                 <button className="close-cart" onClick={onClose}>✖</button>
-                <h2>Carrito de Compras</h2>
+                <h2 className="cart-title">Tu Carrito</h2>
                 
                 {cartItems.length === 0 ? (
                     <div className="empty-cart">
+                        <div className="empty-cart-icon">🛒</div>
                         <p>El carrito está vacío.</p>
-                        <p>¡Agrega algunos productos para comenzar!</p>
+                        <button className="continue-shopping-btn" onClick={onClose}>
+                            Explorar Productos
+                        </button>
                     </div>
                 ) : (
-                    <>
-                        <ul className="cart-list">
-                            {cartItems.map(item => (
-                                <li key={`cart-${item.id}`} className="cart-item">
-                                    <img 
-                                        src={item.image ? (
-                                            item.image.startsWith('http') 
-                                                ? item.image 
-                                                : (item.image.startsWith('/images/') 
-                                                    ? `${BASE_URL}${item.image}` 
-                                                    : `${BASE_URL}/images/${item.image}`)
-                                        ) : '/images/sin imagen.jpeg'} 
-                                        alt={item.name} 
-                                        className="cart-item-img" 
-                                        onError={(e) => {
-                                            e.target.src = '/images/sin imagen.jpeg';
-                                        }}
-                                    />
-                                    <div className="cart-item-info">
-                                        <span className="item-name">{item.name}</span>
-                                        <span className="item-price">${item.price.toFixed(2)}</span>
-                                        <div className="cart-item-controls">
-                                            <button 
-                                                className="quantity-btn decrease"
-                                                onClick={() => handleDecreaseQuantity(item)} 
-                                                disabled={item.quantity <= 1}
-                                                title="Disminuir cantidad"
-                                            >
-                                                -
-                                            </button>
-                                            <span className="quantity">{item.quantity}</span>
-                                            <button 
-                                                className="quantity-btn increase"
-                                                onClick={() => handleIncreaseQuantity(item)}
-                                                title="Aumentar cantidad"
-                                            >
-                                                +
-                                            </button>
+                    <div className="cart-layout">
+                        <div className="cart-items-section">
+                            <ul className="cart-list">
+                                {cartItems.map(item => (
+                                    <li key={`cart-${item.id}`} className="cart-item">
+                                        <div className="cart-item-image-container">
+                                            <img 
+                                                src={item.image ? (
+                                                    item.image.startsWith('http') 
+                                                        ? item.image 
+                                                        : (item.image.startsWith('/images/') 
+                                                            ? `${BASE_URL}${item.image}` 
+                                                            : `${BASE_URL}/images/${item.image}`)
+                                                ) : '/images/sin imagen.jpeg'} 
+                                                alt={item.name} 
+                                                className="cart-item-img" 
+                                                onError={(e) => {
+                                                    e.target.src = '/images/sin imagen.jpeg';
+                                                }}
+                                            />
                                         </div>
-                                        <div className="item-total">
-                                            Subtotal: ${(item.price * item.quantity).toFixed(2)}
+                                        <div className="cart-item-details">
+                                            <div className="cart-item-header">
+                                                <span className="item-name">{item.name}</span>
+                                                <button 
+                                                    className="remove-item-btn" 
+                                                    onClick={() => handleRemoveItem(item)}
+                                                    title="Eliminar"
+                                                >
+                                                    🗑️
+                                                </button>
+                                            </div>
+                                            <div className="cart-item-body">
+                                                <div className="item-price-info">
+                                                    <span className="item-price-label">Precio:</span>
+                                                    <span className="item-price-value">${item.price.toFixed(2)}</span>
+                                                </div>
+                                                <div className="cart-item-actions">
+                                                    <div className="quantity-selector">
+                                                        <button 
+                                                            className="qty-btn"
+                                                            onClick={() => handleDecreaseQuantity(item)} 
+                                                            disabled={item.quantity <= 1}
+                                                        >
+                                                            -
+                                                        </button>
+                                                        <span className="qty-number">{item.quantity}</span>
+                                                        <button 
+                                                            className="qty-btn"
+                                                            onClick={() => handleIncreaseQuantity(item)}
+                                                        >
+                                                            +
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    <button 
-                                        className="remove-item" 
-                                        onClick={() => handleRemoveItem(item)}
-                                        title="Eliminar producto del carrito"
-                                    >
-                                        ✖
-                                    </button>
-                                </li>
-                            ))}
-                        </ul>
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
                         
-                        <div className="cart-summary">
-                            <div className="cart-total">
-                                <strong>Total: ${total.toFixed(2)}</strong>
-                            </div>
-                            
-                            <div className="cart-actions">
-                                <button 
-                                    className="clear-cart-btn" 
-                                    onClick={onClearAll}
-                                    title="Vaciar carrito completo"
-                                >
-                                    Vaciar Carrito
-                                </button>
-                                <button 
-                                    className="checkout-btn" 
-                                    onClick={handleCheckout}
-                                >
-                                    Finalizar Compra
-                                </button>
+                        <div className="cart-summary-section">
+                            <div className="summary-card">
+                                <h3>Resumen del Pedido</h3>
+                                <div className="summary-row">
+                                    <span>Subtotal</span>
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span>Envío</span>
+                                    <span className="free-shipping">Gratis</span>
+                                </div>
+                                <div className="summary-divider"></div>
+                                <div className="summary-row total-row">
+                                    <span>Total</span>
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
+                                
+                                <div className="cart-actions">
+                                    <button 
+                                        className="checkout-btn" 
+                                        onClick={handleCheckout}
+                                    >
+                                        Finalizar Compra
+                                    </button>
+                                    <button 
+                                        className="clear-cart-btn" 
+                                        onClick={onClearAll}
+                                    >
+                                        Vaciar Carrito
+                                    </button>
+                                </div>
                             </div>
                         </div>
-                    </>
+                    </div>
                 )}
                 
                 {showCheckout && (

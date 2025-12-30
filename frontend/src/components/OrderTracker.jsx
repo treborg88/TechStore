@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { API_URL, BASE_URL } from '../config';
+import '../styles/OrderTrackerModal.css';
 
 function OrderTracker() {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
