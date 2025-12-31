@@ -195,21 +195,19 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination }
             </div>
             
             {pagination && (
-                <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '2rem', alignItems: 'center' }}>
+                <div className="pagination-controls">
                     <button 
                         className="secondary-button"
                         disabled={pagination.page === 1}
                         onClick={() => fetchProducts(selectedCategory, pagination.page - 1)}
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', opacity: pagination.page === 1 ? 0.5 : 1 }}
                     >
                         &laquo; Anterior
                     </button>
-                    <span style={{ fontWeight: 'bold' }}>Página {pagination.page} de {pagination.totalPages}</span>
+                    <span>Página {pagination.page} de {pagination.totalPages}</span>
                     <button 
                         className="secondary-button"
                         disabled={pagination.page === pagination.totalPages}
                         onClick={() => fetchProducts(selectedCategory, pagination.page + 1)}
-                        style={{ padding: '0.5rem 1rem', fontSize: '0.9rem', opacity: pagination.page === pagination.totalPages ? 0.5 : 1 }}
                     >
                         Siguiente &raquo;
                     </button>

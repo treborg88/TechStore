@@ -23,6 +23,48 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [filters, setFilters] = useState({ search: '', category: 'all' });
 	const [showAddForm, setShowAddForm] = useState(false);
 
+	const confirmAction = (message) => {
+		return new Promise((resolve) => {
+			toast((t) => (
+				<div className="modern-confirm-toast">
+					<p>{message}</p>
+					<div className="modern-confirm-buttons">
+						<button 
+							className="cancel-btn"
+							onClick={() => {
+								toast.dismiss(t.id);
+								resolve(false);
+							}}
+						>
+							Cancelar
+						</button>
+						<button 
+							className="confirm-btn"
+							onClick={() => {
+								toast.dismiss(t.id);
+								resolve(true);
+							}}
+						>
+							Confirmar
+						</button>
+					</div>
+				</div>
+			), { 
+				duration: Infinity,
+				position: 'top-center',
+				style: {
+					minWidth: '350px',
+					padding: '24px',
+					borderRadius: '16px',
+					background: '#fff',
+					boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+					marginTop: '30vh',
+					border: '1px solid #e5e7eb'
+				}
+			});
+		});
+	};
+
 	const categories = useMemo(() => {
 		const unique = new Set(
 			products
@@ -227,7 +269,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	};
 
 	const handleDelete = async (productId) => {
-		if (!window.confirm('¿Eliminar este producto?')) {
+		const confirmed = await confirmAction('¿Eliminar este producto?');
+		if (!confirmed) {
 			return;
 		}
 
@@ -584,7 +627,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 				)}
 
 				{pagination && (
-					<div className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', alignItems: 'center' }}>
+					<div className="pagination-controls">
 						<button 
 							className="admin-btn ghost"
 							disabled={pagination.page === 1}

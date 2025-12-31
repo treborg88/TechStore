@@ -181,6 +181,17 @@ const handleBackToHome = () => {
 
 return (
     <div className="login-page">
+    {loading && (
+        <LoadingSpinner 
+            fullPage={true} 
+            size="large" 
+            message={
+                isForgotPassword 
+                    ? (resetStep === 'verify_code' ? "Enviando código..." : "Actualizando contraseña...") 
+                    : (isRegister ? "Creando tu cuenta..." : "Iniciando sesión...")
+            } 
+        />
+    )}
     <div className="login-container">
         {/* Header con opción de volver */}
         <div className="login-header">

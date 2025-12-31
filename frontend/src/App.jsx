@@ -26,6 +26,7 @@ function App() {
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [error, setError] = useState(null);
   const [user, setUser] = useState(getCurrentUser());
 
@@ -34,10 +35,15 @@ function App() {
   // Funciones de manejo de autenticación (DECLARADAS ANTES DE SU USO)
 
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    // Simular un pequeño delay para que se vea el spinner
+    await new Promise(resolve => setTimeout(resolve, 800));
     logout();
     setUser(null);
     setCartItems([]);
+    setIsLoggingOut(false);
+    toast.success("Sesión cerrada correctamente");
     navigate('/');
   };
 
@@ -254,7 +260,7 @@ function App() {
           const parsedCache = JSON.parse(cachedData);
           // Check if cache is valid (e.g., less than 5 minutes old)
           const now = new Date().getTime();
-          if (now - parsedCache.timestamp < 5 * 60 * 1000) {
+          if (now - parsedCache.timestamp < 10 * 60 * 1000) {
               console.log('Using cached products');
               setProducts(parsedCache.data);
               setPagination(parsedCache.pagination);
@@ -336,6 +342,14 @@ function App() {
   return (
     <>
       <Toaster position="top-right" />
+      {isLoggingOut && (
+        <LoadingSpinner 
+          fullPage={true} 
+          size="large" 
+          message="Cerrando sesión..." 
+          color="#ef4444"
+        />
+      )}
       <div className="app-container">
         {/* Header/Navbar */}
       <header className="header">

@@ -10,6 +10,48 @@ export default function UserList({ onStatsUpdate }) {
     const [usersPagination, setUsersPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    const confirmAction = (message) => {
+        return new Promise((resolve) => {
+            toast((t) => (
+                <div className="modern-confirm-toast">
+                    <p>{message}</p>
+                    <div className="modern-confirm-buttons">
+                        <button 
+                            className="cancel-btn"
+                            onClick={() => {
+                                toast.dismiss(t.id);
+                                resolve(false);
+                            }}
+                        >
+                            Cancelar
+                        </button>
+                        <button 
+                            className="confirm-btn"
+                            onClick={() => {
+                                toast.dismiss(t.id);
+                                resolve(true);
+                            }}
+                        >
+                            Confirmar
+                        </button>
+                    </div>
+                </div>
+            ), { 
+                duration: Infinity,
+                position: 'top-center',
+                style: {
+                    minWidth: '350px',
+                    padding: '24px',
+                    borderRadius: '16px',
+                    background: '#fff',
+                    boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                    marginTop: '30vh',
+                    border: '1px solid #e5e7eb'
+                }
+            });
+        });
+    };
+
     const loadUsers = useCallback(async (page = 1) => {
         try {
             setIsLoadingUsers(true);
@@ -72,7 +114,8 @@ export default function UserList({ onStatsUpdate }) {
     }, [userFilters, loadUsers]);
 
     const handleRoleChange = async (userId, newRole) => {
-        if (!window.confirm(`¿Cambiar el rol de este usuario a "${newRole}"?`)) {
+        const confirmed = await confirmAction(`¿Cambiar el rol de este usuario a "${newRole}"?`);
+        if (!confirmed) {
             return;
         }
 
@@ -106,7 +149,8 @@ export default function UserList({ onStatsUpdate }) {
         const newStatus = !currentStatus;
         const action = newStatus ? 'activar' : 'desactivar';
 
-        if (!window.confirm(`¿Deseas ${action} este usuario?`)) {
+        const confirmed = await confirmAction(`¿Deseas ${action} este usuario?`);
+        if (!confirmed) {
             return;
         }
 
@@ -269,7 +313,7 @@ export default function UserList({ onStatsUpdate }) {
             )}
             
             {/* Pagination Controls */}
-            <div className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', alignItems: 'center' }}>
+            <div className="pagination-controls">
                 <button 
                     className="admin-btn ghost"
                     disabled={usersPagination.page === 1}

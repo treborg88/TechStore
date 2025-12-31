@@ -1,8 +1,8 @@
 import React from 'react';
 import '../styles/LoadingSpinner.css';
 
-const LoadingSpinner = ({ size = 'medium', color = '#3498db' }) => {
-  return (
+const LoadingSpinner = ({ size = 'medium', color = '#3498db', fullPage = false, message = '' }) => {
+  const spinner = (
     <div className={`spinner-container ${size}`}>
       <div 
         className="spinner" 
@@ -10,8 +10,19 @@ const LoadingSpinner = ({ size = 'medium', color = '#3498db' }) => {
         role="status"
         aria-label="Cargando"
       ></div>
+      {message && <p className="spinner-message">{message}</p>}
     </div>
   );
+
+  if (fullPage) {
+    return (
+      <div className="full-page-spinner-overlay">
+        {spinner}
+      </div>
+    );
+  }
+
+  return spinner;
 };
 
 export default LoadingSpinner;

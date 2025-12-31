@@ -55,6 +55,48 @@ export default function OrderList({
 	// Bulk Actions State
 	const [selectedOrderIds, setSelectedOrderIds] = useState([]);
 
+	const confirmAction = (message) => {
+		return new Promise((resolve) => {
+			toast((t) => (
+				<div className="modern-confirm-toast">
+					<p>{message}</p>
+					<div className="modern-confirm-buttons">
+						<button 
+							className="cancel-btn"
+							onClick={() => {
+								toast.dismiss(t.id);
+								resolve(false);
+							}}
+						>
+							Cancelar
+						</button>
+						<button 
+							className="confirm-btn"
+							onClick={() => {
+								toast.dismiss(t.id);
+								resolve(true);
+							}}
+						>
+							Confirmar
+						</button>
+					</div>
+				</div>
+			), { 
+				duration: Infinity,
+				position: 'top-center',
+				style: {
+					minWidth: '350px',
+					padding: '24px',
+					borderRadius: '16px',
+					background: '#fff',
+					boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+					marginTop: '30vh',
+					border: '1px solid #e5e7eb'
+				}
+			});
+		});
+	};
+
 	const handleSelectOrder = (orderId) => {
 		setSelectedOrderIds(prev => {
 			if (prev.includes(orderId)) {
@@ -80,7 +122,8 @@ export default function OrderList({
 	const handleBulkStatusChange = async (newStatus) => {
 		if (selectedOrderIds.length === 0) return;
 		
-		if (!window.confirm(`¿Estás seguro de cambiar el estado de ${selectedOrderIds.length} órdenes a "${newStatus}"?`)) {
+		const confirmed = await confirmAction(`¿Estás seguro de cambiar el estado de ${selectedOrderIds.length} órdenes a "${newStatus}"?`);
+		if (!confirmed) {
 			return;
 		}
 
@@ -171,8 +214,9 @@ export default function OrderList({
 			return;
 		}
 
-		if (!extraData.carrier && !window.confirm(`¿Cambiar el estado de la orden a "${newStatus}"?`)) {
-			return;
+		if (!extraData.carrier) {
+			const confirmed = await confirmAction(`¿Cambiar el estado de la orden a "${newStatus}"?`);
+			if (!confirmed) return;
 		}
 
 		try {
@@ -241,7 +285,8 @@ export default function OrderList({
 	};
 
 	const handleDeleteOrder = async (orderId) => {
-		if (!window.confirm(`¿Estás seguro de que deseas eliminar la orden #${orderId}? Esta acción no se puede deshacer.`)) {
+		const confirmed = await confirmAction(`¿Estás seguro de que deseas eliminar la orden #${orderId}? Esta acción no se puede deshacer.`);
+		if (!confirmed) {
 			return;
 		}
 
@@ -421,34 +466,36 @@ export default function OrderList({
 								<td data-label="Fecha">{new Date(order.created_at).toLocaleDateString()}</td>
 								<td className="admin-table-actions" data-label="Acciones">
 									<div className="action-buttons-group" onClick={(e) => e.stopPropagation()}>
-										{nextAction && (
-											<button 
-												className={`admin-btn ${nextAction.class} sm`} 
-												onClick={() => handleOrderStatusChange(order.id, nextAction.status)}
-												title={nextAction.label}
-											>
-												{nextAction.icon}
-											</button>
-										)}
-										
-										{order.status === 'delivered' && (
-											<button 
-												className="admin-btn warning sm" 
-												onClick={() => handleOrderStatusChange(order.id, 'return')}
-												title="Marcar como Devolución"
-											>
-												↩️
-											</button>
-										)}
-										{order.status === 'return' && (
-											<button 
-												className="admin-btn danger sm" 
-												onClick={() => handleOrderStatusChange(order.id, 'refund')}
-												title="Procesar Reembolso"
-											>
-												💸
-											</button>
-										)}
+										<div className="action-buttons-before">
+											{nextAction && (
+												<button 
+													className={`admin-btn ${nextAction.class} sm`} 
+													onClick={() => handleOrderStatusChange(order.id, nextAction.status)}
+													title={nextAction.label}
+												>
+													{nextAction.icon}
+												</button>
+											)}
+											
+											{order.status === 'delivered' && (
+												<button 
+													className="admin-btn warning sm" 
+													onClick={() => handleOrderStatusChange(order.id, 'return')}
+													title="Marcar como Devolución"
+												>
+													↩️
+												</button>
+											)}
+											{order.status === 'return' && (
+												<button 
+													className="admin-btn danger sm" 
+													onClick={() => handleOrderStatusChange(order.id, 'refund')}
+													title="Procesar Reembolso"
+												>
+													💸
+												</button>
+											)}
+										</div>
 										
 										<select
 											value={order.status}
@@ -466,28 +513,30 @@ export default function OrderList({
 											<option value="cancelled">Cancelado</option>
 										</select>
 
-										{(order.status === 'pending_payment' || order.status === 'paid' || order.status === 'to_ship') && (
-											<button 
-												className="admin-btn ghost sm" 
-												onClick={() => handleOrderStatusChange(order.id, 'cancelled')}
-												title="Cancelar Orden"
-												style={{ color: '#ef4444' }}
-											>
-												❌
-											</button>
-										)}
+										<div className="action-buttons-after">
+											{(order.status === 'pending_payment' || order.status === 'paid' || order.status === 'to_ship') && (
+												<button 
+													className="admin-btn ghost sm" 
+													onClick={() => handleOrderStatusChange(order.id, 'cancelled')}
+													title="Cancelar Orden"
+													style={{ color: '#ef4444' }}
+												>
+													❌
+												</button>
+											)}
 
-										{order.status === 'cancelled' && (
-											<button
-												type="button"
-												className="admin-btn danger sm"
-												onClick={() => handleDeleteOrder(order.id)}
-												disabled={isSubmitting}
-												title="Eliminar"
-											>
-												🗑️
-											</button>
-										)}
+											{order.status === 'cancelled' && (
+												<button
+													type="button"
+													className="admin-btn danger sm"
+													onClick={() => handleDeleteOrder(order.id)}
+													disabled={isSubmitting}
+													title="Eliminar"
+												>
+													🗑️
+												</button>
+											)}
+										</div>
 									</div>
 								</td>
 							</tr>
@@ -593,7 +642,7 @@ export default function OrderList({
 			)}
 
             {pagination && (
-				<div className="pagination-controls" style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1rem', alignItems: 'center' }}>
+				<div className="pagination-controls">
 					<button 
 						className="admin-btn ghost"
 						disabled={pagination.page === 1}

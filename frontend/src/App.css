@@ -1977,6 +1977,80 @@ ul {
   border: 1px dashed var(--divider-color);
 }
 
+/* Pagination Controls */
+.pagination-controls {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  align-items: center;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-radius: 50px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.pagination-controls span {
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.9rem;
+  min-width: 120px;
+  text-align: center;
+}
+
+.pagination-controls .admin-btn.ghost {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #2563eb;
+  font-weight: 600;
+  padding: 8px 16px;
+  height: auto;
+  min-width: 100px;
+  transition: all 0.2s ease;
+}
+
+.pagination-controls .admin-btn.ghost:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+.pagination-controls .admin-btn.ghost:disabled {
+  background: #f1f5f9;
+  border-color: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.pagination-controls .secondary-button {
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  color: #2563eb;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+}
+
+.pagination-controls .secondary-button:hover:not(:disabled) {
+  background: #2563eb;
+  color: #ffffff;
+  border-color: #2563eb;
+}
+
+.pagination-controls .secondary-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Admin Table Styles */
 .admin-table-container {
   overflow-x: auto;
@@ -2285,9 +2359,23 @@ ul {
 /* Action Buttons Group */
 .action-buttons-group {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   align-items: center;
-  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.action-buttons-before {
+  display: flex;
+  gap: 4px;
+  width: 72px;
+  justify-content: flex-end;
+}
+
+.action-buttons-after {
+  display: flex;
+  gap: 4px;
+  width: 36px;
+  justify-content: flex-start;
 }
 
 .admin-btn.sm {
@@ -2311,6 +2399,7 @@ ul {
   height: 32px;
   cursor: pointer;
   font-weight: 500;
+  width: 140px;
 }
 
 .admin-status-select.sm option {
@@ -3755,4 +3844,100 @@ ul {
   .products-scroll-container::after {
     display: none;
   }
+}
+
+/* Modern Confirm Toast Styles */
+.modern-confirm-toast {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	position: relative;
+	z-index: 10001;
+	transform-origin: center;
+	animation: popupGrow 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes popupGrow {
+	from {
+		transform: scale(0.8);
+		opacity: 0;
+	}
+	to {
+		transform: scale(1);
+		opacity: 1;
+	}
+}
+
+/* Backdrop effect for the confirmation */
+body:has(.modern-confirm-toast)::before {
+	content: '';
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100vw;
+	height: 100vh;
+	background: rgba(0, 0, 0, 0.5);
+	backdrop-filter: blur(4px);
+	z-index: 9998;
+	pointer-events: all;
+	animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+	from { opacity: 0; }
+	to { opacity: 1; }
+}
+
+/* Ensure the toast container is above the backdrop */
+.go2072408551 { /* Default react-hot-toast container class, but let's use a more generic way if possible */
+	z-index: 9999 !important;
+}
+
+/* Better way to target the toast container */
+div[id^="react-hot-toast"] {
+	z-index: 9999 !important;
+}
+
+.modern-confirm-toast p {
+	margin: 0;
+	font-size: 15px;
+	font-weight: 500;
+	color: #1f2937;
+}
+
+.modern-confirm-buttons {
+	display: flex;
+	gap: 8px;
+	justify-content: flex-end;
+}
+
+.modern-confirm-buttons button {
+	padding: 6px 14px;
+	border-radius: 6px;
+	font-size: 13px;
+	font-weight: 600;
+	transition: all 0.2s;
+	cursor: pointer;
+}
+
+.modern-confirm-buttons .cancel-btn {
+	background: #f3f4f6;
+	color: #4b5563;
+	border: 1px solid #e5e7eb;
+}
+
+.modern-confirm-buttons .cancel-btn:hover {
+	background: #e5e7eb;
+	transform: none;
+}
+
+.modern-confirm-buttons .confirm-btn {
+	background: #2563eb;
+	color: white;
+	border: none;
+}
+
+.modern-confirm-buttons .confirm-btn:hover {
+	background: #1d4ed8;
+	transform: none;
 }
