@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import ProductImageGallery from '../components/ProductImageGallery';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -16,6 +17,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination }
   const isDraggingProducts = useRef(false);
   const startXProducts = useRef(0);
   const scrollLeftProducts = useRef(0);
+  const navigate = useNavigate();
 
   // Categorías
   const categories = [
@@ -171,10 +173,13 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination }
                         productDescription={product.description}
                         className="product-image"
                         onAddToCart={() => addToCart(product)}
+                        onImageClick={() => navigate(`/product/${product.id}`)}
                       />
                       <div className="product-content">
                         <span className="product-category">{product.category}</span>
-                        <h3 className="product-title">{product.name}</h3>
+                        <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                          <h3 className="product-title">{product.name}</h3>
+                        </Link>
                         <p className="product-description">{product.description}</p>
                         <div className="product-footer">
                           <span className="product-price">${product.price}</span>

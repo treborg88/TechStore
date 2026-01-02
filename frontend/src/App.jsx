@@ -14,6 +14,7 @@ const LoginPage = lazy(() => import('./components/LoginPage'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const OrderTrackerModal = lazy(() => import('./components/OrderTrackerModal'));
 const UserProfile = lazy(() => import('./components/UserProfile'));
+const ProductDetail = lazy(() => import('./components/ProductDetail'));
 const Home = lazy(() => import('./pages/Home'));
 
 function App() {
@@ -433,6 +434,12 @@ function App() {
               addToCart={addToCart} 
               fetchProducts={fetchProducts}
               pagination={pagination}
+            />
+          } />
+          <Route path="/product/:id" element={
+            <ProductDetail 
+              products={products} 
+              addToCart={addToCart} 
             />
           } />
           <Route path="/login" element={

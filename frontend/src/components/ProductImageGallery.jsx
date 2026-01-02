@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { BASE_URL } from '../config';
 import '../styles/ProductImageGallery.css';
 
-function ProductImageGallery({ images, productName, productDescription, className = '', onAddToCart }) {
+function ProductImageGallery({ images, productName, productDescription, className = '', onAddToCart, onImageClick }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -201,9 +201,13 @@ function ProductImageGallery({ images, productName, productDescription, classNam
   // Solo mostrar carousel si hay más de una imagen
   const showCarousel = displayImages.length > 1;
 
-  const handleImageClick = () => {
+  const handleImageClick = (e) => {
     if (!didDrag.current) {
-      toggleModal();
+      if (onImageClick) {
+        onImageClick(e);
+      } else {
+        toggleModal();
+      }
     }
   };
 
