@@ -3,15 +3,19 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
 import LoadingSpinner from './LoadingSpinner';
+import Footer from './Footer';
 import { API_URL } from '../config';
 import '../styles/ProductDetail.css';
 
-function ProductDetail({ products, addToCart }) {
+function ProductDetail({ products, addToCart, user, onRefresh }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [similarProducts, setSimilarProducts] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedDescription, setEditedDescription] = useState('');
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     const loadProduct = async () => {
@@ -32,6 +36,7 @@ function ProductDetail({ products, addToCart }) {
         }
 
         setProduct(foundProduct);
+        setEditedDescription(foundProduct.description || '');
 
         // 3. Buscar productos similares (misma categoría)
         if (foundProduct) {
@@ -40,7 +45,7 @@ function ProductDetail({ products, addToCart }) {
           if (products.length > 0) {
             related = products
               .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id)
-              .slice(0, 4);
+              .slice(0, 10);
           } else {
             // Si no, hacemos fetch por categoría (opcional, por ahora usamos lo que hay o nada)
             // Podríamos implementar un fetch específico si fuera necesario
@@ -59,6 +64,37 @@ function ProductDetail({ products, addToCart }) {
 
     loadProduct();
   }, [id, products, navigate]);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(`${API_URL}/products/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          ...product,
+          description: editedDescription
+        })
+      });
+
+      if (response.ok) {
+        setProduct({ ...product, description: editedDescription });
+        setIsEditing(false);
+        toast.success('Descripción actualizada');
+        if (onRefresh) onRefresh();
+      } else {
+        throw new Error('Error al actualizar');
+      }
+    } catch (error) {
+      toast.error('No se pudo guardar la descripción');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const handleShare = async () => {
     const shareData = {
@@ -86,12 +122,41 @@ function ProductDetail({ products, addToCart }) {
   const isLowStock = product.stock > 0 && product.stock < 5;
 
   return (
-    <div className="product-detail-container">
-      <button className="back-btn" onClick={() => navigate(-1)} style={{ marginBottom: '1rem', background: 'none', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '1rem', color: '#666' }}>
-        ← Volver
-      </button>
+    <div className="product-detail-page">
+      <section className="hero-section">
+        <div className="container hero-container">
+          <div className="hero-content">
+            <button 
+              className="back-btn-new hero-back-btn" 
+              onClick={() => navigate(-1)}
+            >
+              ← Volver
+            </button>
+            <h2 className="hero-title">{product.name}</h2>
+            <p className="hero-text">
+              <span className="hero-category-badge">{product.category}</span>
+              Explora los detalles técnicos y características de este producto excepcional.
+            </p>
+            <div className="hero-buttons">
+              <button 
+                className="primary-button"
+                onClick={() => {
+                  addToCart(product);
+                  toast.success('Agregado al carrito');
+                }}
+              >
+                🛒 Comprar Ahora
+              </button>
+              <button className="secondary-button" onClick={handleShare}>
+                🔗 Compartir
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="product-detail-main">
+      <div className="product-detail-container">
+        <div className="product-detail-main">
         <div className="product-gallery-wrapper">
           <ProductImageGallery 
             images={product.images || product.image} 
@@ -113,7 +178,52 @@ function ProductDetail({ products, addToCart }) {
             </div>
           </div>
 
-          <p className="product-description">{product.description}</p>
+          <div className="product-description-container">
+            <div className="description-header">
+              <h3 className="description-subtitle">Descripción</h3>
+              {user && user.role === 'admin' && !isEditing && (
+                <button 
+                  className="edit-desc-btn" 
+                  onClick={() => setIsEditing(true)}
+                  title="Editar descripción"
+                >
+                  ✏️
+                </button>
+              )}
+            </div>
+            
+            {isEditing ? (
+              <div className="edit-description-area">
+                <p className="edit-help-text">Puedes usar etiquetas HTML simples como &lt;b&gt;negrita&lt;/b&gt; o &lt;br/&gt;.</p>
+                <textarea
+                  className="edit-desc-input"
+                  value={editedDescription}
+                  onChange={(e) => setEditedDescription(e.target.value)}
+                  placeholder="Escribe la descripción del producto..."
+                  rows={8}
+                />
+                <div className="edit-actions">
+                  <button className="save-desc-btn" onClick={handleSave} disabled={saving}>
+                    {saving ? 'Guardando...' : 'Guardar'}
+                  </button>
+                  <button className="cancel-desc-btn" onClick={() => {
+                    setIsEditing(false);
+                    setEditedDescription(product.description || '');
+                  }}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div 
+                className="product-full-description" 
+                style={{ whiteSpace: 'pre-wrap' }}
+                dangerouslySetInnerHTML={{ 
+                  __html: product.description || 'Sin descripción'
+                }}
+              />
+            )}
+          </div>
 
           <div className="product-actions">
             <div className="action-buttons">
@@ -165,7 +275,9 @@ function ProductDetail({ products, addToCart }) {
         </div>
       )}
     </div>
-  );
+    <Footer />
+  </div>
+);
 }
 
 export default ProductDetail;

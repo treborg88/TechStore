@@ -440,6 +440,8 @@ function App() {
             <ProductDetail 
               products={products} 
               addToCart={addToCart} 
+              user={user}
+              onRefresh={fetchProducts}
             />
           } />
           <Route path="/login" element={
