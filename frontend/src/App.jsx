@@ -16,9 +16,25 @@ const OrderTrackerModal = lazy(() => import('./components/OrderTrackerModal'));
 const UserProfile = lazy(() => import('./components/UserProfile'));
 const ProductDetail = lazy(() => import('./components/ProductDetail'));
 const Home = lazy(() => import('./pages/Home'));
+const SettingsManager = lazy(() => import('./components/SettingsManager'));
 
 function App() {
-  // Estados
+  // Estados de configuración del sitio
+  const [siteName, setSiteName] = useState('TechStore');
+  const [siteIcon, setSiteIcon] = useState('🛍️');
+  const [heroSettings, setHeroSettings] = useState({
+    title: 'La Mejor Tecnología a Tu Alcance',
+    description: 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
+    primaryBtn: 'Ver Productos',
+    secondaryBtn: 'Ofertas Especiales',
+    image: ''
+  });
+  const [headerSettings, setHeaderSettings] = useState({
+    bgColor: '#2563eb',
+    transparency: 100
+  });
+
+  // Otros estados
   const [cartItems, setCartItems] = useState([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
@@ -323,6 +339,44 @@ function App() {
     fetchProducts('todos');
   }, [fetchProducts]);
 
+  // Cargar ajustes del sitio
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const response = await fetch(`${API_URL}/settings`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.siteName) {
+            setSiteName(data.siteName);
+            localStorage.setItem('siteName', data.siteName);
+          }
+          if (data.siteIcon) {
+            setSiteIcon(data.siteIcon);
+            localStorage.setItem('siteIcon', data.siteIcon);
+          }
+          if (data.heroTitle || data.heroDescription || data.heroPrimaryBtn || data.heroSecondaryBtn || data.heroImage) {
+            setHeroSettings({
+              title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
+              description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
+              primaryBtn: data.heroPrimaryBtn || 'Ver Productos',
+              secondaryBtn: data.heroSecondaryBtn || 'Ofertas Especiales',
+              image: data.heroImage || ''
+            });
+          }
+          if (data.headerBgColor || data.headerTransparency) {
+            setHeaderSettings({
+              bgColor: data.headerBgColor || '#2563eb',
+              transparency: parseInt(data.headerTransparency) || 100
+            });
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching settings:', err);
+      }
+    };
+    fetchSettings();
+  }, []);
+
   // Manage cart synchronization
   useEffect(() => {
     if (user) {
@@ -351,9 +405,16 @@ function App() {
           color="#ef4444"
         />
       )}
-      <div className="app-container">
+      <div className={`app-container ${headerSettings.transparency < 100 ? 'has-transparent-header' : ''}`}>
         {/* Header/Navbar */}
-      <header className="header">
+      <header 
+        className={`header ${headerSettings.transparency < 100 ? 'is-transparent' : ''}`}
+        style={{
+          backgroundColor: headerSettings.transparency < 100 
+            ? `${headerSettings.bgColor}${Math.round((headerSettings.transparency / 100) * 255).toString(16).padStart(2, '0')}`
+            : headerSettings.bgColor
+        }}
+      >
         <div className="container header-container">
           <button 
             className="mobile-menu-btn"
@@ -364,8 +425,8 @@ function App() {
           </button>
 
           <Link to="/" className="logo-container" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div className="logo">🛍️</div>
-            <h1 className="site-title">TechStore</h1>
+            <div className="logo">{siteIcon}</div>
+            <h1 className="site-title">{siteName}</h1>
           </Link>
           
           <nav className="main-nav">
@@ -373,7 +434,10 @@ function App() {
             <Link to="/" className="nav-link">Contacto</Link>
             <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); }}>Ordenes</a>
             {user && user.role === 'admin' && (
-              <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
+              <>
+                <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
+                <Link to="/settings" className="nav-link">Ajustes</Link>
+              </>
             )}
           </nav>
 
@@ -384,7 +448,10 @@ function App() {
             <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Contacto</Link>
             <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); closeMobileMenu(); }}>Ordenes</a>
             {user && user.role === 'admin' && (
-              <a href="#" className="mobile-nav-link" onClick={(e) => { handleAdminNav(e); closeMobileMenu(); }}>Administrar</a>
+              <>
+                <a href="#" className="mobile-nav-link" onClick={(e) => { handleAdminNav(e); closeMobileMenu(); }}>Administrar</a>
+                <Link to="/settings" className="mobile-nav-link" onClick={closeMobileMenu}>Ajustes</Link>
+              </>
             )}
           </nav>
 
@@ -434,6 +501,7 @@ function App() {
               addToCart={addToCart} 
               fetchProducts={fetchProducts}
               pagination={pagination}
+              heroSettings={heroSettings}
             />
           } />
           <Route path="/product/:id" element={
@@ -459,6 +527,17 @@ function App() {
               <main className="admin-wrapper">
                 <div className="container">
                   <AdminDashboard products={products} onRefresh={fetchProducts} isLoading={loading} pagination={pagination} />
+                </div>
+              </main>
+            ) : (
+              <Navigate to={user ? "/" : "/login"} />
+            )
+          } />
+          <Route path="/settings" element={
+            user && user.role === 'admin' ? (
+              <main className="admin-wrapper">
+                <div className="container">
+                  <SettingsManager />
                 </div>
               </main>
             ) : (

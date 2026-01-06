@@ -1,12 +1,23 @@
 import React from 'react';
 
 function Footer() {
+  const [siteName, setSiteName] = React.useState(localStorage.getItem('siteName') || 'TechStore');
+
+  React.useEffect(() => {
+    // Escuchar cambios en localStorage (disparados por App.jsx)
+    const handleStorage = () => {
+      setSiteName(localStorage.getItem('siteName') || 'TechStore');
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   return (
     <footer className="footer">
       <div className="container">
         <div className="footer-grid">
           <div className="footer-column">
-            <h3 className="footer-title">TechStore</h3>
+            <h3 className="footer-title">{siteName}</h3>
             <p className="footer-text">
               Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.
             </p>

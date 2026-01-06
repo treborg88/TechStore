@@ -4,7 +4,7 @@ import ProductImageGallery from '../components/ProductImageGallery';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Footer from '../components/Footer';
 
-function Home({ products, loading, error, addToCart, fetchProducts, pagination }) {
+function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings }) {
   const [selectedCategory, setSelectedCategory] = useState('todos');
   
   // Ref para el scroll de categorías
@@ -101,18 +101,23 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination }
   return (
     <>
       {/* Hero Section */}
-      <section className="hero-section">
+      <section 
+        className={`hero-section ${heroSettings?.image ? 'has-bg' : ''}`}
+        style={heroSettings?.image ? { 
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${heroSettings.image})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        } : {}}
+      >
         <div className="container hero-container">
           <div className="hero-content">
-            <h2 className="hero-title">La Mejor Tecnología a Tu Alcance</h2>
-            <p className="hero-text">Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.</p>
+            <h2 className="hero-title">{heroSettings?.title || "La Mejor Tecnología a Tu Alcance"}</h2>
+            <p className="hero-text">{heroSettings?.description || "Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado."}</p>
             <div className="hero-buttons">
-              <button className="primary-button">Ver Productos</button>
-              <button className="secondary-button">Ofertas Especiales</button>
+              <button className="primary-button">{heroSettings?.primaryBtn || "Ver Productos"}</button>
+              <button className="secondary-button">{heroSettings?.secondaryBtn || "Ofertas Especiales"}</button>
             </div>
-          </div>
-          <div className="hero-image">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRXi8CxRsxpFK4ixXoVOJJQXZSo0jgKFmvayA&s" alt="Smartphones y accesorios" />
           </div>
         </div>
       </section>

@@ -1604,3 +1604,58 @@ app.delete('/api/cart', authenticateToken, async (req, res) => {
     }
 });
 
+// --- RUTAS DE CONFIGURACIÓN DEL SITIO ---
+
+app.get('/api/settings', async (req, res) => {
+    try {
+        const settings = await statements.getSettings();
+        // Convertir array [ {id: 'siteName', value: 'TechStore'}, ... ] a objeto { siteName: 'TechStore', ... }
+        const settingsObj = settings.reduce((acc, curr) => {
+            acc[curr.id] = curr.value;
+            return acc;
+        }, {});
+        res.json(settingsObj);
+    } catch (error) {
+        console.error('Error obteniendo ajustes:', error);
+        res.status(500).json({ message: 'Error al obtener los ajustes' });
+    }
+});
+
+app.put('/api/settings', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Acceso denegado' });
+    }
+
+    try {
+        const settings = req.body; // { siteName: '...', siteIcon: '...' }
+        const promises = Object.entries(settings).map(([key, value]) => 
+            statements.updateSetting(key, value)
+        );
+        await Promise.all(promises);
+        res.json({ message: 'Ajustes actualizados correctamente' });
+    } catch (error) {
+        console.error('❌ Error actualizando ajustes:', error);
+        res.status(500).json({ 
+            message: 'Error al actualizar los ajustes',
+            details: error.message 
+        });
+    }
+});
+
+app.post('/api/settings/upload', authenticateToken, upload.single('image'), async (req, res) => {
+    if (req.user.role !== 'admin') {
+        return res.status(403).json({ message: 'Acceso denegado' });
+    }
+
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No se subió ninguna imagen' });
+        }
+
+        const imageUrl = await statements.uploadImage(req.file);
+        res.json({ url: imageUrl });
+    } catch (error) {
+        console.error('Error subiendo imagen de ajustes:', error);
+        res.status(500).json({ message: 'Error al subir la imagen' });
+    }
+});

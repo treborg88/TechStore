@@ -5,6 +5,7 @@ import LoadingSpinner from './LoadingSpinner';
 import OrderList from './OrderList';
 import ProductList from './ProductList';
 import UserList from './UserList';
+import SettingsManager from './SettingsManager';
 
 export default function AdminDashboard({ products, onRefresh, isLoading, pagination }) {
 	// Tab state
@@ -267,6 +268,13 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 				>
 					👥 Administrar Accesos
 				</button>
+				<button
+					type="button"
+					className={`admin-tab ${activeTab === 'settings' ? 'active' : ''}`}
+					onClick={() => setActiveTab('settings')}
+				>
+					⚙️ Ajustes
+				</button>
 			</div>
 
 			{/* Overview Tab */}
@@ -521,6 +529,11 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 			{/* Users Tab */}
 			{activeTab === 'users' && (
 				<UserList onStatsUpdate={setUserStats} />
+			)}
+
+			{/* Settings Tab */}
+			{activeTab === 'settings' && (
+				<SettingsManager />
 			)}
 		</div>
 	);

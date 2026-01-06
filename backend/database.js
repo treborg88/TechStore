@@ -614,6 +614,34 @@ const statements = {
       .lte('expires_at', new Date().toISOString());
     if (error) throw error;
     return true;
+  },
+  // App Settings
+  getSettings: async () => {
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('*');
+    if (error) {
+        // PGRST205 significa que la tabla no existe en el cache de PostgREST
+        if (error.code === 'PGRST116' || error.code === 'PGRST205' || error.message.includes('not found')) return [];
+        throw error;
+    }
+    return data;
+  },
+  updateSetting: async (key, value) => {
+    // Asegurar que el valor sea una cadena de texto para la columna TEXT
+    const stringValue = typeof value === 'string' ? value : String(value);
+    const { data, error } = await supabase
+      .from('app_settings')
+      .upsert({ id: key, value: stringValue }, { onConflict: 'id' });
+    
+    if (error) {
+      // Si la tabla no existe, proporcionar un mensaje más claro
+      if (error.code === 'PGRST205' || error.message.includes('not found')) {
+        throw new Error('La tabla "app_settings" no existe en la base de datos. Por favor, ejecuta el script de migración en Supabase.');
+      }
+      throw error;
+    }
+    return data;
   }
 };
 

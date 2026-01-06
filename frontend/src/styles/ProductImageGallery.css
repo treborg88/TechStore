@@ -42,7 +42,7 @@
 .main-product-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   user-select: none;
   display: block;
 }
@@ -400,7 +400,7 @@
 /* Responsive adjustments */
 @media (max-width: 768px) {
   .product-image-gallery {
-    height: 160px;
+    height: 350px;
   }
 
   /* .thumbnails-container {
@@ -437,7 +437,7 @@
 
 @media (max-width: 480px) {
   .product-image-gallery {
-    height: 140px;
+    height: 300px;
   }
 
   /* .thumbnails-container {
