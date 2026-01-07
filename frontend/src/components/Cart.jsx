@@ -1,8 +1,14 @@
 import React, { useState } from "react";
+import { Link } from 'react-router-dom';
 import Checkout from "./Checkout";
+import Footer from "./Footer";
 import { BASE_URL } from '../config';
+import '../styles/ProductDetail.css';
 
 function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
+    const [siteName] = useState(localStorage.getItem('siteName') || 'TechStore');
+    const [siteIcon] = useState(localStorage.getItem('siteIcon') || '🛍️');
+
     const [showCheckout, setShowCheckout] = useState(false);
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -36,22 +42,85 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
     };
 
     return (
-        <div className="cart-modal">
-            <div className="cart-modal-content">
-                <button className="close-cart" onClick={onClose}>✖</button>
-                <h2 className="cart-title">Tu Carrito</h2>
+        <div className="cart-modal product-detail-page">
+            <header className="header" style={{ position: 'sticky', top: 0, zIndex: 3200, width: '100%', background: 'var(--primary-color)' }}>
+                <div className="container header-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1210px', margin: '0 auto', padding: '0 20px' }}>
+                    <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className="logo" style={{ fontSize: '1.8rem' }}>{siteIcon}</div>
+                        <h1 className="site-title" style={{ fontSize: '1.5rem', color: 'white', margin: 0 }}>{siteName}</h1>
+                    </div>
+                    <button 
+                        onClick={onClose} 
+                        className="close-checkout"
+                        style={{ 
+                            background: 'rgba(255,255,255,0.15)', 
+                            border: 'none', 
+                            color: 'white', 
+                            fontSize: '1.2rem', 
+                            cursor: 'pointer', 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        ✖
+                    </button>
+                </div>
+            </header>
+
+            <section className="hero-section" style={{ padding: '40px 0 30px' }}>
+                <div className="container hero-container">
+                    <div className="hero-content">
+                        <button 
+                            className="back-btn-new hero-back-btn" 
+                            onClick={onClose}
+                        >
+                            ← Volver
+                        </button>
+                        <h2 className="hero-title">Tu Carrito</h2>
+                        <p className="hero-text">
+                            <span className="hero-category-badge">RESUMEN DE COMPRA</span>
+                            Gestiona tus productos seleccionados y completa tu pedido.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <div className="cart-modal-content" style={{ padding: '160px 20px 80px' }}>
+                <div style={{ display: 'none' }}>
+                    <button 
+                        onClick={onClose} 
+                        className="back-btn-cart"
+                        style={{ 
+                            marginBottom: '15px'
+                        }}
+                    >
+                        ← Volver
+                    </button>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '0 0 30px 0', color: 'var(--gray-800)', textAlign: 'left' }}>Tu Carrito</h1>
+                </div>
+                
+                <h2 className="cart-title" style={{ display: 'none' }}>Tu Selección</h2>
                 
                 {cartItems.length === 0 ? (
-                    <div className="empty-cart">
-                        <div className="empty-cart-icon">🛒</div>
-                        <p>El carrito está vacío.</p>
+                    <div className="empty-cart card-style">
+                        <div className="empty-cart-icon">🛍️</div>
+                        <h3>Tu carrito está vacío</h3>
+                        <p>Aún no has añadido productos. ¡Explora nuestra tienda para encontrar las mejores ofertas!</p>
                         <button className="continue-shopping-btn" onClick={onClose}>
-                            Explorar Productos
+                            Ir a la Tienda
                         </button>
                     </div>
                 ) : (
                     <div className="cart-layout">
                         <div className="cart-items-section">
+                            <div className="section-header-mini">
+                                <span>{cartItems.length} {cartItems.length === 1 ? 'Producto' : 'Productos'}</span>
+                            </div>
                             <ul className="cart-list">
                                 {cartItems.map(item => (
                                     <li key={`cart-${item.id}`} className="cart-item">
@@ -157,6 +226,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
                     />
                 )}
             </div>
+            <Footer />
         </div>
     );
 }

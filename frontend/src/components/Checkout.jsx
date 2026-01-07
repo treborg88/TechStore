@@ -1,11 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL } from '../config';
+import { Link } from 'react-router-dom';
+import { API_URL, BASE_URL } from '../config';
 import { getCurrentUser } from '../services/authService';
 import Invoice from './Invoice';
 import EmailVerification from './EmailVerification';
+import Footer from './Footer';
+import '../styles/ProductDetail.css';
 
 function Checkout({ cartItems, total, onSubmit, onClose, onClearCart }) {
-const [formData, setFormData] = useState({
+    const [siteName] = useState(localStorage.getItem('siteName') || 'TechStore');
+    const [siteIcon] = useState(localStorage.getItem('siteIcon') || '🛍️');
+
+    const [formData, setFormData] = useState({
 firstName: '',
 lastName: '',
 email: '',
@@ -174,377 +180,402 @@ e.preventDefault();
 };
 
 return (
-<div className="checkout-modal">
-    <div className="checkout-content">
-    <button className="close-checkout" onClick={onClose} disabled={isSubmitting}>✖</button>
-    
-    {orderCreated ? (
-        <Invoice 
-            order={orderCreated}
-            customerInfo={formData}
-            items={confirmedItems}
-            onClose={onClose}
-        />
-    ) : (
-        <>
-            <h2>Proceso de Compra</h2>
-            
-            {/* Mostrar errores */}
-            {error && (
-                <div className="checkout-error">
-                    ⚠️ {error}
+        <div className="checkout-modal product-detail-page">
+            <header className="header" style={{ position: 'sticky', top: 0, zIndex: 3200, width: '100%', background: 'var(--primary-color)' }}>
+                <div className="container header-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1210px', margin: '0 auto', padding: '0 20px' }}>
+                    <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                        <div className="logo" style={{ fontSize: '1.8rem' }}>{siteIcon}</div>
+                        <h1 className="site-title" style={{ fontSize: '1.5rem', color: 'white', margin: 0 }}>{siteName}</h1>
+                    </div>
+                    <button 
+                        onClick={onClose} 
+                        className="close-checkout"
+                        style={{ 
+                            background: 'rgba(255,255,255,0.15)', 
+                            border: 'none', 
+                            color: 'white', 
+                            fontSize: '1.2rem', 
+                            cursor: 'pointer', 
+                            width: '40px', 
+                            height: '40px', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        ✖
+                    </button>
                 </div>
-            )}
+            </header>
+
+            <section className="hero-section" style={{ padding: '40px 0 30px' }}>
+                <div className="container hero-container">
+                    <div className="hero-content">
+                        <button 
+                            className="back-btn-new hero-back-btn" 
+                            onClick={onClose}
+                        >
+                            ← Volver
+                        </button>
+                        <h2 className="hero-title">Finalizar Pedido</h2>
+                        <p className="hero-text">
+                            <span className="hero-category-badge">CHECKOUT</span>
+                            Completa tu información de envío y selecciona tu método de pago.
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <div className="checkout-content" style={{ padding: '60px 20px 80px' }}>
+                <div style={{ display: 'none' }}>
+                    <button 
+                        onClick={onClose} 
+                        className="back-btn-cart"
+                        style={{ 
+                            marginBottom: '15px'
+                        }}
+                    >
+                        ← Volver
+                    </button>
+                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '0 0 10px 0', color: 'var(--gray-800)' }}>Finalizar Pedido</h1>
+                </div>
+    
+            {orderCreated ? (
+                <Invoice 
+                    order={orderCreated}
+                    customerInfo={formData}
+                    items={confirmedItems}
+                    onClose={onClose}
+                />
+            ) : (
+        <div className="checkout-flow-container">
+            <h2 style={{ display: 'none' }}>Finalizar Compra</h2>
             
             {/* Indicador de pasos */}
             <div className="checkout-steps">
-                <div className={`step ${step >= 1 ? 'active' : ''}`}>Datos</div>
-                <div className={`step ${step >= 2 ? 'active' : ''}`}>Envío</div>
-                <div className={`step ${step >= 3 ? 'active' : ''}`}>Confirmación</div>
-                <div className={`step ${step >= 4 ? 'active' : ''}`}>Pago</div>
+                <div className={`step ${step >= 1 ? 'active' : ''}`}>1. Datos</div>
+                <div className={`step ${step >= 2 ? 'active' : ''}`}>2. Envio</div>
+                <div className={`step ${step >= 3 ? 'active' : ''}`}>3. Revision</div>
+                <div className={`step ${step >= 4 ? 'active' : ''}`}>4. Pago</div>
             </div>
 
-            {step === 1 && (
-                !showVerification ? (
-                <form onSubmit={(e) => {
-                    e.preventDefault();
-                    const user = getCurrentUser();
-                    if (user || isEmailVerified) {
-                        setStep(2);
-                    } else {
-                        setShowVerification(true);
-                    }
-                }}>
-                <div className="form-group">
-                    <input
-                    type="text"
-                    name="firstName"
-                    placeholder="Nombre"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    />
+            {error && (
+                <div className="checkout-error-banner" style={{background: '#fee2e2', color: '#dc2626', padding: '15px', borderRadius: '12px', marginBottom: '25px', border: '1px solid #fecaca'}}>
+                    ⚠️ {error}
                 </div>
-                <div className="form-group">
-                    <input
-                    type="text"
-                    name="lastName"
-                    placeholder="Apellidos"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    />
-                </div>
-                <div className="form-group">
-                    <input
-                    type="email"
-                    name="email"
-                    placeholder="Email"
-                    value={formData.email}
-                    onChange={(e) => {
-                        handleInputChange(e);
-                        const user = getCurrentUser();
-                        if (!user) {
-                            setIsEmailVerified(false);
-                        }
-                    }}
-                    required
-                    disabled={isSubmitting}
-                    />
-                </div>
-                <button type="submit" className="next-step-btn" disabled={isSubmitting}>
-                    Siguiente
-                </button>
-                </form>
-                ) : (
-                    <div className="verification-step">
-                        <EmailVerification
-                            initialEmail={formData.email}
-                            autoSend={true}
-                            purpose="guest_checkout"
-                            onVerified={(verifiedEmail) => {
-                                setFormData(prev => ({ ...prev, email: verifiedEmail }));
-                                setIsEmailVerified(true);
-                                setShowVerification(false);
-                                setStep(2);
-                            }}
-                        />
-                        <button 
-                            className="back-btn" 
-                            onClick={() => setShowVerification(false)}
-                            style={{ marginTop: '10px', background: 'none', border: 'none', color: '#666', cursor: 'pointer', textDecoration: 'underline' }}
-                        >
-                            Volver a editar datos
-                        </button>
-                    </div>
-                )
             )}
 
-            {step === 2 && (
-                <form onSubmit={(e) => {e.preventDefault(); setStep(3)}}>
-                <div className="form-group">
-                    <input
-                    type="text"
-                    name="address"
-                    placeholder="Calle y Número"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    />
-                </div>
-                <div className="form-group">
-                    <input
-                    type="text"
-                    name="sector"
-                    placeholder="Sector"
-                    value={formData.sector}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    />
-                </div>
-                <div className="form-group">
-                    <input
-                    type="text"
-                    name="city"
-                    placeholder="Ciudad"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    />
-                </div>
-                <div className="form-group">
-                    <input
-                    type="text"
-                    name="country"
-                    value="Republica Dominicana"
-                    disabled
-                    style={{ backgroundColor: '#f5f5f5', cursor: 'not-allowed', color: '#666' }}
-                    />
-                </div>
-                <div className="form-group">
-                    <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Teléfono"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    required
-                    disabled={isSubmitting}
-                    />
-                </div>
-                <div className="form-group">
-                    <textarea
-                    name="notes"
-                    placeholder="Notas o referencias de la dirección (Opcional)"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    disabled={isSubmitting}
-                    rows="3"
-                    className="checkout-textarea"
-                    ></textarea>
-                </div>
-                <div className="button-group">
-                    <button type="button" onClick={() => setStep(1)} disabled={isSubmitting}>
-                    Anterior
-                    </button>
-                    <button type="submit" disabled={isSubmitting}>
-                    Siguiente
-                    </button>
-                </div>
-                </form>
-            )}
-
-            {step === 3 && (
-                <div className="confirmation-section">
-                    <h3 className="section-subtitle">Resumen de Facturación</h3>
-                    
-                    <div className="order-info-section" style={{ background: 'var(--gray-50)', padding: '20px', borderRadius: '16px', border: '1px solid var(--gray-200)' }}>
-                        <div className="info-row">
-                            <span className="info-label">Cliente:</span>
-                            <span className="info-value">{formData.firstName} {formData.lastName}</span>
-                        </div>
-                        <div className="info-row">
-                            <span className="info-label">Email:</span>
-                            <span className="info-value">{formData.email}</span>
-                        </div>
-                        <div className="info-row">
-                            <span className="info-label">Teléfono:</span>
-                            <span className="info-value">{formData.phone}</span>
-                        </div>
-                        <div className="info-row full-width">
-                            <span className="info-label">Dirección de Envío:</span>
-                            <span className="info-value">
-                                {formData.address}, {formData.sector}<br />
-                                {formData.city}, República Dominicana
-                            </span>
-                        </div>
-                    </div>
-
-                    <div className="order-items-section">
-                        <h4>Productos a Confirmar</h4>
-                        <div className="order-items-list">
-                            {cartItems.map((item) => (
-                                <div key={item.id} className="order-item-row">
-                                    <img 
-                                        src={item.image ? (
-                                            item.image.startsWith('http') 
-                                                ? item.image 
-                                                : (item.image.startsWith('/images/') 
-                                                    ? `${API_URL.replace('/api', '')}${item.image}` 
-                                                    : `${API_URL.replace('/api', '')}/images/${item.image}`)
-                                        ) : '/images/sin imagen.jpeg'} 
-                                        alt={item.name}
-                                        className="item-image"
-                                        style={{ width: '50px', height: '50px', objectFit: 'cover', borderRadius: '8px' }}
-                                        onError={(e) => {
-                                            e.target.src = '/images/sin imagen.jpeg';
+            <div className="cart-layout">
+                <div className="checkout-form-column">
+                    <div className="form-card-container">
+                        {step === 1 && (
+                            !showVerification ? (
+                                <form className="step-form" onSubmit={(e) => {
+                                    e.preventDefault();
+                                    const user = getCurrentUser();
+                                    if (user || isEmailVerified) {
+                                        setStep(2);
+                                    } else {
+                                        setShowVerification(true);
+                                    }
+                                }}>
+                                    <h3 style={{marginBottom: '20px'}}>Información Personal</h3>
+                                    <div className="form-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                        <div className="form-group">
+                                            <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Nombre</label>
+                                            <input
+                                                type="text"
+                                                name="firstName"
+                                                placeholder="Ej. Juan"
+                                                value={formData.firstName}
+                                                onChange={handleInputChange}
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Apellidos</label>
+                                            <input
+                                                type="text"
+                                                name="lastName"
+                                                placeholder="Ej. Pérez"
+                                                value={formData.lastName}
+                                                onChange={handleInputChange}
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="form-group" style={{marginBottom: '20px'}}>
+                                        <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Correo Electrónico</label>
+                                        <input
+                                            type="email"
+                                            name="email"
+                                            placeholder="correo@ejemplo.com"
+                                            value={formData.email}
+                                            onChange={(e) => {
+                                                handleInputChange(e);
+                                                const user = getCurrentUser();
+                                                if (!user) {
+                                                    setIsEmailVerified(false);
+                                                }
+                                            }}
+                                            required
+                                            disabled={isSubmitting}
+                                        />
+                                    </div>
+                                    <button type="submit" className="next-step-btn-large" style={{width: '100%', padding: '15px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer'}}>
+                                        Siguiente: Dirección de Envío
+                                    </button>
+                                </form>
+                            ) : (
+                                <div className="verification-step-wrapper">
+                                    <EmailVerification
+                                        email={formData.email}
+                                        purpose="guest_checkout"
+                                        onVerified={() => {
+                                            setIsEmailVerified(true);
+                                            setShowVerification(false);
+                                            setStep(2);
                                         }}
+                                        onCancel={() => setShowVerification(false)}
                                     />
-                                    <div className="item-info">
-                                        <p className="item-name" style={{ margin: 0, fontWeight: '600' }}>{item.name}</p>
-                                        <p className="item-quantity" style={{ margin: 0, fontSize: '0.85rem', color: 'var(--gray-500)' }}>
-                                            {item.quantity} × ${item.price.toFixed(2)}
-                                        </p>
+                                    <button 
+                                        className="back-link" 
+                                        onClick={() => setShowVerification(false)}
+                                        style={{marginTop: '15px', background: 'none', border: 'none', color: 'var(--gray-500)', textDecoration: 'underline', width: '100%', cursor: 'pointer'}}
+                                    >
+                                        Regresar a editar datos
+                                    </button>
+                                </div>
+                            )
+                        )}
+
+                        {step === 2 && (
+                            <form className="step-form" onSubmit={(e) => {e.preventDefault(); setStep(3)}}>
+                                <h3 style={{marginBottom: '20px'}}>Detalles de Entrega</h3>
+                                <div className="form-group" style={{marginBottom: '15px'}}>
+                                    <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Calle y Número</label>
+                                    <input
+                                        type="text"
+                                        name="address"
+                                        placeholder="Ej. Calle 5, Casa #10"
+                                        value={formData.address}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+                                <div className="form-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                    <div className="form-group">
+                                        <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Sector</label>
+                                        <input
+                                            type="text"
+                                            name="sector"
+                                            placeholder="Sector / Barrio"
+                                            value={formData.sector}
+                                            onChange={handleInputChange}
+                                            required
+                                            disabled={isSubmitting}
+                                        />
                                     </div>
-                                    <div className="item-total" style={{ fontWeight: '700', color: 'var(--primary-color)' }}>
-                                        ${(item.quantity * item.price).toFixed(2)}
+                                    <div className="form-group">
+                                        <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Ciudad</label>
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            placeholder="Ciudad"
+                                            value={formData.city}
+                                            onChange={handleInputChange}
+                                            required
+                                            disabled={isSubmitting}
+                                        />
                                     </div>
+                                </div>
+                                <div className="form-group" style={{marginBottom: '15px'}}>
+                                    <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Teléfono de Contacto</label>
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        placeholder="Ej. 809-555-0123"
+                                        value={formData.phone}
+                                        onChange={handleInputChange}
+                                        required
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+                                <div className="form-group" style={{marginBottom: '20px'}}>
+                                    <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Notas adicionales (Opcional)</label>
+                                    <textarea
+                                        name="notes"
+                                        placeholder="Referencias para el mensajero (color de casa, cerca de x lugar...)"
+                                        className="checkout-textarea"
+                                        style={{width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--divider-color)', minHeight: '80px'}}
+                                        value={formData.notes}
+                                        onChange={handleInputChange}
+                                        disabled={isSubmitting}
+                                    />
+                                </div>
+                                <div className="btn-group-row" style={{display: 'flex', gap: '15px'}}>
+                                    <button type="button" className="secondary-btn" onClick={() => setStep(1)} style={{flex: 1, padding: '15px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer'}}>Anterior</button>
+                                    <button type="submit" className="primary-btn" style={{flex: 2, padding: '15px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer'}}>Siguiente Step</button>
+                                </div>
+                            </form>
+                        )}
+
+                        {step === 3 && (
+                            <div className="step-form">
+                                <h3 style={{marginBottom: '20px'}}>Revision de Pedido</h3>
+                                <div className="review-card" style={{background: 'var(--gray-50)', padding: '20px', borderRadius: '16px', border: '1px solid var(--gray-200)', marginBottom: '25px'}}>
+                                    <div className="review-item" style={{marginBottom: '10px'}}>
+                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Enviar a:</p>
+                                        <p style={{fontWeight: '600'}}>{formData.firstName} {formData.lastName}</p>
+                                    </div>
+                                    <div className="review-item" style={{marginBottom: '10px'}}>
+                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Correo Electrónico:</p>
+                                        <p style={{fontWeight: '600'}}>{formData.email}</p>
+                                    </div>
+                                    <div className="review-item" style={{marginBottom: '10px'}}>
+                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Teléfono de Contacto:</p>
+                                        <p style={{fontWeight: '600'}}>{formData.phone}</p>
+                                    </div>
+                                    <div className="review-item">
+                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Dirección:</p>
+                                        <p style={{fontWeight: '600'}}>{formData.address}, {formData.sector}, {formData.city}</p>
+                                    </div>
+                                </div>
+                                <div className="btn-group-row" style={{display: 'flex', gap: '15px'}}>
+                                    <button type="button" className="secondary-btn" onClick={() => setStep(2)} style={{flex: 1, padding: '15px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer'}}>Atrás</button>
+                                    <button type="button" className="primary-btn" onClick={() => setStep(4)} style={{flex: 2, padding: '15px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer'}}>Continuar al Pago</button>
+                                </div>
+                            </div>
+                        )}
+
+                        {step === 4 && (
+                            <div className="step-form">
+                                <h3 style={{marginBottom: '20px'}}>Método de Pago</h3>
+                                
+                                <div className="payment-methods" style={{display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '25px'}}>
+                                    <div 
+                                        className={`payment-option ${formData.paymentMethod === 'cash' ? 'selected' : ''}`}
+                                        onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
+                                        style={{display: 'flex', alignItems: 'center', padding: '16px', border: `2px solid ${formData.paymentMethod === 'cash' ? 'var(--primary-color)' : 'var(--gray-200)'}`, borderRadius: '12px', cursor: 'pointer', background: formData.paymentMethod === 'cash' ? 'var(--gray-50)' : 'white'}}
+                                    >
+                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>💵</div>
+                                        <div className="payment-info" style={{flex: 1}}>
+                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Pago Contra Entrega</h4>
+                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>Paga en efectivo cuando recibas tu pedido</p>
+                                        </div>
+                                        <div className="payment-check">
+                                            {formData.paymentMethod === 'cash' && '✓'}
+                                        </div>
+                                    </div>
+
+                                    <div 
+                                        className={`payment-option ${formData.paymentMethod === 'transfer' ? 'selected' : ''}`}
+                                        onClick={() => setFormData({...formData, paymentMethod: 'transfer'})}
+                                        style={{display: 'flex', alignItems: 'center', padding: '16px', border: `2px solid ${formData.paymentMethod === 'transfer' ? 'var(--primary-color)' : 'var(--gray-200)'}`, borderRadius: '12px', cursor: 'pointer', background: formData.paymentMethod === 'transfer' ? 'var(--gray-50)' : 'white'}}
+                                    >
+                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>🏦</div>
+                                        <div className="payment-info" style={{flex: 1}}>
+                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Transferencia Bancaria</h4>
+                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>Transferencia o depósito bancario</p>
+                                        </div>
+                                        <div className="payment-check">
+                                            {formData.paymentMethod === 'transfer' && '✓'}
+                                        </div>
+                                    </div>
+
+                                    <div 
+                                        className="payment-option disabled"
+                                        style={{ display: 'flex', alignItems: 'center', padding: '16px', border: '2px solid var(--gray-200)', borderRadius: '12px', opacity: 0.6, cursor: 'not-allowed', background: 'white' }}
+                                    >
+                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>💳</div>
+                                        <div className="payment-info" style={{flex: 1}}>
+                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Pago en Línea</h4>
+                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>PayPal, Stripe, MercadoPago</p>
+                                            <span style={{fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: '700'}}>Próximamente</span>
+                                        </div>
+                                    </div>
+
+                                    <div 
+                                        className="payment-option disabled"
+                                        style={{ display: 'flex', alignItems: 'center', padding: '16px', border: '2px solid var(--gray-200)', borderRadius: '12px', opacity: 0.6, cursor: 'not-allowed', background: 'white' }}
+                                    >
+                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>💳</div>
+                                        <div className="payment-info" style={{flex: 1}}>
+                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Tarjeta de Crédito/Débito</h4>
+                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>Visa, MasterCard, American Express</p>
+                                            <span style={{fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: '700'}}>Próximamente</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="btn-group-row" style={{display: 'flex', gap: '15px'}}>
+                                    <button type="button" className="secondary-btn" onClick={() => setStep(3)} disabled={isSubmitting} style={{flex: 1, padding: '15px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer'}}>Atrás</button>
+                                    <button type="button" onClick={handleSubmit} className="confirm-btn-final" disabled={isSubmitting} style={{flex: 2, padding: '15px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))', color: 'white', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '1.1rem'}}>
+                                        {isSubmitting ? 'Procesando...' : 'Confirmar Todo el Pedido'}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                <div className="checkout-summary-column">
+                    <div className="summary-card">
+                        <h3>Tu Carrito</h3>
+                        <div className="mini-item-list" style={{maxHeight: '300px', overflowY: 'auto', marginBottom: '20px', paddingRight: '10px'}}>
+                            {cartItems.map(item => (
+                                <div key={item.id} className="mini-item" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px'}}>
+                                    <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
+                                        <img 
+                                            src={item.image ? (
+                                                item.image.startsWith('http') 
+                                                    ? item.image 
+                                                    : (item.image.startsWith('/images/') 
+                                                        ? `${BASE_URL}${item.image}` 
+                                                        : `${BASE_URL}/images/${item.image}`)
+                                            ) : '/images/sin imagen.jpeg'} 
+                                            alt={item.name}
+                                            style={{width: '45px', height: '45px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--gray-100)'}}
+                                            onError={(e) => { e.target.src = '/images/sin imagen.jpeg'; }}
+                                        />
+                                        <div style={{display: 'flex', flexDirection: 'column'}}>
+                                            <span style={{fontSize: '0.9rem', fontWeight: '700', color: 'var(--gray-800)', lineHeight: '1.2'}}>{item.name}</span>
+                                            <span style={{fontSize: '0.8rem', color: 'var(--gray-500)'}}>{item.quantity} un. x ${item.price.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    <span style={{fontWeight: '800', color: 'var(--primary-color)'}}>${(item.price * item.quantity).toFixed(2)}</span>
                                 </div>
                             ))}
                         </div>
-                    </div>
-
-                    <div className="summary-divider" style={{ margin: '25px 0' }}></div>
-                    
-                    <div className="total-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '1.5rem', fontWeight: '800' }}>
-                        <span>Total a Pagar:</span>
-                        <span style={{ color: 'var(--primary-color)' }}>${total.toFixed(2)}</span>
-                    </div>
-
-                    <div className="button-group" style={{ marginTop: '35px' }}>
-                        <button type="button" className="back-btn" onClick={() => setStep(2)} disabled={isSubmitting}>
-                            Anterior
-                        </button>
-                        <button 
-                            type="button" 
-                            className="next-step-btn"
-                            onClick={() => setStep(4)} 
-                            disabled={isSubmitting}
-                        >
-                            Siguiente: Método de Pago
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {step === 4 && (
-                <div className="payment-section">
-                <h3>Método de Pago</h3>
-                
-                {/* Selector de método de pago */}
-                <div className="payment-methods">
-                    <div 
-                        className={`payment-option ${formData.paymentMethod === 'cash' ? 'selected' : ''}`}
-                        onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
-                    >
-                        <div className="payment-icon">💵</div>
-                        <div className="payment-info">
-                            <h4>Pago Contra Entrega</h4>
-                            <p>Paga en efectivo cuando recibas tu pedido</p>
+                        <div className="summary-divider" style={{height: '1px', background: 'var(--gray-200)', margin: '15px 0'}}></div>
+                        <div className="summary-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
+                            <span>Subtotal</span>
+                            <span>${total.toFixed(2)}</span>
                         </div>
-                        <div className="payment-check">
-                            {formData.paymentMethod === 'cash' && '✓'}
+                        <div className="summary-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
+                            <span>Envío</span>
+                            <span style={{color: 'var(--accent-color)', fontWeight: '700'}}>Gratis</span>
                         </div>
-                    </div>
-
-                    <div 
-                        className={`payment-option ${formData.paymentMethod === 'transfer' ? 'selected' : ''}`}
-                        onClick={() => setFormData({...formData, paymentMethod: 'transfer'})}
-                    >
-                        <div className="payment-icon">🏦</div>
-                        <div className="payment-info">
-                            <h4>Transferencia Bancaria</h4>
-                            <p>Transferencia o depósito bancario</p>
-                        </div>
-                        <div className="payment-check">
-                            {formData.paymentMethod === 'transfer' && '✓'}
-                        </div>
-                    </div>
-
-                    <div 
-                        className="payment-option disabled"
-                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
-                    >
-                        <div className="payment-icon">💳</div>
-                        <div className="payment-info">
-                            <h4>Pago en Línea</h4>
-                            <p>PayPal, Stripe, MercadoPago</p>
-                            <span className="coming-soon">Próximamente</span>
-                        </div>
-                        <div className="payment-check">
-                        </div>
-                    </div>
-
-                    <div 
-                        className="payment-option disabled"
-                        style={{ opacity: 0.6, cursor: 'not-allowed' }}
-                    >
-                        <div className="payment-icon">💳</div>
-                        <div className="payment-info">
-                            <h4>Tarjeta de Crédito/Débito</h4>
-                            <p>Visa, MasterCard, American Express</p>
-                            <span className="coming-soon">Próximamente</span>
-                        </div>
-                        <div className="payment-check">
+                        <div className="summary-divider" style={{height: '1px', background: 'var(--gray-200)', margin: '15px 0'}}></div>
+                        <div className="summary-row total-row" style={{display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary-color)'}}>
+                            <span>Total</span>
+                            <span>${total.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
-
-                {/* Error si no selecciona método de pago */}
-                {error && (
-                    <div className="payment-error">
-                        ⚠️ {error}
-                    </div>
-                )}
-
-                {/* Resumen del pedido */}
-                <h3 style={{marginTop: '30px'}}>Resumen del Pedido</h3>
-                <div className="order-summary">
-                    {cartItems.map(item => (
-                    <div key={item.id} className="summary-item">
-                        <span>{item.name} x {item.quantity}</span>
-                        <span>${(item.price * item.quantity).toFixed(2)}</span>
-                    </div>
-                    ))}
-                    <div className="summary-total">
-                    <strong>Total: ${total.toFixed(2)}</strong>
-                    </div>
-                </div>
-                <div className="button-group">
-                    <button type="button" onClick={() => setStep(3)} disabled={isSubmitting}>
-                    Anterior
-                    </button>
-                    <button 
-                        type="button" 
-                        onClick={handleSubmit} 
-                        className="confirm-btn"
-                        disabled={isSubmitting}
-                    >
-                        {isSubmitting ? 'Procesando...' : 'Confirmar Pedido'}
-                    </button>
-                </div>
-                </div>
-            )}
-        </>
+            </div>
+        </div>
     )}
     </div>
+    <Footer />
 </div>
 );
+
 }
 
 export default Checkout;

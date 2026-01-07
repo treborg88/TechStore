@@ -27,7 +27,13 @@ INSERT INTO app_settings (id, value) VALUES
 ('heroSecondaryBtn', 'Ofertas Especiales'),
 ('heroImage', ''),
 ('headerBgColor', '#2563eb'),
-('headerTransparency', '100')
+('headerTransparency', '100'),
+('primaryColor', '#2563eb'),
+('secondaryColor', '#7c3aed'),
+('accentColor', '#f59e0b'),
+('backgroundColor', '#f8fafc'),
+('textColor', '#030303ff'),
+('productDetailHeroImage', '')
 ON CONFLICT (id) DO NOTHING;
 
 -- Tabla para códigos de verificación (Email)

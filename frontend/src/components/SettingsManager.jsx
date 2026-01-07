@@ -53,7 +53,7 @@ function SettingsManager() {
     }));
   };
 
-  const handleImageUpload = async (e) => {
+  const handleImageUpload = async (e, targetKey) => {
     const file = e.target.files[0];
     if (!file) return;
 
@@ -73,7 +73,7 @@ function SettingsManager() {
 
       if (response.ok) {
         const { url } = await response.json();
-        setSettings(prev => ({ ...prev, heroImage: url }));
+        setSettings(prev => ({ ...prev, [targetKey]: url }));
         toast.success('Imagen subida correctamente', { id: uploadToast });
       } else {
         throw new Error('Error al subir');
@@ -125,152 +125,132 @@ function SettingsManager() {
 
       <form onSubmit={handleSave} className="settings-form">
         <section className="settings-section">
-          <h3>General</h3>
-          <div className="form-group">
-            <label>Nombre del Sitio</label>
-            <input 
-              type="text" 
-              name="siteName" 
-              value={settings.siteName} 
-              onChange={handleChange} 
-            />
-          </div>
-          <div className="form-group">
-            <label>Icono del Sitio (Emoji)</label>
-            <input 
-              type="text" 
-              name="siteIcon" 
-              value={settings.siteIcon} 
-              onChange={handleChange} 
-              placeholder="Ej: 🛍️, 🔧, 💻"
-            />
-          </div>
-          <div className="form-group">
-            <label>Color de la Barra Superior</label>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              <input 
-                type="color" 
-                name="headerBgColor" 
-                value={settings.headerBgColor || '#2563eb'} 
-                onChange={handleChange} 
-                style={{ width: '50px', height: '40px', padding: '2px' }}
-              />
-              <input 
-                type="text" 
-                value={settings.headerBgColor || '#2563eb'} 
-                readOnly 
-                style={{ width: '100px' }}
-              />
+          <h3>🎨 Tema Global (Colores)</h3>
+          <p className="section-description">Define la paleta de colores de toda la aplicación.</p>
+          
+          <div className="settings-grid">
+            <div className="form-group">
+              <label>Color Principal (Botones, Header)</label>
+              <div className="color-input-wrapper">
+                <input type="color" name="primaryColor" value={settings.primaryColor || '#2563eb'} onChange={handleChange} />
+                <span>{settings.primaryColor}</span>
+              </div>
             </div>
-          </div>
-          <div className="form-group">
-            <label>Transparencia de la Barra ({settings.headerTransparency || 100}%)</label>
-            <input 
-              type="range" 
-              name="headerTransparency" 
-              min="0" 
-              max="100" 
-              value={settings.headerTransparency || 100} 
-              onChange={handleChange} 
-            />
-            <p className="field-hint">0% es totalmente transparente, 100% es sólido.</p>
-          </div>
-          <div className="form-group">
-            <label>Email de Contacto</label>
-            <input 
-              type="email" 
-              name="contactEmail" 
-              value={settings.contactEmail} 
-              onChange={handleChange} 
-            />
+
+            <div className="form-group">
+              <label>Color Secundario</label>
+              <div className="color-input-wrapper">
+                <input type="color" name="secondaryColor" value={settings.secondaryColor || '#7c3aed'} onChange={handleChange} />
+                <span>{settings.secondaryColor}</span>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Color de Acento</label>
+              <div className="color-input-wrapper">
+                <input type="color" name="accentColor" value={settings.accentColor || '#f59e0b'} onChange={handleChange} />
+                <span>{settings.accentColor}</span>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Color de Fondo</label>
+              <div className="color-input-wrapper">
+                <input type="color" name="backgroundColor" value={settings.backgroundColor || '#f8fafc'} onChange={handleChange} />
+                <span>{settings.backgroundColor}</span>
+              </div>
+            </div>
           </div>
         </section>
 
         <section className="settings-section">
-          <h3>Portada (Hero)</h3>
+          <h3>🖥️ Página de Inicio (Home)</h3>
           <div className="form-group">
             <label>Título Principal</label>
-            <input 
-              type="text" 
-              name="heroTitle" 
-              value={settings.heroTitle} 
-              onChange={handleChange} 
-              placeholder="Ej: La Mejor Tecnología a Tu Alcance"
-            />
+            <input type="text" name="heroTitle" value={settings.heroTitle} onChange={handleChange} />
           </div>
           <div className="form-group">
             <label>Descripción</label>
-            <textarea 
-              name="heroDescription" 
-              value={settings.heroDescription} 
-              onChange={handleChange} 
-              placeholder="Ej: Descubre nuestra selección..."
-              rows="3"
-            />
+            <textarea name="heroDescription" value={settings.heroDescription} onChange={handleChange} rows="2" />
           </div>
           <div className="form-group">
-            <label>Imagen de Fondo (Hero Banner)</label>
-            <input 
-              type="file" 
-              accept="image/*"
-              onChange={handleImageUpload} 
-            />
+            <label>Banner del Home</label>
+            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImage')} />
             {settings.heroImage && (
               <div className="settings-preview">
-                <img src={settings.heroImage} alt="Hero Preview" style={{ width: '150px', height: 'auto', marginTop: '10px', borderRadius: '4px', border: '1px solid #ddd' }} />
-                <button 
-                  type="button" 
-                  onClick={() => setSettings(prev => ({ ...prev, heroImage: '' }))}
-                  style={{ display: 'block', marginTop: '5px', color: 'red', fontSize: '0.8rem', background: 'none', border: 'none', cursor: 'pointer' }}
-                >
-                  Eliminar imagen
-                </button>
+                <img src={settings.heroImage} alt="Home Hero" />
+                <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroImage: '' }))} className="delete-image-btn">Eliminar</button>
               </div>
             )}
-            <p className="field-hint">Esta imagen se usará como fondo (banner) de la sección principal.</p>
           </div>
-          <div className="form-group">
-            <label>Texto Botón Primario</label>
-            <input 
-              type="text" 
-              name="heroPrimaryBtn" 
-              value={settings.heroPrimaryBtn} 
-              onChange={handleChange} 
-              placeholder="Ej: Ver Productos"
-            />
-          </div>
-          <div className="form-group">
-            <label>Texto Botón Secundario</label>
-            <input 
-              type="text" 
-              name="heroSecondaryBtn" 
-              value={settings.heroSecondaryBtn} 
-              onChange={handleChange} 
-              placeholder="Ej: Ofertas Especiales"
-            />
+          <div className="settings-grid">
+            <div className="form-group">
+              <label>Botón Primario</label>
+              <input type="text" name="heroPrimaryBtn" value={settings.heroPrimaryBtn} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label>Botón Secundario</label>
+              <input type="text" name="heroSecondaryBtn" value={settings.heroSecondaryBtn} onChange={handleChange} />
+            </div>
           </div>
         </section>
 
         <section className="settings-section">
-          <h3>E-commerce</h3>
+          <h3>📦 Detalle de Producto</h3>
           <div className="form-group">
-            <label>Umbral de Envío Gratis ($)</label>
-            <input 
-              type="number" 
-              name="freeShippingThreshold" 
-              value={settings.freeShippingThreshold} 
-              onChange={handleChange} 
-            />
+            <label>Banner Superior (Opcional)</label>
+            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'productDetailHeroImage')} />
+            {settings.productDetailHeroImage && (
+              <div className="settings-preview">
+                <img src={settings.productDetailHeroImage} alt="Product Detail Banner" />
+                <button type="button" onClick={() => setSettings(prev => ({ ...prev, productDetailHeroImage: '' }))} className="delete-image-btn">Eliminar</button>
+              </div>
+            )}
+            <p className="field-hint">Este banner aparecerá en la parte superior de cada producto.</p>
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>🏠 Identidad y Navegación</h3>
+          <div className="settings-grid">
+            <div className="form-group">
+              <label>Nombre del Sitio</label>
+              <input type="text" name="siteName" value={settings.siteName} onChange={handleChange} />
+            </div>
+            <div className="form-group">
+              <label>Icono (Emoji)</label>
+              <input type="text" name="siteIcon" value={settings.siteIcon} onChange={handleChange} />
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label>Color de Barra Superior</label>
+            <div className="color-input-wrapper">
+              <input type="color" name="headerBgColor" value={settings.headerBgColor || '#2563eb'} onChange={handleChange} />
+              <span>{settings.headerBgColor}</span>
+            </div>
+          </div>
+          
+          <div className="form-group">
+            <label>Transparencia de Barra ({settings.headerTransparency || 100}%)</label>
+            <input type="range" name="headerTransparency" min="0" max="100" value={settings.headerTransparency || 100} onChange={handleChange} />
+          </div>
+        </section>
+
+        <section className="settings-section">
+          <h3>⚙️ E-commerce y Otros</h3>
+          <div className="form-group">
+            <label>Email de Contacto</label>
+            <input type="email" name="contactEmail" value={settings.contactEmail} onChange={handleChange} />
+          </div>
+          <div className="form-group">
+            <label>Umbral Envío Gratis ($)</label>
+            <input type="number" name="freeShippingThreshold" value={settings.freeShippingThreshold} onChange={handleChange} />
           </div>
           <div className="form-group checkbox-group">
             <label>
-              <input 
-                type="checkbox" 
-                name="maintenanceMode" 
-                checked={settings.maintenanceMode} 
-                onChange={handleChange} 
-              />
-              Modo Mantenimiento
+              <input type="checkbox" name="maintenanceMode" checked={settings.maintenanceMode} onChange={handleChange} />
+              Activar Modo Mantenimiento
             </label>
           </div>
         </section>

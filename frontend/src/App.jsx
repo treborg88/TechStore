@@ -33,6 +33,14 @@ function App() {
     bgColor: '#2563eb',
     transparency: 100
   });
+  const [themeSettings, setThemeSettings] = useState({
+    primaryColor: '#2563eb',
+    secondaryColor: '#7c3aed',
+    accentColor: '#f59e0b',
+    backgroundColor: '#f8fafc',
+    textColor: '#1e293b'
+  });
+  const [productDetailHeroImage, setProductDetailHeroImage] = useState('');
 
   // Otros estados
   const [cartItems, setCartItems] = useState([]);
@@ -369,6 +377,18 @@ function App() {
               transparency: parseInt(data.headerTransparency) || 100
             });
           }
+          if (data.primaryColor) {
+            setThemeSettings({
+              primaryColor: data.primaryColor || '#2563eb',
+              secondaryColor: data.secondaryColor || '#7c3aed',
+              accentColor: data.accentColor || '#f59e0b',
+              backgroundColor: data.backgroundColor || '#f8fafc',
+              textColor: data.textColor || '#1e293b'
+            });
+          }
+          if (data.productDetailHeroImage) {
+            setProductDetailHeroImage(data.productDetailHeroImage);
+          }
         }
       } catch (err) {
         console.error('Error fetching settings:', err);
@@ -376,6 +396,27 @@ function App() {
     };
     fetchSettings();
   }, []);
+
+  // Efecto para aplicar tema de colores
+  useEffect(() => {
+    const root = document.documentElement;
+    root.style.setProperty('--primary-color', themeSettings.primaryColor);
+    root.style.setProperty('--secondary-color', themeSettings.secondaryColor);
+    root.style.setProperty('--accent-color', themeSettings.accentColor);
+    root.style.setProperty('--background-color', themeSettings.backgroundColor);
+    root.style.setProperty('--text-color', themeSettings.textColor);
+    
+    // Generar hover automáticamente (un poco más oscuro)
+    const darkenColor = (hex, div = 1.2) => {
+        try {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgb(${Math.floor(r/div)}, ${Math.floor(g/div)}, ${Math.floor(b/div)})`;
+        } catch(e) { return hex; }
+    };
+    root.style.setProperty('--primary-hover', darkenColor(themeSettings.primaryColor));
+  }, [themeSettings]);
 
   // Manage cart synchronization
   useEffect(() => {
@@ -510,6 +551,7 @@ function App() {
               addToCart={addToCart} 
               user={user}
               onRefresh={fetchProducts}
+              heroImage={productDetailHeroImage}
             />
           } />
           <Route path="/login" element={

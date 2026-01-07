@@ -7,7 +7,7 @@ import Footer from './Footer';
 import { API_URL } from '../config';
 import '../styles/ProductDetail.css';
 
-function ProductDetail({ products, addToCart, user, onRefresh }) {
+function ProductDetail({ products, addToCart, user, onRefresh, heroImage }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -123,7 +123,15 @@ function ProductDetail({ products, addToCart, user, onRefresh }) {
 
   return (
     <div className="product-detail-page">
-      <section className="hero-section">
+      <section 
+        className={`hero-section ${heroImage ? 'has-bg' : ''}`}
+        style={heroImage ? { 
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${heroImage})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        } : {}}
+      >
         <div className="container hero-container">
           <div className="hero-content">
             <button 
