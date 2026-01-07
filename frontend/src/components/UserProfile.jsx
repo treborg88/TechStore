@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL } from '../config';
 import { toast } from 'react-hot-toast';
+import Header from './Header';
 import '../styles/UserProfile.css';
 
-function UserProfile({ onClose, onLogout, onUpdate }) {
+function UserProfile({ onClose, onLogout, onUpdate, user, cartItems = [], onOpenOrders, onOpenCart, siteName, siteIcon, headerSettings }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
@@ -157,7 +158,20 @@ function UserProfile({ onClose, onLogout, onUpdate }) {
 
     if (loading) return (
         <div className="cart-modal">
-            <div className="cart-modal-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px' }}>
+            <Header
+                siteName={siteName || 'TechStore'}
+                siteIcon={siteIcon || '🛍️'}
+                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
+                cartItems={cartItems}
+                user={user}
+                onCartOpen={onOpenCart}
+                onProfileOpen={() => {}}
+                onOrdersOpen={onOpenOrders}
+                onLogout={onLogout}
+                onLogoClick={onClose}
+                isSticky={true}
+            />
+            <div className="cart-modal-content" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '200px', paddingTop: '80px' }}>
                 <div className="loading-spinner"></div>
             </div>
         </div>
@@ -165,7 +179,20 @@ function UserProfile({ onClose, onLogout, onUpdate }) {
 
     return (
         <div className="cart-modal">
-            <div className="cart-modal-content compact-profile">
+            <Header
+                siteName={siteName || 'TechStore'}
+                siteIcon={siteIcon || '🛍️'}
+                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
+                cartItems={cartItems}
+                user={user}
+                onCartOpen={onOpenCart}
+                onProfileOpen={() => {}}
+                onOrdersOpen={onOpenOrders}
+                onLogout={onLogout}
+                onLogoClick={onClose}
+                isSticky={true}
+            />
+            <div className="cart-modal-content compact-profile" style={{ paddingTop: '80px' }}>
                 <div className="profile-header-compact">
                     <div className="avatar-small">
                         {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}

@@ -5,50 +5,116 @@ import '../styles/print.css';
 // PDF Styles
 const styles = StyleSheet.create({
   page: {
-    padding: 40,
-    fontSize: 10,
+    padding: 30,
+    fontSize: 9,
     fontFamily: 'Helvetica',
     backgroundColor: '#FFFFFF',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
-    paddingBottom: 10,
+    marginBottom: 15,
+    paddingBottom: 15,
+    borderBottomWidth: 2,
+    borderBottomColor: '#2563EB',
   },
   logo: {
-    fontSize: 20,
-    color: '#2563EB', // Blue
+    fontSize: 22,
+    color: '#2563EB',
     fontFamily: 'Helvetica-Bold',
   },
   companyInfo: {
     textAlign: 'right',
-    fontSize: 9,
-    color: '#4B5563',
+    fontSize: 8,
+    color: '#374151',
+    lineHeight: 1.4,
   },
-  invoiceTitle: {
+  invoiceNumberBox: {
     textAlign: 'right',
-    fontSize: 18,
-    color: '#111827',
-    marginBottom: 20,
-    fontFamily: 'Helvetica-Bold',
-  },
-  section: {
+    backgroundColor: '#EFF6FF',
+    padding: 10,
+    borderRadius: 4,
     marginBottom: 15,
   },
-  sectionTitle: {
+  invoiceNumberBox: {
+    textAlign: 'right',
+    backgroundColor: '#EFF6FF',
+    padding: 10,
+    borderRadius: 4,
+    marginBottom: 15,
+  },
+  invoiceTitle: {
+    fontSize: 16,
+    color: '#1F2937',
+    fontFamily: 'Helvetica-Bold',
+  },
+  invoiceNumber: {
+    fontSize: 14,
+    color: '#2563EB',
+    fontFamily: 'Helvetica-Bold',
+    marginTop: 4,
+  },
+  invoiceDate: {
     fontSize: 8,
-    marginBottom: 4,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    gap: 10,
+  },
+  infoBox: {
+    width: '48%',
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoBox: {
+    width: '48%',
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoLabel: {
+    fontSize: 7,
     color: '#6B7280',
     textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  sectionValue: {
-    fontSize: 10,
-    color: '#111827',
+    marginBottom: 3,
     fontFamily: 'Helvetica-Bold',
+  },
+  infoValue: {
+    fontSize: 9,
+    color: '#111827',
+    marginBottom: 2,
+  },
+  additionalInfoSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+    backgroundColor: '#FFFBEB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  additionalInfoItem: {
+    width: '31%',
+  },
+  additionalInfoLabel: {
+    fontSize: 7,
+    color: '#92400E',
+    fontFamily: 'Helvetica-Bold',
+  },
+  additionalInfoValue: {
+    fontSize: 8,
+    color: '#78350F',
   },
   table: {
     marginTop: 20,
@@ -72,11 +138,11 @@ const styles = StyleSheet.create({
   tableRowEven: {
     backgroundColor: '#F9FAFB', // Zebra striping
   },
-  col1: { width: '35%' },
-  col2: { width: '15%', textAlign: 'center' },
-  col3: { width: '20%', textAlign: 'right' },
-  col4: { width: '15%', textAlign: 'right' },
-  col5: { width: '15%', textAlign: 'right' },
+  col1: { width: '40%' },
+  col2: { width: '12%', textAlign: 'center' },
+  col3: { width: '16%', textAlign: 'right' },
+  col4: { width: '16%', textAlign: 'right' },
+  col5: { width: '16%', textAlign: 'right' },
   summaryRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
@@ -118,6 +184,59 @@ const styles = StyleSheet.create({
     color: '#2563EB',
     fontSize: 12,
   },
+  notesSection: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+  },
+  notesTitle: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 5,
+    color: '#374151',
+  },
+  notesText: {
+    fontSize: 7,
+    color: '#6B7280',
+    lineHeight: 1.5,
+  },
+  termsSection: {
+    marginTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 10,
+  },
+  termsTitle: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 5,
+    color: '#374151',
+  },
+  termsList: {
+    fontSize: 7,
+    color: '#6B7280',
+    lineHeight: 1.6,
+  },
+  signatureSection: {
+    marginTop: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  signatureBox: {
+    width: '45%',
+  },
+  signatureLabel: {
+    fontSize: 7,
+    color: '#6B7280',
+    marginBottom: 3,
+  },
+  signatureLine: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#9CA3AF',
+    paddingTop: 30,
+    marginBottom: 3,
+  },
   footer: {
     position: 'absolute',
     bottom: 40,
@@ -136,61 +255,128 @@ const styles = StyleSheet.create({
 const InvoicePDF = ({ invoiceData }) => (
   <Document>
     <Page size="A4" style={styles.page}>
+      {/* Header with company info */}
       <View style={styles.header}>
-        <Text style={styles.logo}>TechStore</Text>
-        <View style={styles.companyInfo}>
-          <Text style={{fontFamily: 'Helvetica-Bold', marginBottom: 2}}>{invoiceData.companyName}</Text>
-          <Text>{invoiceData.companyLocation}</Text>
+        <View>
+          <Text style={styles.logo}>{invoiceData.companyIcon} {invoiceData.companyName}</Text>
+          <Text style={{fontSize: 8, color: '#6B7280', marginTop: 4}}>
+            {invoiceData.companyAddress}
+          </Text>
+          <Text style={{fontSize: 8, color: '#6B7280'}}>
+            Tel: {invoiceData.companyPhone}
+          </Text>
+          <Text style={{fontSize: 8, color: '#6B7280'}}>
+            RNC: {invoiceData.companyRNC}
+          </Text>
+        </View>
+        <View style={styles.invoiceNumberBox}>
+          <Text style={styles.invoiceTitle}>FACTURA</Text>
+          <Text style={styles.invoiceNumber}>No. {invoiceData.invoiceNumber}</Text>
+          <Text style={styles.invoiceDate}>Fecha: {invoiceData.date}  {invoiceData.time}</Text>
         </View>
       </View>
 
-      <Text style={styles.invoiceTitle}>FACTURA</Text>
-
-      <View style={{flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20}}>
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Facturar a:</Text>
-          <Text style={styles.sectionValue}>{invoiceData.customerName}</Text>
-          <Text style={{fontSize: 10, color: '#4B5563'}}>{invoiceData.customerEmail}</Text>
+      {/* Customer Information */}
+      <View style={styles.infoGrid}>
+        <View style={styles.infoBoxWide}>
+          <Text style={styles.infoLabel}>Información del Cliente</Text>
+          <Text style={styles.infoValue}>CLIENTE: {invoiceData.customerName}</Text>
+          <Text style={styles.infoValue}>RNC/CED: {invoiceData.customerID || 'N/A'}</Text>
+          <Text style={styles.infoValue}>DIRECCIÓN: {invoiceData.customerAddress}</Text>
+          <Text style={styles.infoValue}>TEL: {invoiceData.customerPhone}</Text>
         </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Detalles de Orden:</Text>
-          <Text style={styles.sectionValue}>Orden # {invoiceData.source}</Text>
-          <Text style={{fontSize: 10, color: '#4B5563'}}>Fecha: {new Date().toLocaleDateString()}</Text>
+        
+        <View style={styles.infoBoxNarrow}>
+          <Text style={styles.infoLabel}>Detalles del Pedido</Text>
+          <Text style={styles.infoValue}>VENDEDOR: {invoiceData.seller}</Text>
+          <Text style={styles.infoValue}>TIPO PAGO: {invoiceData.paymentType}</Text>
+          <Text style={styles.infoValue}>MONEDA: {invoiceData.currency}</Text>
+          <Text style={styles.infoValue}>ESTADO DE PAGO: {invoiceData.paymentStatus}</Text>
         </View>
       </View>
 
+      {/* Product Details Table */}
+      <Text style={{fontSize: 10, fontFamily: 'Helvetica-Bold', marginBottom: 8, marginTop: 5}}>
+        Detalle de Orden
+      </Text>
       <View style={styles.table}>
         <View style={styles.tableHeader}>
-          <Text style={styles.col1}>Descripción</Text>
-          <Text style={styles.col2}>Cant.</Text>
-          <Text style={styles.col3}>Precio</Text>
-          <Text style={styles.col4}>Impuestos</Text>
-          <Text style={styles.col5}>Total</Text>
+          <Text style={styles.col1}>DESCRIPCIÓN</Text>
+          <Text style={styles.col2}>CANTIDAD</Text>
+          <Text style={styles.col3}>PRECIO UNITARIO</Text>
+          <Text style={styles.col4}>% IMP.</Text>
+          <Text style={styles.col5}>SUBTOTAL</Text>
         </View>
 
         {invoiceData.items.map((item, index) => (
           <View key={index} style={[styles.tableRow, index % 2 === 0 ? {} : styles.tableRowEven]}>
             <Text style={styles.col1}>{item.description}</Text>
-            <Text style={styles.col2}>{item.quantity}</Text>
+            <Text style={styles.col2}>{item.quantity} Unidades</Text>
             <Text style={styles.col3}>{item.unitPrice.toFixed(2)}</Text>
-            <Text style={styles.col4}>{item.taxes || '-'}</Text>
+            <Text style={styles.col4}></Text>
             <Text style={styles.col5}>{invoiceData.currency} {item.amount.toFixed(2)}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.summaryRow}>
-        <Text style={styles.summaryLabel}>Subtotal</Text>
-        <Text style={styles.summaryValue}>{invoiceData.currency} {invoiceData.untaxedAmount.toFixed(2)}</Text>
+      {/* Economic Summary */}
+      <View style={{marginTop: 15, alignItems: 'flex-end'}}>
+        <Text style={{fontSize: 9, fontFamily: 'Helvetica-Bold', marginBottom: 8}}>
+          Resumen Económico
+        </Text>
+        <View style={{width: '40%'}}>
+          <View style={styles.summaryRow}>
+            <Text style={{...styles.summaryLabel, width: '60%'}}>Subtotal:</Text>
+            <Text style={{...styles.summaryValue, width: '40%'}}>
+              {invoiceData.currency} {invoiceData.total.toFixed(2)}
+            </Text>
+          </View>
+          <View style={styles.totalRow}>
+            <Text style={{...styles.totalLabel, width: '60%'}}>Total:</Text>
+            <Text style={{...styles.totalValue, width: '40%'}}>
+              {invoiceData.currency} {invoiceData.total.toFixed(2)}
+            </Text>
+          </View>
+        </View>
       </View>
 
-      <View style={styles.totalRow}>
-        <Text style={styles.totalLabel}>TOTAL A PAGAR</Text>
-        <Text style={styles.totalValue}>{invoiceData.currency} {invoiceData.total.toFixed(2)}</Text>
+      {/* Notes Section */}
+      <View style={styles.notesSection}>
+        <Text style={styles.notesTitle}>Notas</Text>
+        <Text style={styles.notesText}>
+          • El producto llegará en perfecto estado{'\n'}
+          • Tiempo estimado de entrega: {invoiceData.deliveryTime}{'\n'}
+          • Garantía de satisfacción del cliente
+        </Text>
       </View>
 
-      <Text style={styles.footer}>Gracias por su compra - TechStore Inc.</Text>
+      {/* Terms and Conditions */}
+      <View style={styles.termsSection}>
+        <Text style={styles.termsTitle}>Términos y Condiciones</Text>
+        <Text style={styles.termsList}>
+          • No hay devolución en Productos cortados, fabricados o importados a medida.{'\n'}
+          • La posesión de la factura no constituye prueba de pago.{'\n'}
+          • Para la validez de esta factura debe estar sellada y firmada por Caja y Cliente.{'\n'}
+          • La fecha de entrega de los productos puede variar por la importación.
+        </Text>
+      </View>
+
+      {/* Signature Section */}
+      <View style={styles.signatureSection}>
+        <View style={styles.signatureBox}>
+          <Text style={styles.signatureLabel}>Cédula:</Text>
+          <View style={styles.signatureLine} />
+        </View>
+        <View style={styles.signatureBox}>
+          <Text style={styles.signatureLabel}>Firma:</Text>
+          <View style={styles.signatureLine} />
+        </View>
+      </View>
+
+      {/* Footer */}
+      <Text style={styles.footer}>
+        Gracias por su compra - {invoiceData.companyName} • {invoiceData.companyLocation}
+      </Text>
     </Page>
   </Document>
 );
@@ -210,25 +396,46 @@ const COD_STATUS_STEPS = [
     { id: 'paid', label: 'Pagado', icon: '💰' }
 ];
 
-const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange }) => {
+const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒' }) => {
     const isAuthenticated = !!localStorage.getItem('authToken');
+
+    // Get current date and time
+    const now = new Date();
+    const currentDate = now.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const currentTime = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     // Prepare data for PDF
     const invoiceData = {
-        companyName: 'TechStore Inc.',
+        companyName: siteName,
+        companyIcon: siteIcon,
+        companyAddress: 'Calle Principal #123, Santo Domingo',
+        companyPhone: '829-334-6358',
+        companyRNC: '123456789',
         companyLocation: 'República Dominicana',
+        invoiceNumber: order.order_number || `COT/${order.id.toString().padStart(6, '0')}`,
+        date: currentDate,
+        time: currentTime,
         customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
         customerEmail: customerInfo.email,
-        source: order.order_number || order.id.toString(),
+        customerPhone: customerInfo.phone || 'N/A',
+        customerAddress: `${customerInfo.address}, ${customerInfo.sector}, ${customerInfo.city}`,
+        customerID: customerInfo.identification || 'N/A',
+        seller: 'Sistema Online',
+        paymentType: customerInfo.paymentMethod === 'cash' ? 'Contra Entrega' 
+                     : customerInfo.paymentMethod === 'transfer' ? 'Transferencia'
+                     : customerInfo.paymentMethod === 'card' ? 'Tarjeta' : 'Pendiente',
+        paymentStatus: order.status === 'paid' || order.status === 'delivered' ? 'Pagado' : 'Pendiente',
+        deliveryTime: '3-5 días hábiles',
         currency: 'RD$',
+        source: order.order_number || order.id.toString(),
         items: items.map(item => ({
             description: item.name,
             quantity: item.quantity,
             unitPrice: item.price,
-            taxes: '', 
+            taxPercent: '',
+            taxes: '',
             amount: item.price * item.quantity
         })),
-        untaxedAmount: order.total,
         total: order.total
     };
 
@@ -252,48 +459,84 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
             <div className="invoice-container only-print">
                 <div className="invoice-header-bg">
                     <div className="invoice-logo">
-                        📷 <span>TechStore</span>
+                        {siteIcon} <span>{siteName}</span>
                     </div>
                     <div className="company-info">
-                        <p>TechStore Inc.</p>
+                        <p><strong>{siteName}</strong></p>
+                        <p>Calle Principal #123, Santo Domingo</p>
+                        <p>Tel: 809-555-1234 • RNC: 132080238</p>
                         <p>República Dominicana</p>
                     </div>
                 </div>
 
                 <div className="invoice-title-section">
-                    <h1 className="invoice-title">Factura</h1>
+                    <h1 className="invoice-title">FACTURA</h1>
+                    <p className="invoice-number">No. {invoiceData.invoiceNumber}</p>
+                    <p className="invoice-date">Fecha: {currentDate}  {currentTime}</p>
                 </div>
 
                 <div className="invoice-info-grid">
-                    <div className="info-row">
-                        <span className="info-label">Cliente</span>
-                        <span className="info-value">{customerInfo.firstName} {customerInfo.lastName}</span>
+                    <div className="info-section">
+                        <h4>Información del Cliente</h4>
+                        <div className="info-row">
+                            <span className="info-label">CLIENTE:</span>
+                            <span className="info-value">{customerInfo.firstName} {customerInfo.lastName}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">RNC/CED:</span>
+                            <span className="info-value">{customerInfo.identification || 'N/A'}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">DIRECCIÓN:</span>
+                            <span className="info-value">{customerInfo.address}, {customerInfo.sector}, {customerInfo.city}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">TEL:</span>
+                            <span className="info-value">{customerInfo.phone || 'N/A'}</span>
+                        </div>
                     </div>
-                    <div className="info-row">
-                        <span className="info-label">Source</span>
-                        <span className="info-value">{order.order_number || `#${order.id}`}</span>
+                    
+                    <div className="info-section">
+                        <h4>Información Adicional</h4>
+                        <div className="info-row">
+                            <span className="info-label">VENDEDOR:</span>
+                            <span className="info-value">Sistema Online</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">TIPO PAGO:</span>
+                            <span className="info-value">{invoiceData.paymentType}</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">MONEDA:</span>
+                            <span className="info-value">DOP</span>
+                        </div>
+                        <div className="info-row">
+                            <span className="info-label">ESTADO DE PAGO:</span>
+                            <span className="info-value">{invoiceData.paymentStatus}</span>
+                        </div>
                     </div>
                 </div>
 
+                <h3 style={{marginTop: '20px', fontSize: '14px'}}>Detalle de Orden</h3>
                 <div className="invoice-table-container">
                     <table className="invoice-table">
                         <thead>
                             <tr>
-                                <th style={{width: '40%'}}>Descripción</th>
-                                <th style={{width: '15%'}}>Cantidad</th>
-                                <th style={{width: '15%'}}>Precio Unit.</th>
-                                <th style={{width: '15%'}}>Impuestos</th>
-                                <th style={{width: '15%'}}>Monto</th>
+                                <th style={{width: '40%'}}>DESCRIPCIÓN</th>
+                                <th style={{width: '12%'}}>CANTIDAD</th>
+                                <th style={{width: '16%'}}>PRECIO UNITARIO</th>
+                                <th style={{width: '16%'}}>% IMP.</th>
+                                <th style={{width: '16%'}}>SUBTOTAL</th>
                             </tr>
                         </thead>
                         <tbody>
                             {items.map(item => (
                                 <tr key={item.id}>
                                     <td>{item.name}</td>
-                                    <td>{item.quantity.toFixed(2)}</td>
-                                    <td>{item.price.toLocaleString('es-DO', { minimumFractionDigits: 2 })}</td>
+                                    <td>{item.quantity} Unidades</td>
+                                    <td>RD$ {item.price.toFixed(2)}</td>
                                     <td></td>
-                                    <td>{(item.price * item.quantity).toLocaleString('es-DO', { style: 'currency', currency: 'DOP' })}</td>
+                                    <td>RD$ {(item.price * item.quantity).toFixed(2)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -302,19 +545,44 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
 
                 <div className="invoice-totals">
                     <div className="totals-box">
+                        <h4>Resumen Económico</h4>
                         <div className="total-row">
-                            <span>Subtotal</span>
-                            <span>{order.total.toLocaleString('es-DO', { style: 'currency', currency: 'DOP' })}</span>
+                            <span>Subtotal:</span>
+                            <span>RD$ {order.total.toFixed(2)}</span>
                         </div>
                         <div className="total-row final">
-                            <span>Total</span>
-                            <span>{order.total.toLocaleString('es-DO', { style: 'currency', currency: 'DOP' })}</span>
+                            <span>Total:</span>
+                            <span>RD$ {order.total.toFixed(2)}</span>
                         </div>
                     </div>
                 </div>
 
+                <div className="invoice-notes">
+                    <h4>Notas</h4>
+                    <p>• El producto llegará en perfecto estado</p>
+                    <p>• Tiempo estimado de entrega: 1-3 días hábiles</p>
+                    <p>• Garantía de satisfacción del cliente</p>
+                </div>
+
+                <div className="invoice-terms">
+                    <h4>Términos y Condiciones</h4>
+                    <p>• No hay devolución en Productos cortados, fuera del tiempo de garantía.</p>
+                    <p>• La posesión de la factura no constituye prueba de pago, a menos que esta indique pagado.</p>
+                    <p>• Para la validez de esta factura debe estar firmada por el Cliente.</p>
+                    <p>• La fecha de entrega de los productos puede variar .</p>
+                </div>
+
+                <div className="signature-section">
+                    <div className="signature-box">
+                        <p>Cédula: _______________________</p>
+                    </div>
+                    <div className="signature-box">
+                        <p>Firma: _______________________</p>
+                    </div>
+                </div>
+
                 <div className="invoice-footer">
-                    Page 1 / 1
+                    Gracias por su compra - {siteName} • República Dominicana
                 </div>
             </div>
 
@@ -360,7 +628,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
 
                 <div className="invoice-header">
                     <div className="invoice-logo">
-                        📷 <span>TechStore</span>
+                        {siteIcon} <span>{siteName}</span>
                     </div>
                     <div className="invoice-meta">
                         <h3>FACTURA</h3>

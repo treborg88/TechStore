@@ -7,6 +7,7 @@ import { getCurrentUser, isLoggedIn, logout } from './services/authService';
 import { API_URL } from './config';
 import { Toaster, toast } from 'react-hot-toast';
 import LoadingSpinner from './components/LoadingSpinner';
+import Header from './components/Header';
 
 // Lazy loading components
 const Cart = lazy(() => import('./components/Cart'));
@@ -47,7 +48,6 @@ function App() {
   const [cartOpen, setCartOpen] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -80,8 +80,6 @@ function App() {
     }
     navigate('/admin');
   };
-
-  const closeMobileMenu = () => setMobileMenuOpen(false);
 
   const handleLoginSuccess = async (userData) => {
     // Sync guest cart if exists
@@ -448,89 +446,18 @@ function App() {
       )}
       <div className={`app-container ${headerSettings.transparency < 100 ? 'has-transparent-header' : ''}`}>
         {/* Header/Navbar */}
-      <header 
-        className={`header ${headerSettings.transparency < 100 ? 'is-transparent' : ''}`}
-        style={{
-          backgroundColor: headerSettings.transparency < 100 
-            ? `${headerSettings.bgColor}${Math.round((headerSettings.transparency / 100) * 255).toString(16).padStart(2, '0')}`
-            : headerSettings.bgColor
-        }}
-      >
-        <div className="container header-container">
-          <button 
-            className="mobile-menu-btn"
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            aria-label="Menu"
-          >
-            ☰
-          </button>
-
-          <Link to="/" className="logo-container" style={{ textDecoration: 'none', color: 'inherit' }}>
-            <div className="logo">{siteIcon}</div>
-            <h1 className="site-title">{siteName}</h1>
-          </Link>
-          
-          <nav className="main-nav">
-            <Link to="/" className="nav-link">Productos</Link>
-            <Link to="/" className="nav-link">Contacto</Link>
-            <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); }}>Ordenes</a>
-            {user && user.role === 'admin' && (
-              <>
-                <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
-                <Link to="/settings" className="nav-link">Ajustes</Link>
-              </>
-            )}
-          </nav>
-
-          <div className={`mobile-nav-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu}></div>
-          <nav className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}>
-            <button className="close-mobile-nav" onClick={closeMobileMenu}>×</button>
-            <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Productos</Link>
-            <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Contacto</Link>
-            <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); setOrdersOpen(true); closeMobileMenu(); }}>Ordenes</a>
-            {user && user.role === 'admin' && (
-              <>
-                <a href="#" className="mobile-nav-link" onClick={(e) => { handleAdminNav(e); closeMobileMenu(); }}>Administrar</a>
-                <Link to="/settings" className="mobile-nav-link" onClick={closeMobileMenu}>Ajustes</Link>
-              </>
-            )}
-          </nav>
-
-          <div className="header-actions">
-            <div className="cart-container">
-              <button className="cart-button" onClick={() => setCartOpen(true)}>
-                🛒
-                <span 
-                  className="cart-badge"
-                  style={{ 
-                    color: cartItems.reduce((sum, item) => sum + item.quantity, 0) > 0 ? 'red' : 'white',
-                    backgroundColor: 'transparent',
-                    fontSize: '1.3rem',
-                    //fontWeight: 'bold'
-                  }}
-                >
-                  {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
-                </span>
-              </button>
-            </div>
-
-            {user ? (
-              <>
-                <button 
-                  className="user-name-btn" 
-                  onClick={() => setProfileOpen(true)}
-                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
-                >
-                  Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
-                </button>
-                <button className="login-button" onClick={handleLogout}>Cerrar</button>
-              </>
-            ) : (
-              <button className="login-button" onClick={() => navigate('/login')}>Iniciar Sesión</button>
-            )}
-          </div>
-        </div>
-      </header>
+        <Header
+          siteName={siteName}
+          siteIcon={siteIcon}
+          headerSettings={headerSettings}
+          cartItems={cartItems}
+          user={user}
+          onCartOpen={() => setCartOpen(true)}
+          onProfileOpen={() => setProfileOpen(true)}
+          onOrdersOpen={() => setOrdersOpen(true)}
+          onLogout={handleLogout}
+          onAdminNav={handleAdminNav}
+        />
 
       <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}><LoadingSpinner /></div>}>
         <Routes>
@@ -598,12 +525,29 @@ function App() {
             onClear={clearFromCart}
             onClose={() => setCartOpen(false)}
             onClearAll={clearAllCart}
+            user={user}
+            onLogout={handleLogout}
+            onOpenProfile={() => { setCartOpen(false); setProfileOpen(true); }}
+            onOpenOrders={() => { setCartOpen(false); setOrdersOpen(true); }}
+            siteName={siteName}
+            siteIcon={siteIcon}
+            headerSettings={headerSettings}
           />
         )}
 
         {/* Order Tracker Modal */}
         {ordersOpen && (
-          <OrderTrackerModal onClose={() => setOrdersOpen(false)} user={user} />
+          <OrderTrackerModal 
+            onClose={() => setOrdersOpen(false)} 
+            user={user}
+            cartItems={cartItems}
+            onLogout={handleLogout}
+            onOpenProfile={() => { setOrdersOpen(false); setProfileOpen(true); }}
+            onOpenCart={() => { setOrdersOpen(false); setCartOpen(true); }}
+            siteName={siteName}
+            siteIcon={siteIcon}
+            headerSettings={headerSettings}
+          />
         )}
 
         {/* User Profile Modal */}
@@ -615,6 +559,13 @@ function App() {
               handleLogout();
             }}
             onUpdate={(updatedUser) => setUser(updatedUser)}
+            user={user}
+            cartItems={cartItems}
+            onOpenOrders={() => { setProfileOpen(false); setOrdersOpen(true); }}
+            onOpenCart={() => { setProfileOpen(false); setCartOpen(true); }}
+            siteName={siteName}
+            siteIcon={siteIcon}
+            headerSettings={headerSettings}
           />
         )}
       </Suspense>

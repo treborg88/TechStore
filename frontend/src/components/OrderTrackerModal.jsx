@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL, BASE_URL } from '../config';
+import Header from './Header';
 import '../styles/OrderTrackerModal.css';
 
-function OrderTrackerModal({ onClose, user }) {
+function OrderTrackerModal({ onClose, user, cartItems = [], onLogout, onOpenProfile, onOpenCart, siteName, siteIcon, headerSettings }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
     const [searchValue, setSearchValue] = useState('');
     const [orders, setOrders] = useState([]);
@@ -161,7 +162,20 @@ function OrderTrackerModal({ onClose, user }) {
 
     return (
         <div className="cart-modal">
-            <div className="cart-modal-content order-tracker-modal">
+            <Header
+                siteName={siteName || 'TechStore'}
+                siteIcon={siteIcon || '🛍️'}
+                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
+                cartItems={cartItems}
+                user={user}
+                onCartOpen={onOpenCart}
+                onProfileOpen={onOpenProfile}
+                onOrdersOpen={() => {}}
+                onLogout={onLogout}
+                onLogoClick={onClose}
+                isSticky={true}
+            />
+            <div className="cart-modal-content order-tracker-modal" style={{ paddingTop: '80px' }}>
                 <div className="cart-modal-header">
                     <h2>📦 {user ? 'Mis Órdenes' : 'Rastrear Órdenes'}</h2>
                     <button className="close-modal" onClick={onClose}>✕</button>

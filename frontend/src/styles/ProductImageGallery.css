@@ -6,6 +6,9 @@
   overflow: hidden;
   border-radius: 0; /* Let parent handle border radius if needed */
   background-color: #f8f9fa;
+  margin: 0;
+  padding: 0;
+  display: block;
 }
 
 .main-image-container {
@@ -16,6 +19,9 @@
   touch-action: pan-y;
   user-select: none;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+  display: block;
 }
 
 .carousel-slider {
@@ -399,9 +405,7 @@
 
 /* Responsive adjustments */
 @media (max-width: 768px) {
-  .product-image-gallery {
-    height: 350px;
-  }
+  /* Removed fixed height to respect parent aspect-ratio */
 
   /* .thumbnails-container {
     height: 50px;
@@ -436,9 +440,7 @@
 }
 
 @media (max-width: 480px) {
-  .product-image-gallery {
-    height: 300px;
-  }
+  /* Removed fixed height to respect parent aspect-ratio */
 
   /* .thumbnails-container {
     height: 45px;

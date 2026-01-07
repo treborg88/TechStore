@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { API_URL, BASE_URL } from '../config';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
+import '../styles/ProductList.css';
 
 function blankProduct() {
 	return {

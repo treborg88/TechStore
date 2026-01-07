@@ -560,7 +560,7 @@ ul {
 
 /* Products Section */
 .products-section {
-  padding: 40px 0;
+  padding: 20px 0;
   background-color: var(--gray-100);
 }
 
@@ -598,23 +598,25 @@ ul {
   transition: transform 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--gray-200);
+  border: 0px solid var(--gray-200);
   font-size: 1rem;
 }
 
 .product-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 89px 16px rgba(0, 0, 0, 0.1);
 }
 
 .product-image {
   width: 100%;
-  aspect-ratio: 1 / 1;
+  aspect-ratio: 1/1;
   object-fit: cover;
+  display: block;
+  margin: 0;
 }
 
 .product-content {
-  padding: 12px;
+  padding: 4px 12px 12px;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -626,7 +628,7 @@ ul {
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--primary-color);
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 
 .product-title {
@@ -636,6 +638,7 @@ ul {
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   height: 1.6em;
@@ -644,11 +647,12 @@ ul {
 .product-description {
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: 0.85rem;
   color: var(--gray-500);
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .product-footer {
@@ -961,6 +965,38 @@ ul {
   .category-card {
     min-width: calc((100% - 20px) / 2);
     width: calc((100% - 20px) / 2);
+  }
+  
+  /* Reducir márgenes en tarjetas de productos para móviles */
+  .product-content {
+    padding: 8px 10px 10px;
+    gap: 4px;
+  }
+  
+  .product-category {
+    font-size: 0.65rem;
+  }
+  
+  .product-title {
+    font-size: 0.9rem;
+  }
+  
+  .product-description {
+    font-size: 0.8rem;
+    margin-bottom: 2px;
+  }
+  
+  .product-footer {
+    gap: 6px;
+  }
+  
+  .product-price {
+    font-size: 1rem;
+  }
+  
+  .add-to-cart-button {
+    padding: 6px 10px;
+    font-size: 0.8rem;
   }
 }
 
@@ -1299,12 +1335,11 @@ ul {
     height: 40px !important;
   }
   
-  .total-row {
-    font-size: 1.2rem !important;
-  }
+.total-row {
+  font-size: 1.2rem !important;
 }
 
-  .remove-item-btn {
+.remove-item-btn {
     font-size: 1rem;
   }
 
@@ -1760,6 +1795,7 @@ ul {
 .admin-dashboard {
   display: grid;
   gap: 20px;
+  margin-top: 80px;
 }
 
 .admin-header {
@@ -2307,26 +2343,10 @@ ul {
   white-space: nowrap;
 }
 
-.admin-table-image img {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 8px;
-  border: 1px solid var(--divider-color);
-}
-
 .admin-table-name {
   font-weight: 600;
   color: var(--gray-800);
   min-width: 150px;
-}
-
-.admin-table-description {
-  max-width: 300px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--gray-600);
 }
 
 .admin-table-price {
@@ -2347,57 +2367,6 @@ ul {
 }
 
 /* Edit Form Row */
-.edit-form-row {
-  background: rgba(20, 184, 166, 0.04);
-}
-
-.admin-edit-form {
-  padding: 20px;
-  background: var(--white);
-  border-radius: 12px;
-  border: 1px solid rgba(37, 99, 235, 0.2);
-}
-
-.edit-form-content {
-  display: grid;
-  gap: 16px;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
-.edit-form-content .form-row {
-  display: grid;
-  gap: 14px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.edit-form-content label {
-  display: grid;
-  gap: 6px;
-  font-size: 0.92rem;
-  color: var(--gray-700);
-  font-weight: 600;
-}
-
-.edit-form-content input,
-.edit-form-content textarea {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(37, 99, 235, 0.35);
-  background: rgba(255, 255, 255, 0.95);
-  font-size: 0.95rem;
-  color: var(--gray-800);
-}
-
-.edit-form-content textarea {
-  resize: vertical;
-}
-
-.edit-form-content .admin-card-actions {
-  justify-content: flex-end;
-  margin-top: 8px;
-}
-
 /* Admin Tabs */
 .admin-tabs {
   display: flex;
@@ -3945,12 +3914,6 @@ ul {
     font-size: 0.85rem;
     margin-right: 15px;
     text-align: left;
-  }
-
-  /* Special handling for image cells */
-  .admin-table-image {
-    justify-content: center;
-    background: var(--gray-50);
   }
   
   .admin-table-image::before {

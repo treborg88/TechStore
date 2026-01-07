@@ -42,6 +42,9 @@ export default function OrderList({
     const orderFilters = filters || { search: '', status: 'all', type: 'all', paymentType: 'all' };
     const setOrderFilters = onFilterChange || (() => {});
 
+	const [siteName] = useState(localStorage.getItem('siteName') || 'TechStore');
+	const [siteIcon] = useState(localStorage.getItem('siteIcon') || '🛍️');
+	
 	const [selectedOrder, setSelectedOrder] = useState(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	
@@ -688,6 +691,8 @@ export default function OrderList({
 										onClose={closeOrderDetails}
 										showSuccess={false}
 										onStatusChange={(newStatus) => handleOrderStatusChange(selectedOrder.id, newStatus)}
+										siteName={siteName}
+										siteIcon={siteIcon}
 									/>
 								</div>
 								<div className="order-admin-notes-section" style={{borderLeft: '1px solid #eee', paddingLeft: '20px', minWidth: '300px'}}>

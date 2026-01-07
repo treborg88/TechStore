@@ -1,0 +1,154 @@
+/* ProductList specific styles */
+
+.admin-table-image img {
+  width: 60px;
+  height: 60px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid var(--divider-color);
+}
+
+.admin-table-name {
+  font-weight: 600;
+  color: var(--gray-800);
+  min-width: 150px;
+}
+
+.admin-table-description {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--gray-600);
+}
+
+.admin-table-price {
+  font-weight: 700;
+  color: var(--accent-dark);
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.admin-table-actions {
+  white-space: nowrap;
+}
+
+.admin-table-actions .admin-btn {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  margin-right: 6px;
+}
+
+/* Edit Form Row */
+.edit-form-row {
+  background: rgba(20, 184, 166, 0.04);
+}
+
+.admin-edit-form {
+  padding: 20px;
+  background: var(--white);
+  border-radius: 12px;
+  border: 1px solid rgba(37, 99, 235, 0.2);
+}
+
+.edit-form-content {
+  display: grid;
+  gap: 16px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.edit-form-content .form-row {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.edit-form-content label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.92rem;
+  color: var(--gray-700);
+  font-weight: 600;
+}
+
+.edit-form-content input,
+.edit-form-content textarea {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(37, 99, 235, 0.35);
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
+  color: var(--gray-800);
+}
+
+.edit-form-content textarea {
+  resize: vertical;
+}
+
+.edit-form-content .admin-card-actions {
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+
+/* Missing styles identified in Component */
+.image-gallery {
+  position: relative;
+  display: inline-block;
+}
+
+.image-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: bold;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.images-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.current-images {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.image-item {
+  position: relative;
+  width: 80px;
+  height: 80px;
+}
+
+.image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+.delete-image-btn:hover {
+  background: #b91c1c;
+}
+
+/* Base style for the image cell in responsive mode */
+@media (max-width: 768px) {
+  .admin-table-image {
+    justify-content: center;
+    background: var(--gray-50);
+  }
+}
+

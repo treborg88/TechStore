@@ -2,12 +2,11 @@ import React, { useState } from "react";
 import { Link } from 'react-router-dom';
 import Checkout from "./Checkout";
 import Footer from "./Footer";
+import Header from "./Header";
 import { BASE_URL } from '../config';
 import '../styles/ProductDetail.css';
 
-function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
-    const [siteName] = useState(localStorage.getItem('siteName') || 'TechStore');
-    const [siteIcon] = useState(localStorage.getItem('siteIcon') || '🛍️');
+function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, user, onLogout, onOpenProfile, onOpenOrders, siteName, siteIcon, headerSettings }) {
 
     const [showCheckout, setShowCheckout] = useState(false);
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
@@ -43,34 +42,19 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
 
     return (
         <div className="cart-modal product-detail-page">
-            <header className="header" style={{ position: 'sticky', top: 0, zIndex: 3200, width: '100%', background: 'var(--primary-color)' }}>
-                <div className="container header-container" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', maxWidth: '1210px', margin: '0 auto', padding: '0 20px' }}>
-                    <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                        <div className="logo" style={{ fontSize: '1.8rem' }}>{siteIcon}</div>
-                        <h1 className="site-title" style={{ fontSize: '1.5rem', color: 'white', margin: 0 }}>{siteName}</h1>
-                    </div>
-                    <button 
-                        onClick={onClose} 
-                        className="close-checkout"
-                        style={{ 
-                            background: 'rgba(255,255,255,0.15)', 
-                            border: 'none', 
-                            color: 'white', 
-                            fontSize: '1.2rem', 
-                            cursor: 'pointer', 
-                            width: '40px', 
-                            height: '40px', 
-                            borderRadius: '50%', 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            transition: 'all 0.2s'
-                        }}
-                    >
-                        ✖
-                    </button>
-                </div>
-            </header>
+            <Header
+                siteName={siteName || 'TechStore'}
+                siteIcon={siteIcon || '🛍️'}
+                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
+                cartItems={cartItems}
+                user={user}
+                onCartOpen={() => {}}
+                onProfileOpen={onOpenProfile}
+                onOrdersOpen={onOpenOrders}
+                onLogout={onLogout}
+                onLogoClick={onClose}
+                isSticky={true}
+            />
 
             <section className="hero-section" style={{ padding: '40px 0 30px' }}>
                 <div className="container hero-container">
@@ -223,6 +207,13 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll }) {
                         total={total}
                         onClose={handleCheckoutClose}
                         onClearCart={onClearAll}
+                        user={user}
+                        onLogout={onLogout}
+                        onOpenProfile={onOpenProfile}
+                        onOpenOrders={onOpenOrders}
+                        siteName={siteName}
+                        siteIcon={siteIcon}
+                        headerSettings={headerSettings}
                     />
                 )}
             </div>
