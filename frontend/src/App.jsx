@@ -11,6 +11,7 @@ import Header from './components/Header';
 
 // Lazy loading components
 const Cart = lazy(() => import('./components/Cart'));
+const Checkout = lazy(() => import('./components/Checkout'));
 const LoginPage = lazy(() => import('./components/LoginPage'));
 const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
 const OrderTrackerModal = lazy(() => import('./components/OrderTrackerModal'));
@@ -18,6 +19,7 @@ const UserProfile = lazy(() => import('./components/UserProfile'));
 const ProductDetail = lazy(() => import('./components/ProductDetail'));
 const Home = lazy(() => import('./pages/Home'));
 const SettingsManager = lazy(() => import('./components/SettingsManager'));
+const Footer = lazy(() => import('./components/Footer'));
 
 function App() {
   // Estados de configuración del sitio
@@ -452,9 +454,9 @@ function App() {
           headerSettings={headerSettings}
           cartItems={cartItems}
           user={user}
-          onCartOpen={() => setCartOpen(true)}
-          onProfileOpen={() => setProfileOpen(true)}
-          onOrdersOpen={() => setOrdersOpen(true)}
+          onCartOpen={() => navigate('/cart')}
+          onProfileOpen={() => navigate('/profile')}
+          onOrdersOpen={() => navigate('/orders')}
           onLogout={handleLogout}
           onAdminNav={handleAdminNav}
         />
@@ -472,6 +474,67 @@ function App() {
               heroSettings={heroSettings}
             />
           } />
+          <Route path="/cart" element={
+            <Cart
+              cartItems={cartItems}
+              onAdd={addToCart}
+              onRemove={removeFromCart}
+              onClear={clearFromCart}
+              onClose={() => navigate(-1)}
+              onClearAll={clearAllCart}
+              user={user}
+              onLogout={handleLogout}
+              onOpenProfile={() => navigate('/profile')}
+              onOpenOrders={() => navigate('/orders')}
+              siteName={siteName}
+              siteIcon={siteIcon}
+              headerSettings={headerSettings}
+            />
+          } />
+          <Route path="/checkout" element={
+            <Checkout
+              cartItems={cartItems}
+              total={cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)}
+              onClose={() => navigate('/cart')}
+              onClearCart={clearAllCart}
+              user={user}
+              onLogout={handleLogout}
+              onOpenProfile={() => navigate('/profile')}
+              onOpenOrders={() => navigate('/orders')}
+              siteName={siteName}
+              siteIcon={siteIcon}
+              headerSettings={headerSettings}
+            />
+          } />
+          <Route path="/profile" element={
+            <UserProfile 
+              onClose={() => navigate(-1)} 
+              onLogout={() => {
+                handleLogout();
+              }}
+              onUpdate={(updatedUser) => setUser(updatedUser)}
+              user={user}
+              cartItems={cartItems}
+              onOpenOrders={() => navigate('/orders')}
+              onOpenCart={() => navigate('/cart')}
+              siteName={siteName}
+              siteIcon={siteIcon}
+              headerSettings={headerSettings}
+            />
+          } />
+          <Route path="/orders" element={
+            <OrderTrackerModal 
+              onClose={() => navigate(-1)} 
+              user={user}
+              cartItems={cartItems}
+              onLogout={handleLogout}
+              onOpenProfile={() => navigate('/profile')}
+              onOpenCart={() => navigate('/cart')}
+              siteName={siteName}
+              siteIcon={siteIcon}
+              headerSettings={headerSettings}
+            />
+          } />
           <Route path="/product/:id" element={
             <ProductDetail 
               products={products} 
@@ -479,6 +542,7 @@ function App() {
               user={user}
               onRefresh={fetchProducts}
               heroImage={productDetailHeroImage}
+              onCartOpen={() => navigate('/cart')}
             />
           } />
           <Route path="/login" element={
@@ -515,60 +579,9 @@ function App() {
           } />
           <Route path="*" element={<Navigate to="/" />} />
         </Routes>
-
-        {/* Cart Modal */}
-        {cartOpen && (
-          <Cart
-            cartItems={cartItems}
-            onAdd={addToCart}
-            onRemove={removeFromCart}
-            onClear={clearFromCart}
-            onClose={() => setCartOpen(false)}
-            onClearAll={clearAllCart}
-            user={user}
-            onLogout={handleLogout}
-            onOpenProfile={() => { setCartOpen(false); setProfileOpen(true); }}
-            onOpenOrders={() => { setCartOpen(false); setOrdersOpen(true); }}
-            siteName={siteName}
-            siteIcon={siteIcon}
-            headerSettings={headerSettings}
-          />
-        )}
-
-        {/* Order Tracker Modal */}
-        {ordersOpen && (
-          <OrderTrackerModal 
-            onClose={() => setOrdersOpen(false)} 
-            user={user}
-            cartItems={cartItems}
-            onLogout={handleLogout}
-            onOpenProfile={() => { setOrdersOpen(false); setProfileOpen(true); }}
-            onOpenCart={() => { setOrdersOpen(false); setCartOpen(true); }}
-            siteName={siteName}
-            siteIcon={siteIcon}
-            headerSettings={headerSettings}
-          />
-        )}
-
-        {/* User Profile Modal */}
-        {profileOpen && (
-          <UserProfile 
-            onClose={() => setProfileOpen(false)} 
-            onLogout={() => {
-              setProfileOpen(false);
-              handleLogout();
-            }}
-            onUpdate={(updatedUser) => setUser(updatedUser)}
-            user={user}
-            cartItems={cartItems}
-            onOpenOrders={() => { setProfileOpen(false); setOrdersOpen(true); }}
-            onOpenCart={() => { setProfileOpen(false); setCartOpen(true); }}
-            siteName={siteName}
-            siteIcon={siteIcon}
-            headerSettings={headerSettings}
-          />
-        )}
       </Suspense>
+
+      <Footer />
 
       {loading && <LoadingSpinner />}
     </div>

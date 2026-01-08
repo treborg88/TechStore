@@ -7,7 +7,7 @@ import Footer from './Footer';
 import { API_URL } from '../config';
 import '../styles/ProductDetail.css';
 
-function ProductDetail({ products, addToCart, user, onRefresh, heroImage }) {
+function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCartOpen }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -150,7 +150,9 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage }) {
                 className="primary-button"
                 onClick={() => {
                   addToCart(product);
-                  toast.success('Agregado al carrito');
+                  if (onCartOpen) {
+                    setTimeout(() => onCartOpen(), 100);
+                  }
                 }}
               >
                 🛒 Comprar Ahora
@@ -237,10 +239,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage }) {
             <div className="action-buttons">
               <button 
                 className="add-to-cart-btn"
-                onClick={() => {
-                  addToCart(product);
-                  toast.success('Agregado al carrito');
-                }}
+                onClick={() => addToCart(product)}
                 disabled={isOutOfStock}
               >
                 {isOutOfStock ? 'Agotado' : '🛒 Agregar al Carrito'}
@@ -283,7 +282,6 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage }) {
         </div>
       )}
     </div>
-    <Footer />
   </div>
 );
 }

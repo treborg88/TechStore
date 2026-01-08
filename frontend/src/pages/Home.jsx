@@ -286,7 +286,6 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
           </div>
         </div>
       </section>
-      <Footer />
     </>
   );
 }

@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL, BASE_URL } from '../config';
-import Header from './Header';
 import '../styles/OrderTrackerModal.css';
 
-function OrderTrackerModal({ onClose, user, cartItems = [], onLogout, onOpenProfile, onOpenCart, siteName, siteIcon, headerSettings }) {
+function OrderTrackerModal({ onClose, user }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
     const [searchValue, setSearchValue] = useState('');
     const [orders, setOrders] = useState([]);
@@ -161,21 +160,8 @@ function OrderTrackerModal({ onClose, user, cartItems = [], onLogout, onOpenProf
     };
 
     return (
-        <div className="cart-modal">
-            <Header
-                siteName={siteName || 'TechStore'}
-                siteIcon={siteIcon || '🛍️'}
-                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
-                cartItems={cartItems}
-                user={user}
-                onCartOpen={onOpenCart}
-                onProfileOpen={onOpenProfile}
-                onOrdersOpen={() => {}}
-                onLogout={onLogout}
-                onLogoClick={onClose}
-                isSticky={true}
-            />
-            <div className="cart-modal-content order-tracker-modal" style={{ paddingTop: '80px' }}>
+        <div className="orders-page" style={{ padding: '40px 20px', display: 'flex', justifyContent: 'center' }}>
+            <div className="order-tracker-container" style={{ width: '100%', maxWidth: '1210px' }}>
                 <div className="cart-modal-header">
                     <h2>📦 {user ? 'Mis Órdenes' : 'Rastrear Órdenes'}</h2>
                     <button className="close-modal" onClick={onClose}>✕</button>
@@ -361,11 +347,11 @@ function OrderTrackerModal({ onClose, user, cartItems = [], onLogout, onOpenProf
                                                             : (item.image.startsWith('/images/') 
                                                                 ? `${BASE_URL}${item.image}` 
                                                                 : `${BASE_URL}/images/${item.image}`)
-                                                    ) : '/images/sin imagen.jpeg'} 
+                                                    ) : 'https://placehold.co/100x100?text=No+imagen'} 
                                                     alt={item.name}
                                                     className="item-image"
                                                     onError={(e) => {
-                                                        e.target.src = '/images/sin imagen.jpeg';
+                                                        e.target.src = 'https://placehold.co/100x100?text=No+imagen';
                                                     }}
                                                 />
                                                 <div className="item-info">

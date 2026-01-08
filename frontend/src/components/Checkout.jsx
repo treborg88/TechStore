@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../config';
 import { getCurrentUser } from '../services/authService';
 import Invoice from './Invoice';
 import EmailVerification from './EmailVerification';
-import Footer from './Footer';
-import Header from './Header';
 import '../styles/ProductDetail.css';
 
-function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, user, onLogout, onOpenProfile, onOpenOrders, siteName, siteIcon, headerSettings }) {
+function Checkout({ cartItems, total, onSubmit, onClose, onClearCart }) {
     const [formData, setFormData] = useState({
 firstName: '',
 lastName: '',
@@ -178,22 +175,8 @@ e.preventDefault();
 };
 
 return (
-        <div className="checkout-modal product-detail-page">
-            <Header
-                siteName={siteName || 'TechStore'}
-                siteIcon={siteIcon || '🛍️'}
-                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
-                cartItems={cartItems}
-                user={user}
-                onCartOpen={() => {}}
-                onProfileOpen={onOpenProfile}
-                onOrdersOpen={onOpenOrders}
-                onLogout={onLogout}
-                onLogoClick={onClose}
-                isSticky={true}
-            />
-
-            <section className="hero-section" style={{ padding: '40px 0 30px' }}>
+        <div className="checkout-page product-detail-page">
+            <section className="hero-section">
                 <div className="container hero-container">
                     <div className="hero-content">
                         <button 
@@ -211,7 +194,7 @@ return (
                 </div>
             </section>
 
-            <div className="checkout-content" style={{ padding: '60px 20px 80px' }}>
+            <div className="checkout-content product-detail-container">
                 <div style={{ display: 'none' }}>
                     <button 
                         onClick={onClose} 
@@ -257,7 +240,7 @@ return (
                     <div className="form-card-container">
                         {step === 1 && (
                             !showVerification ? (
-                                <form className="step-form" onSubmit={(e) => {
+                                <form id="step1-form" className="step-form" onSubmit={(e) => {
                                     e.preventDefault();
                                     const user = getCurrentUser();
                                     if (user || isEmailVerified) {
@@ -311,9 +294,6 @@ return (
                                             disabled={isSubmitting}
                                         />
                                     </div>
-                                    <button type="submit" className="next-step-btn-large" style={{width: '100%', padding: '15px', background: 'var(--primary-color)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: '700', fontSize: '1rem', cursor: 'pointer'}}>
-                                        Siguiente: Dirección de Envío
-                                    </button>
                                 </form>
                             ) : (
                                 <div className="verification-step-wrapper">
@@ -339,7 +319,7 @@ return (
                         )}
 
                         {step === 2 && (
-                            <form className="step-form" onSubmit={(e) => {e.preventDefault(); setStep(3)}}>
+                            <form id="step2-form" className="step-form" onSubmit={(e) => {e.preventDefault(); setStep(3)}}>
                                 <h3 style={{marginBottom: '20px'}}>Detalles de Entrega</h3>
                                 <div className="form-group" style={{marginBottom: '15px'}}>
                                     <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Calle y Número</label>
@@ -403,10 +383,6 @@ return (
                                         disabled={isSubmitting}
                                     />
                                 </div>
-                                <div className="btn-group-row" style={{display: 'flex', gap: '15px'}}>
-                                    <button type="button" className="secondary-btn" onClick={() => setStep(1)} style={{flex: 1, padding: '15px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer'}}>Anterior</button>
-                                    <button type="submit" className="primary-btn" style={{flex: 2, padding: '15px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer'}}>Siguiente Step</button>
-                                </div>
                             </form>
                         )}
 
@@ -430,10 +406,6 @@ return (
                                         <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Dirección:</p>
                                         <p style={{fontWeight: '600'}}>{formData.address}, {formData.sector}, {formData.city}</p>
                                     </div>
-                                </div>
-                                <div className="btn-group-row" style={{display: 'flex', gap: '15px'}}>
-                                    <button type="button" className="secondary-btn" onClick={() => setStep(2)} style={{flex: 1, padding: '15px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer'}}>Atrás</button>
-                                    <button type="button" className="primary-btn" onClick={() => setStep(4)} style={{flex: 2, padding: '15px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer'}}>Continuar al Pago</button>
                                 </div>
                             </div>
                         )}
@@ -497,13 +469,6 @@ return (
                                         </div>
                                     </div>
                                 </div>
-
-                                <div className="btn-group-row" style={{display: 'flex', gap: '15px'}}>
-                                    <button type="button" className="secondary-btn" onClick={() => setStep(3)} disabled={isSubmitting} style={{flex: 1, padding: '15px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer'}}>Atrás</button>
-                                    <button type="button" onClick={handleSubmit} className="confirm-btn-final" disabled={isSubmitting} style={{flex: 2, padding: '15px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))', color: 'white', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '1.1rem'}}>
-                                        {isSubmitting ? 'Procesando...' : 'Confirmar Todo el Pedido'}
-                                    </button>
-                                </div>
                             </div>
                         )}
                     </div>
@@ -554,10 +519,47 @@ return (
                     </div>
                 </div>
             </div>
+
+            <div className="checkout-actions-container" style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
+                <div className="btn-group-row" style={{ display: 'flex', gap: '15px', width: 'auto' }}>
+                    {step === 1 && !showVerification && (
+                        <button 
+                            type="submit" 
+                            form="step1-form"
+                            className="primary-btn" 
+                            style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '1rem' }}
+                        >
+                            Siguiente Step
+                        </button>
+                    )}
+                    
+                    {step === 2 && (
+                        <>
+                            <button type="button" className="secondary-btn" onClick={() => setStep(1)} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Anterior</button>
+                            <button type="submit" form="step2-form" className="primary-btn" style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Siguiente Step</button>
+                        </>
+                    )}
+
+                    {step === 3 && (
+                        <>
+                            <button type="button" className="secondary-btn" onClick={() => setStep(2)} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Atrás</button>
+                            <button type="button" className="primary-btn" onClick={() => setStep(4)} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Continuar al Pago</button>
+                        </>
+                    )}
+
+                    {step === 4 && (
+                        <>
+                            <button type="button" className="secondary-btn" onClick={() => setStep(3)} disabled={isSubmitting} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Atrás</button>
+                            <button type="button" onClick={handleSubmit} className="confirm-btn-final" disabled={isSubmitting} style={{ padding: '10px 30px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))', color: 'white', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '1rem' }}>
+                                {isSubmitting ? 'Procesando...' : 'Confirmar Todo el Pedido'}
+                            </button>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
     )}
     </div>
-    <Footer />
 </div>
 );
 

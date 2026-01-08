@@ -502,7 +502,11 @@ const statements = {
       .from('order_items')
       .select(`
         *,
-        products (name, image)
+        products (
+          name, 
+          image,
+          product_images (image_path)
+        )
       `)
       .eq('order_id', order_id);
     
@@ -511,11 +515,20 @@ const statements = {
       return [];
     }
 
-    return data.map(item => ({
-      ...item,
-      name: item.products.name,
-      image: item.products.image
-    }));
+    return data.map(item => {
+      // Intentar obtener la imagen principal, o la primera de la galería como fallback
+      let itemImage = item.products?.image;
+      
+      if (!itemImage && item.products?.product_images && item.products.product_images.length > 0) {
+        itemImage = item.products.product_images[0].image_path;
+      }
+
+      return {
+        ...item,
+        name: item.products?.name || 'Producto eliminado',
+        image: itemImage || null
+      };
+    });
   },
 
   // Users Admin

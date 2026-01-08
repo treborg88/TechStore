@@ -48,6 +48,13 @@ body {
   margin: 0;
   padding: 0;
   font-size: 14px;
+  overflow-x: hidden;
+}
+
+html {
+  overflow-x: hidden;
+  width: 100%;
+}
 }
 
 img {
@@ -186,9 +193,9 @@ ul {
 
 .header-container {
   display: flex;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
-  gap: 8px;
+  gap: 15px;
 }
 
 .logo-container {
@@ -1082,10 +1089,43 @@ ul {
   align-items: start;
 }
 
+/* Contenedor de botones de checkout - al final en mobile */
+.checkout-actions-container {
+  order: 3;
+  width: 100%;
+}
+
+.checkout-form-column {
+  order: 1;
+}
+
+.checkout-summary-column {
+  order: 2;
+}
+
 @media (min-width: 992px) {
   .cart-layout {
     grid-template-columns: 1.2fr 1fr;
     gap: 50px;
+  }
+
+  /* En desktop, layout de 2 columnas: formulario+botones | resumen */
+  .checkout-form-column {
+    order: 0;
+    grid-column: 1;
+    grid-row: 1 / 3;
+  }
+
+  .checkout-summary-column {
+    order: 0;
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .checkout-actions-container {
+    order: 0;
+    grid-column: 1;
+    grid-row: 2;
   }
 }
 
@@ -3076,15 +3116,19 @@ ul {
 .print-invoice-btn {
   background: linear-gradient(135deg, var(--gray-600), var(--gray-700));
   color: white;
-  padding: 14px 32px;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
-  max-width: 300px;
+  max-width: 280px;
   border: none;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .print-invoice-btn:hover {
@@ -3097,16 +3141,20 @@ ul {
   background: linear-gradient(135deg, #10b981, #059669);
   color: white !important;
   text-decoration: none;
-  padding: 14px 32px;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  display: inline-block;
-  text-align: center;
   width: 100%;
-  max-width: 300px;
+  max-width: 280px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  box-sizing: border-box;
 }
 
 .download-invoice-btn:hover {
@@ -3118,14 +3166,18 @@ ul {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: var(--white);
   border: none;
-  padding: 14px 32px;
-  border-radius: 12px;
-  font-size: 1rem;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
   width: 100%;
-  max-width: 300px;
+  max-width: 280px;
+  height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .continue-shopping-btn:hover {
@@ -3989,14 +4041,14 @@ ul {
 @media (max-width: 767px) {
   .products-scroll-container {
     width: 100%;
-    overflow: visible;
+    overflow: hidden;
   }
 
   .products-grid {
     /* Ensure grid layout */
     display: grid;
     /* grid-template-columns is already set to repeat(2, 1fr) in main rule */
-    overflow-x: visible;
+    overflow-x: hidden;
     padding-bottom: 0;
     cursor: default;
   }

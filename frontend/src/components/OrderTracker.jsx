@@ -249,11 +249,11 @@ function OrderTracker() {
                                                             : (item.image.startsWith('/images/') 
                                                                 ? `${BASE_URL}${item.image}` 
                                                                 : `${BASE_URL}/images/${item.image}`)
-                                                    ) : '/images/sin imagen.jpeg'} 
+                                                    ) : 'https://placehold.co/100x100?text=No+imagen'} 
                                                     alt={item.name}
                                                     className="item-image"
                                                     onError={(e) => {
-                                                        e.target.src = '/images/sin imagen.jpeg';
+                                                        e.target.src = 'https://placehold.co/100x100?text=No+imagen';
                                                     }}
                                                 />
                                                 <div className="item-info">

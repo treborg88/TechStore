@@ -1,18 +1,14 @@
-import React, { useState } from "react";
-import { Link } from 'react-router-dom';
-import Checkout from "./Checkout";
-import Footer from "./Footer";
-import Header from "./Header";
+import React from "react";
+import { useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../config';
 import '../styles/ProductDetail.css';
 
-function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, user, onLogout, onOpenProfile, onOpenOrders, siteName, siteIcon, headerSettings }) {
-
-    const [showCheckout, setShowCheckout] = useState(false);
+function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout }) {
+    const navigate = useNavigate();
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const handleCheckout = () => {
-        setShowCheckout(true);
+        navigate('/checkout');
     };
 
     const handleCheckoutClose = () => {
@@ -41,21 +37,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, user, 
     };
 
     return (
-        <div className="cart-modal product-detail-page">
-            <Header
-                siteName={siteName || 'TechStore'}
-                siteIcon={siteIcon || '🛍️'}
-                headerSettings={headerSettings || { bgColor: '#2563eb', transparency: 100 }}
-                cartItems={cartItems}
-                user={user}
-                onCartOpen={() => {}}
-                onProfileOpen={onOpenProfile}
-                onOrdersOpen={onOpenOrders}
-                onLogout={onLogout}
-                onLogoClick={onClose}
-                isSticky={true}
-            />
-
+        <div className="cart-page product-detail-page">
             <section className="hero-section" style={{ padding: '40px 0 30px' }}>
                 <div className="container hero-container">
                     <div className="hero-content">
@@ -95,7 +77,10 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, user, 
                         <div className="empty-cart-icon">🛍️</div>
                         <h3>Tu carrito está vacío</h3>
                         <p>Aún no has añadido productos. ¡Explora nuestra tienda para encontrar las mejores ofertas!</p>
-                        <button className="continue-shopping-btn" onClick={onClose}>
+                        <button className="continue-shopping-btn" onClick={() => {
+                            onClose();
+                            navigate('/');
+                        }}>
                             Ir a la Tienda
                         </button>
                     </div>
@@ -200,24 +185,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, user, 
                         </div>
                     </div>
                 )}
-                
-                {showCheckout && (
-                    <Checkout
-                        cartItems={cartItems}
-                        total={total}
-                        onClose={handleCheckoutClose}
-                        onClearCart={onClearAll}
-                        user={user}
-                        onLogout={onLogout}
-                        onOpenProfile={onOpenProfile}
-                        onOpenOrders={onOpenOrders}
-                        siteName={siteName}
-                        siteIcon={siteIcon}
-                        headerSettings={headerSettings}
-                    />
-                )}
             </div>
-            <Footer />
         </div>
     );
 }
