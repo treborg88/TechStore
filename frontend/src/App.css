@@ -198,6 +198,42 @@ ul {
   gap: 15px;
 }
 
+.header-nav-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-desktop-spacer {
+  display: none;
+}
+
+@media (min-width: 768px) {
+  .header-container {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    justify-content: stretch;
+    gap: 0;
+  }
+
+  .logo-container {
+    justify-self: start;
+    grid-column: 1;
+  }
+
+  .header-nav-actions-group {
+    grid-column: 2;
+    justify-self: center;
+    gap: 40px;
+  }
+
+  .header-desktop-spacer {
+    display: block;
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
 .logo-container {
   display: flex;
   align-items: center;
@@ -224,8 +260,10 @@ ul {
 }
 
 .nav-link {
-  padding: 6px 8px;
+  padding: 6px 6px;
   transition: color 0.2s;
+  font-weight: 500;
+  white-space: nowrap;
 }
 
 .nav-link:hover {
@@ -301,10 +339,12 @@ ul {
 
 /* Hero Section */
 .hero-section {
-  background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   color: var(--white);
   padding: 60px 0;
-  transition: all 0.3s ease;
+  transition: background-image 0.8s ease-in-out, background-color 0.8s ease-in-out, padding 0.5s ease;
+  position: relative;
+  overflow: hidden;
 }
 
 .hero-section.has-bg {
@@ -312,20 +352,21 @@ ul {
   display: flex;
   align-items: center;
   padding: 120px 0;
+  /* Degradado de seguridad mientras la imagen carga */
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
 }
 
-.has-transparent-header .hero-section {
-  padding-top: 140px; /* Mas espacio si la barra es transparente */
-}
-
-.hero-section.has-bg .hero-title,
-.hero-section.has-bg .hero-text {
-  text-shadow: 0 2px 10px rgba(0,0,0,0.5);
+.hero-section.show-image {
+  /* Al activarse esta clase, la transición de background-image (inline) será suave */
 }
 
 .hero-container {
   display: flex;
   flex-direction: column;
+  gap: 30px;
+  position: relative;
+  z-index: 1;
+}
   gap: 30px;
 }
 
@@ -907,7 +948,8 @@ ul {
 @media (min-width: 768px) {
   .main-nav {
     display: flex;
-    gap: 0px;
+    gap: 15px;
+    align-items: center;
   }
 
   .user-name {
@@ -3107,7 +3149,7 @@ ul {
 .success-actions {
   display: flex;
   flex-direction: row;
-  gap: 15px;
+  gap: 12px;
   margin-top: 30px;
   justify-content: center;
   flex-wrap: wrap;
@@ -3116,19 +3158,22 @@ ul {
 .print-invoice-btn {
   background: linear-gradient(135deg, var(--gray-600), var(--gray-700));
   color: white;
-  padding: 12px 24px;
+  padding: 12px 20px;
   border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  width: 100%;
-  max-width: 280px;
+  width: auto;
+  min-width: 160px;
+  max-width: 260px;
+  flex: 1;
   border: none;
   height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
 }
 
 .print-invoice-btn:hover {
@@ -3141,20 +3186,23 @@ ul {
   background: linear-gradient(135deg, #10b981, #059669);
   color: white !important;
   text-decoration: none;
-  padding: 12px 24px;
+  padding: 12px 20px;
   border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  width: 100%;
-  max-width: 280px;
+  width: auto;
+  min-width: 160px;
+  max-width: 260px;
+  flex: 1;
   height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   box-sizing: border-box;
+  margin: 0;
 }
 
 .download-invoice-btn:hover {
@@ -3166,18 +3214,21 @@ ul {
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   color: var(--white);
   border: none;
-  padding: 12px 24px;
+  padding: 12px 20px;
   border-radius: 10px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  width: 100%;
-  max-width: 280px;
+  width: auto;
+  min-width: 160px;
+  max-width: 260px;
+  flex: 1;
   height: 46px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  margin: 0;
 }
 
 .continue-shopping-btn:hover {

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ProductImageGallery from '../components/ProductImageGallery';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -6,6 +6,7 @@ import Footer from '../components/Footer';
 
 function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings }) {
   const [selectedCategory, setSelectedCategory] = useState('todos');
+  const [imageLoaded, setImageLoaded] = useState(false);
   
   // Ref para el scroll de categorías
   const categoriesScrollRef = useRef(null);
@@ -19,6 +20,20 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const startXProducts = useRef(0);
   const scrollLeftProducts = useRef(0);
   const navigate = useNavigate();
+
+  // Efecto para pre-cargar la imagen del Hero
+  useEffect(() => {
+    if (heroSettings?.image) {
+      setImageLoaded(false);
+      const img = new Image();
+      img.src = heroSettings.image;
+      img.onload = () => {
+        setImageLoaded(true);
+      };
+    } else {
+      setImageLoaded(false);
+    }
+  }, [heroSettings?.image]);
 
   // Categorías
   const categories = [
@@ -102,8 +117,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     <>
       {/* Hero Section */}
       <section 
-        className={`hero-section ${heroSettings?.image ? 'has-bg' : ''}`}
-        style={heroSettings?.image ? { 
+        className={`hero-section ${heroSettings?.image && imageLoaded ? 'has-bg show-image' : 'has-bg'}`}
+        style={heroSettings?.image && imageLoaded ? { 
           backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${heroSettings.image})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',

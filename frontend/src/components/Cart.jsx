@@ -78,6 +78,7 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, naviga
                         <h3>Tu carrito está vacío</h3>
                         <p>Aún no has añadido productos. ¡Explora nuestra tienda para encontrar las mejores ofertas!</p>
                         <button className="continue-shopping-btn" onClick={() => {
+                            window.scrollTo(0, 0);
                             onClose();
                             navigate('/');
                         }}>

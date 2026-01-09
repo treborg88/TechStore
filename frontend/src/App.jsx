@@ -480,7 +480,7 @@ function App() {
               onAdd={addToCart}
               onRemove={removeFromCart}
               onClear={clearFromCart}
-              onClose={() => navigate(-1)}
+              onClose={() => navigate('/')}
               onClearAll={clearAllCart}
               user={user}
               onLogout={handleLogout}

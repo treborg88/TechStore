@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../config';
 import { getCurrentUser } from '../services/authService';
 import Invoice from './Invoice';
 import EmailVerification from './EmailVerification';
 import '../styles/ProductDetail.css';
+import '../styles/Checkout.css';
 
-function Checkout({ cartItems, total, onSubmit, onClose, onClearCart }) {
+function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, siteName, siteIcon }) {
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
 firstName: '',
 lastName: '',
@@ -194,43 +197,32 @@ return (
                 </div>
             </section>
 
-            <div className="checkout-content product-detail-container">
-                <div style={{ display: 'none' }}>
-                    <button 
-                        onClick={onClose} 
-                        className="back-btn-cart"
-                        style={{ 
-                            marginBottom: '15px'
-                        }}
-                    >
-                        ← Volver
-                    </button>
-                    <h1 style={{ fontSize: '2.5rem', fontWeight: '800', margin: '0 0 10px 0', color: 'var(--gray-800)' }}>Finalizar Pedido</h1>
-                </div>
+            <div className="checkout-content container">
     
             {orderCreated ? (
                 <Invoice 
                     order={orderCreated}
                     customerInfo={formData}
                     items={confirmedItems}
-                    onClose={onClose}
+                    onClose={() => {
+                        window.scrollTo(0, 0);
+                        navigate('/');
+                    }}
                     siteName={siteName}
                     siteIcon={siteIcon}
                 />
             ) : (
         <div className="checkout-flow-container">
-            <h2 style={{ display: 'none' }}>Finalizar Compra</h2>
-            
             {/* Indicador de pasos */}
             <div className="checkout-steps">
                 <div className={`step ${step >= 1 ? 'active' : ''}`}>1. Datos</div>
-                <div className={`step ${step >= 2 ? 'active' : ''}`}>2. Envio</div>
-                <div className={`step ${step >= 3 ? 'active' : ''}`}>3. Revision</div>
+                <div className={`step ${step >= 2 ? 'active' : ''}`}>2. Envió</div>
+                <div className={`step ${step >= 3 ? 'active' : ''}`}>3. Revisión</div>
                 <div className={`step ${step >= 4 ? 'active' : ''}`}>4. Pago</div>
             </div>
 
             {error && (
-                <div className="checkout-error-banner" style={{background: '#fee2e2', color: '#dc2626', padding: '15px', borderRadius: '12px', marginBottom: '25px', border: '1px solid #fecaca'}}>
+                <div className="checkout-error-banner">
                     ⚠️ {error}
                 </div>
             )}
@@ -249,10 +241,10 @@ return (
                                         setShowVerification(true);
                                     }
                                 }}>
-                                    <h3 style={{marginBottom: '20px'}}>Información Personal</h3>
-                                    <div className="form-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                    <h3>Información Personal</h3>
+                                    <div className="form-grid">
                                         <div className="form-group">
-                                            <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Nombre</label>
+                                            <label>Nombre</label>
                                             <input
                                                 type="text"
                                                 name="firstName"
@@ -264,7 +256,7 @@ return (
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Apellidos</label>
+                                            <label>Apellidos</label>
                                             <input
                                                 type="text"
                                                 name="lastName"
@@ -277,7 +269,7 @@ return (
                                         </div>
                                     </div>
                                     <div className="form-group" style={{marginBottom: '20px'}}>
-                                        <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Correo Electrónico</label>
+                                        <label>Correo Electrónico</label>
                                         <input
                                             type="email"
                                             name="email"
@@ -320,9 +312,9 @@ return (
 
                         {step === 2 && (
                             <form id="step2-form" className="step-form" onSubmit={(e) => {e.preventDefault(); setStep(3)}}>
-                                <h3 style={{marginBottom: '20px'}}>Detalles de Entrega</h3>
+                                <h3>Detalles de Entrega</h3>
                                 <div className="form-group" style={{marginBottom: '15px'}}>
-                                    <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Calle y Número</label>
+                                    <label>Calle y Número</label>
                                     <input
                                         type="text"
                                         name="address"
@@ -333,9 +325,9 @@ return (
                                         disabled={isSubmitting}
                                     />
                                 </div>
-                                <div className="form-grid" style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '15px'}}>
+                                <div className="form-grid">
                                     <div className="form-group">
-                                        <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Sector</label>
+                                        <label>Sector</label>
                                         <input
                                             type="text"
                                             name="sector"
@@ -347,7 +339,7 @@ return (
                                         />
                                     </div>
                                     <div className="form-group">
-                                        <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Ciudad</label>
+                                        <label>Ciudad</label>
                                         <input
                                             type="text"
                                             name="city"
@@ -360,7 +352,7 @@ return (
                                     </div>
                                 </div>
                                 <div className="form-group" style={{marginBottom: '15px'}}>
-                                    <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Teléfono de Contacto</label>
+                                    <label>Teléfono de Contacto</label>
                                     <input
                                         type="tel"
                                         name="phone"
@@ -372,7 +364,7 @@ return (
                                     />
                                 </div>
                                 <div className="form-group" style={{marginBottom: '20px'}}>
-                                    <label style={{fontSize: '0.85rem', fontWeight: '700', color: 'var(--gray-600)', marginBottom: '5px', display: 'block'}}>Notas adicionales (Opcional)</label>
+                                    <label>Notas adicionales (Opcional)</label>
                                     <textarea
                                         name="notes"
                                         placeholder="Referencias para el mensajero (color de casa, cerca de x lugar...)"
@@ -388,42 +380,47 @@ return (
 
                         {step === 3 && (
                             <div className="step-form">
-                                <h3 style={{marginBottom: '20px'}}>Revision de Pedido</h3>
-                                <div className="review-card" style={{background: 'var(--gray-50)', padding: '20px', borderRadius: '16px', border: '1px solid var(--gray-200)', marginBottom: '25px'}}>
-                                    <div className="review-item" style={{marginBottom: '10px'}}>
-                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Enviar a:</p>
-                                        <p style={{fontWeight: '600'}}>{formData.firstName} {formData.lastName}</p>
-                                    </div>
-                                    <div className="review-item" style={{marginBottom: '10px'}}>
-                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Correo Electrónico:</p>
-                                        <p style={{fontWeight: '600'}}>{formData.email}</p>
-                                    </div>
-                                    <div className="review-item" style={{marginBottom: '10px'}}>
-                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Teléfono de Contacto:</p>
-                                        <p style={{fontWeight: '600'}}>{formData.phone}</p>
+                                <h3>Revisión de Pedido</h3>
+                                <div className="review-card">
+                                    <div className="review-item">
+                                        <label>Enviar a:</label>
+                                        <p>{formData.firstName} {formData.lastName}</p>
                                     </div>
                                     <div className="review-item">
-                                        <p style={{fontSize: '0.85rem', color: 'var(--gray-500)', marginBottom: '2px'}}>Dirección:</p>
-                                        <p style={{fontWeight: '600'}}>{formData.address}, {formData.sector}, {formData.city}</p>
+                                        <label>Correo Electrónico:</label>
+                                        <p>{formData.email}</p>
                                     </div>
+                                    <div className="review-item">
+                                        <label>Teléfono de Contacto:</label>
+                                        <p>{formData.phone}</p>
+                                    </div>
+                                    <div className="review-item">
+                                        <label>Dirección:</label>
+                                        <p>{formData.address}, {formData.sector}, {formData.city}</p>
+                                    </div>
+                                    {formData.notes && (
+                                        <div className="review-item">
+                                            <label>Notas:</label>
+                                            <p>{formData.notes}</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
 
                         {step === 4 && (
                             <div className="step-form">
-                                <h3 style={{marginBottom: '20px'}}>Método de Pago</h3>
+                                <h3>Método de Pago</h3>
                                 
-                                <div className="payment-methods" style={{display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '25px'}}>
+                                <div className="payment-methods">
                                     <div 
                                         className={`payment-option ${formData.paymentMethod === 'cash' ? 'selected' : ''}`}
                                         onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
-                                        style={{display: 'flex', alignItems: 'center', padding: '16px', border: `2px solid ${formData.paymentMethod === 'cash' ? 'var(--primary-color)' : 'var(--gray-200)'}`, borderRadius: '12px', cursor: 'pointer', background: formData.paymentMethod === 'cash' ? 'var(--gray-50)' : 'white'}}
                                     >
-                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>💵</div>
-                                        <div className="payment-info" style={{flex: 1}}>
-                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Pago Contra Entrega</h4>
-                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>Paga en efectivo cuando recibas tu pedido</p>
+                                        <div className="payment-icon">💵</div>
+                                        <div className="payment-info">
+                                            <h4>Pago Contra Entrega</h4>
+                                            <p>Paga en efectivo cuando recibas tu pedido</p>
                                         </div>
                                         <div className="payment-check">
                                             {formData.paymentMethod === 'cash' && '✓'}
@@ -433,39 +430,32 @@ return (
                                     <div 
                                         className={`payment-option ${formData.paymentMethod === 'transfer' ? 'selected' : ''}`}
                                         onClick={() => setFormData({...formData, paymentMethod: 'transfer'})}
-                                        style={{display: 'flex', alignItems: 'center', padding: '16px', border: `2px solid ${formData.paymentMethod === 'transfer' ? 'var(--primary-color)' : 'var(--gray-200)'}`, borderRadius: '12px', cursor: 'pointer', background: formData.paymentMethod === 'transfer' ? 'var(--gray-50)' : 'white'}}
                                     >
-                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>🏦</div>
-                                        <div className="payment-info" style={{flex: 1}}>
-                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Transferencia Bancaria</h4>
-                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>Transferencia o depósito bancario</p>
+                                        <div className="payment-icon">🏦</div>
+                                        <div className="payment-info">
+                                            <h4>Transferencia Bancaria</h4>
+                                            <p>Transferencia o depósito bancario</p>
                                         </div>
                                         <div className="payment-check">
                                             {formData.paymentMethod === 'transfer' && '✓'}
                                         </div>
                                     </div>
 
-                                    <div 
-                                        className="payment-option disabled"
-                                        style={{ display: 'flex', alignItems: 'center', padding: '16px', border: '2px solid var(--gray-200)', borderRadius: '12px', opacity: 0.6, cursor: 'not-allowed', background: 'white' }}
-                                    >
-                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>💳</div>
-                                        <div className="payment-info" style={{flex: 1}}>
-                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Pago en Línea</h4>
-                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>PayPal, Stripe, MercadoPago</p>
-                                            <span style={{fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: '700'}}>Próximamente</span>
+                                    <div className="payment-option disabled">
+                                        <div className="payment-icon">💳</div>
+                                        <div className="payment-info">
+                                            <h4>Pago en Línea</h4>
+                                            <p>PayPal, Stripe, MercadoPago</p>
+                                            <span className="badge-soon">Próximamente</span>
                                         </div>
                                     </div>
 
-                                    <div 
-                                        className="payment-option disabled"
-                                        style={{ display: 'flex', alignItems: 'center', padding: '16px', border: '2px solid var(--gray-200)', borderRadius: '12px', opacity: 0.6, cursor: 'not-allowed', background: 'white' }}
-                                    >
-                                        <div className="payment-icon" style={{fontSize: '2rem', marginRight: '16px'}}>💳</div>
-                                        <div className="payment-info" style={{flex: 1}}>
-                                            <h4 style={{margin: 0, fontSize: '1.1rem'}}>Tarjeta de Crédito/Débito</h4>
-                                            <p style={{margin: 0, fontSize: '0.9rem', color: 'var(--gray-500)'}}>Visa, MasterCard, American Express</p>
-                                            <span style={{fontSize: '0.75rem', color: 'var(--accent-color)', fontWeight: '700'}}>Próximamente</span>
+                                    <div className="payment-option disabled">
+                                        <div className="payment-icon">💳</div>
+                                        <div className="payment-info">
+                                            <h4>Tarjeta de Crédito/Débito</h4>
+                                            <p>Visa, MasterCard, American Express</p>
+                                            <span className="badge-soon">Próximamente</span>
                                         </div>
                                     </div>
                                 </div>
@@ -474,88 +464,92 @@ return (
                     </div>
                 </div>
 
-                <div className="checkout-summary-column">
-                    <div className="summary-card">
-                        <h3>Tu Carrito</h3>
-                        <div className="mini-item-list" style={{maxHeight: '300px', overflowY: 'auto', marginBottom: '20px', paddingRight: '10px'}}>
-                            {cartItems.map(item => (
-                                <div key={item.id} className="mini-item" style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '15px'}}>
-                                    <div style={{display: 'flex', alignItems: 'center', gap: '12px'}}>
-                                        <img 
-                                            src={item.image ? (
-                                                item.image.startsWith('http') 
-                                                    ? item.image 
-                                                    : (item.image.startsWith('/images/') 
-                                                        ? `${BASE_URL}${item.image}` 
-                                                        : `${BASE_URL}/images/${item.image}`)
-                                            ) : '/images/sin imagen.jpeg'} 
-                                            alt={item.name}
-                                            style={{width: '45px', height: '45px', objectFit: 'cover', borderRadius: '8px', border: '1px solid var(--gray-100)'}}
-                                            onError={(e) => { e.target.src = '/images/sin imagen.jpeg'; }}
-                                        />
-                                        <div style={{display: 'flex', flexDirection: 'column'}}>
-                                            <span style={{fontSize: '0.9rem', fontWeight: '700', color: 'var(--gray-800)', lineHeight: '1.2'}}>{item.name}</span>
-                                            <span style={{fontSize: '0.8rem', color: 'var(--gray-500)'}}>{item.quantity} un. x ${item.price.toFixed(2)}</span>
+                        <div className="checkout-summary-column">
+                            <div className="summary-card">
+                                <h3>Tu Carrito</h3>
+                                <div className="mini-item-list">
+                                    {cartItems.map(item => (
+                                        <div key={item.id} className="mini-item">
+                                            <div className="mini-item-main">
+                                                <img 
+                                                    src={item.image ? (
+                                                        item.image.startsWith('http') 
+                                                            ? item.image 
+                                                            : (item.image.startsWith('/images/') 
+                                                                ? `${BASE_URL}${item.image}` 
+                                                                : `${BASE_URL}/images/${item.image}`)
+                                                    ) : '/images/sin imagen.jpeg'} 
+                                                    alt={item.name}
+                                                    className="mini-item-img"
+                                                    onError={(e) => { e.target.src = '/images/sin imagen.jpeg'; }}
+                                                />
+                                                <div className="mini-item-info">
+                                                    <span className="mini-item-name">{item.name}</span>
+                                                    <span className="mini-item-meta">{item.quantity} un. x ${item.price.toFixed(2)}</span>
+                                                </div>
+                                            </div>
+                                            <span className="mini-item-price">${(item.price * item.quantity).toFixed(2)}</span>
                                         </div>
-                                    </div>
-                                    <span style={{fontWeight: '800', color: 'var(--primary-color)'}}>${(item.price * item.quantity).toFixed(2)}</span>
+                                    ))}
                                 </div>
-                            ))}
+                                <div className="summary-divider"></div>
+                                <div className="summary-row">
+                                    <span>Subtotal</span>
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
+                                <div className="summary-row">
+                                    <span>Envío</span>
+                                    <span style={{color: 'var(--accent-color)', fontWeight: '700'}}>Gratis</span>
+                                </div>
+                                <div className="summary-divider"></div>
+                                <div className="summary-row total-row">
+                                    <span>Total</span>
+                                    <span>${total.toFixed(2)}</span>
+                                </div>
+                            </div>
                         </div>
-                        <div className="summary-divider" style={{height: '1px', background: 'var(--gray-200)', margin: '15px 0'}}></div>
-                        <div className="summary-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
-                            <span>Subtotal</span>
-                            <span>${total.toFixed(2)}</span>
-                        </div>
-                        <div className="summary-row" style={{display: 'flex', justifyContent: 'space-between', marginBottom: '10px'}}>
-                            <span>Envío</span>
-                            <span style={{color: 'var(--accent-color)', fontWeight: '700'}}>Gratis</span>
-                        </div>
-                        <div className="summary-divider" style={{height: '1px', background: 'var(--gray-200)', margin: '15px 0'}}></div>
-                        <div className="summary-row total-row" style={{display: 'flex', justifyContent: 'space-between', fontSize: '1.4rem', fontWeight: '800', color: 'var(--primary-color)'}}>
-                            <span>Total</span>
-                            <span>${total.toFixed(2)}</span>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <div className="checkout-actions-container" style={{ marginTop: '30px', display: 'flex', justifyContent: 'center' }}>
-                <div className="btn-group-row" style={{ display: 'flex', gap: '15px', width: 'auto' }}>
-                    {step === 1 && !showVerification && (
-                        <button 
-                            type="submit" 
-                            form="step1-form"
-                            className="primary-btn" 
-                            style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer', fontSize: '1rem' }}
-                        >
-                            Siguiente Step
-                        </button>
-                    )}
-                    
-                    {step === 2 && (
-                        <>
-                            <button type="button" className="secondary-btn" onClick={() => setStep(1)} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Anterior</button>
-                            <button type="submit" form="step2-form" className="primary-btn" style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Siguiente Step</button>
-                        </>
-                    )}
+            <div className="checkout-actions-container">
+                {step > 1 && (
+                    <button 
+                        type="button" 
+                        className="btn-back" 
+                        onClick={() => setStep(step - 1)}
+                        disabled={isSubmitting}
+                    >
+                        <span className="btn-icon">←</span> Atrás
+                    </button>
+                )}
+                
+                {step === 1 && !showVerification && (
+                    <button type="submit" form="step1-form" className="btn-next">
+                        Siguiente <span className="btn-icon">→</span>
+                    </button>
+                )}
+                
+                {step === 2 && (
+                    <button type="submit" form="step2-form" className="btn-next">
+                        Siguiente <span className="btn-icon">→</span>
+                    </button>
+                )}
 
-                    {step === 3 && (
-                        <>
-                            <button type="button" className="secondary-btn" onClick={() => setStep(2)} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Atrás</button>
-                            <button type="button" className="primary-btn" onClick={() => setStep(4)} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--primary-color)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}>Continuar al Pago</button>
-                        </>
-                    )}
+                {step === 3 && (
+                    <button type="button" className="btn-next" onClick={() => setStep(4)}>
+                        Siguiente <span className="btn-icon">→</span>
+                    </button>
+                )}
 
-                    {step === 4 && (
-                        <>
-                            <button type="button" className="secondary-btn" onClick={() => setStep(3)} disabled={isSubmitting} style={{ padding: '10px 25px', borderRadius: '12px', background: 'var(--gray-100)', color: 'var(--gray-700)', border: 'none', fontWeight: '600', cursor: 'pointer' }}>Atrás</button>
-                            <button type="button" onClick={handleSubmit} className="confirm-btn-final" disabled={isSubmitting} style={{ padding: '10px 30px', borderRadius: '12px', background: 'linear-gradient(135deg, var(--accent-color), var(--primary-color))', color: 'white', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '1rem' }}>
-                                {isSubmitting ? 'Procesando...' : 'Confirmar Todo el Pedido'}
-                            </button>
-                        </>
-                    )}
-                </div>
+                {step === 4 && (
+                    <button 
+                        type="button" 
+                        className="btn-confirm" 
+                        onClick={handleSubmit} 
+                        disabled={isSubmitting}
+                    >
+                        {isSubmitting ? 'Procesando...' : 'Confirmar Todo el Pedido'} <span className="btn-icon">✓</span>
+                    </button>
+                )}
             </div>
         </div>
     )}

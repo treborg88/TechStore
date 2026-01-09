@@ -65,64 +65,56 @@ export default function Header({
           <h1 className="site-title">{siteName}</h1>
         </Link>
         
-        <nav className="main-nav">
-          <Link to="/" className="nav-link" onClick={handleLogoClick}>Productos</Link>
-          <Link to="/" className="nav-link" onClick={handleLogoClick}>Contacto</Link>
-          <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); }}>Ordenes</a>
-          {user && user.role === 'admin' && (
-            <>
-              <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
-              <Link to="/settings" className="nav-link">Ajustes</Link>
-            </>
-          )}
-        </nav>
+        <div className="header-nav-actions-group">
+          <nav className="main-nav">
+            <Link to="/" className="nav-link" onClick={handleLogoClick}>Productos</Link>
+            <Link to="/" className="nav-link" onClick={handleLogoClick}>Contacto</Link>
+            <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); }}>Ordenes</a>
+            {user && user.role === 'admin' && (
+              <>
+                <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
+                <Link to="/settings" className="nav-link">Ajustes</Link>
+              </>
+            )}
+          </nav>
+
+          <div className="header-actions">
+            <div className="cart-container">
+              <button className="cart-button" onClick={() => onCartOpen && onCartOpen()}>
+                🛒
+                <span 
+                  className="cart-badge"
+                  style={{ 
+                    color: cartItemCount > 0 ? 'red' : 'white',
+                    backgroundColor: 'transparent',
+                    fontSize: '1.3rem'
+                  }}
+                >
+                  {cartItemCount}
+                </span>
+              </button>
+            </div>
+
+            {user ? (
+              <>
+                <button 
+                  className="user-name-btn" 
+                  onClick={() => onProfileOpen && onProfileOpen()}
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
+                >
+                  Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
+                </button>
+                <button className="login-button" onClick={onLogout}>Cerrar</button>
+              </>
+            ) : (
+              <button className="login-button" onClick={() => navigate('/login')}>Iniciar Sesión</button>
+            )}
+          </div>
+        </div>
+
+        <div className="header-desktop-spacer"></div>
 
         <div className={`mobile-nav-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu}></div>
-        <nav className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}>
-          <button className="close-mobile-nav" onClick={closeMobileMenu}>×</button>
-          <Link to="/" className="mobile-nav-link" onClick={(e) => { closeMobileMenu(); handleLogoClick(e); }}>Productos</Link>
-          <Link to="/" className="mobile-nav-link" onClick={(e) => { closeMobileMenu(); handleLogoClick(e); }}>Contacto</Link>
-          <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); closeMobileMenu(); }}>Ordenes</a>
-          {user && user.role === 'admin' && (
-            <>
-              <a href="#" className="mobile-nav-link" onClick={handleAdminNav}>Administrar</a>
-              <Link to="/settings" className="mobile-nav-link" onClick={closeMobileMenu}>Ajustes</Link>
-            </>
-          )}
-        </nav>
-
-        <div className="header-actions">
-          <div className="cart-container">
-            <button className="cart-button" onClick={() => onCartOpen && onCartOpen()}>
-              🛒
-              <span 
-                className="cart-badge"
-                style={{ 
-                  color: cartItemCount > 0 ? 'red' : 'white',
-                  backgroundColor: 'transparent',
-                  fontSize: '1.3rem'
-                }}
-              >
-                {cartItemCount}
-              </span>
-            </button>
-          </div>
-
-          {user ? (
-            <>
-              <button 
-                className="user-name-btn" 
-                onClick={() => onProfileOpen && onProfileOpen()}
-                style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
-              >
-                Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
-              </button>
-              <button className="login-button" onClick={onLogout}>Cerrar</button>
-            </>
-          ) : (
-            <button className="login-button" onClick={() => navigate('/login')}>Iniciar Sesión</button>
-          )}
-        </div>
       </div>
     </header>
   );
