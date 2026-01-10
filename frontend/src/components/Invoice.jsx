@@ -322,7 +322,7 @@ const InvoicePDF = ({ invoiceData }) => (
       {/* Economic Summary */}
       <View style={{marginTop: 15, alignItems: 'flex-end'}}>
         <Text style={{fontSize: 9, fontFamily: 'Helvetica-Bold', marginBottom: 8}}>
-          Resumen Económico
+          {"\n\n"}
         </Text>
         <View style={{width: '40%'}}>
           <View style={styles.summaryRow}>
@@ -545,7 +545,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
 
                 <div className="invoice-totals">
                     <div className="totals-box">
-                        <h4>Resumen Económico</h4>
+                        <br /><br />
                         <div className="total-row">
                             <span>Subtotal:</span>
                             <span>RD$ {order.total.toFixed(2)}</span>
