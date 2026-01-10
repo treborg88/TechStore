@@ -114,6 +114,27 @@ export default function Header({
 
         <div className="header-desktop-spacer"></div>
 
+        <nav className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}>
+          <button className="close-mobile-nav" onClick={closeMobileMenu}>✕</button>
+          
+          <Link to="/" className="mobile-nav-link" onClick={(e) => { handleLogoClick(e); closeMobileMenu(); }}>Productos</Link>
+          <Link to="/" className="mobile-nav-link" onClick={(e) => { handleLogoClick(e); closeMobileMenu(); }}>Contacto</Link>
+          <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); closeMobileMenu(); }}>Ordenes</a>
+          
+          {user && user.role === 'admin' && (
+            <>
+              <a href="#" className="mobile-nav-link" onClick={handleAdminNav}>Administrar</a>
+              <Link to="/settings" className="mobile-nav-link" onClick={closeMobileMenu}>Ajustes</Link>
+            </>
+          )}
+
+          {!user && (
+            <button className="mobile-nav-link" onClick={() => { navigate('/login'); closeMobileMenu(); }} style={{ background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer' }}>
+              Iniciar Sesión
+            </button>
+          )}
+        </nav>
+
         <div className={`mobile-nav-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu}></div>
       </div>
     </header>
