@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, Fragment } from 'react';
 import { API_URL, BASE_URL } from '../config';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
@@ -23,6 +23,24 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [filters, setFilters] = useState({ search: '', category: 'all' });
 	const [showAddForm, setShowAddForm] = useState(false);
+
+	const handleAutoResize = (event) => {
+		const target = event.currentTarget;
+		if (!(target instanceof HTMLTextAreaElement)) return;
+		target.style.height = 'auto';
+		target.style.height = `${target.scrollHeight}px`;
+	};
+
+	useEffect(() => {
+		requestAnimationFrame(() => {
+			document.querySelectorAll('.auto-resize').forEach((el) => {
+				if (el instanceof HTMLTextAreaElement) {
+					el.style.height = 'auto';
+					el.style.height = `${el.scrollHeight}px`;
+				}
+			});
+		});
+	}, [editingProduct, showAddForm]);
 
 	const confirmAction = (message) => {
 		return new Promise((resolve) => {
@@ -303,6 +321,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		setNewImagesForEdit([]);
 	};
 
+
 	return (
 		<>
 			<section className="admin-section">
@@ -373,8 +392,10 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 						<label>Descripción
 							<textarea
 								rows="3"
+								className="auto-resize"
 								value={newProduct.description}
 								onChange={(event) => handleFieldChange('description', event.target.value)}
+								onInput={handleAutoResize}
 							/>
 						</label>
 						<label>Imágenes
@@ -427,8 +448,9 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 				) : filteredProducts.length === 0 ? (
 					<div className="admin-empty">No hay productos que coincidan con el filtro actual.</div>
 				) : (
-					<div className="admin-table-container">
-						<table className="admin-table">
+					<div className="admin-list-wrapper">
+						<div className="admin-table-container desktop-only">
+							<table className="admin-table">
 							<thead>
 								<tr>
 									<th>Imagen</th>
@@ -443,9 +465,12 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 							<tbody>
 								{filteredProducts.map((product) => {
 									const isEditing = editingProduct?.id === product.id;
+									const handleRowClick = () => {
+										if (!isEditing) startEditing(product);
+									};
 									return (
-										<div key={product.id} style={{ display: 'contents' }}>
-											<tr className={isEditing ? 'editing-row' : ''}>
+										<Fragment key={product.id}>
+											<tr className={`${isEditing ? 'editing-row' : ''} admin-table-row-clickable`} onClick={handleRowClick}>
 												<td className="admin-table-image" data-label="Imagen">
 													{(product.images || []).length > 0 ? (
 														<div className="image-gallery">
@@ -493,20 +518,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 													</span>
 												</td>
 												<td className="admin-table-actions" data-label="Acciones">
-													<button
-														type="button"
-														className="admin-btn ghost"
-														onClick={() => startEditing(product)}
-													>
-														Editar
-													</button>
-													<button
-														type="button"
-														className="admin-btn danger"
-														onClick={() => handleDelete(product.id)}
-													>
-														Eliminar
-													</button>
+													<span className="admin-chip">Tap para editar</span>
 												</td>
 											</tr>
 											{isEditing && (
@@ -534,14 +546,6 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																		/>
 																	</label>
 																</div>
-																<label>
-																	Descripción
-																	<textarea
-																		rows="3"
-																		value={editingProduct.description}
-																		onChange={(event) => handleEditField('description', event.target.value)}
-																	/>
-																</label>
 																<div className="form-row">
 																	<label>
 																		Precio
@@ -551,6 +555,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																			className="compact-input"
 																			value={editingProduct.price}
 																			onChange={(event) => handleEditField('price', event.target.value)}
+																			max={99999}
+																			inputMode="decimal"
 																			required
 																		/>
 																	</label>
@@ -561,6 +567,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																			className="compact-input"
 																			value={editingProduct.stock}
 																			onChange={(event) => handleEditField('stock', event.target.value)}
+																			max={99999}
+																			inputMode="numeric"
 																			required
 																		/>
 																	</label>
@@ -606,24 +614,211 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																		</button>
 																	)}
 																</div>
+																<label>
+																	Descripción
+																	<textarea
+																		rows="3"
+																		className="auto-resize"
+																		value={editingProduct.description}
+																		onChange={(event) => handleEditField('description', event.target.value)}
+																		onInput={handleAutoResize}
+																	/>
+																</label>
 																<div className="admin-card-actions">
-																	<button type="button" onClick={cancelEditing} className="admin-btn ghost">
-																		Cancelar
+																	<button
+																		type="button"
+																		className="admin-btn danger"
+																		onClick={(event) => {
+																			event.stopPropagation();
+																			handleDelete(editingProduct.id);
+																		}}
+																	>
+																		Eliminar
 																	</button>
-																	<button type="submit" className="admin-btn" disabled={isSubmitting}>
-																		{isSubmitting ? 'Guardando...' : 'Guardar'}
-																	</button>
+																	<div className="admin-actions-right">
+																		<button type="button" onClick={cancelEditing} className="admin-btn ghost">
+																			Cancelar
+																		</button>
+																		<button type="submit" className="admin-btn" disabled={isSubmitting}>
+																			{isSubmitting ? 'Guardando...' : 'Guardar'}
+																		</button>
+																	</div>
 																</div>
 															</div>
 														</form>
 													</td>
 												</tr>
 											)}
-										</div>
+										</Fragment>
 									);
 								})}
 							</tbody>
 						</table>
+						</div>
+
+						{/* Mobile list view */}
+						<div className="mobile-only">
+							{filteredProducts.map((product) => {
+								const isEditing = editingProduct?.id === product.id;
+								const isExpanded = isEditing;
+							const mainImage = (() => {
+								const firstImage = (product.images || [])[0];
+								if (firstImage?.image_path) {
+									if (firstImage.image_path.startsWith('http')) return firstImage.image_path;
+									if (firstImage.image_path.startsWith('/images/')) return `${BASE_URL}${firstImage.image_path}`;
+									return `${BASE_URL}/images/${firstImage.image_path}`;
+								}
+								if (product.image) {
+									if (product.image.startsWith('http')) return product.image;
+									if (product.image.startsWith('/images/')) return `${BASE_URL}${product.image}`;
+									return `${BASE_URL}/images/${product.image}`;
+								}
+								return '/images/sin imagen.jpeg';
+							})();
+
+								return (
+									<div
+										key={product.id}
+										className={`mobile-product-card ${isExpanded ? 'expanded' : ''}`}
+										onClick={() => startEditing(product)}
+										role="button"
+										tabIndex={0}
+									>
+										<div className="mobile-product-header">
+											<div className="mobile-product-main">
+												<img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.src = '/images/sin imagen.jpeg'; }} />
+												<div className="mobile-product-title">{product.name}</div>
+											</div>
+										</div>
+
+									{isEditing && (
+										<form className="admin-edit-form mobile-edit-form" onSubmit={handleUpdate}>
+											<div className="edit-form-content">
+												<div className="form-row">
+													<label>
+														Nombre
+														<input
+															type="text"
+															value={editingProduct.name}
+															onChange={(event) => handleEditField('name', event.target.value)}
+															required
+														/>
+													</label>
+													<label>
+														Categoría
+														<input
+															type="text"
+															value={editingProduct.category}
+															onChange={(event) => handleEditField('category', event.target.value)}
+															required
+														/>
+													</label>
+												</div>
+												<div className="form-row">
+													<label>
+														Precio
+														<input
+															type="number"
+															step="0.01"
+															className="compact-input"
+															value={editingProduct.price}
+															onChange={(event) => handleEditField('price', event.target.value)}
+															max={99999}
+															inputMode="decimal"
+															required
+														/>
+													</label>
+													<label>
+														Stock
+														<input
+															type="number"
+															className="compact-input"
+															value={editingProduct.stock}
+															onChange={(event) => handleEditField('stock', event.target.value)}
+															max={99999}
+															inputMode="numeric"
+															required
+														/>
+													</label>
+												</div>
+												<div className="images-section">
+													<label>Imágenes actuales</label>
+													<div className="current-images">
+														{(editingProduct.images || []).map((img) => (
+															<div key={img.id} className="image-item">
+																<img
+																	src={img.image_path.startsWith('http') ? img.image_path : `${BASE_URL}${img.image_path}`}
+																	alt="Producto"
+																	onError={(event) => {
+																		event.currentTarget.src = '/images/sin imagen.jpeg';
+																	}}
+																/>
+																{img.id !== 'legacy' && (
+																	<button
+																		type="button"
+																		className="delete-image-btn"
+																		onClick={() => handleDeleteImage(img.id)}
+																	>
+																		✕
+																	</button>
+																)}
+															</div>
+														))}
+													</div>
+													<label>Agregar nuevas imágenes</label>
+													<input
+														type="file"
+														accept="image/*"
+														multiple
+														onChange={(event) => setNewImagesForEdit(Array.from(event.target.files))}
+													/>
+													{newImagesForEdit.length > 0 && (
+														<button
+															type="button"
+															className="admin-btn"
+															onClick={handleAddImages}
+														>
+															Agregar {newImagesForEdit.length} imagen(es)
+														</button>
+													)}
+												</div>
+												<label>
+													Descripción
+													<textarea
+														rows="3"
+														className="auto-resize"
+														value={editingProduct.description}
+														onChange={(event) => handleEditField('description', event.target.value)}
+														onInput={handleAutoResize}
+													/>
+												</label>
+												<div className="admin-card-actions">
+													<button
+														type="button"
+														className="admin-btn danger"
+														onClick={(event) => {
+															event.stopPropagation();
+															handleDelete(editingProduct.id);
+														}}
+													>
+														Eliminar
+													</button>
+													<div className="admin-actions-right">
+														<button type="button" onClick={cancelEditing} className="admin-btn ghost">
+															Cancelar
+														</button>
+														<button type="submit" className="admin-btn" disabled={isSubmitting}>
+															{isSubmitting ? 'Guardando...' : 'Guardar'}
+														</button>
+													</div>
+												</div>
+											</div>
+										</form>
+									)}
+								</div>
+							);
+							})}
+						</div>
 					</div>
 				)}
 

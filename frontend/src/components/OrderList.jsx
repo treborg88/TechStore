@@ -551,6 +551,82 @@ export default function OrderList({
 	);
 	};
 
+	const renderOrderCards = (ordersToList) => (
+		<div className="mobile-order-list">
+			{ordersToList.map((order) => (
+				<div
+					key={order.id}
+					className="mobile-order-card"
+					onClick={() => viewOrderDetails(order.id)}
+					role="button"
+					tabIndex={0}
+					onKeyDown={(event) => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							event.preventDefault();
+							viewOrderDetails(order.id);
+						}
+					}}
+				>
+					<div className="mobile-order-header">
+						<div className="mobile-order-id">{order.order_number || `#${order.id}`}</div>
+						<span className={`admin-chip status-${order.status}`}>
+							{order.status === 'pending_payment' && '⏳ Pendiente de Pago'}
+							{order.status === 'paid' && '💰 Pagado'}
+							{order.status === 'to_ship' && '📦 Para Enviar'}
+							{order.status === 'shipped' && '🚚 Enviado'}
+							{order.status === 'delivered' && '✅ Entregado'}
+							{order.status === 'return' && '↩️ Devolución'}
+							{order.status === 'refund' && '💸 Reembolso'}
+							{order.status === 'cancelled' && '❌ Cancelado'}
+							{order.status === 'pending' && '⏳ Pendiente'}
+							{order.status === 'processing' && '⚙️ Procesando'}
+						</span>
+					</div>
+
+					<div className="mobile-order-row">
+						<span className="mobile-order-label">Cliente</span>
+						<span className="mobile-order-value">{order.customer_name}</span>
+					</div>
+
+					<div className="mobile-order-row">
+						<span className="mobile-order-label">Fecha</span>
+						<span className="mobile-order-value">{new Date(order.created_at).toLocaleDateString()}</span>
+					</div>
+
+					<div className="mobile-order-row">
+						<span className="mobile-order-label">Total</span>
+						<span className="mobile-order-value">${order.total.toFixed(2)}</span>
+					</div>
+
+					<div className="mobile-order-row">
+						<span className="mobile-order-label">Pago</span>
+						<span className="mobile-order-value">
+							<span className={`admin-chip payment-${order.payment_method || 'cash'}`}>
+								{(order.payment_method === 'cash' || !order.payment_method) && '💵 Efectivo'}
+								{order.payment_method === 'transfer' && '🏦 Transferencia'}
+								{order.payment_method === 'online' && '💳 Online'}
+								{order.payment_method === 'card' && '💳 Tarjeta'}
+							</span>
+						</span>
+					</div>
+
+					<div className="mobile-order-hint">Toca para ver y actualizar</div>
+				</div>
+			))}
+		</div>
+	);
+
+	const renderResponsiveOrders = (ordersToList) => (
+		<>
+			<div className="orders-desktop">
+				{renderOrderTable(ordersToList)}
+			</div>
+			<div className="orders-mobile">
+				{renderOrderCards(ordersToList)}
+			</div>
+		</>
+	);
+
 	return (
 		<section className="admin-section">
 			<div className="admin-section-header">
@@ -630,17 +706,17 @@ export default function OrderList({
 							<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
 								Pago en línea ({filteredOrders.filter(o => o.payment_method !== 'cash').length})
 							</summary>
-							{renderOrderTable(filteredOrders.filter(o => o.payment_method !== 'cash'))}
+							{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method !== 'cash'))}
 						</details>
 						<details open className="order-group" style={{marginTop: '20px'}}>
 							<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
 								Contra entrega ({filteredOrders.filter(o => o.payment_method === 'cash').length})
 							</summary>
-							{renderOrderTable(filteredOrders.filter(o => o.payment_method === 'cash'))}
+							{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method === 'cash'))}
 						</details>
 					</div>
 				) : (
-					renderOrderTable(filteredOrders)
+					renderResponsiveOrders(filteredOrders)
 				)
 			)}
 
