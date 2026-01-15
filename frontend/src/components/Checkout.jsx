@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { getCurrentUser } from '../services/authService';
 import Invoice from './Invoice';
 import EmailVerification from './EmailVerification';
+import LoginPage from './LoginPage';
 import '../styles/ProductDetail.css';
 import '../styles/Checkout.css';
 
-function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, siteName, siteIcon }) {
+function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess }) {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
 firstName: '',
@@ -28,49 +30,120 @@ const [step, setStep] = useState(1);
     const [confirmedItems, setConfirmedItems] = useState([]);
     const [isEmailVerified, setIsEmailVerified] = useState(false);
     const [showVerification, setShowVerification] = useState(false);
+    const [emailExists, setEmailExists] = useState(false);
+    const [showLogin, setShowLogin] = useState(false);
+    const [friendlyLoginMessage, setFriendlyLoginMessage] = useState('');
 
-    useEffect(() => {
-    const user = getCurrentUser();
-    if (user) {
-        const nameParts = user.name ? user.name.split(' ') : [''];
+    const getSavedAddressDefaults = () => {
+        const savedAddr = localStorage.getItem('user_default_address');
+        if (!savedAddr) return { address: '', sector: '', city: '' };
+        try {
+            const parsed = JSON.parse(savedAddr);
+            return {
+                address: parsed.street || '',
+                sector: parsed.sector || '',
+                city: parsed.city || ''
+            };
+        } catch (e) {
+            console.error('Error parsing saved address', e);
+            return { address: '', sector: '', city: '' };
+        }
+    };
+
+    const getUserDefaults = (userData) => {
+        if (!userData) return { firstName: '', lastName: '', email: '', phone: '', address: '', sector: '', city: '' };
+        const nameParts = userData.name ? userData.name.trim().split(' ').filter(Boolean) : [];
         const firstName = nameParts[0] || '';
         const lastName = nameParts.slice(1).join(' ') || '';
-        
-        // Try to load saved address
-        const savedAddr = localStorage.getItem('user_default_address');
-        let addressData = {};
-        if (savedAddr) {
+        const addressFromProfile = userData.street || userData.address || '';
+        const savedAddress = getSavedAddressDefaults();
+        return {
+            firstName,
+            lastName,
+            email: userData.email || '',
+            phone: userData.phone || '',
+            address: addressFromProfile || savedAddress.address,
+            sector: userData.sector || savedAddress.sector || '',
+            city: userData.city || savedAddress.city || ''
+        };
+    };
+
+    const applyDefaultsToForm = (defaults) => {
+        setFormData((prev) => ({
+            ...prev,
+            firstName: prev.firstName || defaults.firstName,
+            lastName: prev.lastName || defaults.lastName,
+            email: prev.email || defaults.email,
+            phone: prev.phone || defaults.phone,
+            address: prev.address || defaults.address,
+            sector: prev.sector || defaults.sector,
+            city: prev.city || defaults.city
+        }));
+    };
+
+    // Cargar y guardar progreso del checkout
+    useEffect(() => {
+        const user = getCurrentUser();
+        const savedProgress = localStorage.getItem('checkout_progress');
+        let hasSavedProgress = false;
+
+        if (savedProgress) {
             try {
-                const parsed = JSON.parse(savedAddr);
-                addressData = {
-                    address: parsed.street || '',
-                    sector: parsed.sector || '',
-                    city: parsed.city || ''
-                };
+                const parsed = JSON.parse(savedProgress);
+                // Si hay progreso guardado, lo restauramos
+                // Si el usuario está logueado, solo restauramos si el email coincide o si estaba vacío
+                if (!user || !parsed.formData.email || user.email === parsed.formData.email) {
+                    setFormData(parsed.formData);
+                    setStep(parsed.step || 1);
+                    setIsEmailVerified(parsed.isEmailVerified || false);
+                    setShowVerification(parsed.showVerification || false);
+                    hasSavedProgress = true;
+                }
             } catch (e) {
-                console.error('Error parsing saved address', e);
+                console.error('Error al cargar progreso de checkout:', e);
             }
         }
 
-        setFormData(prev => ({
-            ...prev,
-            firstName: firstName,
-            lastName: lastName,
-            email: user.email || '',
-            phone: user.phone || '',
-            ...addressData
-        }));
-        setIsEmailVerified(true);
-    }
-}, []);
+        if (user) {
+            const defaults = getUserDefaults(user);
+            applyDefaultsToForm(defaults);
+            setIsEmailVerified(true);
+            setShowVerification(false);
+            setShowLogin(false);
+            setEmailExists(false);
+            setFriendlyLoginMessage('');
+            if (!hasSavedProgress) {
+                setStep(1);
+            }
+        }
+    }, []);
 
-const handleInputChange = (e) => {
-setFormData({
-    ...formData,
-    [e.target.name]: e.target.value
-});
-setError(''); // Limpiar errores al escribir
-};
+    // Guardar progreso cada vez que cambie algo relevante
+    useEffect(() => {
+        if (!orderCreated) {
+            localStorage.setItem('checkout_progress', JSON.stringify({
+                formData,
+                step,
+                isEmailVerified,
+                showVerification
+            }));
+        }
+    }, [formData, step, isEmailVerified, showVerification, orderCreated]);
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({
+            ...formData,
+            [name]: value
+        });
+        if (name === 'email') {
+            setIsEmailVerified(false);
+            setShowLogin(false);
+            setEmailExists(false);
+            setFriendlyLoginMessage('');
+        }
+        setError(''); // Limpiar errores al escribir
+    };
 
 const handleSubmit = async (e) => {
 e.preventDefault();
@@ -93,8 +166,7 @@ e.preventDefault();
             return;
         }
 
-        const token = localStorage.getItem('authToken');
-        const isAuthenticated = !!token;
+        const isAuthenticated = !!getCurrentUser();
 
         // Preparar items para el backend
         const orderItems = cartItems.map(item => ({
@@ -106,11 +178,10 @@ e.preventDefault();
 
         if (isAuthenticated) {
             // Usuario autenticado - enviar datos estructurados
-            response = await fetch(`${API_URL}/orders`, {
+            response = await apiFetch(apiUrl('/orders'), {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
                     items: orderItems,
@@ -126,7 +197,7 @@ e.preventDefault();
             });
         } else {
             // Usuario invitado - enviar datos estructurados
-            response = await fetch(`${API_URL}/orders/guest`, {
+            response = await apiFetch(apiUrl('/orders/guest'), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -158,6 +229,11 @@ e.preventDefault();
 
     // Mostrar confirmación
     setOrderCreated(order);
+    localStorage.removeItem('checkout_progress');
+
+    if (onOrderComplete) {
+        onOrderComplete(cartItems);
+    }
     
     // Vaciar carrito después de confirmar pedido
     if (onClearCart) {
@@ -175,6 +251,24 @@ e.preventDefault();
 } finally {
     setIsSubmitting(false);
 }
+};
+
+const checkEmailExists = async (email) => {
+    try {
+        const response = await fetch(`${API_URL}/auth/check-email?email=${encodeURIComponent(email)}`);
+        if (!response.ok) return false;
+        const data = await response.json();
+        return !!data.exists;
+    } catch (err) {
+        console.error('Error checking email:', err);
+        return false;
+    }
+};
+
+const applyUserToForm = (userData) => {
+    if (!userData) return;
+    const defaults = getUserDefaults(userData);
+    applyDefaultsToForm(defaults);
 };
 
 return (
@@ -231,15 +325,94 @@ return (
                 <div className="checkout-form-column">
                     <div className="form-card-container">
                         {step === 1 && (
-                            !showVerification ? (
+                            showLogin ? (
+                                <div className="verification-step-wrapper">
+                                    {friendlyLoginMessage && (
+                                        <div style={{ marginBottom: '12px', color: '#2f855a', fontWeight: 600, textAlign: 'center' }}>
+                                            {friendlyLoginMessage}
+                                        </div>
+                                    )}
+                                    <LoginPage
+                                        embedded={true}
+                                        hideRegister={true}
+                                        prefillEmail={formData.email}
+                                        lockEmail={true}
+                                        onLoginSuccess={async (userData) => {
+                                            setIsEmailVerified(true);
+                                            setShowLogin(false);
+                                            setShowVerification(false);
+                                            applyUserToForm(userData);
+                                            if (onLoginSuccess) {
+                                                await onLoginSuccess(userData);
+                                            }
+                                            setStep(2);
+                                        }}
+                                        onBackToHome={() => setShowLogin(false)}
+                                    />
+                                    <button 
+                                        className="back-link" 
+                                        onClick={() => setShowLogin(false)}
+                                        style={{marginTop: '15px', background: 'none', border: 'none', color: 'var(--gray-500)', textDecoration: 'underline', width: '100%', cursor: 'pointer'}}
+                                    >
+                                        Regresar a editar datos
+                                    </button>
+                                </div>
+                            ) : showVerification ? (
+                                <div className="verification-step-wrapper">
+                                    <EmailVerification
+                                        initialEmail={formData.email}
+                                        lockEmail={true}
+                                        purpose="guest_checkout"
+                                        onBeforeSend={async (email) => {
+                                            const exists = await checkEmailExists(email);
+                                            setEmailExists(exists);
+                                            if (exists) {
+                                                setFriendlyLoginMessage('Ya está registrado. Inicia sesión para continuar.');
+                                                setShowLogin(true);
+                                                setShowVerification(false);
+                                                setError('');
+                                                return false;
+                                            }
+                                            setError('');
+                                            return true;
+                                        }}
+                                        onVerified={() => {
+                                            setIsEmailVerified(true);
+                                            setShowVerification(false);
+                                            setStep(2);
+                                        }}
+                                        onCancel={() => setShowVerification(false)}
+                                    />
+                                    <button 
+                                        className="back-link" 
+                                        onClick={() => setShowVerification(false)}
+                                        style={{marginTop: '15px', background: 'none', border: 'none', color: 'var(--gray-500)', textDecoration: 'underline', width: '100%', cursor: 'pointer'}}
+                                    >
+                                        Regresar a editar datos
+                                    </button>
+                                </div>
+                            ) : (
                                 <form id="step1-form" className="step-form" onSubmit={(e) => {
                                     e.preventDefault();
                                     const user = getCurrentUser();
                                     if (user || isEmailVerified) {
                                         setStep(2);
-                                    } else {
-                                        setShowVerification(true);
+                                        return;
                                     }
+                                    setEmailExists(false);
+                                    setShowLogin(false);
+                                    checkEmailExists(formData.email).then((exists) => {
+                                        if (exists) {
+                                            setEmailExists(true);
+                                            setShowLogin(true);
+                                            setShowVerification(false);
+                                            setFriendlyLoginMessage('Ya está registrado. Inicia sesión para continuar.');
+                                            setError('');
+                                        } else {
+                                            setError('');
+                                            setShowVerification(true);
+                                        }
+                                    });
                                 }}>
                                     <h3>Información Personal</h3>
                                     <div className="form-grid">
@@ -287,26 +460,6 @@ return (
                                         />
                                     </div>
                                 </form>
-                            ) : (
-                                <div className="verification-step-wrapper">
-                                    <EmailVerification
-                                        email={formData.email}
-                                        purpose="guest_checkout"
-                                        onVerified={() => {
-                                            setIsEmailVerified(true);
-                                            setShowVerification(false);
-                                            setStep(2);
-                                        }}
-                                        onCancel={() => setShowVerification(false)}
-                                    />
-                                    <button 
-                                        className="back-link" 
-                                        onClick={() => setShowVerification(false)}
-                                        style={{marginTop: '15px', background: 'none', border: 'none', color: 'var(--gray-500)', textDecoration: 'underline', width: '100%', cursor: 'pointer'}}
-                                    >
-                                        Regresar a editar datos
-                                    </button>
-                                </div>
                             )
                         )}
 
@@ -369,7 +522,6 @@ return (
                                         name="notes"
                                         placeholder="Referencias para el mensajero (color de casa, cerca de x lugar...)"
                                         className="checkout-textarea"
-                                        style={{width: '100%', padding: '12px', borderRadius: '12px', border: '1px solid var(--divider-color)', minHeight: '80px'}}
                                         value={formData.notes}
                                         onChange={handleInputChange}
                                         disabled={isSubmitting}
@@ -497,10 +649,6 @@ return (
                                     <span>Subtotal</span>
                                     <span>${total.toFixed(2)}</span>
                                 </div>
-                                <div className="summary-row">
-                                    <span>Envío</span>
-                                    <span style={{color: 'var(--accent-color)', fontWeight: '700'}}>Gratis</span>
-                                </div>
                                 <div className="summary-divider"></div>
                                 <div className="summary-row total-row">
                                     <span>Total</span>
@@ -522,7 +670,7 @@ return (
                     </button>
                 )}
                 
-                {step === 1 && !showVerification && (
+                {step === 1 && !showVerification && !showLogin && (
                     <button type="submit" form="step1-form" className="btn-next">
                         Siguiente <span className="btn-icon">→</span>
                     </button>

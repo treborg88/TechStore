@@ -36,13 +36,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 15,
   },
-  invoiceNumberBox: {
-    textAlign: 'right',
-    backgroundColor: '#EFF6FF',
-    padding: 10,
-    borderRadius: 4,
-    marginBottom: 15,
-  },
   invoiceTitle: {
     fontSize: 16,
     color: '#1F2937',
@@ -64,14 +57,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginBottom: 15,
     gap: 10,
-  },
-  infoBox: {
-    width: '48%',
-    backgroundColor: '#F9FAFB',
-    padding: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   infoBox: {
     width: '48%',
@@ -397,12 +382,12 @@ const COD_STATUS_STEPS = [
 ];
 
 const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒' }) => {
-    const isAuthenticated = !!localStorage.getItem('authToken');
+    const isAuthenticated = !!localStorage.getItem('userData');
 
-    // Get current date and time
-    const now = new Date();
-    const currentDate = now.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const currentTime = now.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
+    // Usar la fecha de creación de la orden si está disponible, sino la actual
+    const orderDate = order.created_at ? new Date(order.created_at) : new Date();
+    const currentDate = orderDate.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+    const currentTime = orderDate.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
     // Prepare data for PDF
     const invoiceData = {
@@ -633,7 +618,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                     <div className="invoice-meta">
                         <h3>FACTURA</h3>
                         <p><strong>Orden:</strong> {order.order_number || `#${order.id}`}</p>
-                        <p><strong>Fecha:</strong> {new Date(order.created_at).toLocaleDateString()}</p>
+                        <p><strong>Fecha:</strong> {currentDate} {currentTime}</p>
                     </div>
                 </div>
 

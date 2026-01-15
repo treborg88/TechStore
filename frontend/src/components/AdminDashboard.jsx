@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from 'react';
-import { API_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 import OrderList from './OrderList';
@@ -166,12 +166,6 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 	const loadOrders = async (page = 1) => {
 		try {
 			setIsLoadingOrders(true);
-			const token = localStorage.getItem('authToken');
-			
-			if (!token) {
-				throw new Error('No hay token de autenticación');
-			}
-
             const queryParams = new URLSearchParams({
                 page: page,
                 limit: ordersPagination.limit,
@@ -196,9 +190,8 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
                 }
             }
 
-			const response = await fetch(`${API_URL}/orders?${queryParams}`, {
+			const response = await apiFetch(apiUrl(`/orders?${queryParams}`), {
 				headers: {
-					'Authorization': `Bearer ${token}`,
 					'Content-Type': 'application/json'
 				}
 			});

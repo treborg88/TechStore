@@ -219,6 +219,7 @@
     min-height: 80px;
     font-family: inherit;
     resize: vertical;
+    color: var(--gray-800);
 }
 
 .checkout-textarea:focus {

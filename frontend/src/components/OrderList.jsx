@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { API_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import LoadingSpinner from './LoadingSpinner';
 import Invoice from './Invoice';
 
@@ -135,16 +135,13 @@ export default function OrderList({
 		let errorCount = 0;
 
 		try {
-			const token = localStorage.getItem('authToken');
-			
 			// Execute in parallel
 			await Promise.all(selectedOrderIds.map(async (orderId) => {
 				try {
-					const response = await fetch(`${API_URL}/orders/${orderId}`, {
+					const response = await apiFetch(apiUrl(`/orders/${orderId}`), {
 						method: 'PUT',
 						headers: {
-							'Content-Type': 'application/json',
-							'Authorization': `Bearer ${token}`
+							'Content-Type': 'application/json'
 						},
 						body: JSON.stringify({ status: newStatus })
 					});
@@ -183,10 +180,7 @@ export default function OrderList({
 				// Fetch full details to ensure we have notes/items
 				const fetchDetails = async () => {
 					try {
-						const token = localStorage.getItem('authToken');
-						const response = await fetch(`${API_URL}/orders/${order.id}`, {
-							headers: { 'Authorization': `Bearer ${token}` }
-						});
+						const response = await apiFetch(apiUrl(`/orders/${order.id}`));
 						if (response.ok) {
 							const data = await response.json();
 							setSelectedOrder(data);
@@ -224,15 +218,13 @@ export default function OrderList({
 
 		try {
 			setIsSubmitting(true);
-			const token = localStorage.getItem('authToken');
 			
 			const body = { status: newStatus, ...extraData };
 
-			const response = await fetch(`${API_URL}/orders/${orderId}`, {
+			const response = await apiFetch(apiUrl(`/orders/${orderId}`), {
 				method: 'PUT',
 				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token}`
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify(body)
 			});
@@ -263,12 +255,10 @@ export default function OrderList({
 
 		try {
 			setIsSubmitting(true);
-			const token = localStorage.getItem('authToken');
-			const response = await fetch(`${API_URL}/orders/${selectedOrder.id}`, {
+			const response = await apiFetch(apiUrl(`/orders/${selectedOrder.id}`), {
 				method: 'PUT',
 				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${token}`
+					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({ internal_notes: internalNotes })
 			});
@@ -295,12 +285,8 @@ export default function OrderList({
 
 		try {
 			setIsSubmitting(true);
-			const token = localStorage.getItem('authToken');
-			const response = await fetch(`${API_URL}/orders/${orderId}`, {
+			const response = await apiFetch(apiUrl(`/orders/${orderId}`), {
 				method: 'DELETE',
-				headers: {
-					'Authorization': `Bearer ${token}`
-				}
 			});
 
 			if (!response.ok) {
@@ -319,12 +305,7 @@ export default function OrderList({
 
 	const viewOrderDetails = async (orderId) => {
 		try {
-			const token = localStorage.getItem('authToken');
-			const response = await fetch(`${API_URL}/orders/${orderId}`, {
-				headers: {
-					'Authorization': `Bearer ${token}`
-				}
-			});
+			const response = await apiFetch(apiUrl(`/orders/${orderId}`));
 
 			if (!response.ok) {
 				throw new Error('Error al cargar detalles de la orden');

@@ -10,6 +10,15 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const getStoragePathFromUrl = (publicUrl) => {
+  if (!publicUrl || typeof publicUrl !== 'string') return null;
+  const marker = '/storage/v1/object/public/products/';
+  const index = publicUrl.indexOf(marker);
+  if (index === -1) return null;
+  const path = publicUrl.slice(index + marker.length);
+  return path || null;
+};
+
 // Helper functions to mimic the old "statements" behavior but with Supabase (Async)
 const statements = {
   // Storage
@@ -181,6 +190,24 @@ const statements = {
     return true;
   },
 
+  // Stock (atomic)
+  decrementStockIfAvailable: async (product_id, quantity) => {
+    const { data, error } = await supabase.rpc('decrement_stock_if_available', {
+      p_product_id: product_id,
+      p_quantity: quantity
+    });
+    if (error) throw error;
+    return !!data;
+  },
+  incrementStock: async (product_id, quantity) => {
+    const { data, error } = await supabase.rpc('increment_stock', {
+      p_product_id: product_id,
+      p_quantity: quantity
+    });
+    if (error) throw error;
+    return !!data;
+  },
+
   // Product Images
   getProductImages: async (product_id) => {
     const { data, error } = await supabase
@@ -199,6 +226,24 @@ const statements = {
     return data;
   },
   deleteProductImage: async (id, product_id) => {
+    const { data: imageRow, error: fetchError } = await supabase
+      .from('product_images')
+      .select('image_path')
+      .eq('id', id)
+      .eq('product_id', product_id)
+      .single();
+    if (fetchError && fetchError.code !== 'PGRST116') throw fetchError;
+
+    if (imageRow?.image_path) {
+      const filePath = getStoragePathFromUrl(imageRow.image_path);
+      if (filePath) {
+        const { error: storageError } = await supabase.storage
+          .from('products')
+          .remove([filePath]);
+        if (storageError) throw storageError;
+      }
+    }
+
     const { error } = await supabase
       .from('product_images')
       .delete()
@@ -208,6 +253,23 @@ const statements = {
     return true;
   },
   deleteAllProductImages: async (product_id) => {
+    const { data: images, error: fetchError } = await supabase
+      .from('product_images')
+      .select('image_path')
+      .eq('product_id', product_id);
+    if (fetchError) throw fetchError;
+
+    const paths = (images || [])
+      .map((img) => getStoragePathFromUrl(img.image_path))
+      .filter(Boolean);
+
+    if (paths.length > 0) {
+      const { error: storageError } = await supabase.storage
+        .from('products')
+        .remove(paths);
+      if (storageError) throw storageError;
+    }
+
     const { error } = await supabase
       .from('product_images')
       .delete()

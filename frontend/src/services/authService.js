@@ -1,10 +1,10 @@
     // services/authService.js
-   import { API_URL } from '../config';
+   import { apiFetch, apiUrl } from './apiClient';
 
     // Funciones de autenticación
     export const login = async (email, password) => {
     try {
-        const response = await fetch(`${API_URL}/auth/login`, {
+        const response = await apiFetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -19,8 +19,7 @@
 
         const data = await response.json();
         
-        // Guardar token y datos del usuario
-        localStorage.setItem('authToken', data.token);
+        // Guardar datos del usuario
         localStorage.setItem('userData', JSON.stringify(data.user));
         
         console.log('Login exitoso:', data.user);
@@ -33,7 +32,7 @@
 
     export const register = async (name, email, password, code) => {
     try {
-        const response = await fetch(`${API_URL}/auth/register`, {
+        const response = await apiFetch(apiUrl('/auth/register'), {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -53,8 +52,7 @@
 
         const data = await response.json();
         
-        // Guardar token y datos del usuario automáticamente después del registro
-        localStorage.setItem('authToken', data.token);
+        // Guardar datos del usuario automáticamente después del registro
         localStorage.setItem('userData', JSON.stringify(data.user));
         
         console.log('Registro exitoso:', data.user);
@@ -66,7 +64,11 @@
     };
 
     export const logout = () => {
-    localStorage.removeItem('authToken');
+    try {
+        apiFetch(apiUrl('/auth/logout'), { method: 'POST' });
+    } catch (error) {
+        console.error('Error en logout:', error);
+    }
     localStorage.removeItem('userData');
     
     // Limpiar carritos guardados (opcional)
@@ -89,18 +91,17 @@
     };
 
     export const isLoggedIn = () => {
-    const token = localStorage.getItem('authToken');
     const userData = localStorage.getItem('userData');
-    return token && userData;
+    return !!userData;
     };
 
     export const getAuthToken = () => {
-    return localStorage.getItem('authToken');
+        return null;
     };
 
     export const forgotPassword = async (email) => {
     try {
-        const response = await fetch(`${API_URL}/auth/forgot-password`, {
+        const response = await apiFetch(apiUrl('/auth/forgot-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -116,7 +117,7 @@
 
     export const resetPassword = async (email, code, newPassword) => {
     try {
-        const response = await fetch(`${API_URL}/auth/reset-password`, {
+        const response = await apiFetch(apiUrl('/auth/reset-password'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code, newPassword }),

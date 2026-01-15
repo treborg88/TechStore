@@ -129,10 +129,6 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
           <div className="hero-content">
             <h2 className="hero-title">{heroSettings?.title || "La Mejor Tecnología a Tu Alcance"}</h2>
             <p className="hero-text">{heroSettings?.description || "Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado."}</p>
-            <div className="hero-buttons">
-              <button className="primary-button">{heroSettings?.primaryBtn || "Ver Productos"}</button>
-              <button className="secondary-button">{heroSettings?.secondaryBtn || "Ofertas Especiales"}</button>
-            </div>
           </div>
         </div>
       </section>

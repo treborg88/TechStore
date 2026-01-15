@@ -8,21 +8,69 @@ import { toast } from 'react-hot-toast';
  * 
  * @param {Object} props
  * @param {string} [props.initialEmail] - Email inicial (opcional). Si se provee, se salta el paso de ingreso de email.
+ * @param {string} [props.email] - Alias de initialEmail.
+ * @param {boolean} [props.lockEmail] - Si es true, no permite editar el correo.
  * @param {function} props.onVerified - Callback que se ejecuta cuando la validación es exitosa. Recibe el email validado.
  * @param {string} props.purpose - Propósito de la validación ('register', 'guest_checkout', 'payment').
  * @param {boolean} [props.autoSend] - Si es true y hay initialEmail, envía el código automáticamente al montar.
+ * @param {function} [props.onBeforeSend] - Hook async antes de enviar código. Retorna false para bloquear el envío.
  */
-const EmailVerification = ({ initialEmail = '', onVerified, purpose = 'general', autoSend = false }) => {
-  const [email, setEmail] = useState(initialEmail);
+const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail = false, onVerified, purpose = 'general', autoSend = false, onBeforeSend }) => {
+  const resolvedInitialEmail = initialEmail || emailProp || '';
+  const [email, setEmail] = useState(resolvedInitialEmail);
   const [code, setCode] = useState('');
-  const [step, setStep] = useState(initialEmail ? 'send_code' : 'input_email'); // input_email, send_code, verify_code, success
+  const [step, setStep] = useState(resolvedInitialEmail ? 'send_code' : 'input_email'); // input_email, send_code, verify_code, success
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [countdown, setCountdown] = useState(0);
   const hasSentRef = useRef(false);
 
   useEffect(() => {
-    if (autoSend && initialEmail && step === 'send_code' && !hasSentRef.current) {
+    if (resolvedInitialEmail) {
+      setEmail(resolvedInitialEmail);
+      setStep('send_code');
+    }
+  }, [resolvedInitialEmail]);
+
+  // Recuperar estado previo (por si se recarga la página esperando el código)
+  useEffect(() => {
+    if (email && purpose) {
+      const saved = localStorage.getItem(`verification_state_${email}_${purpose}`);
+      if (saved) {
+        try {
+          const { step: savedStep, countdown: savedCountdown, timestamp } = JSON.parse(saved);
+          const now = Date.now();
+          const elapsed = Math.floor((now - timestamp) / 1000);
+          
+          // Solo restauramos si estábamos en medio de una verificación (verify_code)
+          if (savedStep === 'verify_code') {
+            setStep('verify_code');
+            const remaining = savedCountdown - elapsed;
+            setCountdown(remaining > 0 ? remaining : 0);
+            hasSentRef.current = true; // Evitar auto-envío si ya se envió
+          }
+        } catch (e) {
+          console.log('No hay estado de verificación previo válido');
+        }
+      }
+    }
+  }, [email, purpose]);
+
+  // Guardar estado actual
+  useEffect(() => {
+    if (email && purpose && step !== 'success' && step !== 'input_email') {
+      localStorage.setItem(`verification_state_${email}_${purpose}`, JSON.stringify({
+        step,
+        countdown,
+        timestamp: Date.now()
+      }));
+    } else if (step === 'success') {
+      localStorage.removeItem(`verification_state_${email}_${purpose}`);
+    }
+  }, [step, countdown, email, purpose]);
+
+  useEffect(() => {
+    if (autoSend && resolvedInitialEmail && step === 'send_code' && !hasSentRef.current) {
       hasSentRef.current = true;
       handleSendCode();
     }
@@ -57,6 +105,13 @@ const EmailVerification = ({ initialEmail = '', onVerified, purpose = 'general',
 
     setIsLoading(true);
     try {
+      if (onBeforeSend) {
+        const canSend = await onBeforeSend(email);
+        if (canSend === false) {
+          setIsLoading(false);
+          return;
+        }
+      }
       await sendVerificationCode(email, purpose);
       setStep('verify_code');
       setCountdown(60); // 60 segundos para reenviar
@@ -93,6 +148,7 @@ const EmailVerification = ({ initialEmail = '', onVerified, purpose = 'general',
   };
 
   const handleChangeEmail = () => {
+    if (lockEmail) return;
     setStep('input_email');
     setCode('');
     setError('');
@@ -135,14 +191,30 @@ const EmailVerification = ({ initialEmail = '', onVerified, purpose = 'general',
         </form>
       )}
 
-      {(step === 'send_code' || step === 'verify_code') && (
+      {step === 'send_code' && (
+        <form onSubmit={handleSendCode} className="email-verification-form">
+          <div className="verification-message">
+            Enviar código a <strong>{email}</strong>
+          </div>
+
+          {error && <div className="verification-message error">{error}</div>}
+
+          <button type="submit" className="verification-button" disabled={isLoading}>
+            {isLoading ? 'Enviando...' : 'Enviar Código'}
+          </button>
+        </form>
+      )}
+
+      {step === 'verify_code' && (
         <form onSubmit={handleVerifyCode} className="email-verification-form">
           <div className="verification-message">
             Se ha enviado un código a <strong>{email}</strong>
             <br/>
-            <button type="button" onClick={handleChangeEmail} className="resend-link" style={{marginTop: '5px'}}>
-              (Cambiar correo)
-            </button>
+            {!lockEmail && (
+              <button type="button" onClick={handleChangeEmail} className="resend-link" style={{marginTop: '5px'}}>
+                (Cambiar correo)
+              </button>
+            )}
           </div>
           
           <div className="verification-input-group">

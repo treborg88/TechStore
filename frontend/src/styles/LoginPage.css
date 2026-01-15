@@ -10,6 +10,19 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     }
 
+    .login-page.embedded {
+    min-height: auto;
+    background: transparent;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    }
+
+    .login-page.embedded .login-container {
+    box-shadow: none;
+    border-radius: 12px;
+    }
+
     .login-container {
     background: white;
     border-radius: 16px;

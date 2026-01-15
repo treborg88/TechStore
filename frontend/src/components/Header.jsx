@@ -16,6 +16,7 @@ export default function Header({
   isSticky = false
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -37,6 +38,11 @@ export default function Header({
       navigate('/admin');
     }
     closeMobileMenu();
+  };
+
+  const handleSettingsToggle = (event) => {
+    event.preventDefault();
+    setSettingsMenuOpen((prev) => !prev);
   };
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -73,7 +79,27 @@ export default function Header({
             {user && user.role === 'admin' && (
               <>
                 <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
-                <Link to="/settings" className="nav-link">Ajustes</Link>
+                <div className="nav-dropdown">
+                  <a href="#" className="nav-link" onClick={handleSettingsToggle}>Ajustes ▾</a>
+                  {settingsMenuOpen && (
+                    <div className="nav-dropdown-menu">
+                      <Link
+                        to="/settings#site"
+                        className="nav-dropdown-item"
+                        onClick={() => setSettingsMenuOpen(false)}
+                      >
+                        Ajuste del sitio
+                      </Link>
+                      <Link
+                        to="/settings#email"
+                        className="nav-dropdown-item"
+                        onClick={() => setSettingsMenuOpen(false)}
+                      >
+                        Configuración de correo
+                      </Link>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </nav>
@@ -98,16 +124,26 @@ export default function Header({
             {user ? (
               <>
                 <button 
-                  className="user-name-btn" 
+                  className="user-name-btn desktop-only" 
                   onClick={() => onProfileOpen && onProfileOpen()}
                   style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
                 >
                   Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
                 </button>
-                <button className="login-button" onClick={onLogout}>Cerrar</button>
+                <button 
+                  className="user-name-btn mobile-only" 
+                  onClick={() => onProfileOpen && onProfileOpen()}
+                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}
+                >
+                  Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
+                </button>
+                <button className="login-button desktop-only" onClick={onLogout}>Cerrar</button>
               </>
             ) : (
-              <button className="login-button" onClick={() => navigate('/login')}>Iniciar Sesión</button>
+              <>
+                <button className="login-button desktop-only" onClick={() => navigate('/login')}>Iniciar Sesión</button>
+                <button className="login-button mobile-only" onClick={() => navigate('/login')}>Iniciar Sesión</button>
+              </>
             )}
           </div>
         </div>
@@ -124,15 +160,19 @@ export default function Header({
           {user && user.role === 'admin' && (
             <>
               <a href="#" className="mobile-nav-link" onClick={handleAdminNav}>Administrar</a>
-              <Link to="/settings" className="mobile-nav-link" onClick={closeMobileMenu}>Ajustes</Link>
+              <Link to="/settings#site" className="mobile-nav-link" onClick={closeMobileMenu}>Ajuste del sitio</Link>
+              <Link to="/settings#email" className="mobile-nav-link" onClick={closeMobileMenu}>Configuración de correo</Link>
             </>
           )}
 
-          {!user && (
-            <button className="mobile-nav-link" onClick={() => { navigate('/login'); closeMobileMenu(); }} style={{ background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer' }}>
-              Iniciar Sesión
-            </button>
-          )}
+          {user ? (
+            <>
+              <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); onProfileOpen && onProfileOpen(); closeMobileMenu(); }}>Mi Perfil</a>
+              <button className="mobile-nav-link" onClick={() => { onLogout(); closeMobileMenu(); }} style={{ background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer', color: 'var(--white)' }}>
+                Cerrar Sesión
+              </button>
+            </>
+          ) : null}
         </nav>
 
         <div className={`mobile-nav-overlay ${mobileMenuOpen ? 'open' : ''}`} onClick={closeMobileMenu}></div>

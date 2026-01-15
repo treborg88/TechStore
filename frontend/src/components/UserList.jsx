@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { API_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 
@@ -55,12 +55,6 @@ export default function UserList({ onStatsUpdate }) {
     const loadUsers = useCallback(async (page = 1) => {
         try {
             setIsLoadingUsers(true);
-            const token = localStorage.getItem('authToken');
-            
-            if (!token) {
-                throw new Error('No hay token de autenticación. Por favor, inicia sesión nuevamente.');
-            }
-
             const queryParams = new URLSearchParams({
                 page: page,
                 limit: usersPagination.limit,
@@ -69,9 +63,8 @@ export default function UserList({ onStatsUpdate }) {
                 status: userFilters.status
             });
 
-            const response = await fetch(`${API_URL}/users?${queryParams}`, {
+            const response = await apiFetch(apiUrl(`/users?${queryParams}`), {
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -121,12 +114,10 @@ export default function UserList({ onStatsUpdate }) {
 
         try {
             setIsSubmitting(true);
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_URL}/users/${userId}/role`, {
+            const response = await apiFetch(apiUrl(`/users/${userId}/role`), {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ role: newRole })
             });
@@ -156,12 +147,10 @@ export default function UserList({ onStatsUpdate }) {
 
         try {
             setIsSubmitting(true);
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_URL}/users/${userId}/status`, {
+            const response = await apiFetch(apiUrl(`/users/${userId}/status`), {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ is_active: newStatus })
             });

@@ -5,6 +5,7 @@ import ProductImageGallery from './ProductImageGallery';
 import LoadingSpinner from './LoadingSpinner';
 import Footer from './Footer';
 import { API_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import '../styles/ProductDetail.css';
 
 function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCartOpen }) {
@@ -68,12 +69,10 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/products/${id}`, {
+      const response = await apiFetch(apiUrl(`/products/${id}`), {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
           ...product,
@@ -148,11 +147,11 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
             <div className="hero-buttons">
               <button 
                 className="primary-button"
-                onClick={() => {
-                  addToCart(product);
+                onClick={async () => {
                   if (onCartOpen) {
-                    setTimeout(() => onCartOpen(), 100);
+                    onCartOpen();
                   }
+                  await addToCart(product, { showLoading: true });
                 }}
               >
                 🛒 Comprar Ahora

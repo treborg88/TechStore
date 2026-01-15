@@ -45,3 +45,41 @@ CREATE TABLE IF NOT EXISTS verification_codes (
     expires_at TIMESTAMPTZ NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Funciones para ajuste de stock atómico
+CREATE OR REPLACE FUNCTION decrement_stock_if_available(p_product_id BIGINT, p_quantity INT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE products
+    SET stock = stock - p_quantity,
+        updated_at = NOW()
+    WHERE id = p_product_id
+      AND stock >= p_quantity;
+
+    IF FOUND THEN
+        RETURN TRUE;
+    END IF;
+
+    RETURN FALSE;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION increment_stock(p_product_id BIGINT, p_quantity INT)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    UPDATE products
+    SET stock = stock + p_quantity,
+        updated_at = NOW()
+    WHERE id = p_product_id;
+
+    IF FOUND THEN
+        RETURN TRUE;
+    END IF;
+
+    RETURN FALSE;
+END;
+$$;

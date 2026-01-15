@@ -9,6 +9,8 @@ const jwt = require('jsonwebtoken');
 const multer = require('multer');
 const nodemailer = require('nodemailer');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 const { statements } = require('./database');
 const app = express();
 
@@ -50,6 +52,10 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
+app.set('trust proxy', 1);
+
+app.use(cookieParser());
+
 // Add these headers to all responses
 app.use((req, res, next) => {
     const origin = req.headers.origin;
@@ -58,7 +64,7 @@ app.use((req, res, next) => {
     }
     res.header('Access-Control-Allow-Credentials', 'true');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
     
     // Handle preflight
     if (req.method === 'OPTIONS') {
@@ -87,6 +93,60 @@ app.use('/api/verification/send-code', authLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const createCsrfToken = () => crypto.randomBytes(32).toString('hex');
+
+const setCsrfCookie = (res) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+    const csrfToken = createCsrfToken();
+
+    res.cookie('XSRF-TOKEN', csrfToken, {
+        httpOnly: false,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/'
+    });
+
+    return csrfToken;
+};
+
+const setAuthCookies = (res, token) => {
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    res.cookie('auth_token', token, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: 'lax',
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/'
+    });
+
+    return setCsrfCookie(res);
+};
+
+const csrfProtection = (req, res, next) => {
+    const method = req.method.toUpperCase();
+    if (['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+        return next();
+    }
+
+    const hasAuthCookie = !!req.cookies?.auth_token;
+    if (!hasAuthCookie) {
+        return next();
+    }
+
+    const csrfCookie = req.cookies['XSRF-TOKEN'];
+    const csrfHeader = req.headers['x-csrf-token'];
+
+    if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
+        return res.status(403).json({ message: 'Token CSRF inválido o ausente' });
+    }
+
+    next();
+};
+
+app.use(csrfProtection);
+
 // --- File Paths ---
 const storage = multer.memoryStorage();
 
@@ -100,7 +160,10 @@ const imageFileFilter = (req, file, cb) => {
 
 const upload = multer({
     storage: storage,
-    fileFilter: imageFileFilter
+    fileFilter: imageFileFilter,
+    limits: {
+        fileSize: 15 * 1024 * 1024 // 5MB por archivo
+    }
 });
 
 function generateOrderNumber(id) {
@@ -116,7 +179,9 @@ function generateOrderNumber(id) {
 // --- Middleware de Autenticación ---
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const tokenFromHeader = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const tokenFromCookie = req.cookies?.auth_token;
+    const token = tokenFromHeader || tokenFromCookie;
 
     if (!token) {
         return res.status(401).json({ message: 'Token de acceso requerido' });
@@ -211,6 +276,8 @@ app.post('/api/auth/register', async (req, res) => {
             { expiresIn: '7d' } // Token válido por 7 días
         );
 
+        const csrfToken = setAuthCookies(res, token);
+
         // Respuesta sin contraseña
         const userResponse = {
             id: newUser.id,
@@ -224,7 +291,8 @@ app.post('/api/auth/register', async (req, res) => {
         res.status(201).json({
             message: 'Usuario registrado exitosamente',
             user: userResponse,
-            token
+            token,
+            csrfToken
         });
 
     } catch (error) {
@@ -288,6 +356,8 @@ app.post('/api/auth/login', async (req, res) => {
             { expiresIn: '7d' }
         );
 
+        const csrfToken = setAuthCookies(res, token);
+
         // Respuesta sin contraseña
         const userResponse = {
             id: user.id,
@@ -307,7 +377,8 @@ app.post('/api/auth/login', async (req, res) => {
         res.json({
             message: 'Login exitoso',
             user: userResponse,
-            token
+            token,
+            csrfToken
         });
 
     } catch (error) {
@@ -315,6 +386,28 @@ app.post('/api/auth/login', async (req, res) => {
         res.status(500).json({ 
             message: 'Error interno del servidor' 
         });
+    }
+});
+
+/**
+ * GET /api/auth/check-email
+ * Verifica si un email ya está registrado
+ */
+app.get('/api/auth/check-email', async (req, res) => {
+    try {
+        const { email } = req.query;
+
+        if (!email) {
+            return res.status(400).json({ message: 'Email es requerido' });
+        }
+
+        const normalizedEmail = String(email).toLowerCase().trim();
+        const user = await statements.getUserByEmail(normalizedEmail);
+
+        return res.json({ exists: !!user });
+    } catch (error) {
+        console.error('Error checking email:', error);
+        return res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
 
@@ -363,7 +456,7 @@ app.post('/api/auth/forgot-password', async (req, res) => {
             `
         };
 
-        await transporter.sendMail(mailOptions);
+        await sendMailWithSettings(mailOptions);
         res.json({ success: true, message: 'Código enviado correctamente' });
 
     } catch (error) {
@@ -440,6 +533,10 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
             createdAt: user.created_at,
             lastLogin: user.last_login
         };
+
+        if (!req.cookies?.['XSRF-TOKEN'] && req.cookies?.auth_token) {
+            setCsrfCookie(res);
+        }
 
         res.json(userResponse);
     } catch (error) {
@@ -531,6 +628,8 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
  * Logout (principalmente para limpiar datos del lado del cliente)
  */
 app.post('/api/auth/logout', authenticateToken, (req, res) => {
+    res.clearCookie('auth_token', { path: '/' });
+    res.clearCookie('XSRF-TOKEN', { path: '/' });
     // En una implementación real, podrías mantener una lista negra de tokens
     // Por ahora, simplemente confirmamos el logout
     res.json({ 
@@ -924,19 +1023,40 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad)' });
     }
 
+    let total = 0;
+    let orderId = null;
+    const reservedItems = [];
+    const itemDetails = [];
+
+    const rollbackReserved = async () => {
+        for (const item of reservedItems) {
+            try {
+                await statements.incrementStock(item.product_id, item.quantity);
+            } catch (rollbackError) {
+                console.error('Error rollback stock:', rollbackError);
+            }
+        }
+    };
+
     try {
-        // Calculate total
-        let total = 0;
+        // Calculate total and reserve stock atomically per item
         for (const item of items) {
             const product = await statements.getProductById(item.product_id);
             if (!product) {
+                await rollbackReserved();
                 return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
             }
-            if (product.stock < item.quantity) {
+
+            const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+            if (!reserved) {
+                await rollbackReserved();
                 return res.status(400).json({ 
                     message: `Stock insuficiente para ${product.name}` 
                 });
             }
+
+            reservedItems.push({ product_id: product.id, quantity: item.quantity });
+            itemDetails.push({ product_id: product.id, name: product.name, quantity: item.quantity, price: product.price });
             total += product.price * item.quantity;
         }
 
@@ -967,7 +1087,7 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
             shipping_postal_code || '',
             shipping_sector || ''
         );
-        const orderId = orderResult.lastInsertRowid;
+        orderId = orderResult.lastInsertRowid;
 
         // Update status explicitly to ensure it matches our new system
         await statements.updateOrderStatus(initialStatus, orderId);
@@ -977,30 +1097,41 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         await statements.updateOrderNumber(orderNumber, orderId);
 
         // Add order items and update stock
-        for (const item of items) {
-            const product = await statements.getProductById(item.product_id);
-            await statements.addOrderItem(orderId, item.product_id, item.quantity, product.price);
-            
-            // Update stock
-            const newStock = product.stock - item.quantity;
-            await statements.updateProduct(
-                product.name,
-                product.description,
-                product.price,
-                product.category,
-                newStock,
-                item.product_id
-            );
+        for (const item of itemDetails) {
+            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price);
         }
 
         // Clear cart
         await statements.clearCart(req.user.id);
 
         const order = await statements.getOrderById(orderId);
+        const emailSent = await sendOrderEmail({
+            order,
+            items: itemDetails,
+            customer: {
+                name: resolvedCustomerName,
+                email: resolvedCustomerEmail,
+                phone: resolvedCustomerPhone
+            },
+            shipping: {
+                address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+            }
+        });
+        if (!emailSent) {
+            console.warn('Order email not sent for order', orderId);
+        }
         console.log('Orden creada:', order);
         res.status(201).json(order);
     } catch (error) {
         console.error('Error creando orden:', error);
+        await rollbackReserved();
+        if (orderId) {
+            try {
+                await statements.updateOrderStatus('cancelled', orderId);
+            } catch (statusError) {
+                console.error('Error marcando orden como cancelada:', statusError);
+            }
+        }
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
@@ -1021,19 +1152,40 @@ app.post('/api/orders/guest', async (req, res) => {
         return res.status(400).json({ message: 'Se requiere información del cliente (email)' });
     }
 
+    let total = 0;
+    let orderId = null;
+    const reservedItems = [];
+    const itemDetails = [];
+
+    const rollbackReserved = async () => {
+        for (const item of reservedItems) {
+            try {
+                await statements.incrementStock(item.product_id, item.quantity);
+            } catch (rollbackError) {
+                console.error('Error rollback stock:', rollbackError);
+            }
+        }
+    };
+
     try {
-        // Calculate total
-        let total = 0;
+        // Calculate total and reserve stock atomically per item
         for (const item of items) {
             const product = await statements.getProductById(item.product_id);
             if (!product) {
+                await rollbackReserved();
                 return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
             }
-            if (product.stock < item.quantity) {
+
+            const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+            if (!reserved) {
+                await rollbackReserved();
                 return res.status(400).json({ 
                     message: `Stock insuficiente para ${product.name}` 
                 });
             }
+
+            reservedItems.push({ product_id: product.id, quantity: item.quantity });
+            itemDetails.push({ product_id: product.id, name: product.name, quantity: item.quantity, price: product.price });
             total += product.price * item.quantity;
         }
 
@@ -1061,7 +1213,7 @@ app.post('/api/orders/guest', async (req, res) => {
             shipping_postal_code || '',
             shipping_sector || ''
         );
-        const orderId = orderResult.lastInsertRowid;
+        orderId = orderResult.lastInsertRowid;
 
         // Update status explicitly to ensure it matches our new system
         await statements.updateOrderStatus(initialStatus, orderId);
@@ -1071,27 +1223,38 @@ app.post('/api/orders/guest', async (req, res) => {
         await statements.updateOrderNumber(orderNumber, orderId);
 
         // Add order items and update stock
-        for (const item of items) {
-            const product = await statements.getProductById(item.product_id);
-            await statements.addOrderItem(orderId, item.product_id, item.quantity, product.price);
-            
-            // Update stock
-            const newStock = product.stock - item.quantity;
-            await statements.updateProduct(
-                product.name,
-                product.description,
-                product.price,
-                product.category,
-                newStock,
-                item.product_id
-            );
+        for (const item of itemDetails) {
+            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price);
         }
 
         const order = await statements.getOrderById(orderId);
+        const emailSent = await sendOrderEmail({
+            order,
+            items: itemDetails,
+            customer: {
+                name: guestName,
+                email: guestEmail,
+                phone: guestPhone
+            },
+            shipping: {
+                address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+            }
+        });
+        if (!emailSent) {
+            console.warn('Order email not sent for guest order', orderId);
+        }
         console.log('Orden de invitado creada:', order);
         res.status(201).json(order);
     } catch (error) {
         console.error('Error creando orden de invitado:', error);
+        await rollbackReserved();
+        if (orderId) {
+            try {
+                await statements.updateOrderStatus('cancelled', orderId);
+            } catch (statusError) {
+                console.error('Error marcando orden como cancelada:', statusError);
+            }
+        }
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
@@ -1433,13 +1596,179 @@ app.put('/api/users/:id/status', authenticateToken, async (req, res) => {
 });
 
 // --- Email Configuration ---
-const transporter = nodemailer.createTransport({
-    service: 'gmail', // O tu proveedor de preferencia
-    auth: {
-        user: process.env.EMAIL_USER || 'tu_email@gmail.com',
-        pass: process.env.EMAIL_PASS || 'tu_app_password'
+const getSettingsMap = async () => {
+    const settings = await statements.getSettings();
+    return settings.reduce((acc, curr) => {
+        acc[curr.id] = curr.value;
+        return acc;
+    }, {});
+};
+
+const createMailTransporter = (settings) => {
+    const settingsUser = (settings.mailUser || '').trim();
+    const settingsPass = (settings.mailPassword || '').trim();
+    const envUser = process.env.EMAIL_USER || '';
+    const envPass = process.env.EMAIL_PASS || '';
+
+    const useSettingsCreds = settingsUser.length > 0 && settingsPass.length > 0;
+    const user = useSettingsCreds ? settingsUser : envUser;
+    const pass = useSettingsCreds ? settingsPass : envPass;
+
+    if (!user || !pass) {
+        return null;
     }
-});
+
+    const host = (settings.mailHost || '').trim() || process.env.EMAIL_HOST;
+    const portValue = settings.mailPort || process.env.EMAIL_PORT || 587;
+    const port = Number(portValue) || 587;
+    const useTls = settings.mailUseTls === true || settings.mailUseTls === 'true';
+    const secure = port === 465;
+
+    if (host) {
+        return nodemailer.createTransport({
+            host,
+            port,
+            secure,
+            auth: { user, pass },
+            ...(useTls ? { requireTLS: true, tls: { rejectUnauthorized: false } } : {})
+        });
+    }
+
+    return nodemailer.createTransport({
+        service: process.env.EMAIL_SERVICE || 'gmail',
+        auth: { user, pass }
+    });
+};
+
+const formatCurrency = (value) => {
+    const num = Number(value) || 0;
+    return num.toLocaleString('es-DO', { style: 'currency', currency: 'DOP' });
+};
+
+const renderTemplate = (template, data) => {
+    if (!template) return '';
+    return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (match, key) => {
+        if (Object.prototype.hasOwnProperty.call(data, key)) {
+            return data[key];
+        }
+        return '';
+    });
+};
+
+const sendMailWithSettings = async (mailOptions) => {
+    const settings = await getSettingsMap();
+    const transporter = createMailTransporter(settings);
+    if (!transporter) {
+        throw new Error('Email transport not configured');
+    }
+
+    const fromEmail = settings.mailFrom || settings.mailUser || process.env.EMAIL_USER || mailOptions.from;
+    const fromName = settings.mailFromName || settings.siteName || 'TechStore';
+    const from = fromEmail ? `${fromName} <${fromEmail}>` : mailOptions.from;
+
+    await transporter.sendMail({
+        ...mailOptions,
+        from
+    });
+};
+
+const sendOrderEmail = async ({ order, items, customer, shipping }) => {
+    try {
+        const settings = await getSettingsMap();
+        const transporter = createMailTransporter(settings);
+        if (!transporter) {
+            console.warn('No email transporter available. Missing mailUser/mailPassword.');
+            return false;
+        }
+
+        const fromEmail = settings.mailFrom || settings.mailUser || process.env.EMAIL_USER;
+        const fromName = settings.mailFromName || settings.siteName || 'TechStore';
+        const from = `${fromName} <${fromEmail}>`;
+
+        const itemRows = items.map((item) => `
+            <tr>
+                <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
+                <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
+                <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(item.price)}</td>
+                <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(item.price * item.quantity)}</td>
+            </tr>
+        `).join('');
+
+        const itemsTable = `
+            <table style="width:100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr>
+                        <th style="text-align:left; padding:8px 6px; border-bottom:2px solid #e5e7eb;">Producto</th>
+                        <th style="text-align:center; padding:8px 6px; border-bottom:2px solid #e5e7eb;">Cantidad</th>
+                        <th style="text-align:right; padding:8px 6px; border-bottom:2px solid #e5e7eb;">Precio</th>
+                        <th style="text-align:right; padding:8px 6px; border-bottom:2px solid #e5e7eb;">Subtotal</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${itemRows}
+                </tbody>
+            </table>
+        `;
+
+        const defaultTemplate = `
+            <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
+                <div style="background: #111827; color: #fff; padding: 16px 20px; border-radius: 10px 10px 0 0;">
+                    <h2 style="margin: 0;">${settings.siteIcon || '🛍️'} ${settings.siteName || 'TechStore'}</h2>
+                    <p style="margin: 4px 0 0;">Tu pedido fue recibido</p>
+                </div>
+                <div style="border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 10px 10px;">
+                    <p>Hola <strong>${customer.name}</strong>,</p>
+                    <p>Tu orden <strong>${order.order_number || `#${order.id}`}</strong> fue tomada y está en proceso de preparación para envío. Te contactaremos si es necesario.</p>
+
+                    <h3 style="margin-top: 20px;">Resumen de la orden</h3>
+                    ${itemsTable}
+
+                    <div style="margin-top: 16px; display: flex; justify-content: space-between;">
+                        <div>
+                            <p style="margin: 4px 0;"><strong>Dirección:</strong> ${shipping.address}</p>
+                            <p style="margin: 4px 0;"><strong>Teléfono:</strong> ${customer.phone || 'N/A'}</p>
+                            <p style="margin: 4px 0;"><strong>Método de pago:</strong> ${order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method}</p>
+                        </div>
+                        <div style="text-align:right;">
+                            <p style="margin: 4px 0;"><strong>Total:</strong> ${formatCurrency(order.total)}</p>
+                            <p style="margin: 4px 0; color: #6b7280;">Estado: ${order.status}</p>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 20px;">Gracias por comprar con nosotros.</p>
+                </div>
+            </div>
+        `;
+
+        const template = settings.mailTemplateHtml || '';
+        const html = template
+            ? renderTemplate(template, {
+                siteName: settings.siteName || 'TechStore',
+                siteIcon: settings.siteIcon || '🛍️',
+                orderNumber: order.order_number || `#${order.id}`,
+                customerName: customer.name,
+                customerEmail: customer.email,
+                customerPhone: customer.phone || 'N/A',
+                shippingAddress: shipping.address,
+                paymentMethod: order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method,
+                status: order.status,
+                total: formatCurrency(order.total),
+                itemsTable
+            })
+            : defaultTemplate;
+
+        await transporter.sendMail({
+            from,
+            to: customer.email,
+            subject: `Orden recibida ${order.order_number ? order.order_number : `#${order.id}`}`,
+            html
+        });
+        return true;
+    } catch (error) {
+        console.error('Error enviando email de orden:', error);
+        return false;
+    }
+};
 
 // --- Verification Routes ---
 
@@ -1486,7 +1815,7 @@ app.post('/api/verification/send-code', async (req, res) => {
 
         // Intentar enviar correo
         try {
-            await transporter.sendMail(mailOptions);
+            await sendMailWithSettings(mailOptions);
         } catch (emailError) {
             console.error('Error enviando email:', emailError);
             return res.status(500).json({ message: 'Error al enviar el correo de verificación' });
@@ -1529,22 +1858,7 @@ app.post('/api/verification/verify-code', async (req, res) => {
     }
 });
 
-// --- Start Server ---
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
-    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
-});
-
-// Graceful shutdown
-process.on('SIGINT', () => {
-    console.log('Cerrando servidor...');
-    process.exit(0);
-});
-
-
-
-// Agregar esta ruta a tu server.js después de las rutas existentes del carrito
+// == Cart Updates ==
 
 app.put('/api/cart/:productId', authenticateToken, async (req, res) => {
     const productId = parseInt(req.params.productId, 10);
@@ -1658,4 +1972,17 @@ app.post('/api/settings/upload', authenticateToken, upload.single('image'), asyn
         console.error('Error subiendo imagen de ajustes:', error);
         res.status(500).json({ message: 'Error al subir la imagen' });
     }
+});
+
+// --- Start Server ---
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Servidor corriendo en http://localhost:${PORT}`);
+    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
+    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+    console.log('Cerrando servidor...');
+    process.exit(0);
 });

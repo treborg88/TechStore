@@ -38,6 +38,13 @@
   border: 1px solid #ccc;
   border-radius: 4px;
   font-size: 1rem;
+  color: #111;
+  background-color: #fff;
+  caret-color: #111;
+}
+
+.verification-input::placeholder {
+  color: #8a8a8a;
 }
 
 .verification-input:focus {

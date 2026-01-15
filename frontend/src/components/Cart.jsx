@@ -2,8 +2,9 @@ import React from "react";
 import { useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../config';
 import '../styles/ProductDetail.css';
+import LoadingSpinner from './LoadingSpinner';
 
-function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout }) {
+function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout }) {
     const navigate = useNavigate();
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -72,7 +73,12 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, naviga
                 
                 <h2 className="cart-title" style={{ display: 'none' }}>Tu Selección</h2>
                 
-                {cartItems.length === 0 ? (
+                {isLoading ? (
+                    <div className="empty-cart card-style">
+                        <LoadingSpinner fullPage={false} />
+                        <p style={{ marginTop: '12px' }}>Cargando carrito...</p>
+                    </div>
+                ) : cartItems.length === 0 ? (
                     <div className="empty-cart card-style">
                         <div className="empty-cart-icon">🛍️</div>
                         <h3>Tu carrito está vacío</h3>
@@ -157,10 +163,6 @@ function Cart({ cartItems, onAdd, onRemove, onClear, onClose, onClearAll, naviga
                                 <div className="summary-row">
                                     <span>Subtotal</span>
                                     <span>${total.toFixed(2)}</span>
-                                </div>
-                                <div className="summary-row">
-                                    <span>Envío</span>
-                                    <span className="free-shipping">Gratis</span>
                                 </div>
                                 <div className="summary-divider"></div>
                                 <div className="summary-row total-row">

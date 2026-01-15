@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
 import '../styles/UserProfile.css';
 
@@ -28,15 +28,7 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
     const loadUserProfile = async () => {
         try {
             setLoading(true);
-            const token = localStorage.getItem('authToken');
-            if (!token) {
-                setLoading(false);
-                return;
-            }
-
-            const response = await fetch(`${API_URL}/auth/me`, {
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
+            const response = await apiFetch(apiUrl('/auth/me'));
 
             if (response.ok) {
                 const userData = await response.json();
@@ -99,7 +91,6 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
         }
 
         try {
-            const token = localStorage.getItem('authToken');
             const payload = {
                 name: formData.name,
                 phone: formData.phone,
@@ -114,11 +105,10 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
                 payload.newPassword = formData.newPassword;
             }
 
-            const response = await fetch(`${API_URL}/auth/profile`, {
+            const response = await apiFetch(apiUrl('/auth/profile'), {
                 method: 'PUT',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
+                    'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
             });

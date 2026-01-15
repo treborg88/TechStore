@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL } from '../config';
+import { useLocation } from 'react-router-dom';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
 import '../styles/SettingsManager.css';
+import EmailSettingsSection from './EmailSettingsSection';
 
 function SettingsManager() {
+  const location = useLocation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState('site');
   const [settings, setSettings] = useState({
     siteName: 'TechStore',
     siteIcon: '🛍️',
@@ -11,15 +16,30 @@ function SettingsManager() {
     freeShippingThreshold: 50000,
     contactEmail: 'soporte@techstore.com',
     showPromotionBanner: true,
-    promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.'
+    promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.',
+    mailFromName: 'TechStore',
+    mailFrom: '',
+    mailUser: '',
+    mailPassword: '',
+    mailHost: '',
+    mailPort: 587,
+    mailUseTls: true,
+    mailTemplateHtml: '<div style="font-family: Arial, sans-serif; color:#111827; line-height:1.6;">\n  <div style="background:#111827;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;">\n    <h2 style="margin:0;">{{siteIcon}} {{siteName}}</h2>\n    <p style="margin:4px 0 0;">Tu pedido fue recibido</p>\n  </div>\n  <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 10px 10px;">\n    <p>Hola <strong>{{customerName}}</strong>,</p>\n    <p>Tu orden <strong>{{orderNumber}}</strong> fue tomada y está en proceso de preparación para envío.</p>\n    <h3 style="margin-top:20px;">Resumen</h3>\n    {{itemsTable}}\n    <p style="margin-top:16px;"><strong>Total:</strong> {{total}}</p>\n    <p><strong>Dirección:</strong> {{shippingAddress}}</p>\n    <p><strong>Pago:</strong> {{paymentMethod}}</p>\n    <p style="margin-top:20px;">Gracias por comprar con nosotros.</p>\n  </div>\n</div>'
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    const hash = location.hash?.replace('#', '').trim();
+    if (hash === 'email' || hash === 'site') {
+      setActiveSection(hash);
+    }
+  }, [location.hash]);
+
+  useEffect(() => {
     const fetchSettings = async () => {
       try {
-        const response = await fetch(`${API_URL}/settings`);
+        const response = await apiFetch(apiUrl('/settings'));
         if (response.ok) {
           const data = await response.json();
           // Convertir tipos de datos (strings a booleans/numbers según corresponda)
@@ -27,7 +47,7 @@ function SettingsManager() {
           Object.entries(data).forEach(([key, value]) => {
             if (value === 'true') typedData[key] = true;
             else if (value === 'false') typedData[key] = false;
-            else if (!isNaN(value) && key === 'freeShippingThreshold') typedData[key] = Number(value);
+            else if (!isNaN(value) && (key === 'freeShippingThreshold' || key === 'mailPort')) typedData[key] = Number(value);
             else typedData[key] = value;
           });
 
@@ -62,12 +82,8 @@ function SettingsManager() {
 
     const uploadToast = toast.loading('Subiendo imagen...');
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/settings/upload`, {
+      const response = await apiFetch(apiUrl('/settings/upload'), {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        },
         body: formData
       });
 
@@ -88,12 +104,10 @@ function SettingsManager() {
     e.preventDefault();
     setSaving(true);
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/settings`, {
+      const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(settings)
       });
@@ -118,12 +132,16 @@ function SettingsManager() {
 
   return (
     <div className="settings-manager">
-      <div className="settings-header">
-        <h2>⚙️ Ajustes del Sitio</h2>
-        <p>Configura parámetros globales de la tienda.</p>
-      </div>
+      {activeSection === 'site' && (
+        <div className="settings-header">
+          <h2>⚙️ Ajustes del Sitio</h2>
+          <p>Configura parámetros globales de la tienda.</p>
+        </div>
+      )}
 
       <form onSubmit={handleSave} className="settings-form">
+        {activeSection === 'site' && (
+          <>
         <section className="settings-section">
           <h3>🎨 Tema Global (Colores)</h3>
           <p className="section-description">Define la paleta de colores de toda la aplicación.</p>
@@ -278,6 +296,12 @@ function SettingsManager() {
             />
           </div>
         </section>
+          </>
+        )}
+
+        {activeSection === 'email' && (
+          <EmailSettingsSection settings={settings} onChange={handleChange} />
+        )}
 
         <div className="form-actions">
           <button type="submit" className="save-settings-btn" disabled={saving}>

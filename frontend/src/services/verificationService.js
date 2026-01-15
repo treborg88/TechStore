@@ -1,8 +1,8 @@
-import { API_URL } from '../config';
+import { apiFetch, apiUrl } from './apiClient';
 
 export const sendVerificationCode = async (email, purpose) => {
   try {
-    const response = await fetch(`${API_URL}/verification/send-code`, {
+    const response = await apiFetch(apiUrl('/verification/send-code'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, purpose }),
@@ -29,7 +29,7 @@ export const sendVerificationCode = async (email, purpose) => {
 
 export const verifyCode = async (email, code, purpose) => {
   try {
-    const response = await fetch(`${API_URL}/verification/verify-code`, {
+    const response = await apiFetch(apiUrl('/verification/verify-code'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, code, purpose }),

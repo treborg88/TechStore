@@ -5,6 +5,7 @@ import './styles/LoginPage.css';
 import { getCurrentUser, isLoggedIn, logout } from './services/authService';
 
 import { API_URL } from './config';
+import { apiFetch, apiUrl } from './services/apiClient';
 import { Toaster, toast } from 'react-hot-toast';
 import LoadingSpinner from './components/LoadingSpinner';
 import Header from './components/Header';
@@ -46,8 +47,19 @@ function App() {
   const [productDetailHeroImage, setProductDetailHeroImage] = useState('');
 
   // Otros estados
-  const [cartItems, setCartItems] = useState([]);
+  const [cartItems, setCartItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem('cart_persistence');
+      if (saved) return JSON.parse(saved);
+      // Fallback a guest_cart por compatibilidad
+      const legacy = localStorage.getItem('guest_cart');
+      return legacy ? JSON.parse(legacy) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [cartOpen, setCartOpen] = useState(false);
+  const [isCartLoading, setIsCartLoading] = useState(false);
   const [ordersOpen, setOrdersOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [products, setProducts] = useState([]);
@@ -59,6 +71,39 @@ function App() {
 
   const navigate = useNavigate();
 
+  const updateProductStock = useCallback((productId, delta) => {
+    setProducts((prev) => prev.map((product) => {
+      if (product.id !== productId) return product;
+      const currentStock = Number.isFinite(product.stock) ? product.stock : 0;
+      return { ...product, stock: Math.max(0, currentStock + delta) };
+    }));
+  }, []);
+
+  const handleOrderCompleted = useCallback((items) => {
+    if (!Array.isArray(items)) return;
+    items.forEach((item) => {
+      if (item && typeof item.id === 'number' && typeof item.quantity === 'number') {
+        updateProductStock(item.id, -item.quantity);
+      }
+    });
+  }, [updateProductStock]);
+
+  const syncProductsFromCartData = useCallback((cartData) => {
+    if (!Array.isArray(cartData)) return;
+    const stockByProductId = new Map();
+    cartData.forEach((item) => {
+      if (item && typeof item.product_id === 'number') {
+        stockByProductId.set(item.product_id, item.stock);
+      }
+    });
+    if (stockByProductId.size === 0) return;
+    setProducts((prev) => prev.map((product) => (
+      stockByProductId.has(product.id)
+        ? { ...product, stock: stockByProductId.get(product.id) }
+        : product
+    )));
+  }, []);
+
   // Funciones de manejo de autenticación (DECLARADAS ANTES DE SU USO)
 
 
@@ -69,9 +114,11 @@ function App() {
     logout();
     setUser(null);
     setCartItems([]);
+    localStorage.removeItem('checkout_progress');
     setIsLoggingOut(false);
     toast.success("Sesión cerrada correctamente");
     navigate('/');
+    setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }), 0);
   };
 
   const handleAdminNav = (event) => {
@@ -83,14 +130,19 @@ function App() {
     navigate('/admin');
   };
 
-  const handleLoginSuccess = async (userData) => {
+  const handleLoginSuccess = async (userData, options = {}) => {
+    const { redirect = true } = options;
+
     // Sync guest cart if exists
     if (cartItems.length > 0) {
       await syncLocalCart(cartItems);
       localStorage.removeItem('guest_cart');
+      localStorage.removeItem('cart_persistence');
     }
     
     setUser(userData);
+    if (!redirect) return;
+
     // Solo ir al panel de admin si el usuario es admin
     if (userData.role === 'admin') {
       navigate('/admin');
@@ -99,16 +151,22 @@ function App() {
     }
   };
 
+  const handleCheckoutLoginSuccess = async (userData) => {
+    await handleLoginSuccess(userData, { redirect: false });
+  };
+
   // Funciones de carrito
-  const addToCart = async (product) => {
+  const addToCart = async (product, options = {}) => {
+    const { showLoading = false } = options;
+    if (showLoading) {
+      setIsCartLoading(true);
+    }
     if (user) {
       try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_URL}/cart`, {
+        const response = await apiFetch(apiUrl('/cart'), {
           method: 'POST',
           headers: { 
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
           },
           body: JSON.stringify({ productId: product.id, quantity: 1 })
         });
@@ -116,16 +174,25 @@ function App() {
         if (response.ok) {
           const data = await response.json();
           setCartItems(formatBackendCart(data));
+          syncProductsFromCartData(data);
           toast.success("Producto agregado al carrito");
+          return true;
         } else {
           const errorData = await response.json();
           toast.error(errorData.message || "Error al agregar al carrito");
+          return false;
         }
       } catch (err) {
         console.error(err);
         toast.error("Error de conexión");
+        return false;
+      } finally {
+        if (showLoading) {
+          setIsCartLoading(false);
+        }
       }
     } else {
+      try {
       const exist = cartItems.find(item => item.id === product.id);
       if (exist) {
         if (exist.quantity < product.stock) {
@@ -135,13 +202,23 @@ function App() {
               ? { ...item, quantity: item.quantity + 1 }
               : item
           ));
+          updateProductStock(product.id, -1);
+          return true;
         } else {
           toast.error("No hay más stock disponible.");
+          return false;
         }
       } else {
         const image = product.images && product.images.length > 0 ? product.images[0].image_path : product.image;
         toast.success("Producto agregado al carrito");
         setCartItems(prev => [...prev, { ...product, image, quantity: 1 }]);
+        updateProductStock(product.id, -1);
+        return true;
+      }
+      } finally {
+        if (showLoading) {
+          setIsCartLoading(false);
+        }
       }
     }
   };
@@ -150,22 +227,26 @@ function App() {
     if (user) {
       if (product.quantity > 1) {
         try {
-          const token = localStorage.getItem('authToken');
-          const response = await fetch(`${API_URL}/cart/${product.id}`, {
+          const response = await apiFetch(apiUrl(`/cart/${product.id}`), {
             method: 'PUT',
             headers: { 
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
+              'Content-Type': 'application/json'
             },
             body: JSON.stringify({ quantity: product.quantity - 1 })
           });
           if (response.ok) {
             const data = await response.json();
             setCartItems(formatBackendCart(data));
+            syncProductsFromCartData(data);
+            toast.success("Cantidad actualizada");
           }
         } catch (e) { console.error(e); }
       }
     } else {
+      if (product.quantity > 1) {
+        toast.success("Cantidad actualizada");
+        updateProductStock(product.id, 1);
+      }
       setCartItems(prev =>
         prev.map(item =>
           item.id === product.id && item.quantity > 1
@@ -179,17 +260,17 @@ function App() {
   const clearFromCart = async (product) => {
     if (user) {
       try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_URL}/cart/${product.id}`, {
+        const response = await apiFetch(apiUrl(`/cart/${product.id}`), {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
           const data = await response.json();
           setCartItems(formatBackendCart(data));
+          syncProductsFromCartData(data);
         }
       } catch (e) { console.error(e); }
     } else {
+      updateProductStock(product.id, product.quantity);
       setCartItems(prev => prev.filter(item => item.id !== product.id));
     }
   };
@@ -197,16 +278,17 @@ function App() {
   const clearAllCart = async () => {
     if (user) {
       try {
-        const token = localStorage.getItem('authToken');
-        const response = await fetch(`${API_URL}/cart`, {
+        const response = await apiFetch(apiUrl('/cart'), {
           method: 'DELETE',
-          headers: { 'Authorization': `Bearer ${token}` }
         });
         if (response.ok) {
+          const data = await response.json();
+          syncProductsFromCartData(data.cart || []);
           setCartItems([]);
         }
       } catch (e) { console.error(e); }
     } else {
+      cartItems.forEach((item) => updateProductStock(item.id, item.quantity));
       setCartItems([]);
     }
   };
@@ -223,34 +305,34 @@ function App() {
     }));
   };
 
-  // Fetch cart from backend
-  const fetchCart = useCallback(async () => {
-    if (!user) return;
+  const fetchCartWithToken = useCallback(async () => {
     try {
-      const token = localStorage.getItem('authToken');
-      const response = await fetch(`${API_URL}/cart`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
+      const response = await apiFetch(apiUrl('/cart'));
       if (response.ok) {
         const data = await response.json();
         setCartItems(formatBackendCart(data));
+        syncProductsFromCartData(data);
       }
     } catch (err) {
       console.error('Error fetching cart:', err);
     }
-  }, [user]);
+  }, [syncProductsFromCartData]);
+
+  // Fetch cart from backend
+  const fetchCart = useCallback(async () => {
+    if (!user) return;
+    await fetchCartWithToken();
+  }, [user, fetchCartWithToken]);
 
   // Sync local cart to backend
   const syncLocalCart = async (localCart) => {
-    if (!user || localCart.length === 0) return;
-    const token = localStorage.getItem('authToken');
+    if (!localCart || localCart.length === 0) return;
     
     const promises = localCart.map(item => 
-      fetch(`${API_URL}/cart`, {
+      apiFetch(apiUrl('/cart'), {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ productId: item.id, quantity: item.quantity })
       })
@@ -258,86 +340,86 @@ function App() {
 
     try {
       await Promise.all(promises);
+      await fetchCartWithToken();
     } catch (err) {
       console.error('Error syncing cart:', err);
     }
   };
 
   // Effects
-  const fetchProducts = useCallback(async (category = 'todos', page = 1) => {
+  const fetchProducts = useCallback(async (category = 'todos', page = 1, options = {}) => {
+    const { force = false } = options;
+    const cacheKey = `products_cache_${category}_${page}`;
+
     try {
-      setLoading(true);
-      setError(null);
-      
-      const queryParams = new URLSearchParams({
-          page: page.toString(),
-          limit: '20'
-      });
-      
-      if (category !== 'todos') {
-          queryParams.append('category', category);
+      const cachedData = localStorage.getItem(cacheKey);
+      const now = new Date().getTime();
+      const parsedCache = cachedData ? JSON.parse(cachedData) : null;
+      const hasCached = !!parsedCache?.data;
+      const isCacheFresh = hasCached && (now - parsedCache.timestamp < 10 * 60 * 1000);
+
+      if (hasCached) {
+        setProducts(parsedCache.data);
+        setPagination(parsedCache.pagination);
+        setLoading(false);
+        setError(null);
       }
 
-      const cacheKey = `products_cache_${category}_${page}`;
-      const cachedData = localStorage.getItem(cacheKey);
-      
-      if (cachedData) {
-          const parsedCache = JSON.parse(cachedData);
-          // Check if cache is valid (e.g., less than 5 minutes old)
-          const now = new Date().getTime();
-          if (now - parsedCache.timestamp < 10 * 60 * 1000) {
-              console.log('Using cached products');
-              setProducts(parsedCache.data);
-              setPagination(parsedCache.pagination);
-              setLoading(false);
-              // Optional: Continue to fetch in background to revalidate
-          }
+      if (!force && isCacheFresh) {
+        return;
+      }
+
+      if (!hasCached) {
+        setLoading(true);
+        setError(null);
+      }
+
+      const queryParams = new URLSearchParams({
+        page: page.toString(),
+        limit: '20'
+      });
+
+      if (category !== 'todos') {
+        queryParams.append('category', category);
       }
 
       const url = `${API_URL}/products?${queryParams}`;
-      
-      console.log('Fetching products from:', url);
-      const response = await fetch(url);
+      const response = await apiFetch(url);
 
       if (!response.ok) {
         throw new Error(`Error: ${response.status}`);
       }
 
       const result = await response.json();
-      console.log('Productos recibidos:', result.data ? result.data.length : 0);
-      
+
       if (result.data) {
-          setProducts(result.data);
-          setPagination({
-              page: result.page,
-              limit: result.limit,
-              total: result.total,
-              totalPages: result.totalPages
-          });
-          
-          // Update cache
-          localStorage.setItem(cacheKey, JSON.stringify({
-              timestamp: new Date().getTime(),
-              data: result.data,
-              pagination: {
-                  page: result.page,
-                  limit: result.limit,
-                  total: result.total,
-                  totalPages: result.totalPages
-              }
-          }));
+        setProducts(result.data);
+        setPagination({
+          page: result.page,
+          limit: result.limit,
+          total: result.total,
+          totalPages: result.totalPages
+        });
+
+        localStorage.setItem(cacheKey, JSON.stringify({
+          timestamp: new Date().getTime(),
+          data: result.data,
+          pagination: {
+            page: result.page,
+            limit: result.limit,
+            total: result.total,
+            totalPages: result.totalPages
+          }
+        }));
       } else {
-          // Fallback for legacy response or error
-          setProducts(Array.isArray(result) ? result : []);
+        setProducts(Array.isArray(result) ? result : []);
       }
-      
+
       setLoading(false);
     } catch (err) {
       console.error('Error fetching products:', err);
-      // If fetch fails but we have cache, we might want to keep showing it
-      // But here we just show error if no cache was loaded
-      if (!localStorage.getItem(`products_cache_${category}_${page}`)) {
-          setError('No se pudieron cargar los productos. Por favor, inténtalo de nuevo más tarde.');
+      if (!localStorage.getItem(cacheKey)) {
+        setError('No se pudieron cargar los productos. Por favor, inténtalo de nuevo más tarde.');
       }
       setLoading(false);
     }
@@ -349,51 +431,75 @@ function App() {
 
   // Cargar ajustes del sitio
   useEffect(() => {
+    const applySettings = (data) => {
+      if (data.siteName) {
+        setSiteName(data.siteName);
+        localStorage.setItem('siteName', data.siteName);
+      }
+      if (data.siteIcon) {
+        setSiteIcon(data.siteIcon);
+        localStorage.setItem('siteIcon', data.siteIcon);
+      }
+      if (data.heroTitle || data.heroDescription || data.heroPrimaryBtn || data.heroSecondaryBtn || data.heroImage) {
+        setHeroSettings({
+          title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
+          description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
+          primaryBtn: data.heroPrimaryBtn || 'Ver Productos',
+          secondaryBtn: data.heroSecondaryBtn || 'Ofertas Especiales',
+          image: data.heroImage || ''
+        });
+      }
+      if (data.headerBgColor || data.headerTransparency) {
+        setHeaderSettings({
+          bgColor: data.headerBgColor || '#2563eb',
+          transparency: parseInt(data.headerTransparency) || 100
+        });
+      }
+      if (data.primaryColor) {
+        setThemeSettings({
+          primaryColor: data.primaryColor || '#2563eb',
+          secondaryColor: data.secondaryColor || '#7c3aed',
+          accentColor: data.accentColor || '#f59e0b',
+          backgroundColor: data.backgroundColor || '#f8fafc',
+          textColor: data.textColor || '#1e293b'
+        });
+      }
+      if (data.productDetailHeroImage) {
+        setProductDetailHeroImage(data.productDetailHeroImage);
+      }
+    };
+
     const fetchSettings = async () => {
+      const cacheKey = 'settings_cache_v1';
+      const cached = localStorage.getItem(cacheKey);
+      const now = new Date().getTime();
+      const parsedCache = cached ? JSON.parse(cached) : null;
+      const hasCached = !!parsedCache?.data;
+      const isCacheFresh = hasCached && (now - parsedCache.timestamp < 10 * 60 * 1000);
+
+      if (hasCached) {
+        applySettings(parsedCache.data);
+      }
+
+      if (isCacheFresh) {
+        return;
+      }
+
       try {
-        const response = await fetch(`${API_URL}/settings`);
+        const response = await apiFetch(apiUrl('/settings'));
         if (response.ok) {
           const data = await response.json();
-          if (data.siteName) {
-            setSiteName(data.siteName);
-            localStorage.setItem('siteName', data.siteName);
-          }
-          if (data.siteIcon) {
-            setSiteIcon(data.siteIcon);
-            localStorage.setItem('siteIcon', data.siteIcon);
-          }
-          if (data.heroTitle || data.heroDescription || data.heroPrimaryBtn || data.heroSecondaryBtn || data.heroImage) {
-            setHeroSettings({
-              title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
-              description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
-              primaryBtn: data.heroPrimaryBtn || 'Ver Productos',
-              secondaryBtn: data.heroSecondaryBtn || 'Ofertas Especiales',
-              image: data.heroImage || ''
-            });
-          }
-          if (data.headerBgColor || data.headerTransparency) {
-            setHeaderSettings({
-              bgColor: data.headerBgColor || '#2563eb',
-              transparency: parseInt(data.headerTransparency) || 100
-            });
-          }
-          if (data.primaryColor) {
-            setThemeSettings({
-              primaryColor: data.primaryColor || '#2563eb',
-              secondaryColor: data.secondaryColor || '#7c3aed',
-              accentColor: data.accentColor || '#f59e0b',
-              backgroundColor: data.backgroundColor || '#f8fafc',
-              textColor: data.textColor || '#1e293b'
-            });
-          }
-          if (data.productDetailHeroImage) {
-            setProductDetailHeroImage(data.productDetailHeroImage);
-          }
+          applySettings(data);
+          localStorage.setItem(cacheKey, JSON.stringify({
+            timestamp: new Date().getTime(),
+            data
+          }));
         }
       } catch (err) {
         console.error('Error fetching settings:', err);
       }
     };
+
     fetchSettings();
   }, []);
 
@@ -422,14 +528,13 @@ function App() {
   useEffect(() => {
     if (user) {
       fetchCart();
-    } else {
-      const savedCart = JSON.parse(localStorage.getItem('guest_cart')) || [];
-      setCartItems(savedCart);
     }
   }, [user, fetchCart]);
 
-  // Save guest cart to localStorage
+  // Persistent cart storage (for refresh resilience)
   useEffect(() => {
+    localStorage.setItem('cart_persistence', JSON.stringify(cartItems));
+    // Mantener sincronizado guest_cart para compatibilidad
     if (!user) {
       localStorage.setItem('guest_cart', JSON.stringify(cartItems));
     }
@@ -477,6 +582,7 @@ function App() {
           <Route path="/cart" element={
             <Cart
               cartItems={cartItems}
+              isLoading={isCartLoading}
               onAdd={addToCart}
               onRemove={removeFromCart}
               onClear={clearFromCart}
@@ -497,6 +603,8 @@ function App() {
               total={cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)}
               onClose={() => navigate('/cart')}
               onClearCart={clearAllCart}
+              onOrderComplete={handleOrderCompleted}
+              onLoginSuccess={handleCheckoutLoginSuccess}
               user={user}
               onLogout={handleLogout}
               onOpenProfile={() => navigate('/profile')}

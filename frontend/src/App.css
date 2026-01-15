@@ -107,6 +107,23 @@ ul {
   }
 }
 
+.desktop-only {
+  display: none !important;
+}
+
+.mobile-only {
+  display: inline-block !important;
+}
+
+@media (min-width: 768px) {
+  .desktop-only {
+    display: inline-block !important;
+  }
+  .mobile-only {
+    display: none !important;
+  }
+}
+
 /* Mobile Nav Drawer */
 .mobile-nav {
   position: fixed;
@@ -270,6 +287,37 @@ ul {
   color: var(--gray-200);
 }
 
+.nav-dropdown {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.nav-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  min-width: 220px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  padding: 8px;
+  z-index: 3500;
+}
+
+.nav-dropdown-item {
+  display: block;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: #111827;
+  font-weight: 500;
+}
+
+.nav-dropdown-item:hover {
+  background: #f3f4f6;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -332,6 +380,11 @@ ul {
   font-size: 0.9rem;
 }
 
+.login-button.mobile-only {
+  font-size: 0.8rem;
+  padding: 2px 6px;
+}
+
 .login-button:hover {
   background-color: var(--gray-100);
   border-color: rgba(0,0,0,0.2);
@@ -341,17 +394,17 @@ ul {
 .hero-section {
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
   color: var(--white);
-  padding: 60px 0;
+  padding: 36px 0;
   transition: background-image 0.8s ease-in-out, background-color 0.8s ease-in-out, padding 0.5s ease;
   position: relative;
   overflow: hidden;
 }
 
 .hero-section.has-bg {
-  min-height: 500px;
+  min-height: 360px;
   display: flex;
   align-items: center;
-  padding: 120px 0;
+  padding: 70px 0;
   /* Degradado de seguridad mientras la imagen carga */
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
 }
@@ -363,27 +416,25 @@ ul {
 .hero-container {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 18px;
   position: relative;
   z-index: 1;
-}
-  gap: 30px;
 }
 
 .hero-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 12px;
 }
 
 .hero-title {
-  font-size: 2.5rem;
+  font-size: 2.1rem;
   font-weight: bold;
   line-height: 1.2;
 }
 
 .hero-text {
-  font-size: 1.25rem;
+  font-size: 1.05rem;
   max-width: 600px;
 }
 
@@ -426,15 +477,15 @@ ul {
 
 /* Categories Section */
 .categories-section {
-  padding: 60px 0;
+  padding: 36px 0;
   background-color: var(--white);
 }
 
 .section-title {
-  font-size: 2rem;
+  font-size: 1.7rem;
   font-weight: bold;
   text-align: center;
-  margin-bottom: 40px;
+  margin-bottom: 20px;
 }
 
 /* Contenedor de scroll horizontal */
@@ -446,11 +497,11 @@ ul {
 
 .categories-grid-scroll {
   display: flex;
-  gap: 20px;
+  gap: 14px;
   overflow-x: auto;
   overflow-y: hidden;
   scroll-behavior: smooth;
-  padding: 10px 5px 20px;
+  padding: 6px 4px 12px;
   -webkit-overflow-scrolling: touch; /* Suaviza el scroll en iOS */
   scrollbar-width: none; /* Firefox */
   cursor: grab;
@@ -476,8 +527,8 @@ ul {
   content: '';
   position: absolute;
   top: 0;
-  bottom: 20px;
-  width: 80px;
+  bottom: 12px;
+  width: 60px;
   pointer-events: none;
   z-index: 1;
   opacity: 0;
@@ -532,15 +583,15 @@ ul {
 .category-card {
   background-color: #f8fafc;
   border-radius: 8px;
-  padding: 24px;
+  padding: 16px;
   text-align: center;
   transition: all 0.3s ease;
   cursor: pointer;
   border: 2px solid #e2e8f0;
   flex-shrink: 0;
   /* Mostrar exactamente 4 categorías a la vez */
-  min-width: calc((100% - 60px) / 4); /* 4 categorías con 3 gaps de 20px */
-  width: calc((100% - 60px) / 4);
+  min-width: calc((100% - 42px) / 4); /* 4 categorías con 3 gaps de 14px */
+  width: calc((100% - 42px) / 4);
   /* Prevenir selección de texto */
   pointer-events: auto;
   -webkit-user-drag: none;
@@ -576,8 +627,8 @@ ul {
 }
 
 .category-icon {
-  font-size: 2.5rem;
-  margin-bottom: 16px;
+  font-size: 2.1rem;
+  margin-bottom: 10px;
   transition: transform 0.3s ease;
   filter: grayscale(0);
 }
@@ -591,7 +642,7 @@ ul {
 }
 
 .category-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-weight: 600;
   color: #1f2937;
   transition: color 0.3s ease;
@@ -1237,6 +1288,7 @@ ul {
   font-size: 1rem;
   margin-bottom: 5px;
   background: var(--gray-50);
+  color: var(--gray-800);
 }
 
 .step-form input:focus {
@@ -1778,6 +1830,7 @@ ul {
   border: 1px solid var(--divider-color);
   background: var(--surface-muted);
   font-size: 1rem;
+  color: var(--text-color);
   transition: border-color 0.2s, box-shadow 0.2s;
   font-family: inherit;
   width: 100%;

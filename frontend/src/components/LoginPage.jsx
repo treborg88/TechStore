@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { login, register, forgotPassword, resetPassword } from '../services/authService';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 import EmailVerification from './EmailVerification';
 
-export default function LoginPage({ onLoginSuccess, onBackToHome }) {
+export default function LoginPage({ onLoginSuccess, onBackToHome, prefillEmail = '', lockEmail = false, embedded = false, hideRegister = false }) {
 const [isRegister, setIsRegister] = useState(false);
 const [isForgotPassword, setIsForgotPassword] = useState(false);
 const [showPassword, setShowPassword] = useState(false);
@@ -13,7 +13,7 @@ const [error, setError] = useState('');
 const [showVerification, setShowVerification] = useState(false);
 const [formData, setFormData] = useState({
     nombre: "",
-    email: "",
+    email: prefillEmail || "",
     password: "",
     confirmPassword: ""
 });
@@ -26,6 +26,46 @@ const [resetData, setResetData] = useState({
 });
 
 const [resetStep, setResetStep] = useState('input_email'); // input_email, verify_code, success
+
+    // Persistencia para no perder el progreso si se recarga la página
+    useEffect(() => {
+        const saved = localStorage.getItem('auth_form_persistence');
+        if (saved) {
+            try {
+                const parsed = JSON.parse(saved);
+                setIsRegister(parsed.isRegister || false);
+                setIsForgotPassword(parsed.isForgotPassword || false);
+                setFormData(parsed.formData || { nombre: "", email: prefillEmail || "", password: "", confirmPassword: "" });
+                setShowVerification(parsed.showVerification || false);
+                setResetStep(parsed.resetStep || 'input_email');
+            } catch (e) {
+                console.log('No había estado de autenticación previo');
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (prefillEmail) {
+            setFormData((prev) => ({ ...prev, email: prefillEmail }));
+        }
+    }, [prefillEmail]);
+
+    useEffect(() => {
+        if (embedded || hideRegister) {
+            setIsRegister(false);
+            setShowVerification(false);
+        }
+    }, [embedded, hideRegister]);
+
+    useEffect(() => {
+        localStorage.setItem('auth_form_persistence', JSON.stringify({
+            isRegister,
+            isForgotPassword,
+            formData,
+            showVerification,
+            resetStep
+        }));
+    }, [isRegister, isForgotPassword, formData, showVerification, resetStep]);
 
 const handleChange = (e) => {
     setFormData({
@@ -73,6 +113,7 @@ const handleChange = (e) => {
         try {
             const userData = await register(formData.nombre, email, formData.password, code);
             toast.success('¡Cuenta creada exitosamente!');
+            localStorage.removeItem('auth_form_persistence');
             onLoginSuccess(userData);
         } catch (err) {
             const msg = err.message || 'Ha ocurrido un error. Inténtalo de nuevo.';
@@ -150,6 +191,7 @@ const handleSubmit = async (e) => {
     if (!isRegister) {
         const userData = await login(formData.email, formData.password);
         toast.success('¡Bienvenido de nuevo!');
+        localStorage.removeItem('auth_form_persistence');
         onLoginSuccess(userData);
     }
     } catch (err) {
@@ -167,7 +209,7 @@ const toggleMode = () => {
     setError('');
     setFormData({
     nombre: "",
-    email: "",
+    email: prefillEmail || "",
     password: "",
     confirmPassword: ""
     });
@@ -180,7 +222,7 @@ const handleBackToHome = () => {
 };
 
 return (
-    <div className="login-page">
+    <div className={`login-page ${embedded ? 'embedded' : ''}`}>
     {loading && (
         <LoadingSpinner 
             fullPage={true} 
@@ -194,27 +236,31 @@ return (
     )}
     <div className="login-container">
         {/* Header con opción de volver */}
-        <div className="login-header">
-        <button 
-            className="back-button" 
-            onClick={handleBackToHome}
-            type="button"
-            aria-label="Volver a la página principal"
-        >
-            ← Volver a TechStore
-        </button>
-        </div>
+        {!embedded && (
+            <div className="login-header">
+            <button 
+                className="back-button" 
+                onClick={handleBackToHome}
+                type="button"
+                aria-label="Volver a la página principal"
+            >
+                ← Volver a TechStore
+            </button>
+            </div>
+        )}
 
         {/* Contenido del formulario */}
         <div className="login-content">
-        <div 
-            className="login-logo" 
-            onClick={handleBackToHome}
-            style={{ cursor: 'pointer' }}
-            title="Volver al inicio"
-        >
-            <h1>🛍️ TechStore</h1>
-        </div>
+        {!embedded && (
+            <div 
+                className="login-logo" 
+                onClick={handleBackToHome}
+                style={{ cursor: 'pointer' }}
+                title="Volver al inicio"
+            >
+                <h1>🛍️ TechStore</h1>
+            </div>
+        )}
 
         <h2 className="login-title">
             {isForgotPassword ? "Recuperar Contraseña" : (isRegister ? "Crear Nueva Cuenta" : "Bienvenido de Nuevo")}
@@ -362,7 +408,7 @@ return (
                 value={formData.email}
                 onChange={handleChange}
                 required
-                disabled={loading}
+                disabled={loading || lockEmail || embedded}
                 autoComplete="email"
             />
             </div>
@@ -450,27 +496,27 @@ return (
             </div>
         )}
 
-        {!showVerification && !isForgotPassword && (
-        <>
-        <div className="divider">
-            <span>o</span>
-        </div>
+        {!showVerification && !isForgotPassword && !hideRegister && !embedded && (
+            <>
+            <div className="divider">
+                <span>o</span>
+            </div>
 
-        <button
-            type="button"
-            className="toggle-button"
-            onClick={toggleMode}
-            disabled={loading}
-        >
-            {isRegister
-            ? "¿Ya tienes cuenta? Inicia sesión aquí"
-            : "¿No tienes cuenta? Regístrate gratis"}
-        </button>
-        </>
+            <button
+                type="button"
+                className="toggle-button"
+                onClick={toggleMode}
+                disabled={loading}
+            >
+                {isRegister
+                ? "¿Ya tienes cuenta? Inicia sesión aquí"
+                : "¿No tienes cuenta? Regístrate gratis"}
+            </button>
+            </>
         )}
 
         {/* Información adicional para registro */}
-        {isRegister && (
+        {isRegister && !embedded && !hideRegister && (
             <div className="register-benefits">
             <h4>Al crear una cuenta obtienes:</h4>
             <ul>

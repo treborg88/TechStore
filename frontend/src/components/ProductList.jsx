@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { API_URL, BASE_URL } from '../config';
+import { BASE_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProductList.css';
@@ -156,7 +157,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 
 		try {
 			setIsSubmitting(true);
-			const response = await fetch(`${API_URL}/products`, {
+			const response = await apiFetch(apiUrl('/products'), {
 				method: 'POST',
 				body: formData,
 			});
@@ -203,7 +204,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		if (!editingProduct) return;
 
 		try {
-			const response = await fetch(`${API_URL}/products/${editingProduct.id}/images/${imageId}`, {
+			const response = await apiFetch(apiUrl(`/products/${editingProduct.id}/images/${imageId}`), {
 				method: 'DELETE',
 			});
 
@@ -230,7 +231,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		});
 
 		try {
-			const response = await fetch(`${API_URL}/products/${editingProduct.id}/images`, {
+			const response = await apiFetch(apiUrl(`/products/${editingProduct.id}/images`), {
 				method: 'POST',
 				body: formData,
 			});
@@ -251,14 +252,13 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	};
 
 	const handleUpdate = async (event) => {
-		event.preventDefault();
 		if (!editingProduct) {
 			return;
 		}
 
 		try {
 			setIsSubmitting(true);
-			const response = await fetch(`${API_URL}/products/${editingProduct.id}`, {
+			const response = await apiFetch(apiUrl(`/products/${editingProduct.id}`), {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json',
@@ -295,7 +295,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 
 		try {
 			setIsSubmitting(true);
-			const response = await fetch(`${API_URL}/products/${productId}`, {
+			const response = await apiFetch(apiUrl(`/products/${productId}`), {
 				method: 'DELETE',
 			});
 

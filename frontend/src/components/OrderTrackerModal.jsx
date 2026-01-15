@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { API_URL, BASE_URL } from '../config';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import '../styles/OrderTrackerModal.css';
 
 function OrderTrackerModal({ onClose, user }) {
@@ -24,12 +25,7 @@ function OrderTrackerModal({ onClose, user }) {
         setOrders([]);
 
         try {
-            const token = localStorage.getItem('authToken');
-            const response = await fetch(`${API_URL}/orders/my`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const response = await apiFetch(apiUrl('/orders/my'));
 
             if (!response.ok) {
                 if (response.status === 404) {
@@ -57,7 +53,7 @@ function OrderTrackerModal({ onClose, user }) {
 
         try {
             const url = `${API_URL}/orders/track/email/${encodeURIComponent(email)}`;
-            const response = await fetch(url);
+            const response = await apiFetch(url);
 
             if (!response.ok) {
                 if (response.status === 404) {
@@ -98,7 +94,7 @@ function OrderTrackerModal({ onClose, user }) {
                 url = `${API_URL}/orders/track/email/${encodeURIComponent(searchValue)}`;
             }
 
-            const response = await fetch(url);
+            const response = await apiFetch(url);
 
             if (!response.ok) {
                 if (response.status === 404) {
@@ -169,8 +165,8 @@ function OrderTrackerModal({ onClose, user }) {
                 
                 <div className="order-tracker-body">
                     <p className="tracker-subtitle">
-                        {user 
-                            ? `Gestiona y revisa el estado de tus pedidos recientes` 
+                        {user
+                            ? `Gestiona y revisa el estado de tus pedidos recientes`
                             : 'Busca tu orden por número de pedido o correo electrónico'
                         }
                     </p>
@@ -272,7 +268,7 @@ function OrderTrackerModal({ onClose, user }) {
                                         <p><span>Total:</span> <strong>${order.total.toFixed(2)}</strong></p>
                                         <p><span>Pago:</span> <strong>{getPaymentText(order.payment_method || 'cash')}</strong></p>
                                     </div>
-                                    <button 
+                                    <button
                                         className="view-details-btn-modal"
                                         onClick={() => viewOrderDetails(order)}
                                     >
