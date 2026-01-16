@@ -21,6 +21,9 @@
         
         // Guardar datos del usuario
         localStorage.setItem('userData', JSON.stringify(data.user));
+        if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        }
         
         console.log('Login exitoso:', data.user);
         return data.user;
@@ -54,6 +57,9 @@
         
         // Guardar datos del usuario automáticamente después del registro
         localStorage.setItem('userData', JSON.stringify(data.user));
+        if (data.token) {
+        localStorage.setItem('authToken', data.token);
+        }
         
         console.log('Registro exitoso:', data.user);
         return data.user;
@@ -70,6 +76,7 @@
         console.error('Error en logout:', error);
     }
     localStorage.removeItem('userData');
+    localStorage.removeItem('authToken');
     
     // Limpiar carritos guardados (opcional)
     const keys = Object.keys(localStorage);
@@ -96,7 +103,7 @@
     };
 
     export const getAuthToken = () => {
-        return null;
+        return localStorage.getItem('authToken');
     };
 
     export const forgotPassword = async (email) => {

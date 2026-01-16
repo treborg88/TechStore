@@ -35,7 +35,7 @@ const FINAL_JWT_SECRET = JWT_SECRET;
 const corsOptions = {
     origin: [
         'https://8smgkh0x-5173.use2.devtunnels.ms',
-        'https://3mml836n-5001.use2.devtunnels.ms',
+        'https://6sfq7hfx-5001.use2.devtunnels.ms',
         'http://192.168.100.41:5173',
         'http://143.47.118.165:5173',
         'http://192.168.100.41:5001',
@@ -95,14 +95,24 @@ app.use(express.urlencoded({ extended: true }));
 
 const createCsrfToken = () => crypto.randomBytes(32).toString('hex');
 
-const setCsrfCookie = (res) => {
-    const isProduction = process.env.NODE_ENV === 'production';
+const getCookieOptions = (req) => {
+    const origin = req?.headers?.origin || '';
+    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const isSecureOrigin = origin.startsWith('https://');
+    const secure = process.env.NODE_ENV === 'production' || isSecureOrigin;
+    const sameSite = isLocal ? 'lax' : 'none';
+
+    return { secure, sameSite };
+};
+
+const setCsrfCookie = (req, res) => {
+    const { secure, sameSite } = getCookieOptions(req);
     const csrfToken = createCsrfToken();
 
     res.cookie('XSRF-TOKEN', csrfToken, {
         httpOnly: false,
-        secure: isProduction,
-        sameSite: 'lax',
+        secure,
+        sameSite,
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/'
     });
@@ -110,18 +120,18 @@ const setCsrfCookie = (res) => {
     return csrfToken;
 };
 
-const setAuthCookies = (res, token) => {
-    const isProduction = process.env.NODE_ENV === 'production';
+const setAuthCookies = (req, res, token) => {
+    const { secure, sameSite } = getCookieOptions(req);
 
     res.cookie('auth_token', token, {
         httpOnly: true,
-        secure: isProduction,
-        sameSite: 'lax',
+        secure,
+        sameSite,
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/'
     });
 
-    return setCsrfCookie(res);
+    return setCsrfCookie(req, res);
 };
 
 const csrfProtection = (req, res, next) => {
@@ -276,7 +286,7 @@ app.post('/api/auth/register', async (req, res) => {
             { expiresIn: '7d' } // Token válido por 7 días
         );
 
-        const csrfToken = setAuthCookies(res, token);
+        const csrfToken = setAuthCookies(req, res, token);
 
         // Respuesta sin contraseña
         const userResponse = {
@@ -356,7 +366,7 @@ app.post('/api/auth/login', async (req, res) => {
             { expiresIn: '7d' }
         );
 
-        const csrfToken = setAuthCookies(res, token);
+        const csrfToken = setAuthCookies(req, res, token);
 
         // Respuesta sin contraseña
         const userResponse = {
@@ -535,7 +545,7 @@ app.get('/api/auth/me', authenticateToken, async (req, res) => {
         };
 
         if (!req.cookies?.['XSRF-TOKEN'] && req.cookies?.auth_token) {
-            setCsrfCookie(res);
+            setCsrfCookie(req, res);
         }
 
         res.json(userResponse);
@@ -628,8 +638,9 @@ app.put('/api/auth/profile', authenticateToken, async (req, res) => {
  * Logout (principalmente para limpiar datos del lado del cliente)
  */
 app.post('/api/auth/logout', authenticateToken, (req, res) => {
-    res.clearCookie('auth_token', { path: '/' });
-    res.clearCookie('XSRF-TOKEN', { path: '/' });
+    const { secure, sameSite } = getCookieOptions(req);
+    res.clearCookie('auth_token', { path: '/', secure, sameSite });
+    res.clearCookie('XSRF-TOKEN', { path: '/', secure, sameSite });
     // En una implementación real, podrías mantener una lista negra de tokens
     // Por ahora, simplemente confirmamos el logout
     res.json({ 
@@ -1977,11 +1988,11 @@ app.post('/api/settings/upload', authenticateToken, upload.single('image'), asyn
 // --- Start Server ---
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`Servidor corriendo en http://localhost:${PORT}`);
-    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
-    console.log(`Acceso en red local: http://149.47.118.165:{PORT}`);
+    console.log(`Acceso en red local: http://192.168.100.41:${PORT}`);
+    console.log(`Acceso en red local: http://192.168.100.41:${PORT}`);
 });
 
-// Graceful shutdown
+// Graceful shutdown$
 process.on('SIGINT', () => {
     console.log('Cerrando servidor...');
     process.exit(0);

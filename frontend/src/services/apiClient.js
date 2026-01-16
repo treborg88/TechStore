@@ -6,9 +6,21 @@ export const getCsrfToken = () => {
   return match ? decodeURIComponent(match[1]) : '';
 };
 
+export const getAuthToken = () => {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('authToken') || '';
+};
+
 export const apiFetch = (url, options = {}) => {
   const method = (options.method || 'GET').toUpperCase();
   const headers = { ...(options.headers || {}) };
+
+  if (!headers.Authorization && !headers.authorization) {
+    const token = getAuthToken();
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+  }
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const csrfToken = getCsrfToken();
