@@ -74,7 +74,7 @@ export default function Header({
         <div className="header-nav-actions-group">
           <nav className="main-nav">
             <Link to="/" className="nav-link" onClick={handleLogoClick}>Productos</Link>
-            <Link to="/" className="nav-link" onClick={handleLogoClick}>Contacto</Link>
+            <Link to="/contacto" className="nav-link" onClick={closeMobileMenu}>Contacto</Link>
             <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); }}>Ordenes</a>
             {user && user.role === 'admin' && (
               <>
@@ -154,7 +154,7 @@ export default function Header({
           <button className="close-mobile-nav" onClick={closeMobileMenu}>✕</button>
           
           <Link to="/" className="mobile-nav-link" onClick={(e) => { handleLogoClick(e); closeMobileMenu(); }}>Productos</Link>
-          <Link to="/" className="mobile-nav-link" onClick={(e) => { handleLogoClick(e); closeMobileMenu(); }}>Contacto</Link>
+          <Link to="/contacto" className="mobile-nav-link" onClick={closeMobileMenu}>Contacto</Link>
           <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); closeMobileMenu(); }}>Ordenes</a>
           
           {user && user.role === 'admin' && (

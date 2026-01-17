@@ -19,6 +19,7 @@ const OrderTrackerModal = lazy(() => import('./components/OrderTrackerModal'));
 const UserProfile = lazy(() => import('./components/UserProfile'));
 const ProductDetail = lazy(() => import('./components/ProductDetail'));
 const Home = lazy(() => import('./pages/Home'));
+const Contact = lazy(() => import('./pages/Contact'));
 const SettingsManager = lazy(() => import('./components/SettingsManager'));
 const Footer = lazy(() => import('./components/Footer'));
 
@@ -652,6 +653,9 @@ function App() {
               heroImage={productDetailHeroImage}
               onCartOpen={() => navigate('/cart')}
             />
+          } />
+          <Route path="/contacto" element={
+            <Contact user={user} />
           } />
           <Route path="/login" element={
             !user ? (

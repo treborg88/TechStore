@@ -216,14 +216,15 @@
 }
 
 .add-to-cart-btn {
-  flex: 2;
+  flex: 0 1 220px;
+  max-width: 190px;
   background-color: #2563eb;
   color: white;
   border: none;
   padding: 1rem;
   border-radius: 8px;
   font-weight: 600;
-  font-size: 1.1rem;
+  font-size: 1rem;
   cursor: pointer;
   transition: background-color 0.2s;
   display: flex;
@@ -243,13 +244,14 @@
 
 .share-btn {
   flex: 1;
+  max-width: 150px;
   background-color: #f3f4f6;
   color: #1f2937;
-  border: 1px solid #e5e7eb;
-  padding: 1rem;
+  border: 0.1px solid #e5e7eb;
+  padding: 0.9rem 0.9rem;
   border-radius: 8px;
-  font-weight: 600;
-  font-size: 1.1rem;
+  font-weight: 1000;
+  font-size: 1rem;
   cursor: pointer;
   transition: all 0.2s;
   display: flex;
@@ -258,9 +260,52 @@
   gap: 0.5rem;
 }
 
+.share-actions {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.share-copy-btn {
+  background-color: #f3f4f6;
+  color: #1f2937;
+}
+
+.share-whatsapp-btn {
+  background-color: #25d366;
+  color: #ffffff;
+  border-color: transparent;
+}
+
+.share-whatsapp-btn:hover {
+  background-color: #1ebe5d;
+}
+
 .share-btn:hover {
   background-color: #e5e7eb;
   border-color: #d1d5db;
+}
+
+@media (max-width: 640px) {
+  .action-buttons {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .share-actions {
+    display: contents;
+  }
+
+  .add-to-cart-btn,
+  .share-btn {
+    max-width: none;
+    width: 100%;
+    padding: 0.6rem 0.5rem;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
 }
 
 .stock-badge {

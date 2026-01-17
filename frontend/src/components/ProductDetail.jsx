@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
 import LoadingSpinner from './LoadingSpinner';
 import Footer from './Footer';
-import { API_URL } from '../config';
+import { API_URL, BASE_URL } from '../config';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import '../styles/ProductDetail.css';
 
@@ -95,11 +95,15 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
     }
   };
 
+  const baseUrl = (BASE_URL || window.location.origin).replace(/\/$/, '');
+  const shareUrl = `${baseUrl}/product/${product?.id || id}`;
+  const shareText = `¡Mira este producto en TechStore! ${product?.name || ''}`.trim();
+
   const handleShare = async () => {
     const shareData = {
       title: product.name,
-      text: `¡Mira este producto en TechStore! ${product.name} - $${product.price}`,
-      url: window.location.href,
+      text: `${shareText} - $${product.price}`,
+      url: shareUrl,
     };
 
     if (navigator.share) {
@@ -109,8 +113,26 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
         console.log('Error al compartir:', err);
       }
     } else {
-      navigator.clipboard.writeText(window.location.href);
+      await handleCopyLink();
+    }
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+      } else {
+        const input = document.createElement('input');
+        input.value = shareUrl;
+        document.body.appendChild(input);
+        input.select();
+        document.execCommand('copy');
+        document.body.removeChild(input);
+      }
       toast.success('¡Enlace copiado al portapapeles!');
+    } catch (error) {
+      console.error('Error copiando enlace:', error);
+      toast.error('No se pudo copiar el enlace');
     }
   };
 
@@ -241,12 +263,23 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
                 onClick={() => addToCart(product)}
                 disabled={isOutOfStock}
               >
-                {isOutOfStock ? 'Agotado' : '🛒 Agregar al Carrito'}
+                {isOutOfStock ? 'Agotado' : '🛒 Agregar'}
               </button>
               
-              <button className="share-btn" onClick={handleShare} title="Compartir">
-                🔗 Compartir
-              </button>
+              <div className="share-actions">
+                <button className="share-btn share-copy-btn" onClick={handleCopyLink} title="Copiar enlace">
+                  🔗 link
+                </button>
+                <a
+                  className="share-btn share-whatsapp-btn"
+                  href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="Compartir por WhatsApp"
+                >
+                   WhatsApp
+                </a>
+              </div>
             </div>
           </div>
         </div>

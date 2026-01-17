@@ -10,6 +10,8 @@ function ProductImageGallery({ images, productName, productDescription, classNam
   const [zoom, setZoom] = useState(1);
   const [dragOffset, setDragOffset] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
   const [internalIndex, setInternalIndex] = useState(1); // Start at 1 (after the prepended image)
   const [isWrapping, setIsWrapping] = useState(false); // Track if we're in wrap mode (no transition)
   
@@ -20,7 +22,13 @@ function ProductImageGallery({ images, productName, productDescription, classNam
   const containerRef = useRef(null);
   const modalContainerRef = useRef(null);
   const carouselSliderRef = useRef(null);
-  const modalSliderRef = useRef(null);
+  const panStart = useRef({ x: 0, y: 0 });
+  const pointerStart = useRef({ x: 0, y: 0 });
+  const modalSwipeStart = useRef({ x: 0, y: 0, time: 0 });
+  const modalIsSwiping = useRef(false);
+  const pinchStartDistance = useRef(0);
+  const pinchStartZoom = useRef(1);
+  const isPinching = useRef(false);
   const didDrag = useRef(false);
 
   // Preparar imágenes - manejar tanto el formato nuevo (array) como el legacy (string)
@@ -44,6 +52,7 @@ function ProductImageGallery({ images, productName, productDescription, classNam
   const nextImage = () => {
     setIsTransitioning(true);
     setZoom(1);
+    setPan({ x: 0, y: 0 });
     setInternalIndex((prev) => prev + 1);
     setCurrentIndex((prev) => (prev + 1) % displayImages.length);
   };
@@ -51,6 +60,7 @@ function ProductImageGallery({ images, productName, productDescription, classNam
   const prevImage = () => {
     setIsTransitioning(true);
     setZoom(1);
+    setPan({ x: 0, y: 0 });
     setInternalIndex((prev) => prev - 1);
     setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
   };
@@ -59,6 +69,7 @@ function ProductImageGallery({ images, productName, productDescription, classNam
     if (index === currentIndex) return;
     setIsTransitioning(true);
     setZoom(1);
+    setPan({ x: 0, y: 0 });
     setCurrentIndex(index);
     setInternalIndex(index + 1); // +1 because of the duplicate at start
   };
@@ -93,7 +104,12 @@ function ProductImageGallery({ images, productName, productDescription, classNam
   }, [isWrapping]);
 
   const toggleModal = () => {
-    if (!isModalOpen) setZoom(1);
+    if (!isModalOpen) {
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setDragOffset(0);
+      setIsDragging(false);
+    }
     setIsModalOpen(!isModalOpen);
   };
 
@@ -101,8 +117,29 @@ function ProductImageGallery({ images, productName, productDescription, classNam
     e.stopPropagation();
     const delta = -Math.sign(e.deltaY);
     const newZoom = zoom + delta * 0.2;
-    setZoom(Math.min(Math.max(1, newZoom), 5));
+    const nextZoom = Math.min(Math.max(1, newZoom), 5);
+    setZoom(nextZoom);
+    if (nextZoom === 1) {
+      setPan({ x: 0, y: 0 });
+    }
   };
+
+  const getTouchDistance = (touches) => {
+    if (touches.length < 2) return 0;
+    const [a, b] = touches;
+    const dx = a.clientX - b.clientX;
+    const dy = a.clientY - b.clientY;
+    return Math.hypot(dx, dy);
+  };
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isModalOpen]);
 
   // Carousel drag handlers for smooth sliding
   const handleCarouselMouseDown = (e) => {
@@ -211,6 +248,92 @@ function ProductImageGallery({ images, productName, productDescription, classNam
     }
   };
 
+  const handleModalPointerDown = (e) => {
+    if (zoom > 1) {
+      e.preventDefault();
+      setIsPanning(true);
+      pointerStart.current = { x: e.clientX, y: e.clientY };
+      panStart.current = { ...pan };
+    } else {
+      modalSwipeStart.current = { x: e.clientX, y: e.clientY, time: Date.now() };
+      modalIsSwiping.current = true;
+      setIsDragging(true);
+      setDragOffset(0);
+    }
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+  };
+
+  const handleModalPointerMove = (e) => {
+    if (zoom > 1) {
+      if (!isPanning) return;
+      const deltaX = e.clientX - pointerStart.current.x;
+      const deltaY = e.clientY - pointerStart.current.y;
+      setPan({ x: panStart.current.x + deltaX, y: panStart.current.y + deltaY });
+      return;
+    }
+    if (!modalIsSwiping.current) return;
+    const deltaX = e.clientX - modalSwipeStart.current.x;
+    const deltaY = e.clientY - modalSwipeStart.current.y;
+    if (Math.abs(deltaX) > Math.abs(deltaY)) {
+      setDragOffset(deltaX);
+    }
+  };
+
+  const stopModalPanning = (e) => {
+    if (zoom > 1) {
+      if (isPanning) {
+        e.currentTarget.releasePointerCapture?.(e.pointerId);
+        setIsPanning(false);
+      }
+      return;
+    }
+    if (!modalIsSwiping.current) return;
+    const endX = e.clientX;
+    const deltaX = endX - modalSwipeStart.current.x;
+    const duration = Date.now() - modalSwipeStart.current.time;
+    const minDragDistance = 40;
+    const maxDragDuration = 1000;
+    if (Math.abs(deltaX) > minDragDistance && duration < maxDragDuration) {
+      if (deltaX < 0) {
+        nextImage();
+      } else {
+        prevImage();
+      }
+    }
+    setDragOffset(0);
+    setIsDragging(false);
+    modalIsSwiping.current = false;
+    e.currentTarget.releasePointerCapture?.(e.pointerId);
+  };
+
+  const handleModalTouchStart = (e) => {
+    if (e.touches.length === 2) {
+      isPinching.current = true;
+      pinchStartDistance.current = getTouchDistance(e.touches);
+      pinchStartZoom.current = zoom;
+    }
+  };
+
+  const handleModalTouchMove = (e) => {
+    if (e.touches.length === 2 && isPinching.current) {
+      e.preventDefault();
+      const distance = getTouchDistance(e.touches);
+      if (!distance || !pinchStartDistance.current) return;
+      const scale = distance / pinchStartDistance.current;
+      const nextZoom = Math.min(Math.max(1, pinchStartZoom.current * scale), 5);
+      setZoom(nextZoom);
+      if (nextZoom === 1) {
+        setPan({ x: 0, y: 0 });
+      }
+    }
+  };
+
+  const handleModalTouchEnd = (e) => {
+    if (e.touches.length < 2) {
+      isPinching.current = false;
+    }
+  };
+
   return (
     <>
       <div className={`product-image-gallery ${className}`}>
@@ -298,20 +421,21 @@ function ProductImageGallery({ images, productName, productDescription, classNam
               className="modal-image-container" 
               ref={modalContainerRef}
               onWheel={handleWheel}
-              onMouseDown={showCarousel ? handleCarouselMouseDown : undefined}
-              onMouseMove={showCarousel ? handleCarouselMouseMove : undefined}
-              onMouseUp={showCarousel ? handleCarouselMouseUp : undefined}
-              onMouseLeave={showCarousel ? handleCarouselMouseLeave : undefined}
-              onTouchStart={showCarousel ? handleCarouselTouchStart : undefined}
-              onTouchMove={showCarousel ? handleCarouselTouchMove : undefined}
-              onTouchEnd={showCarousel ? handleCarouselTouchEnd : undefined}
+              onPointerDown={handleModalPointerDown}
+              onPointerMove={handleModalPointerMove}
+              onPointerUp={stopModalPanning}
+              onPointerCancel={stopModalPanning}
+              onPointerLeave={stopModalPanning}
+              onTouchStart={handleModalTouchStart}
+              onTouchMove={handleModalTouchMove}
+              onTouchEnd={handleModalTouchEnd}
+              onTouchCancel={handleModalTouchEnd}
               style={{
-                cursor: isDragging ? 'grabbing' : 'zoom-in'
+                cursor: zoom > 1 ? (isPanning ? 'grabbing' : 'grab') : 'zoom-in'
               }}
             >
               <div 
                 className={`modal-carousel-slider ${isTransitioning && !isDragging ? 'transitioning' : ''}`}
-                ref={modalSliderRef}
                 style={{
                   transform: `translateX(calc(-${(internalIndex) * 100}% + ${dragOffset}px))`,
                   transition: (isTransitioning && !isDragging && !isWrapping) ? 'transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94)' : 'none'
@@ -321,15 +445,15 @@ function ProductImageGallery({ images, productName, productDescription, classNam
                   <div key={`modal-${image.id}-${index}`} className="modal-carousel-slide">
                     <img
                       src={image.image_path ? (
-                        image.image_path.startsWith('http') 
-                          ? image.image_path 
-                          : (image.image_path.startsWith('/images/') 
-                              ? `${BASE_URL}${image.image_path}` 
+                        image.image_path.startsWith('http')
+                          ? image.image_path
+                          : (image.image_path.startsWith('/images/')
+                              ? `${BASE_URL}${image.image_path}`
                               : `${BASE_URL}/images/${image.image_path}`)
                       ) : '/images/sin imagen.jpeg'}
                       alt={`${productName} - Imagen`}
                       className="modal-image"
-                      style={{ transform: `scale(${zoom})` }}
+                      style={index === internalIndex ? { transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` } : undefined}
                       draggable={false}
                       onError={(e) => {
                         e.target.onerror = null;
@@ -338,57 +462,6 @@ function ProductImageGallery({ images, productName, productDescription, classNam
                     />
                   </div>
                 ))}
-              </div>
-              
-              {showCarousel && (
-                <>
-                  <button
-                    className="modal-nav-button modal-prev-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      prevImage();
-                    }}
-                  >
-                    ❮
-                  </button>
-                  <button
-                    className="modal-nav-button modal-next-button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      nextImage();
-                    }}
-                  >
-                    ❯
-                  </button>
-                </>
-              )}
-            </div>
-            
-            <div className="modal-info">
-              <div className="modal-info-header">
-                <h3>{productName}</h3>
-                {showCarousel && <span className="image-counter">Imagen {currentIndex + 1} de {displayImages.length}</span>}
-              </div>
-              
-              <div className="modal-info-content">
-                {productDescription && (
-                  <p className="modal-description">
-                    {productDescription}
-                  </p>
-                )}
-                
-                {onAddToCart && (
-                  <button 
-                    className="add-to-cart-button modal-add-btn" 
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAddToCart();
-                      toggleModal();
-                    }}
-                  >
-                    Agregar
-                  </button>
-                )}
               </div>
             </div>
           </div>
