@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { BASE_URL } from '../config';
 import '../styles/ProductDetail.css';
 import LoadingSpinner from './LoadingSpinner';
+import { formatCurrency } from '../utils/formatCurrency';
 
-function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout }) {
+function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout, currencyCode }) {
     const navigate = useNavigate();
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
@@ -35,6 +36,12 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose,
         if (onClear) {
             onClear(item);
         }
+    };
+
+    const handleOpenProduct = (item) => {
+        if (!item || item.id == null) return;
+        navigate(`/product/${item.id}`);
+        setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }), 0);
     };
 
     return (
@@ -101,24 +108,37 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose,
                                 {cartItems.map(item => (
                                     <li key={`cart-${item.id}`} className="cart-item">
                                         <div className="cart-item-image-container">
-                                            <img 
-                                                src={item.image ? (
-                                                    item.image.startsWith('http') 
-                                                        ? item.image 
-                                                        : (item.image.startsWith('/images/') 
-                                                            ? `${BASE_URL}${item.image}` 
-                                                            : `${BASE_URL}/images/${item.image}`)
-                                                ) : '/images/sin imagen.jpeg'} 
-                                                alt={item.name} 
-                                                className="cart-item-img" 
-                                                onError={(e) => {
-                                                    e.target.src = '/images/sin imagen.jpeg';
-                                                }}
-                                            />
+                                            <button
+                                                type="button"
+                                                className="cart-item-link cart-item-image-button"
+                                                onClick={() => handleOpenProduct(item)}
+                                                aria-label={`Ver ${item.name}`}
+                                            >
+                                                <img 
+                                                    src={item.image ? (
+                                                        item.image.startsWith('http') 
+                                                            ? item.image 
+                                                            : (item.image.startsWith('/images/') 
+                                                                ? `${BASE_URL}${item.image}` 
+                                                                : `${BASE_URL}/images/${item.image}`)
+                                                    ) : '/images/sin imagen.jpeg'} 
+                                                    alt={item.name} 
+                                                    className="cart-item-img" 
+                                                    onError={(e) => {
+                                                        e.target.src = '/images/sin imagen.jpeg';
+                                                    }}
+                                                />
+                                            </button>
                                         </div>
                                         <div className="cart-item-details">
                                             <div className="cart-item-header">
-                                                <span className="item-name">{item.name}</span>
+                                                <button
+                                                    type="button"
+                                                    className="item-name cart-item-link cart-item-name-button"
+                                                    onClick={() => handleOpenProduct(item)}
+                                                >
+                                                    {item.name}
+                                                </button>
                                                 <button 
                                                     className="remove-item-btn" 
                                                     onClick={() => handleRemoveItem(item)}
@@ -130,7 +150,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose,
                                             <div className="cart-item-body">
                                                 <div className="item-price-info">
                                                     <span className="item-price-label">Precio:</span>
-                                                    <span className="item-price-value">${item.price.toFixed(2)}</span>
+                                                    <span className="item-price-value">{formatCurrency(item.price, currencyCode)}</span>
                                                 </div>
                                                 <div className="cart-item-actions">
                                                     <div className="quantity-selector">
@@ -162,12 +182,12 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose,
                                 <h3>Resumen del Pedido</h3>
                                 <div className="summary-row">
                                     <span>Subtotal</span>
-                                    <span>${total.toFixed(2)}</span>
+                                    <span>{formatCurrency(total, currencyCode)}</span>
                                 </div>
                                 <div className="summary-divider"></div>
                                 <div className="summary-row total-row">
                                     <span>Total</span>
-                                    <span>${total.toFixed(2)}</span>
+                                    <span>{formatCurrency(total, currencyCode)}</span>
                                 </div>
                                 
                                 <div className="cart-actions">

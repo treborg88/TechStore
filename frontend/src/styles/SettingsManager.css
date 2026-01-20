@@ -30,6 +30,67 @@
   gap: 2rem;
 }
 
+.settings-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+  padding-bottom: 1rem;
+}
+
+.settings-subtab {
+  padding: 0.5rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  background: #f3f4f6;
+  color: #374151;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.settings-subtab.active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.settings-section.collapsible {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0;
+  background: #fff;
+}
+
+.settings-section.collapsible .section-description {
+  margin: 0 1.5rem 1rem;
+}
+
+.settings-section.collapsible .settings-grid,
+.settings-section.collapsible .form-group,
+.settings-section.collapsible .settings-subsection,
+.settings-section.collapsible .category-settings-list {
+  padding: 0 1.5rem 1.5rem;
+}
+
+.section-toggle {
+  width: 100%;
+  background: #f9fafb;
+  border: none;
+  border-radius: 12px 12px 0 0;
+  padding: 1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-weight: 600;
+  color: #111827;
+  cursor: pointer;
+}
+
+.toggle-indicator {
+  font-size: 1.2rem;
+  color: #6b7280;
+}
+
 .settings-menu {
   display: flex;
   flex-direction: column;
@@ -104,6 +165,7 @@
 .form-group input[type="email"],
 .form-group input[type="number"],
 .form-group input[type="password"],
+.form-group select,
 .form-group textarea {
   padding: 0.75rem;
   border: 1px solid #d1d5db;
@@ -247,6 +309,71 @@
   background-color: #1d4ed8;
   transform: translateY(-1px);
   box-shadow: 0 4px 6px rgba(37, 99, 235, 0.2);
+}
+
+.settings-subsection {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.settings-subsection h4 {
+  margin: 0;
+  font-size: 1rem;
+  color: #374151;
+}
+
+.category-settings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.category-settings-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1rem;
+  background: #f9fafb;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.category-settings-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-secondary-btn {
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #111827;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-secondary-btn:hover {
+  background: #f3f4f6;
+}
+
+.settings-danger-btn {
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #fecaca;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.settings-danger-btn:disabled,
+.settings-secondary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 @media (max-width: 640px) {

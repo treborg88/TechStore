@@ -4,6 +4,7 @@ import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from './LoadingSpinner';
 import '../styles/ProductList.css';
+import { formatCurrency } from '../utils/formatCurrency';
 
 function blankProduct() {
 	return {
@@ -16,7 +17,7 @@ function blankProduct() {
 	};
 }
 
-export default function ProductList({ products, onRefresh, isLoading, pagination }) {
+export default function ProductList({ products, onRefresh, isLoading, pagination, currencyCode }) {
 	const [newProduct, setNewProduct] = useState(blankProduct());
 	const [customCategory, setCustomCategory] = useState('');
 	const [editingProduct, setEditingProduct] = useState(null);
@@ -511,7 +512,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 												<td className="admin-table-description" data-label="Descripción">
 													{product.description || 'Sin descripción'}
 												</td>
-												<td className="admin-table-price" data-label="Precio">${product.price}</td>
+												<td className="admin-table-price" data-label="Precio">{formatCurrency(product.price, currencyCode)}</td>
 												<td data-label="Stock">
 													<span className={`admin-stock ${product.stock > 0 ? 'in-stock' : 'out-stock'}`}>
 														{product.stock}

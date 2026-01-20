@@ -6,8 +6,9 @@ import OrderList from './OrderList';
 import ProductList from './ProductList';
 import UserList from './UserList';
 import SettingsManager from './SettingsManager';
+import { formatCurrency } from '../utils/formatCurrency';
 
-export default function AdminDashboard({ products, onRefresh, isLoading, pagination }) {
+export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
@@ -277,7 +278,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 							<div className="stat-icon">💰</div>
 							<div className="stat-info">
 								<h4>Ingresos Totales</h4>
-								<p className="stat-value">${stats.revenue.toFixed(2)}</p>
+								<p className="stat-value">{formatCurrency(stats.revenue, currencyCode)}</p>
 								<span className="stat-sub">En {stats.totalOrders} órdenes</span>
 							</div>
 						</div>
@@ -347,12 +348,12 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 								<div className="bar-chart">
 									{salesByPeriod.map((period, index) => (
 										<div key={index} className="bar-wrapper">
-											<div className="bar-label-top">${period.revenue.toFixed(0)}</div>
+											<div className="bar-label-top">{formatCurrency(period.revenue, currencyCode)}</div>
 											<div className="bar-column">
 												<div 
 													className="bar-fill"
 													style={{ height: `${period.percentage}%` }}
-													title={`${period.label}: $${period.revenue.toFixed(2)} (${period.orders} órdenes)`}
+													title={`${period.label}: ${formatCurrency(period.revenue, currencyCode)} (${period.orders} órdenes)`}
 												/>
 											</div>
 											<div className="bar-label">{period.label}</div>
@@ -360,8 +361,8 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 									))}
 								</div>
 								<div className="chart-summary">
-									<span>Total del período: <strong>${salesByPeriod.reduce((sum, p) => sum + p.revenue, 0).toFixed(2)}</strong></span>
-									<span>Promedio: <strong>${(salesByPeriod.reduce((sum, p) => sum + p.revenue, 0) / salesByPeriod.length).toFixed(2)}</strong></span>
+									<span>Total del período: <strong>{formatCurrency(salesByPeriod.reduce((sum, p) => sum + p.revenue, 0), currencyCode)}</strong></span>
+									<span>Promedio: <strong>{formatCurrency(salesByPeriod.reduce((sum, p) => sum + p.revenue, 0) / salesByPeriod.length, currencyCode)}</strong></span>
 								</div>
 							</div>
 						</div>
@@ -389,7 +390,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 												<div className="product-name">{product.name}</div>
 												<div className="product-stats">
 													<span className="quantity">{product.quantity} vendidos</span>
-													<span className="revenue">${product.revenue.toFixed(2)}</span>
+													<span className="revenue">{formatCurrency(product.revenue, currencyCode)}</span>
 												</div>
 												<div className="progress-bar">
 													<div 
@@ -466,7 +467,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 											</div>
 											<div className="order-details">
 												<span className="customer-name">{order.customer_name}</span>
-												<span className="order-total">${order.total.toFixed(2)}</span>
+												<span className="order-total">{formatCurrency(order.total, currencyCode)}</span>
 											</div>
 											<div className="order-date">
 												{new Date(order.created_at).toLocaleDateString('es-ES', { 
@@ -494,6 +495,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					onRefresh={onRefresh} 
 					isLoading={isLoading} 
 					pagination={pagination} 
+					currencyCode={currencyCode}
 				/>
 			)}
 
@@ -508,6 +510,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
                     filters={orderFilters}
                     onFilterChange={setOrderFilters}
                     pagination={ordersPagination}
+						currencyCode={currencyCode}
                     onPageChange={(page) => loadOrders(page)}
 				/>
 			)}

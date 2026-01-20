@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
@@ -7,8 +7,9 @@ import Footer from './Footer';
 import { API_URL, BASE_URL } from '../config';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import '../styles/ProductDetail.css';
+import { formatCurrency } from '../utils/formatCurrency';
 
-function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCartOpen }) {
+function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCartOpen, currencyCode }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -95,14 +96,27 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
     }
   };
 
-  const baseUrl = (BASE_URL || window.location.origin).replace(/\/$/, '');
-  const shareUrl = `${baseUrl}/product/${product?.id || id}`;
+  const createProductShareSlug = (name = '', productId) => {
+    const normalized = String(name)
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)+/g, '');
+    const idPart = productId ? String(productId) : '';
+    if (!normalized) return idPart;
+    return idPart ? `${normalized}-${idPart}` : normalized;
+  };
+
+  const shareBaseUrl = (API_URL?.replace(/\/api\/?$/, '') || BASE_URL || window.location.origin).replace(/\/$/, '');
+  const shareSlug = createProductShareSlug(product?.name, product?.id || id);
+  const shareUrl = `${shareBaseUrl}/p/${shareSlug}`;
   const shareText = `¡Mira este producto en TechStore! ${product?.name || ''}`.trim();
 
   const handleShare = async () => {
     const shareData = {
       title: product.name,
-      text: `${shareText} - $${product.price}`,
+      text: `${shareText} - ${formatCurrency(product.price, currencyCode)}`,
       url: shareUrl,
     };
 
@@ -115,6 +129,99 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
     } else {
       await handleCopyLink();
     }
+  };
+
+  const ShareMenu = ({ buttonClassName = '', label = 'Compartir' }) => {
+    const [open, setOpen] = useState(false);
+    const [dropDirection, setDropDirection] = useState('up');
+    const menuRef = useRef(null);
+    const buttonRef = useRef(null);
+
+    useEffect(() => {
+      if (!open) return;
+      const buttonRect = buttonRef.current?.getBoundingClientRect();
+      if (buttonRect) {
+        const spaceAbove = buttonRect.top;
+        const spaceBelow = window.innerHeight - buttonRect.bottom;
+        const preferredHeight = 240;
+        if (spaceAbove < preferredHeight && spaceBelow > spaceAbove) {
+          setDropDirection('down');
+        } else {
+          setDropDirection('up');
+        }
+      }
+      const handleClickOutside = (event) => {
+        if (menuRef.current && !menuRef.current.contains(event.target)) {
+          setOpen(false);
+        }
+      };
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [open]);
+
+    const handleCopy = async () => {
+      await handleCopyLink();
+      setOpen(false);
+    };
+
+    const closeMenu = () => setOpen(false);
+
+    return (
+      <div className="share-menu" ref={menuRef}>
+        <button
+          type="button"
+          className={`share-toggle-btn ${buttonClassName}`}
+          onClick={() => setOpen((prev) => !prev)}
+          ref={buttonRef}
+        >
+          🔗 {label}
+        </button>
+        {open && (
+          <div className={`share-dropdown ${dropDirection === 'down' ? 'drop-down' : 'drop-up'}`}>
+            <button type="button" className="share-option" onClick={handleShare}>
+              📲 Compartir
+            </button>
+            <button type="button" className="share-option" onClick={handleCopy}>
+              🔗 Copiar enlace
+            </button>
+            <a
+              className="share-option"
+              href={`mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(shareUrl)}`}
+              onClick={closeMenu}
+            >
+              ✉️ Email
+            </a>
+            <a
+              className="share-option"
+              href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={closeMenu}
+            >
+              💬 WhatsApp
+            </a>
+            <a
+              className="share-option"
+              href={`https://www.messenger.com/t/?link=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={closeMenu}
+            >
+              💙 Messenger
+            </a>
+            <a
+              className="share-option"
+              href={`https://www.instagram.com/?url=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={closeMenu}
+            >
+              📸 Instagram
+            </a>
+          </div>
+        )}
+      </div>
+    );
   };
 
   const handleCopyLink = async () => {
@@ -178,9 +285,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
               >
                 🛒 Comprar Ahora
               </button>
-              <button className="secondary-button" onClick={handleShare}>
-                🔗 Compartir
-              </button>
+              <ShareMenu buttonClassName="secondary-button" label="Compartir" />
             </div>
           </div>
         </div>
@@ -203,7 +308,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
           </div>
 
           <div className="product-price-stock">
-            <div className="product-price">${Number(product.price).toLocaleString()}</div>
+            <div className="product-price">{formatCurrency(product.price, currencyCode)}</div>
             <div className={`stock-badge ${isOutOfStock ? 'out-of-stock' : isLowStock ? 'low-stock' : 'in-stock'}`}>
               {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${product.stock}!` : '🟢 Disponible'}
             </div>
@@ -265,21 +370,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
               >
                 {isOutOfStock ? 'Agotado' : '🛒 Agregar'}
               </button>
-              
-              <div className="share-actions">
-                <button className="share-btn share-copy-btn" onClick={handleCopyLink} title="Copiar enlace">
-                  🔗 link
-                </button>
-                <a
-                  className="share-btn share-whatsapp-btn"
-                  href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="Compartir por WhatsApp"
-                >
-                   WhatsApp
-                </a>
-              </div>
+              <ShareMenu label="Compartir" />
             </div>
           </div>
         </div>
@@ -306,7 +397,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
                 />
                 <div className="similar-product-info">
                   <div className="similar-product-name">{similar.name}</div>
-                  <div className="similar-product-price">${Number(similar.price).toLocaleString()}</div>
+                  <div className="similar-product-price">{formatCurrency(similar.price, currencyCode)}</div>
                 </div>
               </div>
             ))}

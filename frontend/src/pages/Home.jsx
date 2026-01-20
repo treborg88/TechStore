@@ -1,10 +1,12 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ProductImageGallery from '../components/ProductImageGallery';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Footer from '../components/Footer';
+import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
+import { formatCurrency } from '../utils/formatCurrency';
 
-function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings }) {
+function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings }) {
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [imageLoaded, setImageLoaded] = useState(false);
   
@@ -35,16 +37,139 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     }
   }, [heroSettings?.image]);
 
-  // Categorías
-  const categories = [
-    { id: 0, name: 'Todos', icon: '🏪', slug: 'todos' },
-    { id: 1, name: 'Smartphones', icon: '📱', slug: 'Smartphones' },
-    { id: 2, name: 'Luces LED', icon: '🔅', slug: 'Luces LED' },
-    { id: 3, name: 'Casa Inteligente', icon: '🏠', slug: 'Casa Inteligente' },
-    { id: 4, name: 'Auriculares', icon: '🎧', slug: 'Auriculares' },
-    { id: 5, name: 'Accesorios', icon: '🔌', slug: 'Accesorios' },
-    { id: 6, name: 'Estilo de Vida', icon: '✨', slug: 'Estilo de Vida' },
-  ];
+  const toCssUnit = (value, unit = 'px') => {
+    if (value === null || value === undefined || value === '') return undefined;
+    if (typeof value === 'number') return `${value}${unit}`;
+    const trimmed = String(value).trim();
+    if (trimmed.length === 0) return undefined;
+    return /^[0-9]+(\.[0-9]+)?$/.test(trimmed) ? `${trimmed}${unit}` : trimmed;
+  };
+
+  const categoryConfig = useMemo(() => {
+    const base = DEFAULT_CATEGORY_FILTERS_CONFIG;
+    const incoming = categoryFilterSettings && typeof categoryFilterSettings === 'object'
+      ? categoryFilterSettings
+      : base;
+    if (incoming.useDefault) {
+      return { ...base, useDefault: true };
+    }
+    return {
+      ...base,
+      ...incoming,
+      categories: Array.isArray(incoming.categories) && incoming.categories.length > 0
+        ? incoming.categories
+        : base.categories,
+      styles: {
+        ...base.styles,
+        ...(incoming.styles || {})
+      }
+    };
+  }, [categoryFilterSettings]);
+
+  const categories = useMemo(() => {
+    const list = Array.isArray(categoryConfig.categories) ? categoryConfig.categories : [];
+    const hasTodos = list.some((item) => item?.slug === 'todos');
+    if (hasTodos) return list;
+    return [DEFAULT_CATEGORY_FILTERS_CONFIG.categories[0], ...list];
+  }, [categoryConfig.categories]);
+
+  const categoryStyleVars = useMemo(() => {
+    if (categoryConfig.useDefault) return {};
+    const styles = categoryConfig.styles || {};
+    return {
+      '--category-card-width': toCssUnit(styles.cardWidth),
+      '--category-card-height': toCssUnit(styles.cardHeight),
+      '--category-card-padding': toCssUnit(styles.cardPadding),
+      '--category-card-radius': toCssUnit(styles.cardRadius),
+      '--category-card-bg': styles.cardBackground || undefined,
+      '--category-card-border': styles.cardBorderColor || undefined,
+      '--category-card-shadow': styles.cardShadow || undefined,
+      '--category-card-hover-bg': styles.hoverBackground || undefined,
+      '--category-card-hover-border': styles.hoverBorderColor || undefined,
+      '--category-card-hover-shadow': styles.hoverShadow || undefined,
+      '--category-title-hover-color': styles.hoverTitleColor || undefined,
+      '--category-card-active-bg': styles.activeBackground || undefined,
+      '--category-card-active-border': styles.activeBorderColor || undefined,
+      '--category-card-active-shadow': styles.activeShadow || undefined,
+      '--category-title-color': styles.titleColor || undefined,
+      '--category-title-active-color': styles.activeTitleColor || undefined,
+      '--category-title-size': toCssUnit(styles.titleSize, 'px'),
+      '--category-title-weight': styles.titleWeight || undefined,
+      '--category-title-transform': styles.titleTransform || undefined,
+      '--category-title-letter-spacing': toCssUnit(styles.titleLetterSpacing, 'px'),
+      '--category-icon-size': toCssUnit(styles.iconSize, 'px')
+    };
+  }, [categoryConfig, toCssUnit]);
+
+  const productCardConfig = useMemo(() => {
+    const base = DEFAULT_PRODUCT_CARD_CONFIG;
+    const incoming = productCardSettings && typeof productCardSettings === 'object'
+      ? productCardSettings
+      : base;
+    if (incoming.useDefault) {
+      return { ...base, useDefault: true };
+    }
+    return {
+      ...base,
+      ...incoming,
+      layout: {
+        ...base.layout,
+        ...(incoming.layout || {})
+      },
+      styles: {
+        ...base.styles,
+        ...(incoming.styles || {})
+      }
+    };
+  }, [productCardSettings]);
+
+  const productCardStyleVars = useMemo(() => {
+    if (productCardConfig.useDefault) return {};
+    const styles = productCardConfig.styles || {};
+    const layout = productCardConfig.layout || {};
+    return {
+      '--product-grid-columns': layout.columnsMobile || undefined,
+      '--product-grid-columns-md': layout.columnsTablet || undefined,
+      '--product-grid-columns-lg': layout.columnsDesktop || undefined,
+      '--product-grid-columns-xl': layout.columnsWide || undefined,
+      '--product-card-width': toCssUnit(styles.cardWidth),
+      '--product-card-height': toCssUnit(styles.cardHeight),
+      '--product-card-padding': toCssUnit(styles.cardPadding),
+      '--product-card-radius': toCssUnit(styles.cardRadius),
+      '--product-card-border-width': toCssUnit(styles.borderWidth),
+      '--product-card-border-style': styles.borderStyle || undefined,
+      '--product-card-border-color': styles.borderColor || undefined,
+      '--product-card-bg': styles.background || undefined,
+      '--product-card-shadow': styles.shadow || undefined,
+      '--product-title-color': styles.titleColor || undefined,
+      '--product-title-size': toCssUnit(styles.titleSize, 'px'),
+      '--product-title-weight': styles.titleWeight || undefined,
+      '--product-price-color': styles.priceColor || undefined,
+      '--product-price-size': toCssUnit(styles.priceSize, 'px'),
+      '--product-price-weight': styles.priceWeight || undefined,
+      '--product-desc-color': styles.descriptionColor || undefined,
+      '--product-desc-size': toCssUnit(styles.descriptionSize, 'px'),
+      '--product-category-color': styles.categoryColor || undefined,
+      '--product-category-size': toCssUnit(styles.categorySize, 'px'),
+      '--product-button-bg': styles.buttonBg || undefined,
+      '--product-button-color': styles.buttonText || undefined,
+      '--product-button-radius': toCssUnit(styles.buttonRadius),
+      '--product-button-border': styles.buttonBorder || undefined,
+      '--product-button-shadow': styles.buttonShadow || undefined
+    };
+  }, [productCardConfig, toCssUnit]);
+
+  const productCardOrientationClass = productCardConfig.layout?.orientation === 'horizontal'
+    ? 'product-card-horizontal'
+    : 'product-card-vertical';
+
+  useEffect(() => {
+    const valid = categories.some((category) => category?.slug === selectedCategory);
+    if (!valid) {
+      setSelectedCategory('todos');
+      fetchProducts('todos');
+    }
+  }, [categories, selectedCategory, fetchProducts]);
 
   // Función para cambiar de categoría
   const handleCategoryChange = (categorySlug) => {
@@ -134,7 +259,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       </section>
       
       {/* Categories */}
-      <section className="categories-section">
+      <section className="categories-section" style={categoryStyleVars}>
         <div className="container">
           <h2 className="section-title">Explora Nuestras Categorías</h2>
           <div className="categories-scroll-container">
@@ -152,7 +277,13 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                   className={`category-card ${selectedCategory === category.slug ? 'active' : ''}`}
                   onClick={() => handleCategoryChange(category.slug)}
                 >
-                  <div className="category-icon">{category.icon}</div>
+                  <div className="category-icon">
+                    {category.image ? (
+                      <img src={category.image} alt={category.name} className="category-icon-image" />
+                    ) : (
+                      category.icon
+                    )}
+                  </div>
                   <h3 className="category-title">{category.name}</h3>
                 </button>
               ))}
@@ -162,7 +293,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       </section>
       
       {/* Featured Products */}
-      <section className="products-section">
+      <section className="products-section" style={productCardStyleVars}>
         <div className="container">
           <h2 className="section-title">Productos Destacados</h2>
           
@@ -183,7 +314,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
               >
                 {products.length > 0 ? (
                   products.map(product => (
-                    <div key={product.id} className="product-card">
+                    <div key={product.id} className={`product-card ${productCardOrientationClass}`}>
                       <ProductImageGallery
                         images={product.images || product.image}
                         productName={product.name}
@@ -199,7 +330,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                         </Link>
                         <p className="product-description">{product.description}</p>
                         <div className="product-footer">
-                          <span className="product-price">${product.price}</span>
+                          <span className="product-price">{formatCurrency(product.price, productCardConfig.currency)}</span>
                           <button
                             onClick={() => addToCart(product)}
                             className="add-to-cart-button"

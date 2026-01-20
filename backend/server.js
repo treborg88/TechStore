@@ -12,6 +12,7 @@ const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
 const crypto = require('crypto');
 const { statements } = require('./database');
+const { buildShareHtml, extractProductIdFromSlug, ensureAbsoluteUrl } = require('./sharePage');
 const app = express();
 
 // --- Security Middleware ---
@@ -30,6 +31,41 @@ if (!JWT_SECRET) {
 }
 
 const FINAL_JWT_SECRET = JWT_SECRET;
+
+const SETTINGS_ENCRYPTION_SECRET = process.env.SETTINGS_ENCRYPTION_SECRET || JWT_SECRET;
+const SETTINGS_ENCRYPTION_PREFIX = 'enc:';
+const SETTINGS_ENCRYPTION_KEY = SETTINGS_ENCRYPTION_SECRET
+    ? crypto.createHash('sha256').update(String(SETTINGS_ENCRYPTION_SECRET)).digest()
+    : null;
+
+const encryptSetting = (value) => {
+    if (!SETTINGS_ENCRYPTION_KEY || !value) return value;
+    const iv = crypto.randomBytes(12);
+    const cipher = crypto.createCipheriv('aes-256-gcm', SETTINGS_ENCRYPTION_KEY, iv);
+    const encrypted = Buffer.concat([cipher.update(String(value), 'utf8'), cipher.final()]);
+    const tag = cipher.getAuthTag();
+    return `${SETTINGS_ENCRYPTION_PREFIX}${iv.toString('base64')}:${tag.toString('base64')}:${encrypted.toString('base64')}`;
+};
+
+const decryptSetting = (value) => {
+    if (!SETTINGS_ENCRYPTION_KEY || !value || typeof value !== 'string') return value;
+    if (!value.startsWith(SETTINGS_ENCRYPTION_PREFIX)) return value;
+    try {
+        const payload = value.slice(SETTINGS_ENCRYPTION_PREFIX.length);
+        const [ivB64, tagB64, dataB64] = payload.split(':');
+        if (!ivB64 || !tagB64 || !dataB64) return value;
+        const iv = Buffer.from(ivB64, 'base64');
+        const tag = Buffer.from(tagB64, 'base64');
+        const data = Buffer.from(dataB64, 'base64');
+        const decipher = crypto.createDecipheriv('aes-256-gcm', SETTINGS_ENCRYPTION_KEY, iv);
+        decipher.setAuthTag(tag);
+        const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
+        return decrypted.toString('utf8');
+    } catch (error) {
+        console.error('Error decrypting setting:', error);
+        return value;
+    }
+};
 
 // CORS con múltiples orígenes permitidos
 const corsOptions = {
@@ -648,6 +684,46 @@ app.post('/api/auth/logout', authenticateToken, (req, res) => {
     });
 });
 
+// == Share Page (OG) ==
+app.get('/p/:slug', async (req, res) => {
+    const slug = req.params.slug || '';
+    const productId = extractProductIdFromSlug(slug);
+    if (!productId) {
+        return res.status(404).send('Producto no encontrado');
+    }
+
+    try {
+        const product = await statements.getProductById(productId);
+        if (!product) {
+            return res.status(404).send('Producto no encontrado');
+        }
+
+        let images = await statements.getProductImages(productId);
+        if (images.length === 0 && product.image) {
+            images = [{ image_path: product.image }];
+        }
+
+        const baseUrl = (process.env.FRONTEND_URL || process.env.BASE_URL || `${req.protocol}://${req.get('host')}`)
+            .replace(/\/$/, '');
+        const primaryImage = images.length > 0 ? images[0].image_path : '';
+        const imageUrl = ensureAbsoluteUrl(primaryImage, baseUrl);
+        const shareUrl = `${baseUrl}/product/${productId}`;
+
+        const html = buildShareHtml({
+            title: product.name,
+            description: product.description,
+            imageUrl,
+            url: shareUrl
+        });
+
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.send(html);
+    } catch (error) {
+        console.error('Error generando share page:', error);
+        return res.status(500).send('Error interno del servidor');
+    }
+});
+
 // --- RUTAS EXISTENTES DE PRODUCTOS, CARRITO Y ÓRDENES ---
 // (Mantener todas las rutas existentes...)
 
@@ -1116,20 +1192,23 @@ app.post('/api/orders', authenticateToken, async (req, res) => {
         await statements.clearCart(req.user.id);
 
         const order = await statements.getOrderById(orderId);
-        const emailSent = await sendOrderEmail({
-            order,
-            items: itemDetails,
-            customer: {
-                name: resolvedCustomerName,
-                email: resolvedCustomerEmail,
-                phone: resolvedCustomerPhone
-            },
-            shipping: {
-                address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+        const skipEmail = req.body.skipEmail === true;
+        if (!skipEmail) {
+            const emailSent = await sendOrderEmail({
+                order,
+                items: itemDetails,
+                customer: {
+                    name: resolvedCustomerName,
+                    email: resolvedCustomerEmail,
+                    phone: resolvedCustomerPhone
+                },
+                shipping: {
+                    address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+                }
+            });
+            if (!emailSent) {
+                console.warn('Order email not sent for order', orderId);
             }
-        });
-        if (!emailSent) {
-            console.warn('Order email not sent for order', orderId);
         }
         console.log('Orden creada:', order);
         res.status(201).json(order);
@@ -1239,20 +1318,23 @@ app.post('/api/orders/guest', async (req, res) => {
         }
 
         const order = await statements.getOrderById(orderId);
-        const emailSent = await sendOrderEmail({
-            order,
-            items: itemDetails,
-            customer: {
-                name: guestName,
-                email: guestEmail,
-                phone: guestPhone
-            },
-            shipping: {
-                address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+        const skipEmail = req.body.skipEmail === true;
+        if (!skipEmail) {
+            const emailSent = await sendOrderEmail({
+                order,
+                items: itemDetails,
+                customer: {
+                    name: guestName,
+                    email: guestEmail,
+                    phone: guestPhone
+                },
+                shipping: {
+                    address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+                }
+            });
+            if (!emailSent) {
+                console.warn('Order email not sent for guest order', orderId);
             }
-        });
-        if (!emailSent) {
-            console.warn('Order email not sent for guest order', orderId);
         }
         console.log('Orden de invitado creada:', order);
         res.status(201).json(order);
@@ -1267,6 +1349,92 @@ app.post('/api/orders/guest', async (req, res) => {
             }
         }
         res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+// Send invoice email with PDF attachment
+app.post('/api/orders/:id/invoice-email', async (req, res) => {
+    const orderId = parseInt(req.params.id, 10);
+    const { pdfBase64, email } = req.body || {};
+
+    if (!orderId || !pdfBase64) {
+        return res.status(400).json({ message: 'Falta el PDF o el ID de la orden' });
+    }
+
+    try {
+        const order = await statements.getOrderById(orderId);
+        if (!order) {
+            return res.status(404).json({ message: 'Orden no encontrada' });
+        }
+
+        const orderEmail = (order.customer_email || '').trim().toLowerCase();
+        const requestEmail = (email || orderEmail).trim().toLowerCase();
+        if (orderEmail && requestEmail && orderEmail !== requestEmail) {
+            return res.status(403).json({ message: 'Email no autorizado para esta orden' });
+        }
+
+        const items = await statements.getOrderItems(orderId);
+        const itemDetails = items.map((item) => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+        }));
+
+        const cleanBase64 = String(pdfBase64).replace(/^data:application\/pdf;base64,/, '');
+        const attachment = {
+            filename: `factura-${order.order_number || order.id}.pdf`,
+            content: Buffer.from(cleanBase64, 'base64'),
+            contentType: 'application/pdf'
+        };
+
+        const shippingAddress = [order.shipping_street, order.shipping_sector, order.shipping_city]
+            .filter(Boolean)
+            .join(', ') || order.shipping_address || '';
+
+        let emailSent = false;
+        try {
+            emailSent = await sendOrderEmail({
+                order,
+                items: itemDetails,
+                customer: {
+                    name: order.customer_name || 'Cliente',
+                    email: orderEmail || requestEmail,
+                    phone: order.customer_phone || ''
+                },
+                shipping: {
+                    address: shippingAddress
+                },
+                attachment
+            });
+        } catch (error) {
+            console.error('Error adjuntando factura, enviando sin adjunto:', error);
+        }
+
+        if (!emailSent) {
+            const fallbackSent = await sendOrderEmail({
+                order,
+                items: itemDetails,
+                customer: {
+                    name: order.customer_name || 'Cliente',
+                    email: orderEmail || requestEmail,
+                    phone: order.customer_phone || ''
+                },
+                shipping: {
+                    address: shippingAddress
+                }
+            });
+
+            if (!fallbackSent) {
+                return res.status(500).json({ message: 'No se pudo enviar el correo' });
+            }
+
+            return res.json({ message: 'Correo enviado sin adjunto' });
+        }
+
+        return res.json({ message: 'Correo enviado con adjunto' });
+    } catch (error) {
+        console.error('Error enviando factura adjunta:', error);
+        return res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
 
@@ -1610,7 +1778,11 @@ app.put('/api/users/:id/status', authenticateToken, async (req, res) => {
 const getSettingsMap = async () => {
     const settings = await statements.getSettings();
     return settings.reduce((acc, curr) => {
-        acc[curr.id] = curr.value;
+        if (curr.id === 'mailPassword') {
+            acc[curr.id] = decryptSetting(curr.value);
+        } else {
+            acc[curr.id] = curr.value;
+        }
         return acc;
     }, {});
 };
@@ -1683,7 +1855,7 @@ const sendMailWithSettings = async (mailOptions) => {
     });
 };
 
-const sendOrderEmail = async ({ order, items, customer, shipping }) => {
+const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) => {
     try {
         const settings = await getSettingsMap();
         const transporter = createMailTransporter(settings);
@@ -1768,12 +1940,18 @@ const sendOrderEmail = async ({ order, items, customer, shipping }) => {
             })
             : defaultTemplate;
 
-        await transporter.sendMail({
+        const mailOptions = {
             from,
             to: customer.email,
             subject: `Orden recibida ${order.order_number ? order.order_number : `#${order.id}`}`,
             html
-        });
+        };
+
+        if (attachment) {
+            mailOptions.attachments = [attachment];
+        }
+
+        await transporter.sendMail(mailOptions);
         return true;
     } catch (error) {
         console.error('Error enviando email de orden:', error);
@@ -1936,7 +2114,11 @@ app.get('/api/settings', async (req, res) => {
         const settings = await statements.getSettings();
         // Convertir array [ {id: 'siteName', value: 'TechStore'}, ... ] a objeto { siteName: 'TechStore', ... }
         const settingsObj = settings.reduce((acc, curr) => {
-            acc[curr.id] = curr.value;
+            if (curr.id === 'mailPassword') {
+                acc[curr.id] = '';
+            } else {
+                acc[curr.id] = curr.value;
+            }
             return acc;
         }, {});
         res.json(settingsObj);
@@ -1953,9 +2135,17 @@ app.put('/api/settings', authenticateToken, async (req, res) => {
 
     try {
         const settings = req.body; // { siteName: '...', siteIcon: '...' }
-        const promises = Object.entries(settings).map(([key, value]) => 
-            statements.updateSetting(key, value)
-        );
+        const entries = Object.entries(settings).filter(([key, value]) => {
+            if (key !== 'mailPassword') return true;
+            return value !== undefined && value !== null && String(value).trim() !== '';
+        });
+        const promises = entries.map(([key, value]) => {
+            if (key === 'mailPassword') {
+                const encrypted = encryptSetting(value);
+                return statements.updateSetting(key, encrypted);
+            }
+            return statements.updateSetting(key, value);
+        });
         await Promise.all(promises);
         res.json({ message: 'Ajustes actualizados correctamente' });
     } catch (error) {

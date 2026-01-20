@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import LoadingSpinner from './LoadingSpinner';
 import Invoice from './Invoice';
+import { formatCurrency } from '../utils/formatCurrency';
 
 const ONLINE_ORDER_STEPS = [
 	{ id: 'all', label: 'Todos', icon: '📋' },
@@ -36,7 +37,8 @@ export default function OrderList({
     filters,
     onFilterChange,
     pagination,
-    onPageChange
+	onPageChange,
+	currencyCode
 }) {
 	// const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' }); // Moved to parent
     const orderFilters = filters || { search: '', status: 'all', type: 'all', paymentType: 'all' };
@@ -424,7 +426,7 @@ export default function OrderList({
 									{order.customer_name}
 								</td>
 								<td data-label="Email">{order.customer_email}</td>
-								<td className="admin-table-price" data-label="Total">${order.total.toFixed(2)}</td>
+								<td className="admin-table-price" data-label="Total">{formatCurrency(order.total, currencyCode)}</td>
 								<td data-label="Pago">
 									<span className={`admin-chip payment-${order.payment_method || 'cash'}`}>
 										{(order.payment_method === 'cash' || !order.payment_method) && '💵 Efectivo'}
@@ -576,7 +578,7 @@ export default function OrderList({
 
 					<div className="mobile-order-row">
 						<span className="mobile-order-label">Total</span>
-						<span className="mobile-order-value">${order.total.toFixed(2)}</span>
+						<span className="mobile-order-value">{formatCurrency(order.total, currencyCode)}</span>
 					</div>
 
 					<div className="mobile-order-row">
@@ -750,6 +752,7 @@ export default function OrderList({
 										onStatusChange={(newStatus) => handleOrderStatusChange(selectedOrder.id, newStatus)}
 										siteName={siteName}
 										siteIcon={siteIcon}
+										currencyCode={currencyCode}
 									/>
 								</div>
 								<div className="order-admin-notes-section" style={{borderLeft: '1px solid #eee', paddingLeft: '20px', minWidth: '300px'}}>

@@ -1,6 +1,7 @@
 import React from 'react';
-import { PDFDownloadLink, Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
+import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
 import '../styles/print.css';
+import { formatCurrency } from '../utils/formatCurrency';
 
 // PDF Styles
 const styles = StyleSheet.create({
@@ -297,9 +298,9 @@ const InvoicePDF = ({ invoiceData }) => (
           <View key={index} style={[styles.tableRow, index % 2 === 0 ? {} : styles.tableRowEven]}>
             <Text style={styles.col1}>{item.description}</Text>
             <Text style={styles.col2}>{item.quantity} Unidades</Text>
-            <Text style={styles.col3}>{item.unitPrice.toFixed(2)}</Text>
+            <Text style={styles.col3}>{formatCurrency(item.unitPrice, invoiceData.currency)}</Text>
             <Text style={styles.col4}></Text>
-            <Text style={styles.col5}>{invoiceData.currency} {item.amount.toFixed(2)}</Text>
+            <Text style={styles.col5}>{formatCurrency(item.amount, invoiceData.currency)}</Text>
           </View>
         ))}
       </View>
@@ -313,13 +314,13 @@ const InvoicePDF = ({ invoiceData }) => (
           <View style={styles.summaryRow}>
             <Text style={{...styles.summaryLabel, width: '60%'}}>Subtotal:</Text>
             <Text style={{...styles.summaryValue, width: '40%'}}>
-              {invoiceData.currency} {invoiceData.total.toFixed(2)}
+              {formatCurrency(invoiceData.total, invoiceData.currency)}
             </Text>
           </View>
           <View style={styles.totalRow}>
             <Text style={{...styles.totalLabel, width: '60%'}}>Total:</Text>
             <Text style={{...styles.totalValue, width: '40%'}}>
-              {invoiceData.currency} {invoiceData.total.toFixed(2)}
+              {formatCurrency(invoiceData.total, invoiceData.currency)}
             </Text>
           </View>
         </View>
@@ -381,48 +382,69 @@ const COD_STATUS_STEPS = [
     { id: 'paid', label: 'Pagado', icon: '💰' }
 ];
 
-const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒' }) => {
-    const isAuthenticated = !!localStorage.getItem('userData');
+export const buildInvoiceData = ({
+  order,
+  customerInfo,
+  items,
+  siteName = 'Mi Tienda Online',
+  siteIcon = '🛒',
+  currencyCode
+}) => {
+  const orderDate = order?.created_at ? new Date(order.created_at) : new Date();
+  const currentDate = orderDate.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
+  const currentTime = orderDate.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
-    // Usar la fecha de creación de la orden si está disponible, sino la actual
-    const orderDate = order.created_at ? new Date(order.created_at) : new Date();
-    const currentDate = orderDate.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
-    const currentTime = orderDate.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
+  return {
+    companyName: siteName,
+    companyIcon: siteIcon,
+    companyAddress: 'Calle Principal #123, Santo Domingo',
+    companyPhone: '829-334-6358',
+    companyRNC: '123456789',
+    companyLocation: 'República Dominicana',
+    invoiceNumber: order?.order_number || `COT/${order?.id?.toString().padStart(6, '0')}`,
+    date: currentDate,
+    time: currentTime,
+    customerName: `${customerInfo?.firstName || ''} ${customerInfo?.lastName || ''}`.trim(),
+    customerEmail: customerInfo?.email || '',
+    customerPhone: customerInfo?.phone || 'N/A',
+    customerAddress: `${customerInfo?.address || ''}, ${customerInfo?.sector || ''}, ${customerInfo?.city || ''}`.replace(/^,\s*|,\s*,/g, '').trim(),
+    customerID: customerInfo?.identification || 'N/A',
+    seller: 'Sistema Online',
+    paymentType: customerInfo?.paymentMethod === 'cash' ? 'Contra Entrega'
+      : customerInfo?.paymentMethod === 'transfer' ? 'Transferencia'
+      : customerInfo?.paymentMethod === 'card' ? 'Tarjeta' : 'Pendiente',
+    paymentStatus: order?.status === 'paid' || order?.status === 'delivered' ? 'Pagado' : 'Pendiente',
+    deliveryTime: '3-5 días hábiles',
+    currency: currencyCode || 'USD',
+    source: order?.order_number || order?.id?.toString(),
+    items: (items || []).map(item => ({
+      description: item.name,
+      quantity: item.quantity,
+      unitPrice: item.price,
+      taxPercent: '',
+      taxes: '',
+      amount: item.price * item.quantity
+    })),
+    total: order?.total || 0
+  };
+};
 
-    // Prepare data for PDF
-    const invoiceData = {
-        companyName: siteName,
-        companyIcon: siteIcon,
-        companyAddress: 'Calle Principal #123, Santo Domingo',
-        companyPhone: '829-334-6358',
-        companyRNC: '123456789',
-        companyLocation: 'República Dominicana',
-        invoiceNumber: order.order_number || `COT/${order.id.toString().padStart(6, '0')}`,
-        date: currentDate,
-        time: currentTime,
-        customerName: `${customerInfo.firstName} ${customerInfo.lastName}`,
-        customerEmail: customerInfo.email,
-        customerPhone: customerInfo.phone || 'N/A',
-        customerAddress: `${customerInfo.address}, ${customerInfo.sector}, ${customerInfo.city}`,
-        customerID: customerInfo.identification || 'N/A',
-        seller: 'Sistema Online',
-        paymentType: customerInfo.paymentMethod === 'cash' ? 'Contra Entrega' 
-                     : customerInfo.paymentMethod === 'transfer' ? 'Transferencia'
-                     : customerInfo.paymentMethod === 'card' ? 'Tarjeta' : 'Pendiente',
-        paymentStatus: order.status === 'paid' || order.status === 'delivered' ? 'Pagado' : 'Pendiente',
-        deliveryTime: '3-5 días hábiles',
-        currency: 'RD$',
-        source: order.order_number || order.id.toString(),
-        items: items.map(item => ({
-            description: item.name,
-            quantity: item.quantity,
-            unitPrice: item.price,
-            taxPercent: '',
-            taxes: '',
-            amount: item.price * item.quantity
-        })),
-        total: order.total
-    };
+export const generateInvoicePdfBlob = async (invoiceData) => {
+  const blob = await pdf(<InvoicePDF invoiceData={invoiceData} />).toBlob();
+  return blob;
+};
+
+const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒', currencyCode }) => {
+  const isAuthenticated = !!localStorage.getItem('userData');
+
+  const invoiceData = buildInvoiceData({
+    order,
+    customerInfo,
+    items,
+    siteName,
+    siteIcon,
+    currencyCode
+  });
 
     return (
         <div className="order-success printable-area">
@@ -457,7 +479,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                 <div className="invoice-title-section">
                     <h1 className="invoice-title">FACTURA</h1>
                     <p className="invoice-number">No. {invoiceData.invoiceNumber}</p>
-                    <p className="invoice-date">Fecha: {currentDate}  {currentTime}</p>
+                  <p className="invoice-date">Fecha: {invoiceData.date}  {invoiceData.time}</p>
                 </div>
 
                 <div className="invoice-info-grid">
@@ -493,7 +515,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         </div>
                         <div className="info-row">
                             <span className="info-label">MONEDA:</span>
-                            <span className="info-value">DOP</span>
+                          <span className="info-value">{invoiceData.currency}</span>
                         </div>
                         <div className="info-row">
                             <span className="info-label">ESTADO DE PAGO:</span>
@@ -519,9 +541,9 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                                 <tr key={item.id}>
                                     <td>{item.name}</td>
                                     <td>{item.quantity} Unidades</td>
-                                    <td>RD$ {item.price.toFixed(2)}</td>
+                                  <td>{formatCurrency(item.price, invoiceData.currency)}</td>
                                     <td></td>
-                                    <td>RD$ {(item.price * item.quantity).toFixed(2)}</td>
+                                  <td>{formatCurrency(item.price * item.quantity, invoiceData.currency)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -533,11 +555,11 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <br /><br />
                         <div className="total-row">
                             <span>Subtotal:</span>
-                            <span>RD$ {order.total.toFixed(2)}</span>
+                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
                         </div>
                         <div className="total-row final">
                             <span>Total:</span>
-                            <span>RD$ {order.total.toFixed(2)}</span>
+                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
                         </div>
                     </div>
                 </div>
@@ -618,7 +640,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                     <div className="invoice-meta">
                         <h3>FACTURA</h3>
                         <p><strong>Orden:</strong> {order.order_number || `#${order.id}`}</p>
-                        <p><strong>Fecha:</strong> {currentDate} {currentTime}</p>
+                        <p><strong>Fecha:</strong> {invoiceData.date} {invoiceData.time}</p>
                     </div>
                 </div>
 
@@ -652,8 +674,8 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                                 <tr key={item.id}>
                                     <td>{item.name}</td>
                                     <td>{item.quantity}</td>
-                                    <td>${item.price.toFixed(2)}</td>
-                                    <td>${(item.price * item.quantity).toFixed(2)}</td>
+                                <td>{formatCurrency(item.price, invoiceData.currency)}</td>
+                                <td>{formatCurrency(item.price * item.quantity, invoiceData.currency)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -683,18 +705,18 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                     <div className="totals-box">
                         <div className="total-row">
                             <span>Subtotal:</span>
-                            <span>${order.total.toFixed(2)}</span>
+                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
                         </div>
                         <div className="total-row grand-total">
                             <span>TOTAL:</span>
-                            <span>${order.total.toFixed(2)}</span>
+                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
                         </div>
                     </div>
                 </div>
             </div>
 
             <div className="order-summary-success no-print" style={{display: 'none'}}>
-                <p><strong>Total:</strong> ${order.total.toFixed(2)}</p>
+                <p><strong>Total:</strong> {formatCurrency(order.total, invoiceData.currency)}</p>
                 <p><strong>Método de Pago:</strong> 
                     {customerInfo.paymentMethod === 'cash' && ' 💵 Pago Contra Entrega'}
                     {customerInfo.paymentMethod === 'transfer' && ' 🏦 Transferencia Bancaria'}
@@ -718,7 +740,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
 
             {showSuccess && customerInfo.paymentMethod === 'cash' && (
                 <div className="payment-note no-print">
-                    💰 Prepara el monto exacto: <strong>${order.total.toFixed(2)}</strong>
+                    💰 Prepara el monto exacto: <strong>{formatCurrency(order.total, invoiceData.currency)}</strong>
                 </div>
             )}
             {showSuccess && customerInfo.paymentMethod === 'transfer' && (
@@ -729,7 +751,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <p><strong>Titular:</strong> Mi Tienda Online</p>
                         <p><strong>Cuenta:</strong> 1234-5678-9012-3456</p>
                         <p><strong>CLABE:</strong> 012345678901234567</p>
-                        <p><strong>Monto:</strong> <span className="amount">${order.total.toFixed(2)}</span></p>
+                        <p><strong>Monto:</strong> <span className="amount">{formatCurrency(order.total, invoiceData.currency)}</span></p>
                     </div>
                     <p className="transfer-instructions">
                         ⚠️ Envía tu comprobante de pago por email a <strong>pagos@mitienda.com</strong> 

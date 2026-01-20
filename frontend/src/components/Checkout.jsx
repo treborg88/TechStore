@@ -3,13 +3,14 @@ import { useNavigate } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../config';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { getCurrentUser } from '../services/authService';
-import Invoice from './Invoice';
+import Invoice, { buildInvoiceData, generateInvoicePdfBlob } from './Invoice';
 import EmailVerification from './EmailVerification';
 import LoginPage from './LoginPage';
 import '../styles/ProductDetail.css';
 import '../styles/Checkout.css';
+import { formatCurrency } from '../utils/formatCurrency';
 
-function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess }) {
+function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();
     const [formData, setFormData] = useState({
 firstName: '',
@@ -176,6 +177,42 @@ e.preventDefault();
 
         let response;
 
+        const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                const result = reader.result || '';
+                const base64 = String(result).split(',')[1] || '';
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
+
+        const sendInvoiceEmail = async (order) => {
+            try {
+                const invoiceData = buildInvoiceData({
+                    order,
+                    customerInfo: formData,
+                    items: cartItems,
+                    siteName,
+                    siteIcon,
+                    currencyCode
+                });
+                const pdfBlob = await generateInvoicePdfBlob(invoiceData);
+                const pdfBase64 = await blobToBase64(pdfBlob);
+                await apiFetch(apiUrl(`/orders/${order.id}/invoice-email`), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        pdfBase64,
+                        email: formData.email
+                    })
+                });
+            } catch (error) {
+                console.error('Error enviando factura adjunta:', error);
+            }
+        };
+
         if (isAuthenticated) {
             // Usuario autenticado - enviar datos estructurados
             response = await apiFetch(apiUrl('/orders'), {
@@ -192,7 +229,8 @@ e.preventDefault();
                     shipping_street: formData.address,
                     shipping_city: formData.city,
                     shipping_sector: formData.sector,
-                    notes: formData.notes
+                    notes: formData.notes,
+                    skipEmail: true
                 })
             });
         } else {
@@ -209,6 +247,7 @@ e.preventDefault();
                     shipping_city: formData.city,
                     shipping_sector: formData.sector,
                     notes: formData.notes,
+                    skipEmail: true,
                     customer_info: {
                         name: `${formData.firstName} ${formData.lastName}`,
                         email: formData.email,
@@ -230,6 +269,8 @@ e.preventDefault();
     // Mostrar confirmación
     setOrderCreated(order);
     localStorage.removeItem('checkout_progress');
+
+    await sendInvoiceEmail(order);
 
     if (onOrderComplete) {
         onOrderComplete(cartItems);
@@ -304,6 +345,7 @@ return (
                     }}
                     siteName={siteName}
                     siteIcon={siteIcon}
+                    currencyCode={currencyCode}
                 />
             ) : (
         <div className="checkout-flow-container">
@@ -637,22 +679,22 @@ return (
                                                 />
                                                 <div className="mini-item-info">
                                                     <span className="mini-item-name">{item.name}</span>
-                                                    <span className="mini-item-meta">{item.quantity} un. x ${item.price.toFixed(2)}</span>
+                                                    <span className="mini-item-meta">{item.quantity} un. x {formatCurrency(item.price, currencyCode)}</span>
                                                 </div>
                                             </div>
-                                            <span className="mini-item-price">${(item.price * item.quantity).toFixed(2)}</span>
+                                            <span className="mini-item-price">{formatCurrency(item.price * item.quantity, currencyCode)}</span>
                                         </div>
                                     ))}
                                 </div>
                                 <div className="summary-divider"></div>
                                 <div className="summary-row">
                                     <span>Subtotal</span>
-                                    <span>${total.toFixed(2)}</span>
+                                    <span>{formatCurrency(total, currencyCode)}</span>
                                 </div>
                                 <div className="summary-divider"></div>
                                 <div className="summary-row total-row">
                                     <span>Total</span>
-                                    <span>${total.toFixed(2)}</span>
+                                    <span>{formatCurrency(total, currencyCode)}</span>
                                 </div>
                             </div>
                         </div>

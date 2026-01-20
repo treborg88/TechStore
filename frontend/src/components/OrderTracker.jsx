@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { API_URL, BASE_URL } from '../config';
 import '../styles/OrderTrackerModal.css';
+import { formatCurrency } from '../utils/formatCurrency';
 
-function OrderTracker() {
+function OrderTracker({ currencyCode }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
     const [searchValue, setSearchValue] = useState('');
     const [orders, setOrders] = useState([]);
@@ -181,7 +182,7 @@ function OrderTracker() {
                                             </span>
                                         </div>
                                         <div className="order-result-body">
-                                            <p><strong>Total:</strong> ${order.total.toFixed(2)}</p>
+                                                <p><strong>Total:</strong> {formatCurrency(order.total, currencyCode)}</p>
                                             <p><strong>Pago:</strong> {getPaymentText(order.payment_method || 'cash')}</p>
                                         </div>
                                         <button 
@@ -216,7 +217,7 @@ function OrderTracker() {
                                 </div>
                                 <div className="info-row">
                                     <span className="info-label">Total:</span>
-                                    <span className="info-value">${selectedOrder.total.toFixed(2)}</span>
+                                        <span className="info-value">{formatCurrency(selectedOrder.total, currencyCode)}</span>
                                 </div>
                                 <div className="info-row">
                                     <span className="info-label">Método de Pago:</span>
@@ -258,12 +259,12 @@ function OrderTracker() {
                                                 />
                                                 <div className="item-info">
                                                     <p className="item-name">{item.name}</p>
-                                                    <p className="item-quantity">
-                                                        Cantidad: {item.quantity} × ${item.price.toFixed(2)}
+                                                        <p className="item-quantity">
+                                                            Cantidad: {item.quantity} × {formatCurrency(item.price, currencyCode)}
                                                     </p>
                                                 </div>
                                                 <div className="item-total">
-                                                    ${(item.quantity * item.price).toFixed(2)}
+                                                        {formatCurrency(item.quantity * item.price, currencyCode)}
                                                 </div>
                                             </div>
                                         ))}

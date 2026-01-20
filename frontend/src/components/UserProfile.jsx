@@ -7,6 +7,8 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [isHeroEditing, setIsHeroEditing] = useState(false);
+    const [showPasswordText, setShowPasswordText] = useState(false);
     
     const [formData, setFormData] = useState({
         name: '',
@@ -24,6 +26,22 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
     useEffect(() => {
         loadUserProfile();
     }, []);
+
+    useEffect(() => {
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.name || prev.name,
+                email: user.email || prev.email,
+                phone: user.phone || prev.phone,
+                street: user.street || prev.street,
+                sector: user.sector || prev.sector,
+                city: user.city || prev.city,
+                country: user.country || prev.country
+            }));
+            setLoading(false);
+        }
+    }, [user]);
 
     const loadUserProfile = async () => {
         try {
@@ -145,137 +163,289 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
         }
     };
 
-    if (loading) return (
+    const hasInitialData = Boolean(formData.name || formData.email);
+
+    if (loading && !hasInitialData) return (
         <div className="profile-page-loading" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
             <div className="loading-spinner"></div>
         </div>
     );
 
     return (
-        <div className="profile-page" style={{ padding: '40px 20px', display: 'flex', justifyContent: 'center' }}>
-            <div className="compact-profile">
-                <div className="profile-header-compact">
-                    <div className="avatar-small">
-                        {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
-                    </div>
-                    <div className="header-info">
-                        <h3>{formData.name}</h3>
-                        <span className="email-badge">{formData.email}</span>
-                    </div>
-                    <button 
-                        className="close-btn-compact" 
-                        onClick={onClose}
-                        type="button"
-                        aria-label="Cerrar"
-                    >✖</button>
-                </div>
-
-                <form onSubmit={handleSubmit} className="compact-form">
-                    <div className="form-section">
-                        <label className="section-label">Información Personal</label>
-                        <div className="input-group">
-                            <input
-                                type="text"
-                                name="name"
-                                value={formData.name}
-                                onChange={handleInputChange}
-                                placeholder="Nombre completo"
-                                className="compact-input"
-                                required
-                            />
-                            <input
-                                type="tel"
-                                name="phone"
-                                value={formData.phone}
-                                onChange={handleInputChange}
-                                placeholder="Teléfono"
-                                className="compact-input"
-                            />
+        <main className="profile-page">
+            <section className="profile-hero">
+                <div className="container profile-hero-content">
+                    <div>
+                        <p className="profile-kicker">Cuenta y seguridad</p>
+                        <h2>Mi perfil</h2>
+                        <p className="profile-subtitle">Actualiza tus datos personales, dirección y contraseña en un solo lugar.</p>
+                        <div className="profile-actions">
+                            <button type="button" onClick={onLogout} className="profile-btn profile-btn-outline">
+                                Cerrar sesión
+                            </button>
+                            <button type="button" onClick={onClose} className="profile-btn">
+                                Volver
+                            </button>
                         </div>
                     </div>
-
-                    <div className="form-section">
-                        <label className="section-label">Dirección de Envío</label>
-                        <input
-                            type="text"
-                            name="street"
-                            value={formData.street}
-                            onChange={handleInputChange}
-                            placeholder="Calle y número"
-                            className="compact-input full-width"
-                        />
-                        <div className="input-group">
-                            <input
-                                type="text"
-                                name="sector"
-                                value={formData.sector}
-                                onChange={handleInputChange}
-                                placeholder="Sector"
-                                className="compact-input"
-                            />
-                            <input
-                                type="text"
-                                name="city"
-                                value={formData.city}
-                                onChange={handleInputChange}
-                                placeholder="Ciudad"
-                                className="compact-input"
-                            />
+                    <div className="profile-hero-card">
+                        <div className="profile-hero-top">
+                            <div className="avatar-large">
+                                {formData.name ? formData.name.charAt(0).toUpperCase() : '?'}
+                            </div>
+                            <div className="profile-hero-actions">
+                                {isHeroEditing && (
+                                    <button
+                                        type="submit"
+                                        form="profile-form"
+                                        className="hero-save-btn"
+                                    >
+                                        Guardar
+                                    </button>
+                                )}
+                                <button
+                                    className="close-btn-compact"
+                                    onClick={() => setIsHeroEditing((prev) => !prev)}
+                                    type="button"
+                                    aria-label={isHeroEditing ? 'Cerrar edición' : 'Editar'}
+                                    title="Editar"
+                                >🖋</button>
+                            </div>
                         </div>
-                    </div>
-
-                    <div className="form-section security-section">
-                        <button 
-                            type="button" 
-                            className="toggle-password-btn"
-                            onClick={() => setShowPassword(!showPassword)}
-                        >
-                            {showPassword ? 'Cancelar cambio de contraseña' : '🔒 Cambiar contraseña'}
-                        </button>
-                        
-                        {showPassword && (
-                            <div className="password-fields">
+                        {isHeroEditing ? (
+                            <div className="profile-hero-edit">
                                 <input
-                                    type="password"
-                                    name="currentPassword"
-                                    value={formData.currentPassword}
+                                    type="text"
+                                    name="name"
+                                    value={formData.name}
                                     onChange={handleInputChange}
-                                    placeholder="Contraseña actual"
-                                    className="compact-input full-width"
+                                    placeholder="Nombre completo"
+                                    className="compact-input"
+                                    disabled
+                                />
+                                <input
+                                    type="email"
+                                    value={formData.email}
+                                    className="compact-input"
+                                    disabled
                                 />
                                 <div className="input-group">
                                     <input
-                                        type="password"
-                                        name="newPassword"
-                                        value={formData.newPassword}
+                                        type="tel"
+                                        name="phone"
+                                        value={formData.phone}
                                         onChange={handleInputChange}
-                                        placeholder="Nueva contraseña"
+                                        placeholder="Teléfono"
                                         className="compact-input"
                                     />
                                     <input
-                                        type="password"
-                                        name="confirmPassword"
-                                        value={formData.confirmPassword}
+                                        type="text"
+                                        name="city"
+                                        value={formData.city}
                                         onChange={handleInputChange}
-                                        placeholder="Confirmar"
+                                        placeholder="Ciudad"
+                                        className="compact-input"
+                                    />
+                                </div>
+                                <div className="input-group">
+                                    <input
+                                        type="text"
+                                        name="sector"
+                                        value={formData.sector}
+                                        onChange={handleInputChange}
+                                        placeholder="Sector"
+                                        className="compact-input"
+                                    />
+                                    <input
+                                        type="text"
+                                        name="street"
+                                        value={formData.street}
+                                        onChange={handleInputChange}
+                                        placeholder="Dirección"
                                         className="compact-input"
                                     />
                                 </div>
                             </div>
+                        ) : (
+                            <>
+                                <h3>{formData.name}</h3>
+                                <p>{formData.email}</p>
+                                <div className="profile-hero-stats">
+                                    <div>
+                                        <span>{formData.phone || 'Sin teléfono'}</span>
+                                        <small>Contacto</small>
+                                    </div>
+                                    <div>
+                                        <span>{formData.city || 'Sin ciudad'}</span>
+                                        <small>Ciudad</small>
+                                    </div>
+                                    <div>
+                                        <span>{formData.sector || 'Sin sector'}</span>
+                                        <small>Sector</small>
+                                    </div>
+                                    <div>
+                                        <span>{formData.street || 'Sin dirección'}</span>
+                                        <small>Dirección</small>
+                                    </div>
+                                </div>
+                            </>
                         )}
                     </div>
+                </div>
+            </section>
 
-                    <div className="form-actions">
-                        <button type="button" onClick={onLogout} className="logout-btn-compact">
-                            Cerrar Sesión
-                        </button>
-                        <button type="submit" className="save-btn-compact" disabled={saving}>
-                            {saving ? 'Guardando...' : 'Guardar Cambios'}
-                        </button>
-                    </div>
-                </form>
-            </div>
-        </div>
+            <section className="profile-content">
+                <div className="container">
+                    <form id="profile-form" onSubmit={handleSubmit} className="profile-form">
+                        <div className="profile-grid">
+                            <div className="profile-card">
+                                <h3>Información personal</h3>
+                                <div className="form-section">
+                                    <label className="section-label">Dirección de envío</label>
+                                    <input
+                                        type="text"
+                                        name="street"
+                                        value={formData.street}
+                                        onChange={handleInputChange}
+                                        placeholder="Calle y número"
+                                        className="compact-input full-width"
+                                    />
+                                    <div className="input-group">
+                                        <input
+                                            type="text"
+                                            name="sector"
+                                            value={formData.sector}
+                                            onChange={handleInputChange}
+                                            placeholder="Sector"
+                                            className="compact-input"
+                                        />
+                                        <input
+                                            type="text"
+                                            name="city"
+                                            value={formData.city}
+                                            onChange={handleInputChange}
+                                            placeholder="Ciudad"
+                                            className="compact-input"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="profile-card">
+                                <h3>Agregar método de pago</h3>
+                                <p className="profile-card-hint">Guarda tu método preferido para agilizar tus compras.</p>
+                                <div className="form-section">
+                                    <label className="section-label">Detalles de la tarjeta</label>
+                                    <input
+                                        type="text"
+                                        name="cardHolder"
+                                        placeholder="Nombre en la tarjeta"
+                                        className="compact-input full-width"
+                                    />
+                                    <input
+                                        type="text"
+                                        name="cardNumber"
+                                        placeholder="Número de tarjeta"
+                                        className="compact-input full-width"
+                                    />
+                                    <div className="input-group">
+                                        <input
+                                            type="text"
+                                            name="cardExpiry"
+                                            placeholder="MM/AA"
+                                            className="compact-input"
+                                        />
+                                        <input
+                                            type="text"
+                                            name="cardCvc"
+                                            placeholder="CVC"
+                                            className="compact-input"
+                                        />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        name="cardId"
+                                        placeholder="Cédula / ID (Opcional)"
+                                        className="compact-input full-width"
+                                    />
+                                    <button type="button" className="save-btn-compact" disabled title="Función no disponible">
+                                        Agregar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="profile-card">
+                                <h3>Seguridad y acceso</h3>
+                                <p className="profile-card-hint">Gestiona tu contraseña y mantén tu cuenta protegida.</p>
+                                <div className="form-section security-section">
+                                    <div className="security-header">
+                                        <div>
+                                            <span className="security-title">Contraseña</span>
+                                            <span className="security-subtitle">Actualiza tu clave si lo necesitas.</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="toggle-password-btn"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                        >
+                                            {showPassword ? 'Cerrar' : '🔒 Cambiar'}
+                                        </button>
+                                    </div>
+
+                                    {showPassword && (
+                                        <div className="password-fields">
+                                            <div className="password-visibility">
+                                                <span>Mostrar contraseñas</span>
+                                                <button
+                                                    type="button"
+                                                    className="password-eye-btn"
+                                                    onClick={() => setShowPasswordText((prev) => !prev)}
+                                                    aria-label={showPasswordText ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
+                                                >
+                                                    {showPasswordText ? 'Ocultar' : 'Mostrar'}
+                                                </button>
+                                            </div>
+                                            <input
+                                                type={showPasswordText ? 'text' : 'password'}
+                                                name="currentPassword"
+                                                value={formData.currentPassword}
+                                                onChange={handleInputChange}
+                                                placeholder="Contraseña actual"
+                                                className="compact-input full-width"
+                                            />
+                                            <div className="input-group stack">
+                                                <input
+                                                    type={showPasswordText ? 'text' : 'password'}
+                                                    name="newPassword"
+                                                    value={formData.newPassword}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Nueva contraseña"
+                                                    className="compact-input"
+                                                />
+                                                <input
+                                                    type={showPasswordText ? 'text' : 'password'}
+                                                    name="confirmPassword"
+                                                    value={formData.confirmPassword}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Confirmar"
+                                                    className="compact-input"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="form-actions">
+                                    <button type="submit" className="save-btn-compact" disabled={saving}>
+                                        {saving ? 'Guardando...' : 'Guardar Cambios'}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
     );
 }
 
