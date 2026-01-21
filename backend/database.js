@@ -124,12 +124,25 @@ const statements = {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
+    // Sanitize search input to prevent injection and abuse
+    const sanitizeSearchInput = (input) => {
+      if (!input || typeof input !== 'string') return '';
+      return input
+        .replace(/%/g, '')       // Remove SQL wildcards
+        .replace(/_/g, '\\_')    // Escape single-char wildcard
+        .trim()
+        .slice(0, 50);          // Limit length
+    };
+
     let query = supabase
       .from('products')
       .select('*', { count: 'exact' });
 
     if (search) {
-      query = query.or(`name.ilike.%${search}%,description.ilike.%${search}%`);
+      const safeSearch = sanitizeSearchInput(search);
+      if (safeSearch) {
+        query = query.or(`name.ilike.%${safeSearch}%,description.ilike.%${safeSearch}%`);
+      }
     }
     if (category && category !== 'all') {
       query = query.eq('category', category);
