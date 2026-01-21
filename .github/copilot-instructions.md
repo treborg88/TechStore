@@ -1,84 +1,168 @@
 ## Agent Workflow
-- Always tailor responses to the user prompt; do not introduce unsolicited work or commentary.
-- Keep generated code minimal and straightforward; avoid over-engineering.
-- When suggesting new features or non-trivial additions, ask for explicit confirmation before editing project files.
-- Provide explanations only in chat responses; do not add commentary or guidance into repository files.
+- Avoid unsolicited features or commentary.
+- Keep code minimal; keep the code minimalistic and always comments the code for readability.
+- Use existing project patterns and styles.
+- Prioritize clarity, escalability and maintainability.
+- Explanations go in chat, not in repository files.
+- this is a professional project; maintain high standards of quality and professionalism.
+- All code is intended for a production environment unless otherwise specified.
 
-## Project Snapshot
-- Monorepo with Express backend (`backend/server.js`) and Vite/React 19 frontend (`frontend/src/App.jsx`).
-- Backend uses Supabase (Postgres + Storage) via `@supabase/supabase-js` (`backend/database.js`).
-- Authentication is JWT-based with bcrypt hashing and simple role support (customer/admin). Tokens use `Authorization: Bearer <token>`.
-- IMPORTANT: `JWT_SECRET` is required; the server exits if missing.
+## Architecture Overview
+**Monorepo**: Express backend (`backend/`) + Vite/React 19 frontend (`frontend/`).
 
-## Backend API
-- Start locally:
-	- Install deps: `npm install` (repo root) + `cd backend && npm install`
-	- Run: `cd backend && npm run dev`
-	- Default port: `5001` (configurable via `PORT`)
-- Required env vars (in backend `.env`):
-	- `JWT_SECRET` (required; server refuses to start without it)
-	- `SUPABASE_URL`, `SUPABASE_KEY` (required for DB/Storage)
-	- Email (for verification/reset flows): `EMAIL_USER`, `EMAIL_PASS` (used by Nodemailer transporter in `backend/server.js`)
-- CORS is allowlist-based in `backend/server.js`. If a new dev URL fails with CORS, add it to the allowed `origin` list.
+| Layer | Key Files | Tech Stack |
+|-------|-----------|------------|
+| API | `backend/server.js` (~120 LOC, modular) | Express, JWT, bcrypt, multer |
+| Routes | `backend/routes/*.routes.js` | auth, products, cart, orders, users, settings, verification |
+| Middleware | `backend/middleware/` | auth, csrf, rateLimiter, upload |
+| Services | `backend/services/` | email.service, encryption.service |
+| Config | `backend/config/` | env vars, CORS |
+| DB | `backend/database.js` (statements object) | Supabase (Postgres + Storage) |
+| UI | `frontend/src/App.jsx` (state hub) | React 19, react-router-dom v7, react-hot-toast |
+| FE Services | `frontend/src/services/apiClient.js` | `apiFetch()` wraps fetch with auth/CSRF headers |
 
-### Main routes (high level)
-- Auth
-	- `POST /api/auth/register` requires `code` (verification code) and enforces password complexity.
-	- `POST /api/auth/login`
-	- `GET /api/auth/me` (Bearer token)
-	- `PUT /api/auth/profile` (Bearer token)
-	- `POST /api/auth/forgot-password`, `POST /api/auth/reset-password` (verification code flow)
-- Verification (email codes)
-	- `POST /api/verification/send-code` (purpose varies: `register`, `password_reset`, `guest_checkout`, etc.)
-	- `POST /api/verification/verify-code`
-- Products
-	- `GET /api/products` returns a paginated object: `{ data, total, page, limit, totalPages }` and supports `?category`, `?page`, `?limit`, `?search`.
-	- `POST /api/products` uses `multipart/form-data` with field `images` (array, up to 10). Images are uploaded to Supabase Storage and recorded in `product_images`.
-	- `POST /api/products/:id/images` and `DELETE /api/products/:id/images/:imageId` manage product gallery images.
-- Cart (server-side for authenticated users)
-	- Protected with Bearer token: `GET /api/cart`, `POST /api/cart`, `PUT /api/cart/:productId`, `DELETE /api/cart/:productId`, `DELETE /api/cart`.
-	- Stock checks are enforced on the server.
-- Orders
-	- `POST /api/orders` (authenticated) and `POST /api/orders/guest` (public) create orders and update product stock.
-	- Admin routes: `GET /api/orders` (paginated with filters), `PUT /api/orders/:id`, `PUT /api/orders/:id/status`, `DELETE /api/orders/:id`.
-	- Public tracking: `GET /api/orders/track/:id` (ID or order_number) and `GET /api/orders/track/email/:email`.
-- Users (admin)
-	- `GET /api/users` (paginated/search)
-	- `PUT /api/users/:id/role`, `PUT /api/users/:id/status`
+### Backend Structure
+```
+backend/
+├── server.js              # Main entry (~120 lines)
+├── database.js            # Supabase statements
+├── sharePage.js           # OG meta for social sharing
+├── config/
+│   ├── index.js           # ENV vars (JWT_SECRET, PORT, EMAIL_*)
+│   └── cors.js            # CORS options
+├── middleware/
+│   ├── auth.js            # authenticateToken, requireAdmin, tokenBlacklist
+│   ├── csrf.js            # CSRF protection
+│   ├── rateLimiter.js     # Rate limiting
+│   └── upload.js          # Multer config
+├── routes/
+│   ├── auth.routes.js     # /api/auth/* (8 endpoints)
+│   ├── products.routes.js # /api/products/* (6 endpoints)
+│   ├── cart.routes.js     # /api/cart/* (5 endpoints)
+│   ├── orders.routes.js   # /api/orders/* (12 endpoints)
+│   ├── users.routes.js    # /api/users/* (3 endpoints)
+│   ├── settings.routes.js # /api/settings/* (3 endpoints)
+│   └── verification.routes.js # /api/verification/* (2 endpoints)
+├── services/
+│   ├── email.service.js   # sendOrderEmail, sendMailWithSettings
+│   └── encryption.service.js # AES-256-GCM for settings
+└── utils/
+    └── orderNumber.js     # generateOrderNumber
+```
 
-### Images
-- Product images are now typically full public URLs (Supabase Storage). Frontend should treat `product.image` as a URL when it starts with `http`.
+## Quick Start
+```bash
+# Backend (port 5001)
+npm install           # repo root for shared deps (nodemailer, etc.)
+cd backend && npm install && npm run dev
 
-## Frontend UI
-- Start UI with `cd frontend && npm install && npm run dev`; Vite serves on 5173 by default.
-- The API base is configured in `frontend/src/config.js` via `API_URL` and `BASE_URL`.
-	- NOTE: `config.js` currently contains hardcoded LAN/IP values (and commented alternatives). For local dev + Playwright, you may need to switch to `http://localhost:5001`.
-- Auth flows live in `frontend/src/components/LoginPage.jsx` + `frontend/src/services/authService.js`.
-	- On success, the UI stores `authToken` and `userData` in `localStorage`.
-- Cart behavior is hybrid:
-	- Logged-in user: cart is synced/managed via backend `/api/cart` (see `frontend/src/App.jsx`).
-	- Guest user: cart is held client-side in React state (and guest checkout requires email verification).
-- Checkout (`frontend/src/components/Checkout.jsx`) creates orders via:
-	- Authenticated: `POST /api/orders` (Bearer token)
-	- Guest: `POST /api/orders/guest` (requires email verification via `/api/verification/*`)
+# Frontend (port 5173)
+cd frontend && npm install && npm run dev
+```
 
-## Data & Auth Flow
-- Backend expects `Authorization: Bearer <token>` for protected routes (cart, profile, admin routes).
-- Products can contain `images` (gallery) and a primary `image` field. Images may be full URLs (Supabase) or legacy paths.
+**Required backend `.env`:**
+- `JWT_SECRET` (mandatory—server exits if missing)
+- `SUPABASE_URL`, `SUPABASE_KEY`
+- `EMAIL_USER`, `EMAIL_PASS` (for verification/reset emails)
 
-## Conventions & Gotchas
-- Dependencies are not fully centralized:
-	- There is a repo-root `package.json` with shared deps (e.g. `nodemailer`). Backend code may rely on parent `node_modules` resolution.
-	- If `cd backend && npm install` alone causes runtime missing-module errors, run `npm install` at repo root too (or move the dependency into `backend/package.json`).
-- Server-side security:
-	- Auth endpoints have rate limiting (`express-rate-limit`). Automated tests or repeated login attempts may hit limits.
-- Error handling uses JSON `{ message }` consistently; frontend should read that key.
-- ESLint config (`frontend/eslint.config.js`) enforces React hooks rules; avoid unused vars unless prefixed with `_`.
+## Key Patterns
 
-## Common Tasks
-- Run end-to-end tests (frontend): `cd frontend && npm run test:e2e`
-	- Playwright specs are in `frontend/playwright/`.
-	- The Playwright baseURL is `http://localhost:5173/` (see `frontend/playwright.config.js`), so ensure frontend is running and `frontend/src/config.js` points to a reachable backend.
-- When adding new endpoints:
-	- Update CORS allowlist in `backend/server.js`.
-	- Keep frontend fetch URLs consistent via `API_URL`.
+### Authentication & Authorization
+- JWT via `Authorization: Bearer <token>` or `auth_token` cookie (24h expiry).
+- Token blacklist on logout (in-memory with hourly cleanup).
+- Middleware: `authenticateToken` in `middleware/auth.js`.
+- Admin guard: `requireAdmin` middleware.
+- Roles: `customer` | `admin`. Frontend checks `user.role === 'admin'` for UI gating.
+- Rate limiting on `/api/auth/*` and `/api/verification/*` (15 min window, 10 requests).
+
+### Frontend API Calls
+Always use `apiFetch()` from `services/apiClient.js`—it auto-attaches Bearer token and CSRF token:
+```javascript
+import { apiFetch, apiUrl } from './services/apiClient';
+const res = await apiFetch(apiUrl('/products'), { method: 'GET' });
+```
+
+### Cart Behavior (Hybrid)
+- **Authenticated**: server-managed via `/api/cart` endpoints; synced in `App.jsx`.
+- **Guest**: client-side React state; persisted to `localStorage` key `cart_persistence`.
+- On login, guest cart merges to server (`syncLocalCart` in App.jsx).
+
+### Config Switching (Important!)
+Frontend uses environment variables via `.env` files:
+```javascript
+// frontend/src/config.js reads from import.meta.env
+export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
+export const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5173';
+```
+
+## API Routes Summary
+| Route | Auth | Notes |
+|-------|------|-------|
+| `POST /api/auth/register` | Public | Requires `code` from verification flow |
+| `POST /api/auth/login` | Public | Returns `{ user, token }` |
+| `POST /api/auth/logout` | Bearer | Blacklists token |
+| `GET /api/products` | Public | Paginated: `{ data, total, page, limit, totalPages }` |
+| `POST /api/products` | Admin | `multipart/form-data`, field `images[]` (≤10) |
+| `GET/POST/PUT/DELETE /api/cart` | Bearer | Server-side cart for logged-in users |
+| `POST /api/orders` | Bearer | Creates order, decrements stock |
+| `POST /api/orders/guest` | Public | Requires email verification |
+| `GET /api/orders/track/:id` | Public | Track by ID or `order_number` |
+
+## Testing
+```bash
+cd frontend && npm run test:e2e   # Playwright against localhost:5173
+```
+- Specs in `frontend/playwright/` (auth, catalog, filters, admin_search).
+- `playwright.config.js` baseURL is `http://localhost:5173/`.
+- **Gotcha**: auth tests can trigger rate limits; space out runs or reset limits.
+
+## Common Gotchas
+1. **CORS**: Add new dev origins to `corsOptions.origin` array in `config/cors.js`.
+2. **Dependencies**: Some deps live in repo-root `package.json`; if `backend/` module resolution fails, run `npm install` at root.
+3. **Errors**: All API errors return `{ message: "..." }`—read `.message` on frontend.
+4. **Images**: `product.image` may be full Supabase URL or legacy path; handle both.
+5. **ESLint**: Unused vars cause errors unless prefixed with `_`.
+
+## Adding Features Checklist
+- [ ] New endpoint: create route file in `routes/`, register in `routes/index.js`, mount in `server.js`
+- [ ] New frontend route: add to `<Routes>` in `App.jsx`, lazy-load component
+- [ ] CORS issues: add origin to `config/cors.js` `corsOptions.origin` array
+- [ ] New env var: add to `config/index.js` and document here
+
+## Security Features Implemented
+
+### Authentication & Token Security
+- **JWT 24h expiry**: Tokens expire after 24 hours (reduced from 7 days)
+- **Token blacklist**: Logout invalidates tokens immediately via in-memory blacklist
+- **Hourly cleanup**: Expired tokens purged from blacklist every hour
+- **Dual token delivery**: Supports both `Authorization: Bearer` header and `auth_token` cookie
+
+### Authorization & Access Control
+- **Admin-only routes**: Product CRUD, user management, settings require `requireAdmin` middleware
+- **Role-based access**: `authenticateToken` + `requireAdmin` pattern for protected endpoints
+- **Self-protection**: Admins cannot demote themselves or deactivate their own accounts
+
+### CSRF Protection
+- **Double Submit Cookie**: CSRF token in `XSRF-TOKEN` cookie + `X-CSRF-Token` header
+- **State-changing protection**: All POST/PUT/DELETE requests validate CSRF
+- **Auto-refresh**: CSRF cookie refreshed on `/api/auth/me` if missing
+
+### Rate Limiting
+- **Auth endpoints**: 10 requests per 15 minutes on login, register, password reset
+- **Verification**: Rate limited to prevent code brute-forcing
+- **Preflight skip**: OPTIONS requests don't count against limits
+
+### Input Validation & Sanitization
+- **Search sanitization**: `sanitizeSearchInput()` in `database.js` escapes SQL wildcards (`%`, `_`)
+- **Query length limit**: Search queries capped at 100 characters
+- **Password requirements**: Min 8 chars, uppercase, lowercase, number
+
+### Data Protection
+- **AES-256-GCM encryption**: Sensitive settings (mail password) encrypted at rest
+- **Password hashing**: bcrypt with 10 salt rounds
+- **No password exposure**: User responses never include password field
+
+### Environment Security
+- **Mandatory secrets**: Server refuses to start without `JWT_SECRET`
+- **Environment variables**: All URLs/secrets in `.env` files (gitignored)
+- **Frontend env vars**: Uses `VITE_*` prefix for client-safe config
