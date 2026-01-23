@@ -1,8 +1,21 @@
 // config.js - Configuración centralizada de la aplicación
 // URLs are loaded from environment variables (see .env.example)
 
-export const API_URL = import.meta.env.VITE_API_URL
-export const BASE_URL = import.meta.env.VITE_BASE_URL
+// Detectar si estamos en localhost o en producción
+const isLocalhost = typeof window !== 'undefined' && 
+    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+// Valores por defecto basados en el entorno
+const DEFAULT_API_URL = isLocalhost 
+    ? 'http://localhost:5001/api' 
+    : 'http://143.47.118.165:5001/api';
+
+const DEFAULT_BASE_URL = isLocalhost 
+    ? 'http://localhost:5173' 
+    : 'http://143.47.118.165:5173';
+
+export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 
 export const DEFAULT_CATEGORY_FILTERS_CONFIG = {
     useDefault: true,
