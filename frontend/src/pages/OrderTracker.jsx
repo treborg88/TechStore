@@ -1,0 +1,285 @@
+// OrderTracker.jsx - Página de rastreo de órdenes
+// Un solo archivo minimalista siguiendo el patrón de Contact.jsx
+
+import { useState, useEffect, useMemo } from 'react';
+import { apiFetch, apiUrl } from '../services/apiClient';
+import { formatCurrency } from '../utils/formatCurrency';
+import { API_URL } from '../config';
+import '../components/orders/OrderTracker.css';
+
+// Configuración de estados
+const STATUS_MAP = {
+  pending_payment: { text: 'Pendiente de Pago', icon: '⏳' },
+  paid: { text: 'Pagado', icon: '💰' },
+  to_ship: { text: 'Para Enviar', icon: '📦' },
+  shipped: { text: 'Enviado', icon: '🚚' },
+  delivered: { text: 'Entregado', icon: '✅' },
+  return: { text: 'Devolución', icon: '↩️' },
+  refund: { text: 'Reembolso', icon: '💸' },
+  cancelled: { text: 'Cancelado', icon: '❌' },
+  pending: { text: 'Pendiente', icon: '⏳' },
+  processing: { text: 'Procesando', icon: '⚙️' }
+};
+
+const COMPLETED_STATUSES = ['delivered', 'cancelled', 'refund'];
+const ORDERS_PER_PAGE = 10;
+
+export default function OrderTracker({ user, currencyCode = 'USD' }) {
+  // Estado principal
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchType, setSearchType] = useState('id');
+  const [filter, setFilter] = useState('active');
+  const [page, setPage] = useState(1);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isSearchResult, setIsSearchResult] = useState(false);
+
+  // Cargar órdenes del usuario al montar
+  useEffect(() => {
+    if (user) loadUserOrders();
+  }, [user]);
+
+  // Cargar órdenes del usuario logueado
+  const loadUserOrders = async () => {
+    setLoading(true);
+    setError('');
+    setIsSearchResult(false);
+    try {
+      const res = await apiFetch(apiUrl('/orders/my'));
+      if (res.ok) setOrders(await res.json());
+    } catch (err) {
+      setError('Error al cargar órdenes');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Buscar orden
+  const handleSearch = async (e) => {
+    e.preventDefault();
+    if (!searchQuery.trim()) return setError('Ingresa un valor de búsqueda');
+    
+    // Validar código completo (formato W-YYMMDD-XXXXX o numérico)
+    if (searchType === 'id') {
+      const isValidFormat = /^[A-Z]-\d{6}-\d{5}$/.test(searchQuery.trim());
+      const isNumeric = /^\d+$/.test(searchQuery.trim());
+      if (!isValidFormat && !isNumeric) {
+        return setError('Código inválido. Usa el formato completo: W-YYMMDD-XXXXX');
+      }
+    }
+
+    setLoading(true);
+    setError('');
+    setIsSearchResult(true);
+    
+    try {
+      const endpoint = searchType === 'id' 
+        ? `/orders/track/${encodeURIComponent(searchQuery.trim())}`
+        : `/orders/track/email/${encodeURIComponent(searchQuery.trim())}`;
+      
+      const res = await apiFetch(apiUrl(endpoint));
+      
+      if (!res.ok) {
+        setOrders([]);
+        return setError(res.status === 404 ? 'No se encontraron órdenes' : 'Error al buscar');
+      }
+      
+      const data = await res.json();
+      setOrders(searchType === 'id' ? [data] : data);
+      setPage(1);
+    } catch {
+      setError('Error de conexión');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Limpiar búsqueda
+  const clearSearch = () => {
+    setSearchQuery('');
+    setError('');
+    setIsSearchResult(false);
+    setPage(1);
+    if (user) loadUserOrders();
+    else setOrders([]);
+  };
+
+  // Filtrar y paginar órdenes
+  const filteredOrders = useMemo(() => {
+    if (isSearchResult) return orders;
+    if (filter === 'completed') return orders.filter(o => COMPLETED_STATUSES.includes(o.status));
+    if (filter === 'active') return orders.filter(o => !COMPLETED_STATUSES.includes(o.status));
+    return orders;
+  }, [orders, filter, isSearchResult]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ORDERS_PER_PAGE);
+  const paginatedOrders = filteredOrders.slice((page - 1) * ORDERS_PER_PAGE, page * ORDERS_PER_PAGE);
+
+  // Formatear fecha
+  const formatDate = (date) => new Date(date).toLocaleDateString('es-ES', { 
+    year: 'numeric', month: 'short', day: 'numeric' 
+  });
+
+  // Obtener URL de imagen
+  const getImageUrl = (img) => {
+    if (!img) return 'https://placehold.co/60x60?text=?';
+    if (img.startsWith('http')) return img;
+    return `${API_URL.replace('/api', '')}${img.startsWith('/') ? img : `/images/${img}`}`;
+  };
+
+  return (
+    <main className="tracker-page">
+      {/* Hero */}
+      <section className="tracker-hero">
+        <div className="container tracker-hero-content">
+          <div>
+            <p className="tracker-kicker">Seguimiento en tiempo real</p>
+            <h1>Rastrea Tu Pedido</h1>
+            <p className="tracker-subtitle">
+              {user ? 'Consulta tus órdenes o busca por número de pedido' : 'Ingresa el código completo de tu orden'}
+            </p>
+          </div>
+          <div className="tracker-hero-card">
+            <h3>📍 Estado de Envíos</h3>
+            <p>Información actualizada al instante</p>
+            <div className="tracker-hero-stats">
+              <div><span>🕐</span><small>24/7</small></div>
+              <div><span>⚡</span><small>Tiempo real</small></div>
+              <div><span>📦</span><small>{user ? filteredOrders.length : '100%'}</small></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Contenido */}
+      <section className="tracker-content">
+        <div className="container">
+          {/* Búsqueda */}
+          <div className="tracker-card">
+            <form onSubmit={handleSearch} className="tracker-search">
+              <div className="search-types">
+                <button type="button" className={searchType === 'id' ? 'active' : ''} 
+                  onClick={() => { setSearchType('id'); setSearchQuery(''); }}>
+                  🔢 Por Número
+                </button>
+                <button type="button" className={searchType === 'email' ? 'active' : ''} 
+                  onClick={() => { setSearchType('email'); setSearchQuery(''); }}>
+                  📧 Por Email
+                </button>
+              </div>
+              <div className="search-input-row">
+                <input
+                  type={searchType === 'email' ? 'email' : 'text'}
+                  placeholder={searchType === 'id' ? 'Código completo: W-YYMMDD-XXXXX' : 'tu@email.com'}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  disabled={loading}
+                />
+                <button type="submit" disabled={loading || !searchQuery.trim()}>
+                  {loading ? '⏳' : '🔍'}
+                </button>
+                {isSearchResult && <button type="button" onClick={clearSearch} className="clear-btn">✕</button>}
+              </div>
+              {error && <p className="search-error">⚠️ {error}</p>}
+            </form>
+          </div>
+
+          {/* Filtros (solo usuarios logueados) */}
+          {user && !isSearchResult && (
+            <div className="tracker-filters">
+              <span>{filteredOrders.length} {filteredOrders.length === 1 ? 'orden' : 'órdenes'}</span>
+              <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }}>
+                <option value="active">🔄 Activas</option>
+                <option value="all">📋 Todas</option>
+                <option value="completed">✅ Completadas</option>
+              </select>
+            </div>
+          )}
+
+          {/* Lista de órdenes */}
+          {loading ? (
+            <div className="tracker-loading">⏳ Cargando...</div>
+          ) : paginatedOrders.length > 0 ? (
+            <>
+              <div className="orders-list">
+                {paginatedOrders.map((order) => (
+                  <div key={order.id} className="order-row" onClick={() => setSelectedOrder(order)}>
+                    <span className={`status-dot status-${order.status}`} title={STATUS_MAP[order.status]?.text}></span>
+                    <div className="order-main">
+                      <strong>{order.order_number || `#${order.id}`}</strong>
+                      <small>{formatDate(order.created_at)}</small>
+                    </div>
+                    <span className="order-total">{formatCurrency(order.total, currencyCode)}</span>
+                    <span className="order-arrow">›</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Paginación */}
+              {totalPages > 1 && (
+                <div className="tracker-pagination">
+                  <button onClick={() => setPage(p => p - 1)} disabled={page === 1}>← Anterior</button>
+                  <span>{page} de {totalPages}</span>
+                  <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages}>Siguiente →</button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="tracker-empty">
+              <p>📭</p>
+              <h4>No hay órdenes</h4>
+              <p>{!user && !isSearchResult ? 'Ingresa un código para buscar' : 'No se encontraron resultados'}</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Modal de detalles */}
+      {selectedOrder && (
+        <div className="order-modal-overlay" onClick={() => setSelectedOrder(null)}>
+          <div className="order-modal" onClick={(e) => e.stopPropagation()}>
+            <header>
+              <div>
+                <h2>{selectedOrder.order_number || `#${selectedOrder.id}`}</h2>
+                <small>{formatDate(selectedOrder.created_at)}</small>
+              </div>
+              <button onClick={() => setSelectedOrder(null)}>✕</button>
+            </header>
+            <div className="modal-body">
+              <div className={`modal-status status-${selectedOrder.status}`}>
+                {STATUS_MAP[selectedOrder.status]?.icon} {STATUS_MAP[selectedOrder.status]?.text}
+              </div>
+              <div className="modal-info">
+                <div><span>Total</span><strong>{formatCurrency(selectedOrder.total, currencyCode)}</strong></div>
+                {selectedOrder.shipping_address && (
+                  <div><span>Dirección</span><strong>{selectedOrder.shipping_address}</strong></div>
+                )}
+              </div>
+              {selectedOrder.items?.length > 0 && (
+                <div className="modal-items">
+                  <h4>Productos</h4>
+                  {selectedOrder.items.map((item) => (
+                    <div key={item.id} className="modal-item">
+                      <img src={getImageUrl(item.image)} alt={item.name} 
+                        onError={(e) => { e.target.src = 'https://placehold.co/60x60?text=?'; }} />
+                      <div>
+                        <p>{item.name}</p>
+                        <small>{item.quantity} × {formatCurrency(item.price, currencyCode)}</small>
+                      </div>
+                      <strong>{formatCurrency(item.quantity * item.price, currencyCode)}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+            <footer>
+              <button onClick={() => setSelectedOrder(null)}>Cerrar</button>
+            </footer>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

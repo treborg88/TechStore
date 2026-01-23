@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
-import { apiFetch, apiUrl } from '../services/apiClient';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
-import LoadingSpinner from './LoadingSpinner';
+import LoadingSpinner from '../common/LoadingSpinner';
 
 export default function UserList({ onStatsUpdate }) {
     const [users, setUsers] = useState([]);

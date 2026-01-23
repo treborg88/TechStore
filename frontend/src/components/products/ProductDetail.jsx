@@ -2,12 +2,12 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
-import LoadingSpinner from './LoadingSpinner';
-import Footer from './Footer';
-import { API_URL, BASE_URL } from '../config';
-import { apiFetch, apiUrl } from '../services/apiClient';
-import '../styles/ProductDetail.css';
-import { formatCurrency } from '../utils/formatCurrency';
+import LoadingSpinner from '../common/LoadingSpinner';
+import Footer from '../common/Footer';
+import { API_URL, BASE_URL } from '../../config';
+import { apiFetch, apiUrl } from '../../services/apiClient';
+import './ProductDetail.css';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCartOpen, currencyCode }) {
   const { id } = useParams();

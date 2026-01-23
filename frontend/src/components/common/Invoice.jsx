@@ -1,7 +1,7 @@
 import React from 'react';
 import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
-import '../styles/print.css';
-import { formatCurrency } from '../utils/formatCurrency';
+import '../../print.css';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 // PDF Styles
 const styles = StyleSheet.create({

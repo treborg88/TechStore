@@ -1,27 +1,39 @@
 import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
 import './App.css';
-import './styles/LoginPage.css';
+import './components/auth/LoginPage.css';
 import { getCurrentUser, isLoggedIn, logout } from './services/authService';
 
 import { API_URL, DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from './config';
 import { apiFetch, apiUrl } from './services/apiClient';
 import { Toaster, toast } from 'react-hot-toast';
-import LoadingSpinner from './components/LoadingSpinner';
-import Header from './components/Header';
 
-// Lazy loading components
-const Cart = lazy(() => import('./components/Cart'));
-const Checkout = lazy(() => import('./components/Checkout'));
-const LoginPage = lazy(() => import('./components/LoginPage'));
-const AdminDashboard = lazy(() => import('./components/AdminDashboard'));
-const OrderTrackerModal = lazy(() => import('./components/OrderTrackerModal'));
-const UserProfile = lazy(() => import('./components/UserProfile'));
-const ProductDetail = lazy(() => import('./components/ProductDetail'));
+// Common components
+import LoadingSpinner from './components/common/LoadingSpinner';
+import Header from './components/common/Header';
+
+// Lazy loading components - organized by feature
+const Footer = lazy(() => import('./components/common/Footer'));
+
+// Auth
+const LoginPage = lazy(() => import('./components/auth/LoginPage'));
+const UserProfile = lazy(() => import('./components/auth/UserProfile'));
+
+// Products
+const ProductDetail = lazy(() => import('./components/products/ProductDetail'));
+
+// Cart
+const Cart = lazy(() => import('./components/cart/Cart'));
+const Checkout = lazy(() => import('./components/cart/Checkout'));
+
+// Admin
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
+const SettingsManager = lazy(() => import('./components/admin/SettingsManager'));
+
+// Pages
+const OrderTracker = lazy(() => import('./pages/OrderTracker'));
 const Home = lazy(() => import('./pages/Home'));
 const Contact = lazy(() => import('./pages/Contact'));
-const SettingsManager = lazy(() => import('./components/SettingsManager'));
-const Footer = lazy(() => import('./components/Footer'));
 
 function App() {
   // Estados de configuración del sitio
@@ -713,17 +725,9 @@ function App() {
             />
           } />
           <Route path="/orders" element={
-            <OrderTrackerModal 
-              onClose={() => navigate(-1)} 
+            <OrderTracker 
               user={user}
               currencyCode={productCardSettings.currency}
-              cartItems={cartItems}
-              onLogout={handleLogout}
-              onOpenProfile={() => navigate('/profile')}
-              onOpenCart={() => navigate('/cart')}
-              siteName={siteName}
-              siteIcon={siteIcon}
-              headerSettings={headerSettings}
             />
           } />
           <Route path="/product/:id" element={

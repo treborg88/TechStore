@@ -1,9 +1,9 @@
 import { useState, useMemo, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { apiFetch, apiUrl } from '../services/apiClient';
-import LoadingSpinner from './LoadingSpinner';
-import Invoice from './Invoice';
-import { formatCurrency } from '../utils/formatCurrency';
+import { apiFetch, apiUrl } from '../../services/apiClient';
+import LoadingSpinner from '../common/LoadingSpinner';
+import Invoice from '../common/Invoice';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 const ONLINE_ORDER_STEPS = [
 	{ id: 'all', label: 'Todos', icon: '📋' },

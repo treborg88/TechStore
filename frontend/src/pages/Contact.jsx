@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
-import '../styles/Contact.css';
+import './Contact.css';
 
 const defaultContactData = {
   contactTitle: 'Contáctanos',

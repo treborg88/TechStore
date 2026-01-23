@@ -1,9 +1,9 @@
 import React from "react";
 import { useNavigate } from 'react-router-dom';
-import { BASE_URL } from '../config';
-import '../styles/ProductDetail.css';
-import LoadingSpinner from './LoadingSpinner';
-import { formatCurrency } from '../utils/formatCurrency';
+import { BASE_URL } from '../../config';
+import '../products/ProductDetail.css';
+import LoadingSpinner from '../common/LoadingSpinner';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout, currencyCode }) {
     const navigate = useNavigate();

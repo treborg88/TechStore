@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { apiFetch, apiUrl } from '../services/apiClient';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
-import '../styles/UserProfile.css';
+import './UserProfile.css';
 
 function UserProfile({ onClose, onLogout, onUpdate, user }) {
     const [loading, setLoading] = useState(true);

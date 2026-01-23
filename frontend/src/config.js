@@ -1,8 +1,8 @@
 // config.js - Configuración centralizada de la aplicación
 // URLs are loaded from environment variables (see .env.example)
 
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-export const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5173';
+export const API_URL = import.meta.env.VITE_API_URL
+export const BASE_URL = import.meta.env.VITE_BASE_URL
 
 export const DEFAULT_CATEGORY_FILTERS_CONFIG = {
     useDefault: true,

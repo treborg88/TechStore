@@ -1,8 +1,8 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import ProductImageGallery from '../components/ProductImageGallery';
-import LoadingSpinner from '../components/LoadingSpinner';
-import Footer from '../components/Footer';
+import ProductImageGallery from '../components/products/ProductImageGallery';
+import LoadingSpinner from '../components/common/LoadingSpinner';
+import Footer from '../components/common/Footer';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { formatCurrency } from '../utils/formatCurrency';
 

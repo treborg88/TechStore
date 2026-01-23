@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { BASE_URL } from '../config';
-import { apiFetch, apiUrl } from '../services/apiClient';
+import { BASE_URL } from '../../config';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
-import LoadingSpinner from './LoadingSpinner';
-import '../styles/ProductList.css';
-import { formatCurrency } from '../utils/formatCurrency';
+import LoadingSpinner from '../common/LoadingSpinner';
+import './ProductList.css';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 function blankProduct() {
 	return {

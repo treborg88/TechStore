@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_URL, BASE_URL } from '../config';
-import { apiFetch, apiUrl } from '../services/apiClient';
-import { getCurrentUser } from '../services/authService';
-import Invoice, { buildInvoiceData, generateInvoicePdfBlob } from './Invoice';
-import EmailVerification from './EmailVerification';
-import LoginPage from './LoginPage';
-import '../styles/ProductDetail.css';
-import '../styles/Checkout.css';
-import { formatCurrency } from '../utils/formatCurrency';
+import { API_URL, BASE_URL } from '../../config';
+import { apiFetch, apiUrl } from '../../services/apiClient';
+import { getCurrentUser } from '../../services/authService';
+import Invoice, { buildInvoiceData, generateInvoicePdfBlob } from '../common/Invoice';
+import EmailVerification from '../auth/EmailVerification';
+import LoginPage from '../auth/LoginPage';
+import '../products/ProductDetail.css';
+import './Checkout.css';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { apiFetch, apiUrl } from '../services/apiClient';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
-import '../styles/SettingsManager.css';
+import './SettingsManager.css';
 import EmailSettingsSection from './EmailSettingsSection';
-import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
+import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 
 function SettingsManager() {
   const location = useLocation();

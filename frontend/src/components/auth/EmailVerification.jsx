@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { sendVerificationCode, verifyCode } from '../services/verificationService';
-import '../styles/EmailVerification.css';
+import { sendVerificationCode, verifyCode } from '../../services/verificationService';
+import './EmailVerification.css';
 import { toast } from 'react-hot-toast';
 
 /**

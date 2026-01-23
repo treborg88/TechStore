@@ -1,12 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
-import { apiFetch, apiUrl } from '../services/apiClient';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
-import LoadingSpinner from './LoadingSpinner';
-import OrderList from './OrderList';
-import ProductList from './ProductList';
+import LoadingSpinner from '../common/LoadingSpinner';
+import OrderList from '../orders/OrderList';
+import ProductList from '../products/ProductList';
 import UserList from './UserList';
 import SettingsManager from './SettingsManager';
-import { formatCurrency } from '../utils/formatCurrency';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode }) {
 	// Tab state

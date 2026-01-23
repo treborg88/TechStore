@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL, BASE_URL } from '../config';
-import { apiFetch, apiUrl } from '../services/apiClient';
-import '../styles/OrderTrackerModal.css';
-import { formatCurrency } from '../utils/formatCurrency';
+import { API_URL, BASE_URL } from '../../config';
+import { apiFetch, apiUrl } from '../../services/apiClient';
+import './OrderTrackerModal.css';
+import { formatCurrency } from '../../utils/formatCurrency';
 
 function OrderTrackerModal({ onClose, user, currencyCode }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'

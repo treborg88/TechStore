@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BASE_URL } from '../config';
-import '../styles/ProductImageGallery.css';
+import { BASE_URL } from '../../config';
+import './ProductImageGallery.css';
 
 function ProductImageGallery({ images, productName, productDescription, className = '', onAddToCart, onImageClick }) {
   const [currentIndex, setCurrentIndex] = useState(0);
