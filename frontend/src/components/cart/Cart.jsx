@@ -5,16 +5,12 @@ import '../products/ProductDetail.css';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose, onClearAll, navigateToCheckout, currencyCode }) {
+function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose, onClearAll, currencyCode }) {
     const navigate = useNavigate();
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
     const handleCheckout = () => {
         navigate('/checkout');
-    };
-
-    const handleCheckoutClose = () => {
-        setShowCheckout(false);
     };
 
     // Función para aumentar cantidad

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
 import './App.css';
 import './components/auth/LoginPage.css';
-import { getCurrentUser, isLoggedIn, logout } from './services/authService';
+import { getCurrentUser, logout } from './services/authService';
 
 import { API_URL, DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from './config';
 import { apiFetch, apiUrl } from './services/apiClient';
@@ -73,14 +73,14 @@ function App() {
       // Fallback a guest_cart por compatibilidad
       const legacy = localStorage.getItem('guest_cart');
       return legacy ? JSON.parse(legacy) : [];
-    } catch (e) {
+    } catch {
       return [];
     }
   });
-  const [cartOpen, setCartOpen] = useState(false);
+  const [_cartOpen, _setCartOpen] = useState(false);
   const [isCartLoading, setIsCartLoading] = useState(false);
-  const [ordersOpen, setOrdersOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
+  const [_ordersOpen, _setOrdersOpen] = useState(false);
+  const [_profileOpen, _setProfileOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -609,7 +609,7 @@ function App() {
             const g = parseInt(hex.slice(3, 5), 16);
             const b = parseInt(hex.slice(5, 7), 16);
             return `rgb(${Math.floor(r/div)}, ${Math.floor(g/div)}, ${Math.floor(b/div)})`;
-        } catch(e) { return hex; }
+        } catch { return hex; }
     };
     root.style.setProperty('--primary-hover', darkenColor(themeSettings.primaryColor));
   }, [themeSettings]);

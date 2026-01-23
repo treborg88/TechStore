@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { BASE_URL } from '../../config';
 import './ProductImageGallery.css';
 
-function ProductImageGallery({ images, productName, productDescription, className = '', onAddToCart, onImageClick }) {
+function ProductImageGallery({ images, productName, className = '', onImageClick }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -65,7 +65,7 @@ function ProductImageGallery({ images, productName, productDescription, classNam
     setCurrentIndex((prev) => (prev - 1 + displayImages.length) % displayImages.length);
   };
 
-  const goToImage = (index) => {
+  const _goToImage = (index) => {
     if (index === currentIndex) return;
     setIsTransitioning(true);
     setZoom(1);

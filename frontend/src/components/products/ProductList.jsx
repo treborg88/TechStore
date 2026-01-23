@@ -252,7 +252,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		}
 	};
 
-	const handleUpdate = async (event) => {
+	const handleUpdate = async () => {
 		if (!editingProduct) {
 			return;
 		}

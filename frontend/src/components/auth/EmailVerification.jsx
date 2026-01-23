@@ -49,7 +49,7 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
             setCountdown(remaining > 0 ? remaining : 0);
             hasSentRef.current = true; // Evitar auto-envío si ya se envió
           }
-        } catch (e) {
+        } catch {
           console.log('No hay estado de verificación previo válido');
         }
       }

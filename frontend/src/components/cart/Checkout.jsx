@@ -31,7 +31,7 @@ const [step, setStep] = useState(1);
     const [confirmedItems, setConfirmedItems] = useState([]);
     const [isEmailVerified, setIsEmailVerified] = useState(false);
     const [showVerification, setShowVerification] = useState(false);
-    const [emailExists, setEmailExists] = useState(false);
+    const [_emailExists, setEmailExists] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [friendlyLoginMessage, setFriendlyLoginMessage] = useState('');
 

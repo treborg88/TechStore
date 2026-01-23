@@ -9,7 +9,7 @@ export function formatCurrency(value, currencyCode = 'USD') {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2
     }).format(numeric);
-  } catch (error) {
+  } catch {
     return `${numeric.toFixed(2)}`;
   }
 }

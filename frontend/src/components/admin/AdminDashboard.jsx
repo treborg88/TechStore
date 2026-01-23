@@ -148,7 +148,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 			.sort((a, b) => b.revenue - a.revenue)
 			.slice(0, topProductsLimit)
 			.map((product, index) => {
-				const maxRevenue = productSales[Object.keys(productSales)[0]]?.revenue || 1;
+				const _maxRevenue = productSales[Object.keys(productSales)[0]]?.revenue || 1;
 				return {
 					...product,
 					percentage: (product.revenue / Object.values(productSales).reduce((sum, p) => sum + p.revenue, 0)) * 100,

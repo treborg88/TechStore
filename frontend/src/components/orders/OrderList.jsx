@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -153,7 +153,7 @@ export default function OrderList({
 					} else {
 						errorCount++;
 					}
-				} catch (e) {
+				} catch {
 					errorCount++;
 				}
 			}));
@@ -168,7 +168,7 @@ export default function OrderList({
 			setSelectedOrderIds([]);
 			await onRefresh();
 
-		} catch (error) {
+		} catch {
 			toast.error('Error en la actualización masiva');
 		} finally {
 			setIsSubmitting(false);
@@ -192,7 +192,7 @@ export default function OrderList({
 							setSelectedOrder(order);
 							setInternalNotes(order.internal_notes || '');
 						}
-					} catch (e) {
+					} catch {
 						setSelectedOrder(order);
 					}
 				};

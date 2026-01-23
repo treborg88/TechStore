@@ -17,7 +17,6 @@ function OrderTrackerModal({ onClose, user, currencyCode }) {
         if (user) {
             fetchMyOrders();
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [user]);
 
     const fetchMyOrders = async () => {
@@ -47,7 +46,7 @@ function OrderTrackerModal({ onClose, user, currencyCode }) {
         }
     };
 
-    const searchOrdersByEmail = async (email) => {
+    const _searchOrdersByEmail = async (email) => {
         setLoading(true);
         setError('');
         setOrders([]);

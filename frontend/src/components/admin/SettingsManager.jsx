@@ -8,7 +8,7 @@ import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '..
 
 function SettingsManager() {
   const location = useLocation();
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [_menuOpen, _setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('site');
   const [siteTab, setSiteTab] = useState('general');
   const [openSections, setOpenSections] = useState({
@@ -89,7 +89,7 @@ function SettingsManager() {
                 ...(parsed?.styles || {})
               }
             };
-          } catch (err) {
+          } catch {
             typedData[key] = cloneCategoryConfig();
           }
         } else if (key === 'productCardConfig') {
@@ -118,7 +118,7 @@ function SettingsManager() {
               };
             }
             typedData[key] = merged;
-          } catch (err) {
+          } catch {
             typedData[key] = cloneProductCardConfig();
           }
         } else typedData[key] = value;

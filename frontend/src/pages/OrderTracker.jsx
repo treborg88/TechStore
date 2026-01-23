@@ -49,7 +49,7 @@ export default function OrderTracker({ user, currencyCode = 'USD' }) {
     try {
       const res = await apiFetch(apiUrl('/orders/my'));
       if (res.ok) setOrders(await res.json());
-    } catch (err) {
+    } catch {
       setError('Error al cargar órdenes');
     } finally {
       setLoading(false);

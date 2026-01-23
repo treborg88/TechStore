@@ -38,7 +38,7 @@ const [resetStep, setResetStep] = useState('input_email'); // input_email, verif
                 setFormData(parsed.formData || { nombre: "", email: prefillEmail || "", password: "", confirmPassword: "" });
                 setShowVerification(parsed.showVerification || false);
                 setResetStep(parsed.resetStep || 'input_email');
-            } catch (e) {
+            } catch {
                 console.log('No había estado de autenticación previo');
             }
         }

@@ -18,7 +18,7 @@ const defaultContactData = {
 
 export default function Contact({ user }) {
   const isAdmin = user?.role === 'admin';
-  const [loading, setLoading] = useState(true);
+  const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [contactData, setContactData] = useState(defaultContactData);
   const contactKeys = useMemo(() => Object.keys(defaultContactData), []);

@@ -89,7 +89,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
       } else {
         throw new Error('Error al actualizar');
       }
-    } catch (error) {
+    } catch {
       toast.error('No se pudo guardar la descripción');
     } finally {
       setSaving(false);
