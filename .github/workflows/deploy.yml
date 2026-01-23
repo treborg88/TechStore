@@ -1,0 +1,82 @@
+# CD - Despliegue Continuo
+# Se ejecuta automáticamente al hacer push a main
+
+name: Deploy to Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
+
+env:
+  SERVER_IP: 143.47.118.165
+  SERVER_USER: ${{ secrets.SERVER_USER }}
+  APP_PATH: ${{ secrets.APP_PATH }}
+
+jobs:
+  deploy:
+    name: 🚀 Deploy
+    runs-on: ubuntu-latest
+    # Solo ejecutar si CI pasó (en el mismo push)
+    
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v4
+
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Deploy al servidor
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
+            set -e
+            
+            echo "📂 Navegando al directorio de la app..."
+            cd ${{ secrets.APP_PATH }}
+            
+            echo "📥 Actualizando código desde GitHub..."
+            git fetch origin main
+            git reset --hard origin/main
+            
+            echo "📦 Instalando dependencias del root..."
+            npm ci --ignore-scripts
+            
+            echo "📦 Instalando dependencias del backend..."
+            cd backend
+            npm ci --production
+            cd ..
+            
+            echo "📦 Instalando dependencias del frontend..."
+            cd frontend
+            npm ci
+            
+            echo "🏗️ Building frontend..."
+            npm run build
+            cd ..
+            
+            echo "🔄 Reiniciando servicios con PM2..."
+            pm2 reload all --update-env
+            
+            echo "✅ Deploy completado exitosamente!"
+            pm2 status
+          ENDSSH
+
+      - name: Verificar deploy
+        run: |
+          echo "🔍 Verificando que el servidor responde..."
+          sleep 5
+          curl -f -s -o /dev/null -w "%{http_code}" http://${{ env.SERVER_IP }}:5173 || echo "⚠️ Frontend no responde aún"
+          curl -f -s -o /dev/null -w "%{http_code}" http://${{ env.SERVER_IP }}:5001/api/products || echo "⚠️ API no responde aún"
+
+      - name: Notificar resultado
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deploy exitoso a http://${{ env.SERVER_IP }}:5173"
+          else
+            echo "❌ Deploy falló - revisar logs"
+          fi

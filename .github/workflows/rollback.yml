@@ -1,0 +1,69 @@
+# Rollback Manual
+# Ejecutar manualmente si un deploy falla y necesitas revertir
+
+name: 🔙 Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: 'Commit SHA al que revertir (dejar vacío para el anterior)'
+        required: false
+        default: ''
+      reason:
+        description: 'Razón del rollback'
+        required: true
+
+env:
+  SERVER_IP: 143.47.118.165
+  SERVER_USER: ${{ secrets.SERVER_USER }}
+  APP_PATH: ${{ secrets.APP_PATH }}
+
+jobs:
+  rollback:
+    name: 🔙 Rollback
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Configurar SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
+
+      - name: Ejecutar rollback
+        run: |
+          ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
+            set -e
+            cd ${{ secrets.APP_PATH }}
+            
+            echo "📋 Razón del rollback: ${{ github.event.inputs.reason }}"
+            
+            COMMIT="${{ github.event.inputs.commit_sha }}"
+            if [ -z "$COMMIT" ]; then
+              echo "🔙 Revirtiendo al commit anterior..."
+              git reset --hard HEAD~1
+            else
+              echo "🔙 Revirtiendo al commit: $COMMIT"
+              git reset --hard $COMMIT
+            fi
+            
+            echo "📦 Reinstalando dependencias..."
+            npm ci --ignore-scripts
+            cd backend && npm ci --production && cd ..
+            cd frontend && npm ci && npm run build && cd ..
+            
+            echo "🔄 Reiniciando servicios..."
+            pm2 reload all --update-env
+            
+            echo "✅ Rollback completado!"
+            git log -1 --oneline
+          ENDSSH
+
+      - name: Log rollback
+        run: |
+          echo "⚠️ ROLLBACK ejecutado"
+          echo "Razón: ${{ github.event.inputs.reason }}"
+          echo "Por: ${{ github.actor }}"
+          echo "Fecha: $(date)"
