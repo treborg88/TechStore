@@ -10,8 +10,8 @@ on:
 
 env:
   SERVER_IP: 143.47.118.165
-  SERVER_USER: ${{ secrets.SERVER_USER }}
-  APP_PATH: ${{ secrets.APP_PATH }}
+  SERVER_USER: ubuntu
+  APP_PATH: /home/ubuntu/TechStore
 
 jobs:
   deploy:
@@ -36,7 +36,7 @@ jobs:
             set -e
             
             echo "📂 Navegando al directorio de la app..."
-            cd ${{ secrets.APP_PATH }}
+            cd ${{ env.APP_PATH }}
             
             echo "📥 Actualizando código desde GitHub..."
             git fetch origin main
