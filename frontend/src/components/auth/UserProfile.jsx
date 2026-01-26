@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import './UserProfile.css';
@@ -25,7 +25,7 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
 
     useEffect(() => {
         loadUserProfile();
-    }, []);
+    }, [loadUserProfile]);
 
     useEffect(() => {
         if (user) {
@@ -43,7 +43,7 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
         }
     }, [user]);
 
-    const loadUserProfile = async () => {
+    const loadUserProfile = useCallback(async () => {
         try {
             setLoading(true);
             const response = await apiFetch(apiUrl('/auth/me'));
@@ -72,7 +72,7 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
         } finally {
             setLoading(false);
         }
-    };
+    }, [onLogout]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

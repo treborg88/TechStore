@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -31,7 +31,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 		if (activeTab === 'orders' || activeTab === 'overview') {
 			loadOrders(1);
 		}
-	}, [activeTab]);
+	}, [activeTab, loadOrders]);
 
     // Reload orders when filters change
     useEffect(() => {
@@ -41,7 +41,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
             }, 500); // Debounce search
             return () => clearTimeout(timeoutId);
         }
-    }, [orderFilters]);
+    }, [orderFilters, activeTab, loadOrders]);
 
 	// Calculate stats for overview
 	const stats = useMemo(() => {
@@ -164,7 +164,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 			.slice(0, 5);
 	}, [orders]);
 
-	const loadOrders = async (page = 1) => {
+	const loadOrders = useCallback(async (page = 1) => {
 		try {
 			setIsLoadingOrders(true);
             const queryParams = new URLSearchParams({
@@ -228,7 +228,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 		} finally {
 			setIsLoadingOrders(false);
 		}
-	};
+	}, [ordersPagination.limit, orderFilters]);
 
 	return (
 		<div className="admin-dashboard">

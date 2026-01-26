@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { getCurrentUser } from '../../services/authService';
-import Invoice, { buildInvoiceData, generateInvoicePdfBlob } from '../common/Invoice';
+import Invoice from '../common/Invoice';
+import { buildInvoiceData, generateInvoicePdfBlob } from '../../utils/invoiceUtils';
 import EmailVerification from '../auth/EmailVerification';
 import LoginPage from '../auth/LoginPage';
 import '../products/ProductDetail.css';
@@ -35,7 +36,7 @@ const [step, setStep] = useState(1);
     const [showLogin, setShowLogin] = useState(false);
     const [friendlyLoginMessage, setFriendlyLoginMessage] = useState('');
 
-    const getSavedAddressDefaults = () => {
+    const getSavedAddressDefaults = useCallback(() => {
         const savedAddr = localStorage.getItem('user_default_address');
         if (!savedAddr) return { address: '', sector: '', city: '' };
         try {
@@ -49,9 +50,9 @@ const [step, setStep] = useState(1);
             console.error('Error parsing saved address', e);
             return { address: '', sector: '', city: '' };
         }
-    };
+    }, []);
 
-    const getUserDefaults = (userData) => {
+    const getUserDefaults = useCallback((userData) => {
         if (!userData) return { firstName: '', lastName: '', email: '', phone: '', address: '', sector: '', city: '' };
         const nameParts = userData.name ? userData.name.trim().split(' ').filter(Boolean) : [];
         const firstName = nameParts[0] || '';
@@ -67,9 +68,9 @@ const [step, setStep] = useState(1);
             sector: userData.sector || savedAddress.sector || '',
             city: userData.city || savedAddress.city || ''
         };
-    };
+    }, [getSavedAddressDefaults]);
 
-    const applyDefaultsToForm = (defaults) => {
+    const applyDefaultsToForm = useCallback((defaults) => {
         setFormData((prev) => ({
             ...prev,
             firstName: prev.firstName || defaults.firstName,
@@ -80,7 +81,7 @@ const [step, setStep] = useState(1);
             sector: prev.sector || defaults.sector,
             city: prev.city || defaults.city
         }));
-    };
+    }, []);
 
     // Cargar y guardar progreso del checkout
     useEffect(() => {
@@ -117,7 +118,7 @@ const [step, setStep] = useState(1);
                 setStep(1);
             }
         }
-    }, []);
+    }, [getUserDefaults, applyDefaultsToForm]);
 
     // Guardar progreso cada vez que cambie algo relevante
     useEffect(() => {

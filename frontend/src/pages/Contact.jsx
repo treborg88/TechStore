@@ -53,7 +53,7 @@ export default function Contact({ user }) {
     };
 
     loadSettings();
-  }, []);
+  }, [contactKeys]);
 
   const handleChange = (event) => {
     const { name, value } = event.target;

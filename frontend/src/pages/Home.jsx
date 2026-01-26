@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import ProductImageGallery from '../components/products/ProductImageGallery';
 import LoadingSpinner from '../components/common/LoadingSpinner';
@@ -37,13 +37,13 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     }
   }, [heroSettings?.image]);
 
-  const toCssUnit = (value, unit = 'px') => {
+  const toCssUnit = useCallback((value, unit = 'px') => {
     if (value === null || value === undefined || value === '') return undefined;
     if (typeof value === 'number') return `${value}${unit}`;
     const trimmed = String(value).trim();
     if (trimmed.length === 0) return undefined;
     return /^[0-9]+(\.[0-9]+)?$/.test(trimmed) ? `${trimmed}${unit}` : trimmed;
-  };
+  }, []);
 
   const categoryConfig = useMemo(() => {
     const base = DEFAULT_CATEGORY_FILTERS_CONFIG;

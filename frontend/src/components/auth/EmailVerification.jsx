@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { sendVerificationCode, verifyCode } from '../../services/verificationService';
 import './EmailVerification.css';
 import { toast } from 'react-hot-toast';
@@ -74,7 +74,7 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
       hasSentRef.current = true;
       handleSendCode();
     }
-  }, []);
+  }, [autoSend, resolvedInitialEmail, step, handleSendCode]);
 
   useEffect(() => {
     let timer;
@@ -94,7 +94,7 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
       );
   };
 
-  const handleSendCode = async (e) => {
+  const handleSendCode = useCallback(async (e) => {
     if (e) e.preventDefault();
     setError('');
 
@@ -121,7 +121,7 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [email, purpose, onBeforeSend]);
 
   const handleVerifyCode = async (e) => {
     if (e) e.preventDefault();

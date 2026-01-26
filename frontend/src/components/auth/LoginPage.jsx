@@ -42,7 +42,7 @@ const [resetStep, setResetStep] = useState('input_email'); // input_email, verif
                 console.log('No había estado de autenticación previo');
             }
         }
-    }, []);
+    }, [prefillEmail]);
 
     useEffect(() => {
         if (prefillEmail) {
