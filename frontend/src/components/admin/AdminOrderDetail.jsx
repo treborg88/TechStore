@@ -43,7 +43,6 @@ export default function AdminOrderDetail({
     });
 
     const isCOD = order.payment_method === 'cash';
-    const isTransfer = order.payment_method === 'transfer';
     const steps = isCOD ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS;
     const currentStatusIndex = steps.findIndex((step) => step.id === order.status);
     

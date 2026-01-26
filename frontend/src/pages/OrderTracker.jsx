@@ -128,13 +128,6 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
     year: 'numeric', month: 'short', day: 'numeric' 
   });
 
-  // Obtener URL de imagen
-  const getImageUrl = (img) => {
-    if (!img) return 'https://placehold.co/60x60?text=?';
-    if (img.startsWith('http')) return img;
-    return `${API_URL.replace('/api', '')}${img.startsWith('/') ? img : `/images/${img}`}`;
-  };
-
   return (
     <main className="tracker-page">
       {/* Hero */}
