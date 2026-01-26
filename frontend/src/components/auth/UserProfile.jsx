@@ -23,26 +23,6 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
         confirmPassword: ''
     });
 
-    useEffect(() => {
-        loadUserProfile();
-    }, [loadUserProfile]);
-
-    useEffect(() => {
-        if (user) {
-            setFormData(prev => ({
-                ...prev,
-                name: user.name || prev.name,
-                email: user.email || prev.email,
-                phone: user.phone || prev.phone,
-                street: user.street || prev.street,
-                sector: user.sector || prev.sector,
-                city: user.city || prev.city,
-                country: user.country || prev.country
-            }));
-            setLoading(false);
-        }
-    }, [user]);
-
     const loadUserProfile = useCallback(async () => {
         try {
             setLoading(true);
@@ -73,6 +53,26 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
             setLoading(false);
         }
     }, [onLogout]);
+
+    useEffect(() => {
+        loadUserProfile();
+    }, [loadUserProfile]);
+
+    useEffect(() => {
+        if (user) {
+            setFormData(prev => ({
+                ...prev,
+                name: user.name || prev.name,
+                email: user.email || prev.email,
+                phone: user.phone || prev.phone,
+                street: user.street || prev.street,
+                sector: user.sector || prev.sector,
+                city: user.city || prev.city,
+                country: user.country || prev.country
+            }));
+            setLoading(false);
+        }
+    }, [user]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;

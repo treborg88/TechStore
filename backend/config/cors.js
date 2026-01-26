@@ -3,15 +3,13 @@ const cors = require('cors');
 
 const corsOptions = {
     origin: [
-        'https://8smgkh0x-5173.use2.devtunnels.ms',
+        'https://6sfq7hfx-5173.use2.devtunnels.ms',
         'https://6sfq7hfx-5001.use2.devtunnels.ms',
         'http://192.168.100.41:5173',
         'http://143.47.118.165:5173',
         'http://192.168.100.41:5001',
-        'http://143.47.118.165:3000',
         'http://143.47.118.165',
         'http://localhost:5173',
-        'http://localhost:3000',
         'http://localhost:5001'
     ],
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],

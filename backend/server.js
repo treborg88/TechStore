@@ -102,10 +102,18 @@ app.get('/p/:slug', async (req, res) => {
             images = [{ image_path: product.image }];
         }
 
-        // Backend URL for image assets
-        const backendUrl = (BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
-        // Frontend URL for product redirect
-        const frontendUrl = (FRONTEND_URL || backendUrl).replace(/\/$/, '');
+        // Detect protocol from forwarded headers (for proxies/tunnels) or request
+        const forwardedProto = req.get('x-forwarded-proto');
+        const detectedProtocol = forwardedProto || req.protocol || 'http';
+        const detectedHost = req.get('x-forwarded-host') || req.get('host');
+        const requestOriginUrl = `${detectedProtocol}://${detectedHost}`;
+        
+        // Backend URL for image assets - use BASE_URL if set, otherwise detect from request
+        const backendUrl = (BASE_URL || requestOriginUrl).replace(/\/$/, '');
+        // Frontend URL for product redirect - use FRONTEND_URL if set, otherwise derive from backend
+        // Note: Replace port 5001 with 5173 for frontend if using default ports
+        const defaultFrontendUrl = requestOriginUrl.replace(':5001', ':5173');
+        const frontendUrl = (FRONTEND_URL || defaultFrontendUrl).replace(/\/$/, '');
         
         // Build absolute image URL
         const primaryImage = images.length > 0 ? images[0].image_path : '';
@@ -114,7 +122,15 @@ app.get('/p/:slug', async (req, res) => {
         // Redirect URL points to frontend product page
         const productPageUrl = `${frontendUrl}/product/${productId}`;
 
-        console.log('Share page generated:', { productId, imageUrl, productPageUrl });
+        console.log('Share page generated:', { 
+            productId, 
+            imageUrl, 
+            productPageUrl,
+            detectedProtocol,
+            detectedHost,
+            envBaseUrl: BASE_URL || 'not set',
+            envFrontendUrl: FRONTEND_URL || 'not set'
+        });
 
         const html = buildShareHtml({
             title: product.name,

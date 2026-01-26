@@ -26,6 +26,72 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 	const [salesPeriod, setSalesPeriod] = useState('week'); // 'day', 'week', 'month', 'year'
 	const [topProductsLimit, setTopProductsLimit] = useState(5);
 
+	const loadOrders = useCallback(async (page = 1) => {
+		try {
+			setIsLoadingOrders(true);
+            const queryParams = new URLSearchParams({
+                page: page,
+                limit: ordersPagination.limit,
+                search: orderFilters.search,
+                status: orderFilters.status,
+                paymentType: orderFilters.paymentType,
+                type: orderFilters.type
+            });
+
+            // Cache key for orders
+            const cacheKey = `orders_cache_${page}_${JSON.stringify(orderFilters)}`;
+            const cachedData = localStorage.getItem(cacheKey);
+
+            if (cachedData) {
+                const parsedCache = JSON.parse(cachedData);
+                const now = new Date().getTime();
+                // 1 minute cache for orders
+                if (now - parsedCache.timestamp < 60 * 1000) {
+                    setOrders(parsedCache.data);
+                    setOrdersPagination(parsedCache.pagination);
+                    setIsLoadingOrders(false);
+                }
+            }
+
+			const response = await apiFetch(apiUrl(`/orders?${queryParams}`), {
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json().catch(() => ({}));
+				throw new Error(errorData.message || 'Error al cargar órdenes');
+			}
+
+			const result = await response.json();
+			setOrders(result.data);
+            setOrdersPagination(prev => ({
+                ...prev,
+                page: result.page,
+                total: result.total,
+                totalPages: result.totalPages
+            }));
+
+            // Update cache
+            localStorage.setItem(cacheKey, JSON.stringify({
+                timestamp: new Date().getTime(),
+                data: result.data,
+                pagination: {
+                    page: result.page,
+                    total: result.total,
+                    totalPages: result.totalPages
+                }
+            }));
+
+		} catch (error) {
+			console.error('Error cargando órdenes:', error);
+			toast.error(error.message);
+		} finally {
+			setIsLoadingOrders(false);
+		}
+	}, [ordersPagination.limit, orderFilters]);
+
 	// Load data based on active tab
 	useEffect(() => {
 		if (activeTab === 'orders' || activeTab === 'overview') {
@@ -163,72 +229,6 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 			.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 			.slice(0, 5);
 	}, [orders]);
-
-	const loadOrders = useCallback(async (page = 1) => {
-		try {
-			setIsLoadingOrders(true);
-            const queryParams = new URLSearchParams({
-                page: page,
-                limit: ordersPagination.limit,
-                search: orderFilters.search,
-                status: orderFilters.status,
-                paymentType: orderFilters.paymentType,
-                type: orderFilters.type
-            });
-
-            // Cache key for orders
-            const cacheKey = `orders_cache_${page}_${JSON.stringify(orderFilters)}`;
-            const cachedData = localStorage.getItem(cacheKey);
-
-            if (cachedData) {
-                const parsedCache = JSON.parse(cachedData);
-                const now = new Date().getTime();
-                // 1 minute cache for orders
-                if (now - parsedCache.timestamp < 60 * 1000) {
-                    setOrders(parsedCache.data);
-                    setOrdersPagination(parsedCache.pagination);
-                    setIsLoadingOrders(false);
-                }
-            }
-
-			const response = await apiFetch(apiUrl(`/orders?${queryParams}`), {
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-
-			if (!response.ok) {
-				const errorData = await response.json().catch(() => ({}));
-				throw new Error(errorData.message || 'Error al cargar órdenes');
-			}
-
-			const result = await response.json();
-			setOrders(result.data);
-            setOrdersPagination(prev => ({
-                ...prev,
-                page: result.page,
-                total: result.total,
-                totalPages: result.totalPages
-            }));
-
-            // Update cache
-            localStorage.setItem(cacheKey, JSON.stringify({
-                timestamp: new Date().getTime(),
-                data: result.data,
-                pagination: {
-                    page: result.page,
-                    total: result.total,
-                    totalPages: result.totalPages
-                }
-            }));
-
-		} catch (error) {
-			console.error('Error cargando órdenes:', error);
-			toast.error(error.message);
-		} finally {
-			setIsLoadingOrders(false);
-		}
-	}, [ordersPagination.limit, orderFilters]);
 
 	return (
 		<div className="admin-dashboard">
