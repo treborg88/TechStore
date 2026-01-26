@@ -4,6 +4,7 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Invoice from '../common/Invoice';
 import { formatCurrency } from '../../utils/formatCurrency';
+import AdminOrderDetail from '../admin/AdminOrderDetail';
 
 const ONLINE_ORDER_STEPS = [
 	{ id: 'all', label: 'Todos', icon: '📋' },
@@ -38,14 +39,13 @@ export default function OrderList({
     onFilterChange,
     pagination,
 	onPageChange,
-	currencyCode
+	currencyCode,
+	siteName = 'TechStore',
+	siteIcon = '🛍️'
 }) {
 	// const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' }); // Moved to parent
     const orderFilters = filters || { search: '', status: 'all', type: 'all', paymentType: 'all' };
     const setOrderFilters = onFilterChange || (() => {});
-
-	const [siteName] = useState(localStorage.getItem('siteName') || 'TechStore');
-	const [siteIcon] = useState(localStorage.getItem('siteIcon') || '🛍️');
 	
 	const [selectedOrder, setSelectedOrder] = useState(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -252,17 +252,20 @@ export default function OrderList({
 		}
 	};
 
-	const handleSaveNotes = async () => {
-		if (!selectedOrder) return;
+	const handleSaveNotes = async (orderId, notes) => {
+		const id = orderId || (selectedOrder ? selectedOrder.id : null);
+		const notesToSave = notes !== undefined ? notes : internalNotes;
+
+		if (!id) return;
 
 		try {
 			setIsSubmitting(true);
-			const response = await apiFetch(apiUrl(`/orders/${selectedOrder.id}`), {
+			const response = await apiFetch(apiUrl(`/orders/${id}`), {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-				body: JSON.stringify({ internal_notes: internalNotes })
+				body: JSON.stringify({ internal_notes: notesToSave })
 			});
 
 			if (!response.ok) {
@@ -270,7 +273,9 @@ export default function OrderList({
 			}
 
 			toast.success('Notas guardadas');
-			setSelectedOrder(prev => ({ ...prev, internal_notes: internalNotes }));
+			if (selectedOrder && selectedOrder.id === id) {
+				setSelectedOrder(prev => ({ ...prev, internal_notes: notesToSave }));
+			}
 			await onRefresh();
 		} catch (error) {
 			toast.error(error.message);
@@ -612,185 +617,134 @@ export default function OrderList({
 
 	return (
 		<section className="admin-section">
-			<div className="admin-section-header">
-				<h3>Gestión de Órdenes</h3>
-				<span>
-					{filteredOrders.length} / {orders.length} órdenes
-				</span>
-			</div>
-
-			<div className="admin-filter-bar">
-				<div className="filter-field">
-					<label htmlFor="order-search">Buscar</label>
-					<input
-						id="order-search"
-						type="search"
-						placeholder="ID, cliente o email"
-						value={orderFilters.search}
-						onChange={(event) => setOrderFilters((prev) => ({ ...prev, search: event.target.value }))}
-					/>
-				</div>
-				<div className="filter-field">
-					<label htmlFor="order-payment-type">Tipo de Pago</label>
-					<select
-						id="order-payment-type"
-						value={orderFilters.paymentType}
-						onChange={(event) => setOrderFilters((prev) => ({ ...prev, paymentType: event.target.value, status: 'all' }))}
-					>
-						<option value="all">Todas</option>
-						<option value="online">Pago en línea</option>
-						<option value="cod">Contra entrega</option>
-					</select>
-				</div>
-				<div className="filter-field">
-					<label htmlFor="order-type">Tipo Usuario</label>
-					<select
-						id="order-type"
-						value={orderFilters.type}
-						onChange={(event) => setOrderFilters((prev) => ({ ...prev, type: event.target.value }))}
-					>
-						<option value="all">Todos</option>
-						<option value="registered">Registrados</option>
-						<option value="guest">Invitados</option>
-					</select>
-				</div>
-				<div className="filter-field full-width">
-					<label>Filtrar por Estado</label>
-					<div className="admin-filter-stepper">
-						{(orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS).map((step, index) => {
-							const steps = orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS;
-							const currentIdx = steps.findIndex(s => s.id === orderFilters.status);
-							const isHighlighted = orderFilters.status !== 'all' && index > 0 && index < currentIdx;
-							const isActive = orderFilters.status === step.id;
-							
-							return (
-								<div 
-									key={step.id} 
-									className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
-									onClick={() => setOrderFilters((prev) => ({ ...prev, status: step.id }))}
-								>
-									<span className="step-icon">{step.icon}</span>
-									<span className="step-label">{step.label}</span>
-								</div>
-							);
-						})}
-					</div>
-				</div>
-			</div>
-
-			{isLoading ? (
-				<div className="admin-empty"><LoadingSpinner /></div>
-			) : filteredOrders.length === 0 ? (
-				<div className="admin-empty">No hay órdenes que coincidan con el filtro actual.</div>
+			{selectedOrder ? (
+				<AdminOrderDetail 
+					order={selectedOrder}
+					onClose={closeOrderDetails}
+					onStatusChange={handleOrderStatusChange}
+					onSaveNotes={handleSaveNotes}
+					onDelete={handleDeleteOrder}
+					isSubmitting={isSubmitting}
+					siteName={siteName}
+					siteIcon={siteIcon}
+					currencyCode={currencyCode}
+				/>
 			) : (
-				orderFilters.paymentType === 'all' ? (
-					<div className="orders-split-view">
-						<details open className="order-group">
-							<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
-								Pago en línea ({filteredOrders.filter(o => o.payment_method !== 'cash').length})
-							</summary>
-							{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method !== 'cash'))}
-						</details>
-						<details open className="order-group" style={{marginTop: '20px'}}>
-							<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
-								Contra entrega ({filteredOrders.filter(o => o.payment_method === 'cash').length})
-							</summary>
-							{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method === 'cash'))}
-						</details>
+				<>
+					<div className="admin-section-header">
+						<h3>Gestión de Órdenes</h3>
+						<span>
+							{filteredOrders.length} / {orders.length} órdenes
+						</span>
 					</div>
-				) : (
-					renderResponsiveOrders(filteredOrders)
-				)
-			)}
 
-            {pagination && (
-				<div className="pagination-controls">
-					<button 
-						className="admin-btn ghost"
-						disabled={pagination.page === 1}
-						onClick={() => onPageChange(pagination.page - 1)}
-					>
-						&laquo; Anterior
-					</button>
-					<span>Página {pagination.page} de {pagination.totalPages}</span>
-					<button 
-						className="admin-btn ghost"
-						disabled={pagination.page === pagination.totalPages}
-						onClick={() => onPageChange(pagination.page + 1)}
-					>
-						Siguiente &raquo;
-					</button>
-				</div>
-			)}
-
-			{/* Order Details Modal */}
-			{selectedOrder && (
-				<div className="order-modal-overlay" onClick={closeOrderDetails}>
-					<div className="order-modal" onClick={(e) => e.stopPropagation()}>
-						<div className="order-modal-header">
-							<h3>Detalles de Orden {selectedOrder.order_number || `#${selectedOrder.id}`}</h3>
-							<button className="close-modal" onClick={closeOrderDetails}>✕</button>
+					<div className="admin-filter-bar">
+						<div className="filter-field">
+							<label htmlFor="order-search">Buscar</label>
+							<input
+								id="order-search"
+								type="search"
+								placeholder="ID, cliente o email"
+								value={orderFilters.search}
+								onChange={(event) => setOrderFilters((prev) => ({ ...prev, search: event.target.value }))}
+							/>
 						</div>
-						<div className="order-modal-body">
-							<div className="order-details-split">
-								<div className="order-invoice-section">
-									<Invoice 
-										order={selectedOrder}
-										customerInfo={{
-											firstName: selectedOrder.customer_name?.split(' ')[0] || '',
-											lastName: selectedOrder.customer_name?.split(' ').slice(1).join(' ') || '',
-											email: selectedOrder.customer_email,
-											address: selectedOrder.shipping_street,
-											sector: selectedOrder.shipping_sector,
-											city: selectedOrder.shipping_city,
-											phone: selectedOrder.customer_phone,
-											paymentMethod: selectedOrder.payment_method
-										}}
-										items={selectedOrder.items || []}
-										onClose={closeOrderDetails}
-										showSuccess={false}
-										onStatusChange={(newStatus) => handleOrderStatusChange(selectedOrder.id, newStatus)}
-										siteName={siteName}
-										siteIcon={siteIcon}
-										currencyCode={currencyCode}
-									/>
-								</div>
-								<div className="order-admin-notes-section" style={{borderLeft: '1px solid #eee', paddingLeft: '20px', minWidth: '300px'}}>
-									<h4>Notas Internas (Admin)</h4>
-									<p style={{fontSize: '0.85em', color: '#666', marginBottom: '10px'}}>
-										Estas notas son solo visibles para administradores.
-									</p>
-									<textarea
-										value={internalNotes}
-										onChange={(e) => setInternalNotes(e.target.value)}
-										placeholder="Escribe notas sobre el pedido aquí..."
-										rows="10"
-										style={{width: '100%', padding: '10px', borderRadius: '4px', border: '1px solid #ddd', marginBottom: '10px'}}
-									/>
-									<button 
-										className="admin-btn primary" 
-										onClick={handleSaveNotes}
-										disabled={isSubmitting}
-										style={{width: '100%'}}
-									>
-										{isSubmitting ? 'Guardando...' : 'Guardar Notas'}
-									</button>
-
-									{selectedOrder.carrier && (
-										<div className="shipping-info-display" style={{marginTop: '20px', padding: '10px', backgroundColor: '#f9fafb', borderRadius: '4px'}}>
-											<h4>Datos de Envío</h4>
-											<p><strong>Transportista:</strong> {selectedOrder.carrier}</p>
-											<p><strong>Tracking:</strong> {selectedOrder.tracking_number}</p>
+						<div className="filter-field">
+							<label htmlFor="order-payment-type">Tipo de Pago</label>
+							<select
+								id="order-payment-type"
+								value={orderFilters.paymentType}
+								onChange={(event) => setOrderFilters((prev) => ({ ...prev, paymentType: event.target.value, status: 'all' }))}
+							>
+								<option value="all">Todas</option>
+								<option value="online">Pago en línea</option>
+								<option value="cod">Contra entrega</option>
+							</select>
+						</div>
+						<div className="filter-field">
+							<label htmlFor="order-type">Tipo Usuario</label>
+							<select
+								id="order-type"
+								value={orderFilters.type}
+								onChange={(event) => setOrderFilters((prev) => ({ ...prev, type: event.target.value }))}
+							>
+								<option value="all">Todos</option>
+								<option value="registered">Registrados</option>
+								<option value="guest">Invitados</option>
+							</select>
+						</div>
+						<div className="filter-field full-width">
+							<label>Filtrar por Estado</label>
+							<div className="admin-filter-stepper">
+								{(orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS).map((step, index) => {
+									const steps = orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS;
+									const currentIdx = steps.findIndex(s => s.id === orderFilters.status);
+									const isHighlighted = orderFilters.status !== 'all' && index > 0 && index < currentIdx;
+									const isActive = orderFilters.status === step.id;
+									
+									return (
+										<div 
+											key={step.id} 
+											className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
+											onClick={() => setOrderFilters((prev) => ({ ...prev, status: step.id }))}
+										>
+											<span className="step-icon">{step.icon}</span>
+											<span className="step-label">{step.label}</span>
 										</div>
-									)}
-								</div>
+									);
+								})}
 							</div>
 						</div>
 					</div>
-				</div>
+
+					{isLoading ? (
+						<div className="admin-empty"><LoadingSpinner /></div>
+					) : filteredOrders.length === 0 ? (
+						<div className="admin-empty">No hay órdenes que coincidan con el filtro actual.</div>
+					) : (
+						orderFilters.paymentType === 'all' ? (
+							<div className="orders-split-view">
+								<details open className="order-group">
+									<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
+										Pago en línea ({filteredOrders.filter(o => o.payment_method !== 'cash').length})
+									</summary>
+									{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method !== 'cash'))}
+								</details>
+								<details open className="order-group" style={{marginTop: '20px'}}>
+									<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
+										Contra entrega ({filteredOrders.filter(o => o.payment_method === 'cash').length})
+									</summary>
+									{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method === 'cash'))}
+								</details>
+							</div>
+						) : (
+							renderResponsiveOrders(filteredOrders)
+						)
+					)}
+
+					{pagination && (
+						<div className="pagination-controls">
+							<button 
+								className="admin-btn ghost"
+								disabled={pagination.page === 1}
+								onClick={() => onPageChange(pagination.page - 1)}
+							>
+								&laquo; Anterior
+							</button>
+							<span>Página {pagination.page} de {pagination.totalPages}</span>
+							<button 
+								className="admin-btn ghost"
+								disabled={pagination.page === pagination.totalPages}
+								onClick={() => onPageChange(pagination.page + 1)}
+							>
+								Siguiente &raquo;
+							</button>
+						</div>
+					)}
+				</>
 			)}
 
-			{/* Tracking Info Modal */}
+			{/* Tracking Info Modal (still needed for bulk or quick actions if any) */}
 			{showTrackingModal && (
 				<div className="order-modal-overlay">
 					<div className="order-modal" style={{maxWidth: '400px'}} onClick={(e) => e.stopPropagation()}>

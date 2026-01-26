@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
-import { Routes, Route, Navigate, useNavigate, Link } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import './components/auth/LoginPage.css';
 import { getCurrentUser, logout } from './services/authService';
@@ -35,10 +35,72 @@ const OrderTracker = lazy(() => import('./pages/OrderTracker'));
 const Home = lazy(() => import('./pages/Home'));
 const Contact = lazy(() => import('./pages/Contact'));
 
+// Settings cloning and merging helpers
+const cloneCategoryConfig = (value) => {
+  const base = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_FILTERS_CONFIG));
+  if (!value || typeof value !== 'object') return base;
+  return {
+    ...base,
+    ...value,
+    categories: Array.isArray(value.categories) && value.categories.length > 0
+      ? value.categories
+      : base.categories,
+    styles: {
+      ...base.styles,
+      ...(value.styles || {})
+    }
+  };
+};
+
+const cloneProductCardConfig = (value) => {
+  const base = JSON.parse(JSON.stringify(DEFAULT_PRODUCT_CARD_CONFIG));
+  if (!value || typeof value !== 'object') return base;
+  const merged = {
+    ...base,
+    ...value,
+    layout: {
+      ...base.layout,
+      ...(value.layout || {})
+    },
+    styles: {
+      ...base.styles,
+      ...(value.styles || {})
+    }
+  };
+  merged.useDefault = value.useDefault === true || value.useDefault === 'true';
+  if (merged.layout) {
+    const toNumber = (val) => {
+      if (val === '' || val === null || val === undefined) return val;
+      const num = Number(val);
+      return Number.isNaN(num) ? val : num;
+    };
+    merged.layout = {
+      ...merged.layout,
+      columnsMobile: toNumber(merged.layout.columnsMobile),
+      columnsTablet: toNumber(merged.layout.columnsTablet),
+      columnsDesktop: toNumber(merged.layout.columnsDesktop),
+      columnsWide: toNumber(merged.layout.columnsWide)
+    };
+  }
+  return merged;
+};
+
+// Helper to format backend cart to frontend format
+const formatBackendCart = (backendCart) => {
+  return backendCart.map(item => ({
+    id: item.product_id,
+    name: item.name,
+    price: item.price,
+    image: item.image,
+    stock: item.stock,
+    quantity: item.quantity
+  }));
+};
+
 function App() {
   // Estados de configuración del sitio
-  const [siteName, setSiteName] = useState('TechStore');
-  const [siteIcon, setSiteIcon] = useState('🛍️');
+  const [siteName, setSiteName] = useState(() => localStorage.getItem('siteName') || 'TechStore');
+  const [siteIcon, setSiteIcon] = useState(() => localStorage.getItem('siteIcon') || '🛍️');
   const [heroSettings, setHeroSettings] = useState({
     title: 'La Mejor Tecnología a Tu Alcance',
     description: 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
@@ -69,18 +131,13 @@ function App() {
   const [cartItems, setCartItems] = useState(() => {
     try {
       const saved = localStorage.getItem('cart_persistence');
-      if (saved) return JSON.parse(saved);
-      // Fallback a guest_cart por compatibilidad
-      const legacy = localStorage.getItem('guest_cart');
-      return legacy ? JSON.parse(legacy) : [];
+      return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
     }
   });
-  const [_cartOpen, _setCartOpen] = useState(false);
+
   const [isCartLoading, setIsCartLoading] = useState(false);
-  const [_ordersOpen, _setOrdersOpen] = useState(false);
-  const [_profileOpen, _setProfileOpen] = useState(false);
   const [products, setProducts] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
@@ -155,7 +212,6 @@ function App() {
     // Sync guest cart if exists
     if (cartItems.length > 0) {
       await syncLocalCart(cartItems);
-      localStorage.removeItem('guest_cart');
       localStorage.removeItem('cart_persistence');
     }
     
@@ -312,18 +368,6 @@ function App() {
     }
   };
 
-  // Helper to format backend cart to frontend format
-  const formatBackendCart = (backendCart) => {
-    return backendCart.map(item => ({
-      id: item.product_id,
-      name: item.name,
-      price: item.price,
-      image: item.image,
-      stock: item.stock,
-      quantity: item.quantity
-    }));
-  };
-
   const fetchCartWithToken = useCallback(async () => {
     try {
       const response = await apiFetch(apiUrl('/cart'));
@@ -451,55 +495,6 @@ function App() {
   // Cargar ajustes del sitio
   useEffect(() => {
     const applySettings = (data) => {
-      const cloneCategoryConfig = (value) => {
-        const base = JSON.parse(JSON.stringify(DEFAULT_CATEGORY_FILTERS_CONFIG));
-        if (!value || typeof value !== 'object') return base;
-        const merged = {
-          ...base,
-          ...value,
-          categories: Array.isArray(value.categories) && value.categories.length > 0
-            ? value.categories
-            : base.categories,
-          styles: {
-            ...base.styles,
-            ...(value.styles || {})
-          }
-        };
-        return merged;
-      };
-      const cloneProductCardConfig = (value) => {
-        const base = JSON.parse(JSON.stringify(DEFAULT_PRODUCT_CARD_CONFIG));
-        if (!value || typeof value !== 'object') return base;
-        const merged = {
-          ...base,
-          ...value,
-          layout: {
-            ...base.layout,
-            ...(value.layout || {})
-          },
-          styles: {
-            ...base.styles,
-            ...(value.styles || {})
-          }
-        };
-        merged.useDefault = value.useDefault === true || value.useDefault === 'true';
-        if (merged.layout) {
-          const toNumber = (val) => {
-            if (val === '' || val === null || val === undefined) return val;
-            const num = Number(val);
-            return Number.isNaN(num) ? val : num;
-          };
-          merged.layout = {
-            ...merged.layout,
-            columnsMobile: toNumber(merged.layout.columnsMobile),
-            columnsTablet: toNumber(merged.layout.columnsTablet),
-            columnsDesktop: toNumber(merged.layout.columnsDesktop),
-            columnsWide: toNumber(merged.layout.columnsWide)
-          };
-        }
-        return merged;
-      };
-
       if (data.siteName) {
         setSiteName(data.siteName);
         localStorage.setItem('siteName', data.siteName);
@@ -624,11 +619,7 @@ function App() {
   // Persistent cart storage (for refresh resilience)
   useEffect(() => {
     localStorage.setItem('cart_persistence', JSON.stringify(cartItems));
-    // Mantener sincronizado guest_cart para compatibilidad
-    if (!user) {
-      localStorage.setItem('guest_cart', JSON.stringify(cartItems));
-    }
-  }, [cartItems, user]);
+  }, [cartItems]);
 
   return (
     <>
@@ -642,7 +633,6 @@ function App() {
         />
       )}
       <div className={`app-container ${headerSettings.transparency < 100 ? 'has-transparent-header' : ''}`}>
-        {/* Header/Navbar */}
         <Header
           siteName={siteName}
           siteIcon={siteIcon}
@@ -656,7 +646,7 @@ function App() {
           onAdminNav={handleAdminNav}
         />
 
-      <Suspense fallback={<div style={{ display: 'flex', justifyContent: 'center', padding: '50px' }}><LoadingSpinner /></div>}>
+      <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
         <Routes>
           <Route path="/" element={
             <Home 
@@ -728,6 +718,8 @@ function App() {
             <OrderTracker 
               user={user}
               currencyCode={productCardSettings.currency}
+              siteName={siteName}
+              siteIcon={siteIcon}
             />
           } />
           <Route path="/product/:id" element={
@@ -764,6 +756,8 @@ function App() {
                     isLoading={loading}
                     pagination={pagination}
                     currencyCode={productCardSettings.currency}
+                    siteName={siteName}
+                    siteIcon={siteIcon}
                   />
                 </div>
               </main>
@@ -787,8 +781,6 @@ function App() {
       </Suspense>
 
       <Footer />
-
-      {loading && <LoadingSpinner />}
     </div>
     </>
   );

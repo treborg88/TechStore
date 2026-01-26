@@ -8,7 +8,7 @@ import UserList from './UserList';
 import SettingsManager from './SettingsManager';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode }) {
+export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️' }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
@@ -512,6 +512,8 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
                     pagination={ordersPagination}
 						currencyCode={currencyCode}
                     onPageChange={(page) => loadOrders(page)}
+                    siteName={siteName}
+                    siteIcon={siteIcon}
 				/>
 			)}
 

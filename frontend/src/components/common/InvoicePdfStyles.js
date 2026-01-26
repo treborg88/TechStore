@@ -1,0 +1,253 @@
+import { StyleSheet } from '@react-pdf/renderer';
+
+// PDF Styles
+const styles = StyleSheet.create({
+  page: {
+    padding: 30,
+    fontSize: 9,
+    fontFamily: 'Helvetica',
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    paddingBottom: 15,
+    borderBottomWidth: 2,
+    borderBottomColor: '#2563EB',
+  },
+  logo: {
+    fontSize: 22,
+    color: '#2563EB',
+    fontFamily: 'Helvetica-Bold',
+  },
+  companyInfo: {
+    textAlign: 'right',
+    fontSize: 8,
+    color: '#374151',
+    lineHeight: 1.4,
+  },
+  invoiceNumberBox: {
+    textAlign: 'right',
+    backgroundColor: '#EFF6FF',
+    padding: 10,
+    borderRadius: 4,
+    marginBottom: 15,
+  },
+  invoiceTitle: {
+    fontSize: 16,
+    color: '#1F2937',
+    fontFamily: 'Helvetica-Bold',
+  },
+  invoiceNumber: {
+    fontSize: 14,
+    color: '#2563EB',
+    fontFamily: 'Helvetica-Bold',
+    marginTop: 4,
+  },
+  invoiceDate: {
+    fontSize: 8,
+    color: '#6B7280',
+    marginTop: 4,
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 15,
+    gap: 10,
+  },
+  infoBox: {
+    width: '48%',
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoBoxWide: {
+    width: '60%',
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoBoxNarrow: {
+    width: '38%',
+    backgroundColor: '#F9FAFB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoLabel: {
+    fontSize: 7,
+    color: '#6B7280',
+    textTransform: 'uppercase',
+    marginBottom: 3,
+    fontFamily: 'Helvetica-Bold',
+  },
+  infoValue: {
+    fontSize: 9,
+    color: '#111827',
+    marginBottom: 2,
+  },
+  additionalInfoSection: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 15,
+    backgroundColor: '#FFFBEB',
+    padding: 10,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: '#FCD34D',
+  },
+  additionalInfoItem: {
+    width: '31%',
+  },
+  additionalInfoLabel: {
+    fontSize: 7,
+    color: '#92400E',
+    fontFamily: 'Helvetica-Bold',
+  },
+  additionalInfoValue: {
+    fontSize: 8,
+    color: '#78350F',
+  },
+  table: {
+    marginTop: 20,
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#2563EB', // Blue header
+    padding: 8,
+    fontFamily: 'Helvetica-Bold',
+    color: '#FFFFFF', // White text
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    padding: 8,
+    backgroundColor: '#FFFFFF',
+  },
+  tableRowEven: {
+    backgroundColor: '#F9FAFB', // Zebra striping
+  },
+  col1: { width: '40%' },
+  col2: { width: '12%', textAlign: 'center' },
+  col3: { width: '16%', textAlign: 'right' },
+  col4: { width: '16%', textAlign: 'right' },
+  col5: { width: '16%', textAlign: 'right' },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 8,
+    marginTop: 4,
+  },
+  summaryLabel: {
+    width: '70%',
+    textAlign: 'right',
+    paddingRight: 20,
+    color: '#4B5563',
+  },
+  summaryValue: {
+    width: '15%',
+    textAlign: 'right',
+    fontFamily: 'Helvetica-Bold',
+    color: '#111827',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    padding: 10,
+    marginTop: 10,
+    backgroundColor: '#EFF6FF', // Light blue background
+    borderTopWidth: 1,
+    borderTopColor: '#2563EB',
+    fontFamily: 'Helvetica-Bold',
+  },
+  totalLabel: {
+    width: '70%',
+    textAlign: 'right',
+    paddingRight: 20,
+    color: '#2563EB',
+    fontSize: 12,
+  },
+  totalValue: {
+    width: '15%',
+    textAlign: 'right',
+    color: '#2563EB',
+    fontSize: 12,
+  },
+  notesSection: {
+    marginTop: 20,
+    padding: 10,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+  },
+  notesTitle: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 5,
+    color: '#374151',
+  },
+  notesText: {
+    fontSize: 7,
+    color: '#6B7280',
+    lineHeight: 1.5,
+  },
+  termsSection: {
+    marginTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 10,
+  },
+  termsTitle: {
+    fontSize: 8,
+    fontFamily: 'Helvetica-Bold',
+    marginBottom: 5,
+    color: '#374151',
+  },
+  termsList: {
+    fontSize: 7,
+    color: '#6B7280',
+    lineHeight: 1.6,
+  },
+  signatureSection: {
+    marginTop: 30,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  signatureBox: {
+    width: '45%',
+  },
+  signatureLabel: {
+    fontSize: 7,
+    color: '#6B7280',
+    marginBottom: 3,
+  },
+  signatureLine: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#9CA3AF',
+    paddingTop: 30,
+    marginBottom: 3,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 40,
+    left: 40,
+    right: 40,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 10,
+    fontSize: 8,
+    color: '#9CA3AF',
+    textAlign: 'center',
+  },
+});
+
+export default styles;

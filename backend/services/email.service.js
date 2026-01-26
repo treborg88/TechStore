@@ -122,6 +122,20 @@ const sendMailWithSettings = async (mailOptions) => {
  */
 const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) => {
     try {
+        // Validate required email recipient
+        const recipientEmail = (customer?.email || '').trim();
+        if (!recipientEmail) {
+            console.error('sendOrderEmail: No recipient email provided');
+            return false;
+        }
+
+        // Basic email format validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(recipientEmail)) {
+            console.error('sendOrderEmail: Invalid email format:', recipientEmail);
+            return false;
+        }
+
         const settings = await getSettingsMap();
         const transporter = createMailTransporter(settings);
         
@@ -211,7 +225,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
 
         const mailOptions = {
             from,
-            to: customer.email,
+            to: recipientEmail,
             subject: `Orden recibida ${order.order_number ? order.order_number : `#${order.id}`}`,
             html
         };
@@ -220,10 +234,13 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
             mailOptions.attachments = [attachment];
         }
 
+        console.log('Sending order email to:', recipientEmail, 'Order:', order.order_number || order.id);
         await transporter.sendMail(mailOptions);
+        console.log('Order email sent successfully to:', recipientEmail);
         return true;
     } catch (error) {
-        console.error('Error enviando email de orden:', error);
+        console.error('Error enviando email de orden:', error.message);
+        console.error('Email details - To:', customer?.email, 'Order:', order?.order_number || order?.id);
         return false;
     }
 };

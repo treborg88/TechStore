@@ -85,34 +85,50 @@ app.get('/p/:slug', async (req, res) => {
     const productId = extractProductIdFromSlug(slug);
     
     if (!productId) {
+        console.log('Share page: Invalid slug, no product ID found:', slug);
         return res.status(404).send('Producto no encontrado');
     }
 
     try {
         const product = await statements.getProductById(productId);
         if (!product) {
+            console.log('Share page: Product not found for ID:', productId);
             return res.status(404).send('Producto no encontrado');
         }
 
+        // Get product images
         let images = await statements.getProductImages(productId);
         if (images.length === 0 && product.image) {
             images = [{ image_path: product.image }];
         }
 
-        const baseUrl = (FRONTEND_URL || BASE_URL || `${req.protocol}://${req.get('host')}`)
-            .replace(/\/$/, '');
+        // Backend URL for image assets
+        const backendUrl = (BASE_URL || `${req.protocol}://${req.get('host')}`).replace(/\/$/, '');
+        // Frontend URL for product redirect
+        const frontendUrl = (FRONTEND_URL || backendUrl).replace(/\/$/, '');
+        
+        // Build absolute image URL
         const primaryImage = images.length > 0 ? images[0].image_path : '';
-        const imageUrl = ensureAbsoluteUrl(primaryImage, baseUrl);
-        const shareUrl = `${baseUrl}/product/${productId}`;
+        const imageUrl = ensureAbsoluteUrl(primaryImage, backendUrl);
+        
+        // Redirect URL points to frontend product page
+        const productPageUrl = `${frontendUrl}/product/${productId}`;
+
+        console.log('Share page generated:', { productId, imageUrl, productPageUrl });
 
         const html = buildShareHtml({
             title: product.name,
             description: product.description,
             imageUrl,
-            url: shareUrl
+            url: productPageUrl,
+            siteName: 'TechStore',
+            price: product.price,
+            currency: 'DOP'
         });
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        // Cache for crawlers but not too long
+        res.setHeader('Cache-Control', 'public, max-age=300');
         return res.send(html);
     } catch (error) {
         console.error('Error generando share page:', error);

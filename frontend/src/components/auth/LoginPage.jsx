@@ -243,8 +243,7 @@ return (
                 onClick={handleBackToHome}
                 type="button"
                 aria-label="Volver a la página principal"
-            >
-                ← Volver a TechStore
+            >    ←Volver
             </button>
             </div>
         )}

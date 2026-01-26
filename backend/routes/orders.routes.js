@@ -424,8 +424,13 @@ router.post('/:id/invoice-email', async (req, res) => {
     const orderId = parseInt(req.params.id, 10);
     const { pdfBase64, email } = req.body || {};
 
-    if (!orderId || !pdfBase64) {
-        return res.status(400).json({ message: 'Falta el PDF o el ID de la orden' });
+    // Validate required params
+    if (!orderId || isNaN(orderId)) {
+        return res.status(400).json({ message: 'ID de orden inválido' });
+    }
+
+    if (!pdfBase64 || typeof pdfBase64 !== 'string') {
+        return res.status(400).json({ message: 'Falta el PDF o formato inválido' });
     }
 
     try {
@@ -434,8 +439,18 @@ router.post('/:id/invoice-email', async (req, res) => {
             return res.status(404).json({ message: 'Orden no encontrada' });
         }
 
+        // Determine recipient email
         const orderEmail = (order.customer_email || '').trim().toLowerCase();
-        const requestEmail = (email || orderEmail).trim().toLowerCase();
+        const requestEmail = (email || '').trim().toLowerCase();
+        const recipientEmail = requestEmail || orderEmail;
+
+        // Validate we have an email to send to
+        if (!recipientEmail) {
+            console.error('invoice-email: No email found for order', orderId);
+            return res.status(400).json({ message: 'No hay email de destino para esta orden' });
+        }
+
+        // Security check: if order has email, request must match or be empty
         if (orderEmail && requestEmail && orderEmail !== requestEmail) {
             return res.status(403).json({ message: 'Email no autorizado para esta orden' });
         }
@@ -447,7 +462,13 @@ router.post('/:id/invoice-email', async (req, res) => {
             price: item.price
         }));
 
+        // Clean and validate base64 PDF
         const cleanBase64 = String(pdfBase64).replace(/^data:application\/pdf;base64,/, '');
+        if (!cleanBase64 || cleanBase64.length < 100) {
+            console.error('invoice-email: PDF base64 too short or invalid');
+            return res.status(400).json({ message: 'PDF inválido o vacío' });
+        }
+
         const attachment = {
             filename: `factura-${order.order_number || order.id}.pdf`,
             content: Buffer.from(cleanBase64, 'base64'),
@@ -458,45 +479,60 @@ router.post('/:id/invoice-email', async (req, res) => {
             .filter(Boolean)
             .join(', ') || order.shipping_address || '';
 
+        console.log('invoice-email: Attempting to send to', recipientEmail, 'for order', order.order_number || orderId);
+
+        // First attempt: send with PDF attachment
         let emailSent = false;
+        let attachmentError = null;
+        
         try {
             emailSent = await sendOrderEmail({
                 order,
                 items: itemDetails,
                 customer: {
                     name: order.customer_name || 'Cliente',
-                    email: orderEmail || requestEmail,
+                    email: recipientEmail,
                     phone: order.customer_phone || ''
                 },
                 shipping: { address: shippingAddress },
                 attachment
             });
         } catch (error) {
-            console.error('Error adjuntando factura, enviando sin adjunto:', error);
+            attachmentError = error;
+            console.error('invoice-email: Error with attachment, will try without:', error.message);
         }
 
-        if (!emailSent) {
-            const fallbackSent = await sendOrderEmail({
-                order,
-                items: itemDetails,
-                customer: {
-                    name: order.customer_name || 'Cliente',
-                    email: orderEmail || requestEmail,
-                    phone: order.customer_phone || ''
-                },
-                shipping: { address: shippingAddress }
-            });
-
-            if (!fallbackSent) {
-                return res.status(500).json({ message: 'No se pudo enviar el correo' });
-            }
-
-            return res.json({ message: 'Correo enviado sin adjunto' });
+        if (emailSent) {
+            console.log('invoice-email: Sent successfully with attachment to', recipientEmail);
+            return res.json({ message: 'Correo enviado con adjunto', email: recipientEmail });
         }
 
-        return res.json({ message: 'Correo enviado con adjunto' });
+        // Fallback: try without attachment
+        console.log('invoice-email: Trying fallback without attachment...');
+        const fallbackSent = await sendOrderEmail({
+            order,
+            items: itemDetails,
+            customer: {
+                name: order.customer_name || 'Cliente',
+                email: recipientEmail,
+                phone: order.customer_phone || ''
+            },
+            shipping: { address: shippingAddress }
+        });
+
+        if (fallbackSent) {
+            console.log('invoice-email: Sent without attachment to', recipientEmail);
+            return res.json({ message: 'Correo enviado sin adjunto', email: recipientEmail });
+        }
+
+        // Both attempts failed
+        console.error('invoice-email: Both attempts failed for order', orderId);
+        return res.status(500).json({ 
+            message: 'No se pudo enviar el correo. Verifica la configuración de email.',
+            detail: attachmentError?.message 
+        });
     } catch (error) {
-        console.error('Error enviando factura adjunta:', error);
+        console.error('invoice-email: Server error:', error);
         return res.status(500).json({ message: 'Error interno del servidor' });
     }
 });

@@ -243,43 +243,98 @@
 }
 
 .tracker-pagination button {
-  padding: 8px 16px;
+  padding: 10px 18px;
   border: 2px solid var(--divider-color);
   background: var(--white);
   border-radius: 8px;
+  font-size: 0.9rem;
   font-weight: 600;
+  color: var(--gray-700, #374151);
   cursor: pointer;
   transition: all 0.2s;
+  white-space: nowrap;
 }
 
-.tracker-pagination button:hover:not(:disabled) { border-color: var(--primary-color); color: var(--primary-color); }
+.tracker-pagination button:hover:not(:disabled) { 
+  border-color: var(--primary-color); 
+  color: var(--primary-color); 
+  background: var(--primary-light, #f0f9ff);
+}
 .tracker-pagination button:disabled { opacity: 0.4; cursor: not-allowed; }
-.tracker-pagination span { font-size: 0.9rem; color: var(--gray-600); }
+.tracker-pagination span { 
+  font-size: 0.9rem; 
+  color: var(--gray-600); 
+  font-weight: 500;
+}
 
 /* Modal */
 .order-modal-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.6);
   backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
-  padding: 20px;
+  padding: 10px; /* Reduced padding for max space */
 }
 
 .order-modal {
   background: var(--white);
-  border-radius: 20px;
-  max-width: 500px;
+  border-radius: 12px;
   width: 100%;
-  max-height: 80vh;
+  max-width: 500px;
+  /* Remove fixed height constraint for better fit, allow grow */
+  max-height: 95vh;
+  margin: auto; 
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-  animation: modalIn 0.2s ease;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  animation: modalIn 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.order-modal.invoice-mode {
+  max-width: 850px;
+  height: auto;
+  min-height: auto;
+  /* Allow the invoice to determine height, but cap at screen */
+  max-height: 98vh; 
+}
+
+/* Modal back button header */
+.modal-back-header {
+  display: flex;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--divider-color);
+  background: var(--surface-muted, #f8fafc);
+}
+
+.modal-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid var(--divider-color, #e2e8f0);
+  border-radius: 8px;
+  background: var(--white, #fff);
+  color: var(--gray-600, #475569);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-back-btn:hover {
+  background: var(--gray-100, #f1f5f9);
+  color: var(--gray-800, #1e293b);
+  border-color: var(--gray-300, #cbd5e1);
+}
+
+.modal-back-btn:active {
+  transform: scale(0.97);
 }
 
 @keyframes modalIn {
@@ -392,3 +447,20 @@
   .tracker-filters { flex-direction: column; gap: 10px; align-items: stretch; }
   .order-modal { max-height: 90vh; border-radius: 16px 16px 0 0; position: fixed; bottom: 0; }
 }
+  
+/* Invoice Mode for Order Tracker */  
+.order-modal.invoice-mode {  
+  max-width: 900px;  
+} 
+  
+/* Compact Invoice Overrides for Modal */  
+.order-modal.invoice-mode .invoice-screen-view {  
+  padding: 15px !important;  
+  font-size: 0.85rem;  
+}  
+.order-modal.invoice-mode .invoice-header {  
+  margin-bottom: 15px !important; padding-bottom: 10px !important;  
+}  
+.order-modal.invoice-mode .invoice-logo { font-size: 1.4rem !important; }  
+.order-modal.invoice-mode h3 { font-size: 1.2rem !important; margin: 0 !important; }  
+.order-modal.invoice-mode .invoice-details-table th, .order-modal.invoice-mode .invoice-details-table td { padding: 6px !important; font-size: 0.85rem !important; } 

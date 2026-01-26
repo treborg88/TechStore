@@ -188,28 +188,60 @@ e.preventDefault();
             reader.readAsDataURL(blob);
         });
 
-        const sendInvoiceEmail = async (order) => {
+        /**
+         * Send invoice email with PDF attachment
+         * Handles errors gracefully without blocking order completion
+         * @param {Object} order - The created order
+         * @param {Array} orderItems - Items to include in invoice
+         */
+        const sendInvoiceEmail = async (order, orderItems) => {
+            // Validate email before attempting to send
+            const email = formData.email?.trim();
+            if (!email) {
+                console.warn('sendInvoiceEmail: No email provided, skipping');
+                return false;
+            }
+
+            // Validate items exist
+            if (!orderItems || orderItems.length === 0) {
+                console.warn('sendInvoiceEmail: No items provided, skipping');
+                return false;
+            }
+
             try {
+                console.log('Generating invoice PDF for order:', order.order_number || order.id);
                 const invoiceData = buildInvoiceData({
                     order,
                     customerInfo: formData,
-                    items: cartItems,
+                    items: orderItems,
                     siteName,
                     siteIcon,
                     currencyCode
                 });
                 const pdfBlob = await generateInvoicePdfBlob(invoiceData);
                 const pdfBase64 = await blobToBase64(pdfBlob);
-                await apiFetch(apiUrl(`/orders/${order.id}/invoice-email`), {
+                
+                console.log('Sending invoice email to:', email);
+                const res = await apiFetch(apiUrl(`/orders/${order.id}/invoice-email`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         pdfBase64,
-                        email: formData.email
+                        email
                     })
                 });
+
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    console.error('Invoice email API error:', errorData.message || res.statusText);
+                    return false;
+                }
+
+                console.log('Invoice email sent successfully');
+                return true;
             } catch (error) {
-                console.error('Error enviando factura adjunta:', error);
+                console.error('Error sending invoice email:', error.message || error);
+                return false;
             }
         };
 
@@ -264,13 +296,15 @@ e.preventDefault();
     console.log('Orden creada exitosamente:', order);
     
     // Guardar items confirmados para la factura antes de limpiar el carrito
-    setConfirmedItems([...cartItems]);
+    const itemsForInvoice = [...cartItems];
+    setConfirmedItems(itemsForInvoice);
 
     // Mostrar confirmación
     setOrderCreated(order);
     localStorage.removeItem('checkout_progress');
 
-    await sendInvoiceEmail(order);
+    // Send invoice email with saved items (before cart is cleared)
+    await sendInvoiceEmail(order, itemsForInvoice);
 
     if (onOrderComplete) {
         onOrderComplete(cartItems);

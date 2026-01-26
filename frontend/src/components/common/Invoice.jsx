@@ -1,241 +1,9 @@
 import React from 'react';
-import { PDFDownloadLink, Document, Page, Text, View, StyleSheet, pdf } from '@react-pdf/renderer';
+import { PDFDownloadLink, Document, Page, Text, View, pdf } from '@react-pdf/renderer';
 import '../../print.css';
+import './Invoice.css';
+import styles from './InvoicePdfStyles';
 import { formatCurrency } from '../../utils/formatCurrency';
-
-// PDF Styles
-const styles = StyleSheet.create({
-  page: {
-    padding: 30,
-    fontSize: 9,
-    fontFamily: 'Helvetica',
-    backgroundColor: '#FFFFFF',
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    paddingBottom: 15,
-    borderBottomWidth: 2,
-    borderBottomColor: '#2563EB',
-  },
-  logo: {
-    fontSize: 22,
-    color: '#2563EB',
-    fontFamily: 'Helvetica-Bold',
-  },
-  companyInfo: {
-    textAlign: 'right',
-    fontSize: 8,
-    color: '#374151',
-    lineHeight: 1.4,
-  },
-  invoiceNumberBox: {
-    textAlign: 'right',
-    backgroundColor: '#EFF6FF',
-    padding: 10,
-    borderRadius: 4,
-    marginBottom: 15,
-  },
-  invoiceTitle: {
-    fontSize: 16,
-    color: '#1F2937',
-    fontFamily: 'Helvetica-Bold',
-  },
-  invoiceNumber: {
-    fontSize: 14,
-    color: '#2563EB',
-    fontFamily: 'Helvetica-Bold',
-    marginTop: 4,
-  },
-  invoiceDate: {
-    fontSize: 8,
-    color: '#6B7280',
-    marginTop: 4,
-  },
-  infoGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 15,
-    gap: 10,
-  },
-  infoBox: {
-    width: '48%',
-    backgroundColor: '#F9FAFB',
-    padding: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  infoLabel: {
-    fontSize: 7,
-    color: '#6B7280',
-    textTransform: 'uppercase',
-    marginBottom: 3,
-    fontFamily: 'Helvetica-Bold',
-  },
-  infoValue: {
-    fontSize: 9,
-    color: '#111827',
-    marginBottom: 2,
-  },
-  additionalInfoSection: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 15,
-    backgroundColor: '#FFFBEB',
-    padding: 10,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#FCD34D',
-  },
-  additionalInfoItem: {
-    width: '31%',
-  },
-  additionalInfoLabel: {
-    fontSize: 7,
-    color: '#92400E',
-    fontFamily: 'Helvetica-Bold',
-  },
-  additionalInfoValue: {
-    fontSize: 8,
-    color: '#78350F',
-  },
-  table: {
-    marginTop: 20,
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#2563EB', // Blue header
-    padding: 8,
-    fontFamily: 'Helvetica-Bold',
-    color: '#FFFFFF', // White text
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    padding: 8,
-    backgroundColor: '#FFFFFF',
-  },
-  tableRowEven: {
-    backgroundColor: '#F9FAFB', // Zebra striping
-  },
-  col1: { width: '40%' },
-  col2: { width: '12%', textAlign: 'center' },
-  col3: { width: '16%', textAlign: 'right' },
-  col4: { width: '16%', textAlign: 'right' },
-  col5: { width: '16%', textAlign: 'right' },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 8,
-    marginTop: 4,
-  },
-  summaryLabel: {
-    width: '70%',
-    textAlign: 'right',
-    paddingRight: 20,
-    color: '#4B5563',
-  },
-  summaryValue: {
-    width: '15%',
-    textAlign: 'right',
-    fontFamily: 'Helvetica-Bold',
-    color: '#111827',
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    padding: 10,
-    marginTop: 10,
-    backgroundColor: '#EFF6FF', // Light blue background
-    borderTopWidth: 1,
-    borderTopColor: '#2563EB',
-    fontFamily: 'Helvetica-Bold',
-  },
-  totalLabel: {
-    width: '70%',
-    textAlign: 'right',
-    paddingRight: 20,
-    color: '#2563EB',
-    fontSize: 12,
-  },
-  totalValue: {
-    width: '15%',
-    textAlign: 'right',
-    color: '#2563EB',
-    fontSize: 12,
-  },
-  notesSection: {
-    marginTop: 20,
-    padding: 10,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 4,
-  },
-  notesTitle: {
-    fontSize: 8,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 5,
-    color: '#374151',
-  },
-  notesText: {
-    fontSize: 7,
-    color: '#6B7280',
-    lineHeight: 1.5,
-  },
-  termsSection: {
-    marginTop: 15,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 10,
-  },
-  termsTitle: {
-    fontSize: 8,
-    fontFamily: 'Helvetica-Bold',
-    marginBottom: 5,
-    color: '#374151',
-  },
-  termsList: {
-    fontSize: 7,
-    color: '#6B7280',
-    lineHeight: 1.6,
-  },
-  signatureSection: {
-    marginTop: 30,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  signatureBox: {
-    width: '45%',
-  },
-  signatureLabel: {
-    fontSize: 7,
-    color: '#6B7280',
-    marginBottom: 3,
-  },
-  signatureLine: {
-    borderBottomWidth: 1,
-    borderBottomColor: '#9CA3AF',
-    paddingTop: 30,
-    marginBottom: 3,
-  },
-  footer: {
-    position: 'absolute',
-    bottom: 40,
-    left: 40,
-    right: 40,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
-    paddingTop: 10,
-    fontSize: 8,
-    color: '#9CA3AF',
-    textAlign: 'center',
-  },
-});
 
 // PDF Document Component
 const InvoicePDF = ({ invoiceData }) => (
@@ -244,7 +12,7 @@ const InvoicePDF = ({ invoiceData }) => (
       {/* Header with company info */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.logo}>{invoiceData.companyIcon} {invoiceData.companyName}</Text>
+          <Text style={styles.logo}>{invoiceData.companyName}</Text>
           <Text style={{fontSize: 8, color: '#6B7280', marginTop: 4}}>
             {invoiceData.companyAddress}
           </Text>
@@ -367,20 +135,126 @@ const InvoicePDF = ({ invoiceData }) => (
   </Document>
 );
 
+const STATUS_CONFIG = {
+    pending_payment: { label: 'Pendiente de Pago', icon: '⏳', color: '#f59e0b' },
+    paid: { label: 'Pagado', icon: '💰', color: '#10b981' },
+    to_ship: { label: 'Para Enviar', icon: '📦', color: '#3b82f6' },
+    shipped: { label: 'Enviado', icon: '🚚', color: '#8b5cf6' },
+    delivered: { label: 'Entregado', icon: '✅', color: '#10b981' },
+    return: { label: 'Devolución', icon: '↩️', color: '#ef4444' },
+    refund: { label: 'Reembolso', icon: '💸', color: '#6366f1' },
+    cancelled: { label: 'Cancelado', icon: '❌', color: '#6b7280' }
+};
+
+const PAYMENT_METHODS = {
+    cash: { 
+        label: 'Pago Contra Entrega', 
+        icon: '💵', 
+        detail: 'Efectivo al Recibir',
+        instructions: {
+            fields: [
+                { label: 'Tipo de Pago', value: 'Efectivo al Recibir' },
+                { label: 'Estado del Pedido', getValue: (order) => ['paid', 'delivered'].includes(order.status) ? 'Pagado' : 'Pendiente de Pago' },
+                { label: 'Referencia', getValue: (order) => order.order_number || order.id }
+            ],
+            amountLabel: 'Total a Pagar',
+            note: {
+                icon: '💡',
+                text: 'Por favor, prepara el monto exacto para facilitar el proceso de entrega.',
+                highlight: 'Tip:'
+            }
+        }
+    },
+    transfer: { 
+        label: 'Transferencia Bancaria', 
+        icon: '🏦', 
+        detail: 'Transferencia Bancaria',
+        instructions: {
+            fields: [
+                { label: 'Banco', value: 'Banco Ejemplo' },
+                { label: 'Titular', value: 'Mi Tienda Online' },
+                { label: 'Cuenta / CLABE', value: '1234-5678-9012-3456' }
+            ],
+            amountLabel: 'Monto a Pagar',
+            note: {
+                icon: '⚠️',
+                text: (order) => `Envía tu comprobante de pago por correo a pagos@mitienda.com o por WhatsApp para validar tu orden. Indica el número de orden #${order.id} en el mensaje.`,
+                highlight: 'Importante:'
+            }
+        }
+    },
+    online: { label: 'Pago en Línea', icon: '💳', detail: 'Pago en Línea' },
+    card: { label: 'Tarjeta de Crédito/Débito', icon: '💳', detail: 'Tarjeta' }
+};
+
+const PaymentInstructions = ({ order, paymentMethod, invoiceData }) => {
+    const config = PAYMENT_METHODS[paymentMethod]?.instructions;
+    if (!config) return null;
+
+    const methodConfig = PAYMENT_METHODS[paymentMethod];
+
+    return (
+        <div className="invoice-payment-instructions no-print">
+            <div className="invoice-payment-header">
+                <span className="invoice-payment-title">
+                    {methodConfig.icon} {methodConfig.label}
+                </span>
+                <span className="invoice-payment-tag">
+                    {paymentMethod === 'cash' ? 'Orden: ' : 'Referencia: '}
+                    {order.order_number || `#${order.id}`}
+                </span>
+            </div>
+
+            <div className="invoice-payment-grid">
+                {config.fields.map((field, idx) => (
+                    <div key={idx}>
+                        <p className="invoice-payment-label">{field.label}</p>
+                        <p className="invoice-payment-value">
+                            {field.getValue ? field.getValue(order) : field.value}
+                        </p>
+                    </div>
+                ))}
+                <div>
+                    <p className="invoice-payment-label">{config.amountLabel}</p>
+                    <p className="invoice-payment-amount">
+                        {formatCurrency(order.total, invoiceData.currency)}
+                    </p>
+                </div>
+            </div>
+
+            <div className="invoice-payment-note-box">
+                <span className="invoice-payment-note-icon">{config.note.icon}</span>
+                <p className="invoice-payment-note-text">
+                    <strong>{config.note.highlight}</strong> {typeof config.note.text === 'function' ? config.note.text(order) : config.note.text}
+                </p>
+            </div>
+        </div>
+    );
+};
+
 const STATUS_STEPS = [
-    { id: 'pending_payment', label: 'Pendiente Pago', icon: '⏳' },
-    { id: 'paid', label: 'Pagado', icon: '💰' },
-    { id: 'to_ship', label: 'Para Enviar', icon: '📦' },
-    { id: 'shipped', label: 'Enviado', icon: '🚚' },
-    { id: 'delivered', label: 'Entregado', icon: '✅' }
+    { id: 'pending_payment', ...STATUS_CONFIG.pending_payment },
+    { id: 'paid', ...STATUS_CONFIG.paid },
+    { id: 'to_ship', ...STATUS_CONFIG.to_ship },
+    { id: 'shipped', ...STATUS_CONFIG.shipped },
+    { id: 'delivered', ...STATUS_CONFIG.delivered }
 ];
 
 const COD_STATUS_STEPS = [
-    { id: 'to_ship', label: 'Para Enviar', icon: '📦' },
-    { id: 'shipped', label: 'Enviado', icon: '🚚' },
-    { id: 'delivered', label: 'Entregado', icon: '✅' },
-    { id: 'paid', label: 'Pagado', icon: '💰' }
+    { id: 'to_ship', ...STATUS_CONFIG.to_ship },
+    { id: 'shipped', ...STATUS_CONFIG.shipped },
+    { id: 'delivered', ...STATUS_CONFIG.delivered },
+    { id: 'paid', ...STATUS_CONFIG.paid }
 ];
+
+const StatusTag = ({ status }) => {
+    const config = STATUS_CONFIG[status] || { label: status, icon: '' };
+    return (
+        <div className={`status-tag status-${status}`}>
+            {config.icon} {config.label}
+        </div>
+    );
+};
 
 export const buildInvoiceData = ({
   order,
@@ -410,10 +284,8 @@ export const buildInvoiceData = ({
     customerAddress: `${customerInfo?.address || ''}, ${customerInfo?.sector || ''}, ${customerInfo?.city || ''}`.replace(/^,\s*|,\s*,/g, '').trim(),
     customerID: customerInfo?.identification || 'N/A',
     seller: 'Sistema Online',
-    paymentType: customerInfo?.paymentMethod === 'cash' ? 'Contra Entrega'
-      : customerInfo?.paymentMethod === 'transfer' ? 'Transferencia'
-      : customerInfo?.paymentMethod === 'card' ? 'Tarjeta' : 'Pendiente',
-    paymentStatus: order?.status === 'paid' || order?.status === 'delivered' ? 'Pagado' : 'Pendiente',
+    paymentType: PAYMENT_METHODS[customerInfo?.paymentMethod]?.label || 'Pendiente',
+    paymentStatus: ['paid', 'delivered'].includes(order?.status) ? 'Pagado' : 'Pendiente',
     deliveryTime: '3-5 días hábiles',
     currency: currencyCode || 'USD',
     source: order?.order_number || order?.id?.toString(),
@@ -432,6 +304,34 @@ export const buildInvoiceData = ({
 export const generateInvoicePdfBlob = async (invoiceData) => {
   const blob = await pdf(<InvoicePDF invoiceData={invoiceData} />).toBlob();
   return blob;
+};
+
+const StatusStepper = ({ currentStatus, paymentMethod, onStatusChange }) => {
+    const steps = paymentMethod === 'cash' ? COD_STATUS_STEPS : STATUS_STEPS;
+    const currentIdx = steps.findIndex(s => s.id === currentStatus);
+    
+    return (
+        <div className="order-status-stepper">
+            {steps.map((step, index) => {
+                const isCompleted = currentIdx >= index;
+                const isActive = currentStatus === step.id;
+                const isNext = currentIdx + 1 === index;
+                
+                return (
+                    <div 
+                        key={step.id} 
+                        className={`status-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''} ${isNext ? 'clickable' : ''}`}
+                        onClick={() => isNext && onStatusChange(step.id)}
+                        title={isNext ? `Cambiar a ${step.label}` : ''}
+                    >
+                        <span className="step-text">
+                            {step.icon} {step.label}
+                        </span>
+                    </div>
+                );
+            })}
+        </div>
+    );
 };
 
 const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒', currencyCode }) => {
@@ -555,11 +455,11 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <br /><br />
                         <div className="total-row">
                             <span>Subtotal:</span>
-                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
+                          <span>{formatCurrency(invoiceData.total, invoiceData.currency)}</span>
                         </div>
                         <div className="total-row final">
                             <span>Total:</span>
-                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
+                          <span>{formatCurrency(invoiceData.total, invoiceData.currency)}</span>
                         </div>
                     </div>
                 </div>
@@ -605,30 +505,11 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                                 {order.status === 'refund' && '💸 Esta orden ha sido REEMBOLSADA'}
                             </div>
                         ) : (
-                            <>
-                                <div className="order-status-stepper">
-                                    {(customerInfo.paymentMethod === 'cash' ? COD_STATUS_STEPS : STATUS_STEPS).map((step, index) => {
-                                        const steps = customerInfo.paymentMethod === 'cash' ? COD_STATUS_STEPS : STATUS_STEPS;
-                                        const currentIdx = steps.findIndex(s => s.id === order.status);
-                                        const isCompleted = currentIdx >= index;
-                                        const isActive = order.status === step.id;
-                                        const isNext = currentIdx + 1 === index;
-                                        
-                                        return (
-                                            <div 
-                                                key={step.id} 
-                                                className={`status-step ${isCompleted ? 'completed' : ''} ${isActive ? 'active' : ''} ${isNext ? 'clickable' : ''}`}
-                                                onClick={() => isNext && onStatusChange(step.id)}
-                                                title={isNext ? `Cambiar a ${step.label}` : ''}
-                                            >
-                                                <span className="step-text">
-                                                    {step.icon} {step.label}
-                                                </span>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </>
+                            <StatusStepper 
+                                currentStatus={order.status} 
+                                paymentMethod={customerInfo.paymentMethod} 
+                                onStatusChange={onStatusChange} 
+                            />
                         )}
                     </div>
                 )}
@@ -683,24 +564,12 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                 </div>
 
                 <div className="invoice-summary-footer">
-                    <div className="payment-info-box">
+                        <div className="payment-info-box">
                         <h4>Método de Pago</h4>
                         <p>
-                            {customerInfo.paymentMethod === 'cash' && '💵 Pago Contra Entrega'}
-                            {customerInfo.paymentMethod === 'transfer' && '🏦 Transferencia Bancaria'}
-                            {customerInfo.paymentMethod === 'online' && '💳 Pago en Línea'}
-                            {customerInfo.paymentMethod === 'card' && '💳 Tarjeta de Crédito/Débito'}
+                            {PAYMENT_METHODS[customerInfo.paymentMethod]?.icon} {PAYMENT_METHODS[customerInfo.paymentMethod]?.label}
                         </p>
-                        <div className={`status-tag status-${order.status}`}>
-                            {order.status === 'pending_payment' && '⏳ Pendiente de Pago'}
-                            {order.status === 'paid' && '💰 Pagado'}
-                            {order.status === 'to_ship' && '📦 Para Enviar'}
-                            {order.status === 'shipped' && '🚚 Enviado'}
-                            {order.status === 'delivered' && '✅ Entregado'}
-                            {order.status === 'return' && '↩️ Devolución'}
-                            {order.status === 'refund' && '💸 Reembolso'}
-                            {order.status === 'cancelled' && '❌ Cancelado'}
-                        </div>
+                        <StatusTag status={order.status} />
                     </div>
                     <div className="totals-box">
                         <div className="total-row">
@@ -715,50 +584,11 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                 </div>
             </div>
 
-            <div className="order-summary-success no-print" style={{display: 'none'}}>
-                <p><strong>Total:</strong> {formatCurrency(order.total, invoiceData.currency)}</p>
-                <p><strong>Método de Pago:</strong> 
-                    {customerInfo.paymentMethod === 'cash' && ' 💵 Pago Contra Entrega'}
-                    {customerInfo.paymentMethod === 'transfer' && ' 🏦 Transferencia Bancaria'}
-                    {customerInfo.paymentMethod === 'online' && ' 💳 Pago en Línea'}
-                    {customerInfo.paymentMethod === 'card' && ' 💳 Tarjeta de Crédito/Débito'}
-                </p>
-                <p><strong>Estado:</strong> <span className="status-badge">
-                    {order.status === 'pending_payment' && '⏳ Pendiente de Pago'}
-                    {order.status === 'paid' && '💰 Pagado'}
-                    {order.status === 'to_ship' && '📦 Para Enviar'}
-                    {order.status === 'shipped' && '🚚 Enviado'}
-                    {order.status === 'delivered' && '✅ Entregado'}
-                    {order.status === 'return' && '↩️ Devolución'}
-                    {order.status === 'refund' && '💸 Reembolso'}
-                    {order.status === 'cancelled' && '❌ Cancelado'}
-                    {/* Fallback */}
-                    {!['pending_payment', 'paid', 'to_ship', 'shipped', 'delivered', 'return', 'refund', 'cancelled'].includes(order.status) && order.status}
-                </span></p>
-                <p><strong>Envío a:</strong> {customerInfo.address}, {customerInfo.city}</p>
-            </div>
-
-            {showSuccess && customerInfo.paymentMethod === 'cash' && (
-                <div className="payment-note no-print">
-                    💰 Prepara el monto exacto: <strong>{formatCurrency(order.total, invoiceData.currency)}</strong>
-                </div>
-            )}
-            {showSuccess && customerInfo.paymentMethod === 'transfer' && (
-                <div className="payment-note transfer-note no-print">
-                    <h4>📋 Instrucciones de Transferencia</h4>
-                    <div className="bank-details">
-                        <p><strong>Banco:</strong> Banco Ejemplo</p>
-                        <p><strong>Titular:</strong> Mi Tienda Online</p>
-                        <p><strong>Cuenta:</strong> 1234-5678-9012-3456</p>
-                        <p><strong>CLABE:</strong> 012345678901234567</p>
-                        <p><strong>Monto:</strong> <span className="amount">{formatCurrency(order.total, invoiceData.currency)}</span></p>
-                    </div>
-                    <p className="transfer-instructions">
-                        ⚠️ Envía tu comprobante de pago por email a <strong>pagos@mitienda.com</strong> 
-                        indicando el número de orden <strong>#{order.id}</strong>
-                    </p>
-                </div>
-            )}
+            <PaymentInstructions 
+                order={order} 
+                paymentMethod={customerInfo.paymentMethod} 
+                invoiceData={invoiceData} 
+            />
             {showSuccess && !isAuthenticated && (
                 <div className="guest-info no-print">
                     💡 <strong>Tip:</strong> Crea una cuenta para hacer seguimiento de tus pedidos.

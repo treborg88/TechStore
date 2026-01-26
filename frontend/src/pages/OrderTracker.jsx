@@ -4,6 +4,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { formatCurrency } from '../utils/formatCurrency';
+import Invoice from '../components/common/Invoice';
 import { API_URL } from '../config';
 import '../components/orders/OrderTracker.css';
 
@@ -24,7 +25,7 @@ const STATUS_MAP = {
 const COMPLETED_STATUSES = ['delivered', 'cancelled', 'refund'];
 const ORDERS_PER_PAGE = 10;
 
-export default function OrderTracker({ user, currencyCode = 'USD' }) {
+export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'Mi Tienda Online', siteIcon = '🛒' }) {
   // Estado principal
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -59,14 +60,19 @@ export default function OrderTracker({ user, currencyCode = 'USD' }) {
   // Buscar orden
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!searchQuery.trim()) return setError('Ingresa un valor de búsqueda');
+    const query = searchQuery.trim();
+    if (!query) return setError('Ingresa un valor de búsqueda');
     
-    // Validar código completo (formato W-YYMMDD-XXXXX o numérico)
+    // Validar código completo (formato W-YYMMDD-XXXXX) o email
     if (searchType === 'id') {
-      const isValidFormat = /^[A-Z]-\d{6}-\d{5}$/.test(searchQuery.trim());
-      const isNumeric = /^\d+$/.test(searchQuery.trim());
-      if (!isValidFormat && !isNumeric) {
-        return setError('Código inválido. Usa el formato completo: W-YYMMDD-XXXXX');
+      const isValidFormat = /^[A-Z]-\d{6}-\d{5}$/.test(query);
+      if (!isValidFormat) {
+        return setError(`Número de orden inválido "${query}". El formato correcto debe ser W-YYMMDD-XXXXX (ejemplo: W-240115-00001)`);
+      }
+    } else if (searchType === 'email') {
+      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query);
+      if (!isEmail) {
+        return setError('Ingresa un correo electrónico válido');
       }
     }
 
@@ -76,8 +82,8 @@ export default function OrderTracker({ user, currencyCode = 'USD' }) {
     
     try {
       const endpoint = searchType === 'id' 
-        ? `/orders/track/${encodeURIComponent(searchQuery.trim())}`
-        : `/orders/track/email/${encodeURIComponent(searchQuery.trim())}`;
+        ? `/orders/track/${encodeURIComponent(query)}`
+        : `/orders/track/email/${encodeURIComponent(query)}`;
       
       const res = await apiFetch(apiUrl(endpoint));
       
@@ -177,7 +183,7 @@ export default function OrderTracker({ user, currencyCode = 'USD' }) {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   disabled={loading}
                 />
-                <button type="submit" disabled={loading || !searchQuery.trim()}>
+                <button type="submit" disabled={loading} title="Buscar orden">
                   {loading ? '⏳' : '🔍'}
                 </button>
                 {isSearchResult && <button type="button" onClick={clearSearch} className="clear-btn">✕</button>}
@@ -239,44 +245,44 @@ export default function OrderTracker({ user, currencyCode = 'USD' }) {
       {/* Modal de detalles */}
       {selectedOrder && (
         <div className="order-modal-overlay" onClick={() => setSelectedOrder(null)}>
-          <div className="order-modal" onClick={(e) => e.stopPropagation()}>
-            <header>
-              <div>
-                <h2>{selectedOrder.order_number || `#${selectedOrder.id}`}</h2>
-                <small>{formatDate(selectedOrder.created_at)}</small>
-              </div>
-              <button onClick={() => setSelectedOrder(null)}>✕</button>
-            </header>
-            <div className="modal-body">
-              <div className={`modal-status status-${selectedOrder.status}`}>
-                {STATUS_MAP[selectedOrder.status]?.icon} {STATUS_MAP[selectedOrder.status]?.text}
-              </div>
-              <div className="modal-info">
-                <div><span>Total</span><strong>{formatCurrency(selectedOrder.total, currencyCode)}</strong></div>
-                {selectedOrder.shipping_address && (
-                  <div><span>Dirección</span><strong>{selectedOrder.shipping_address}</strong></div>
-                )}
-              </div>
-              {selectedOrder.items?.length > 0 && (
-                <div className="modal-items">
-                  <h4>Productos</h4>
-                  {selectedOrder.items.map((item) => (
-                    <div key={item.id} className="modal-item">
-                      <img src={getImageUrl(item.image)} alt={item.name} 
-                        onError={(e) => { e.target.src = 'https://placehold.co/60x60?text=?'; }} />
-                      <div>
-                        <p>{item.name}</p>
-                        <small>{item.quantity} × {formatCurrency(item.price, currencyCode)}</small>
-                      </div>
-                      <strong>{formatCurrency(item.quantity * item.price, currencyCode)}</strong>
-                    </div>
-                  ))}
-                </div>
-              )}
+          <div className="order-modal invoice-mode" onClick={(e) => e.stopPropagation()}>
+            {/* Back button header */}
+            <div className="modal-back-header">
+              <button 
+                className="modal-back-btn" 
+                onClick={() => setSelectedOrder(null)}
+                title="Volver"
+                aria-label="Cerrar detalles de orden"
+              >
+                ← Volver
+              </button>
             </div>
-            <footer>
-              <button onClick={() => setSelectedOrder(null)}>Cerrar</button>
-            </footer>
+            <div style={{ height: '100%', overflowY: 'auto' }}>
+              
+                <Invoice 
+                    order={selectedOrder}
+                    
+                    customerInfo={{
+                        firstName: selectedOrder.customer_name ? selectedOrder.customer_name.split(' ')[0] : '',
+                        lastName: selectedOrder.customer_name ? selectedOrder.customer_name.split(' ').slice(1).join(' ') : '',
+                        email: selectedOrder.customer_email || selectedOrder.email,
+                        address: selectedOrder.shipping_street || selectedOrder.shipping_address,
+                        sector: selectedOrder.shipping_sector,
+                        city: selectedOrder.shipping_city,
+                        phone: selectedOrder.customer_phone || selectedOrder.phone,
+                        paymentMethod: selectedOrder.payment_method
+                        
+                    }}
+                    items={selectedOrder.items || []}
+                    onClose={() => setSelectedOrder(null)}
+                    showSuccess={false}
+                    siteName={siteName}
+                    siteIcon={siteIcon}
+                    currencyCode={currencyCode}
+                    
+                />
+                
+            </div>
           </div>
         </div>
       )}

@@ -209,7 +209,6 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
     const currentX = e.touches[0].clientX;
     const offset = currentX - touchStartX.current;
     if (Math.abs(offset) > Math.abs(e.touches[0].clientY - touchStartY.current)) {
-      e.preventDefault();
       setDragOffset(offset);
       if (Math.abs(offset) > 5) didDrag.current = true;
     }
@@ -316,7 +315,6 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
 
   const handleModalTouchMove = (e) => {
     if (e.touches.length === 2 && isPinching.current) {
-      e.preventDefault();
       const distance = getTouchDistance(e.touches);
       if (!distance || !pinchStartDistance.current) return;
       const scale = distance / pinchStartDistance.current;

@@ -96,6 +96,9 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
     }
   };
 
+  /**
+   * Create URL-friendly slug from product name and ID
+   */
   const createProductShareSlug = (name = '', productId) => {
     const normalized = String(name)
       .toLowerCase()
@@ -108,12 +111,20 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
     return idPart ? `${normalized}-${idPart}` : normalized;
   };
 
-  const shareBaseUrl = (API_URL?.replace(/\/api\/?$/, '') || BASE_URL || window.location.origin).replace(/\/$/, '');
-  const shareSlug = createProductShareSlug(product?.name, product?.id || id);
-  const shareUrl = `${shareBaseUrl}/p/${shareSlug}`;
-  const shareText = `¡Mira este producto en TechStore! ${product?.name || ''}`.trim();
+  // Backend URL for share page (serves OG meta tags)
+  const backendBaseUrl = (API_URL?.replace(/\/api\/?$/, '') || '').replace(/\/$/, '');
+  // Frontend URL for direct product link
+  const frontendBaseUrl = (BASE_URL || window.location.origin).replace(/\/$/, '');
+  
+  const productId = product?.id || id;
+  const shareSlug = createProductShareSlug(product?.name, productId);
+  
+  // Share URL points to backend /p/ route (for OG meta tags)
+  const shareUrl = backendBaseUrl ? `${backendBaseUrl}/p/${shareSlug}` : `${frontendBaseUrl}/product/${productId}`;
+  const shareText = `¡Mira este producto! ${product?.name || ''}`.trim();
 
   const handleShare = async () => {
+    // Use share URL with OG meta tags for better previews
     const shareData = {
       title: product.name,
       text: `${shareText} - ${formatCurrency(product.price, currencyCode)}`,
@@ -124,7 +135,11 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
       try {
         await navigator.share(shareData);
       } catch (err) {
-        console.log('Error al compartir:', err);
+        // User cancelled or error - fallback to copy
+        if (err.name !== 'AbortError') {
+          console.log('Error al compartir:', err);
+          await handleCopyLink();
+        }
       }
     } else {
       await handleCopyLink();

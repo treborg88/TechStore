@@ -6,6 +6,7 @@
 - Explanations go in chat, not in repository files.
 - this is a professional project; maintain high standards of quality and professionalism.
 - All code is intended for a production environment unless otherwise specified.
+- whenever a code change, update or fix, make sure to delete any obsolete code as resulting from the change.
 
 ## Architecture Overview
 **Monorepo**: Express backend (`backend/`) + Vite/React 19 frontend (`frontend/`).
