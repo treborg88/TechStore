@@ -26,3 +26,8 @@ data
 *.sw?
 *.jpeg
 *.md
+
+# Playwright tests
+tests/
+playwright-report/
+test-results/

@@ -70,13 +70,6 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
   }, [step, countdown, email, purpose]);
 
   useEffect(() => {
-    if (autoSend && resolvedInitialEmail && step === 'send_code' && !hasSentRef.current) {
-      hasSentRef.current = true;
-      handleSendCode();
-    }
-  }, [autoSend, resolvedInitialEmail, step, handleSendCode]);
-
-  useEffect(() => {
     let timer;
     if (countdown > 0) {
       timer = setInterval(() => {
@@ -122,6 +115,14 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
       setIsLoading(false);
     }
   }, [email, purpose, onBeforeSend]);
+
+  // Auto-send effect - must be after handleSendCode definition
+  useEffect(() => {
+    if (autoSend && resolvedInitialEmail && step === 'send_code' && !hasSentRef.current) {
+      hasSentRef.current = true;
+      handleSendCode();
+    }
+  }, [autoSend, resolvedInitialEmail, step, handleSendCode]);
 
   const handleVerifyCode = async (e) => {
     if (e) e.preventDefault();

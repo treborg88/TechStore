@@ -9,6 +9,7 @@ import { formatCurrency } from '../utils/formatCurrency';
 function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings }) {
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   
   // Ref para el scroll de categorías
   const categoriesScrollRef = useRef(null);
@@ -238,6 +239,23 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     productsScrollRef.current.scrollLeft = scrollLeftProducts.current - walk;
   };
 
+  // Filter products based on search query
+  const filteredProducts = useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    const query = searchQuery.toLowerCase().trim();
+    return products.filter(product => 
+      product.name?.toLowerCase().includes(query) ||
+      product.description?.toLowerCase().includes(query) ||
+      product.category?.toLowerCase().includes(query)
+    );
+  }, [products, searchQuery]);
+
+  // Clear search when changing category
+  const handleCategoryChangeWithClear = (categorySlug) => {
+    setSearchQuery('');
+    handleCategoryChange(categorySlug);
+  };
+
   return (
     <>
       {/* Hero Section */}
@@ -275,7 +293,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                 <button
                   key={category.id}
                   className={`category-card ${selectedCategory === category.slug ? 'active' : ''}`}
-                  onClick={() => handleCategoryChange(category.slug)}
+                  onClick={() => handleCategoryChangeWithClear(category.slug)}
                 >
                   <div className="category-icon">
                     {category.image ? (
@@ -289,6 +307,37 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
               ))}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Search Bar */}
+      <section className="search-section">
+        <div className="container">
+          <div className="search-bar-wrapper">
+            <span className="search-icon">🔍</span>
+            <input
+              type="text"
+              className="search-input"
+              placeholder="Buscar productos por nombre, descripción o categoría..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              aria-label="Buscar productos"
+            />
+            {searchQuery && (
+              <button 
+                className="search-clear-btn"
+                onClick={() => setSearchQuery('')}
+                aria-label="Limpiar búsqueda"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="search-results-count">
+              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} encontrado{filteredProducts.length !== 1 ? 's' : ''}
+            </p>
+          )}
         </div>
       </section>
       
@@ -312,8 +361,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                 onMouseUp={handleProductsMouseUp}
                 onMouseMove={handleProductsMouseMove}
               >
-                {products.length > 0 ? (
-                  products.map(product => (
+                {filteredProducts.length > 0 ? (
+                  filteredProducts.map(product => (
                     <div key={product.id} className={`product-card ${productCardOrientationClass}`}>
                       <ProductImageGallery
                         images={product.images || product.image}
@@ -342,7 +391,9 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                     </div>
                   ))
                 ) : (
-                  <div className="no-products-message">No hay productos disponibles.</div>
+                  <div className="no-products-message">
+                    {searchQuery ? 'No se encontraron productos con tu búsqueda.' : 'No hay productos disponibles.'}
+                  </div>
                 )}
               </div>
             </div>
