@@ -7,12 +7,30 @@ const router = express.Router();
 const { statements } = require('../database');
 const { JWT_SECRET } = require('../config');
 const { authenticateToken, blacklistToken } = require('../middleware/auth');
-const { setAuthCookies, setCsrfCookie, getCookieOptions } = require('../middleware/csrf');
+const { setAuthCookies, setCsrfCookie, clearAuthCookies, getCookieOptions } = require('../middleware/csrf');
 const { sendMailWithSettings } = require('../services/email.service');
 
 // Token expiry constant (24 hours)
 const TOKEN_EXPIRY = '24h';
 const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * GET /api/auth/csrf
+ * Refresh CSRF token and clear any stale auth cookies
+ * Called by frontend on login page mount to ensure clean state
+ */
+router.get('/csrf', (req, res) => {
+    // If there's an auth_token but no valid session, clear it
+    // This handles stale cookies from previous sessions
+    if (req.cookies?.auth_token) {
+        clearAuthCookies(req, res);
+    }
+    
+    // Set fresh CSRF cookie
+    const csrfToken = setCsrfCookie(req, res);
+    
+    res.json({ success: true, csrfToken });
+});
 
 /**
  * POST /api/auth/register

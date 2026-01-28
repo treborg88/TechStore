@@ -25,7 +25,6 @@
         localStorage.setItem('authToken', data.token);
         }
         
-        console.log('Login exitoso:', data.user);
         return data.user;
     } catch (error) {
         console.error('Error en login:', error);
@@ -61,7 +60,6 @@
         localStorage.setItem('authToken', data.token);
         }
         
-        console.log('Registro exitoso:', data.user);
         return data.user;
     } catch (error) {
         console.error('Error en register:', error);

@@ -137,7 +137,6 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
       } catch (err) {
         // User cancelled or error - fallback to copy
         if (err.name !== 'AbortError') {
-          console.log('Error al compartir:', err);
           await handleCopyLink();
         }
       }

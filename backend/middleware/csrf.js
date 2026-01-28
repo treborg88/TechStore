@@ -7,8 +7,15 @@ const createCsrfToken = () => crypto.randomBytes(32).toString('hex');
 const getCookieOptions = (req) => {
     const origin = req?.headers?.origin || '';
     const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+    
+    // Improved secure detection for proxies/tunnels (like devtunnels) where Origin might be missing on GET
+    // TRUST_PROXY must be enabled in express app for req.protocol to be reliable behind proxy
+    const isSecureProtocol = req.protocol === 'https';
     const isSecureOrigin = origin.startsWith('https://');
-    const secure = NODE_ENV === 'production' || isSecureOrigin;
+    const isSecure = NODE_ENV === 'production' || isSecureOrigin || isSecureProtocol;
+
+    const secure = isSecure;
+    // sameSite: 'none' requires secure: true
     const sameSite = isLocal ? 'lax' : 'none';
 
     return { secure, sameSite };
@@ -43,6 +50,27 @@ const setAuthCookies = (req, res, token) => {
     return setCsrfCookie(req, res);
 };
 
+// Clear auth cookies (for logout or session reset)
+const clearAuthCookies = (req, res) => {
+    const { secure, sameSite } = getCookieOptions(req);
+    
+    res.cookie('auth_token', '', {
+        httpOnly: true,
+        secure,
+        sameSite,
+        maxAge: 0,
+        path: '/'
+    });
+    
+    res.cookie('XSRF-TOKEN', '', {
+        httpOnly: false,
+        secure,
+        sameSite,
+        maxAge: 0,
+        path: '/'
+    });
+};
+
 const csrfProtection = (req, res, next) => {
     const method = req.method.toUpperCase();
     
@@ -73,5 +101,6 @@ module.exports = {
     getCookieOptions,
     setCsrfCookie,
     setAuthCookies,
+    clearAuthCookies,
     csrfProtection
 };

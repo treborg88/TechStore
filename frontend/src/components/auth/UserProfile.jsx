@@ -9,6 +9,8 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
     const [showPassword, setShowPassword] = useState(false);
     const [isHeroEditing, setIsHeroEditing] = useState(false);
     const [showPasswordText, setShowPasswordText] = useState(false);
+    const [passwordFieldFocused, setPasswordFieldFocused] = useState(false);
+    const [startedFromEmptyField, setStartedFromEmptyField] = useState(false);
     
     const [formData, setFormData] = useState({
         name: '',
@@ -150,6 +152,8 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
                         confirmPassword: ''
                     }));
                     setShowPassword(false);
+                    setPasswordFieldFocused(false);
+                    setStartedFromEmptyField(false);
                 }
             } else {
                 const error = await response.json();
@@ -386,7 +390,13 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
                                         <button
                                             type="button"
                                             className="toggle-password-btn"
-                                            onClick={() => setShowPassword(!showPassword)}
+                                            onClick={() => {
+                                                if (showPassword) {
+                                                    setPasswordFieldFocused(false);
+                                                    setStartedFromEmptyField(false);
+                                                }
+                                                setShowPassword(!showPassword);
+                                            }}
                                         >
                                             {showPassword ? 'Cerrar' : '🔒 Cambiar'}
                                         </button>
@@ -394,22 +404,37 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
 
                                     {showPassword && (
                                         <div className="password-fields">
+                                            {passwordFieldFocused && startedFromEmptyField && (formData.currentPassword.length > 0 || formData.newPassword.length > 0 || formData.confirmPassword.length > 0) && (
                                             <div className="password-visibility">
                                                 <span>Mostrar contraseñas</span>
                                                 <button
                                                     type="button"
                                                     className="password-eye-btn"
                                                     onClick={() => setShowPasswordText((prev) => !prev)}
+                                                    onMouseDown={(e) => e.preventDefault()}
                                                     aria-label={showPasswordText ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
                                                 >
                                                     {showPasswordText ? 'Ocultar' : 'Mostrar'}
                                                 </button>
                                             </div>
+                                            )}
                                             <input
                                                 type={showPasswordText ? 'text' : 'password'}
                                                 name="currentPassword"
                                                 value={formData.currentPassword}
-                                                onChange={handleInputChange}
+                                                onChange={(e) => {
+                                                    handleInputChange(e);
+                                                    if (e.target.value.length === 0) setStartedFromEmptyField(true);
+                                                }}
+                                                onFocus={(e) => {
+                                                    setPasswordFieldFocused(true);
+                                                    if (e.target.value.length === 0) setStartedFromEmptyField(true);
+                                                }}
+                                                onBlur={() => {
+                                                    setPasswordFieldFocused(false);
+                                                    setShowPasswordText(false);
+                                                    setStartedFromEmptyField(false);
+                                                }}
                                                 placeholder="Contraseña actual"
                                                 className="compact-input full-width"
                                             />
@@ -418,7 +443,19 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
                                                     type={showPasswordText ? 'text' : 'password'}
                                                     name="newPassword"
                                                     value={formData.newPassword}
-                                                    onChange={handleInputChange}
+                                                    onChange={(e) => {
+                                                        handleInputChange(e);
+                                                        if (e.target.value.length === 0) setStartedFromEmptyField(true);
+                                                    }}
+                                                    onFocus={(e) => {
+                                                        setPasswordFieldFocused(true);
+                                                        if (e.target.value.length === 0) setStartedFromEmptyField(true);
+                                                    }}
+                                                    onBlur={() => {
+                                                        setPasswordFieldFocused(false);
+                                                        setShowPasswordText(false);
+                                                        setStartedFromEmptyField(false);
+                                                    }}
                                                     placeholder="Nueva contraseña"
                                                     className="compact-input"
                                                 />
@@ -426,7 +463,19 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
                                                     type={showPasswordText ? 'text' : 'password'}
                                                     name="confirmPassword"
                                                     value={formData.confirmPassword}
-                                                    onChange={handleInputChange}
+                                                    onChange={(e) => {
+                                                        handleInputChange(e);
+                                                        if (e.target.value.length === 0) setStartedFromEmptyField(true);
+                                                    }}
+                                                    onFocus={(e) => {
+                                                        setPasswordFieldFocused(true);
+                                                        if (e.target.value.length === 0) setStartedFromEmptyField(true);
+                                                    }}
+                                                    onBlur={() => {
+                                                        setPasswordFieldFocused(false);
+                                                        setShowPasswordText(false);
+                                                        setStartedFromEmptyField(false);
+                                                    }}
                                                     placeholder="Confirmar"
                                                     className="compact-input"
                                                 />

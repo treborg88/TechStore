@@ -24,17 +24,72 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const scrollLeftProducts = useRef(0);
   const navigate = useNavigate();
 
-  // Efecto para pre-cargar la imagen del Hero
+  const [localHeroImage, setLocalHeroImage] = useState(null);
+
+  // Efecto para pre-cargar la imagen del Hero y guardarla localmente
   useEffect(() => {
+    const cacheKey = 'hero_image_cache';
+    
     if (heroSettings?.image) {
+      // 1. Intentar cargar desde localStorage primero
+      try {
+        const cachedEntry = localStorage.getItem(cacheKey);
+        if (cachedEntry) {
+          const { url, data } = JSON.parse(cachedEntry);
+          if (url === heroSettings.image && data) {
+            setLocalHeroImage(data);
+            setImageLoaded(true);
+            return; // Usamos la imagen en caché y terminamos
+          }
+        }
+      } catch (e) {
+        console.error("Error reading hero cache", e);
+      }
+
+      // 2. Si no está en caché o la URL cambió, descargar y guardar
       setImageLoaded(false);
-      const img = new Image();
-      img.src = heroSettings.image;
-      img.onload = () => {
-        setImageLoaded(true);
+      setLocalHeroImage(null); // Reset local image while loading new one
+
+      const fetchAndCacheImage = async () => {
+        try {
+          // Usar fetch para obtener el blob
+          const response = await fetch(heroSettings.image);
+          const blob = await response.blob();
+          
+          // Convertir a base64
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const base64data = reader.result;
+            
+            // Actualizar estado
+            setLocalHeroImage(base64data);
+            setImageLoaded(true);
+
+            // Guardar en localStorage
+            try {
+              localStorage.setItem(cacheKey, JSON.stringify({
+                url: heroSettings.image,
+                data: base64data,
+                timestamp: new Date().getTime()
+              }));
+            } catch (storageError) {
+              console.warn("Could not cache hero image locally (likely quota exceeded)", storageError);
+              // Si falla el caché, al menos la mostramos
+            }
+          };
+          reader.readAsDataURL(blob);
+        } catch (err) {
+          console.error("Error fetching hero image for caching:", err);
+          // Fallback: usar la URL directa si falla la descarga
+          setLocalHeroImage(heroSettings.image);
+          setImageLoaded(true);
+        }
       };
+
+      fetchAndCacheImage();
     } else {
       setImageLoaded(false);
+      setLocalHeroImage(null);
     }
   }, [heroSettings?.image]);
 
@@ -174,7 +229,6 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
 
   // Función para cambiar de categoría
   const handleCategoryChange = (categorySlug) => {
-    console.log('Cambiando a categoría:', categorySlug);
     setSelectedCategory(categorySlug);
     fetchProducts(categorySlug);
   };
@@ -262,7 +316,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       <section 
         className={`hero-section ${heroSettings?.image && imageLoaded ? 'has-bg show-image' : 'has-bg'}`}
         style={heroSettings?.image && imageLoaded ? { 
-          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${heroSettings.image})`,
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${localHeroImage || heroSettings.image})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'

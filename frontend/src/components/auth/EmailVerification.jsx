@@ -50,7 +50,7 @@ const EmailVerification = ({ initialEmail = '', email: emailProp = '', lockEmail
             hasSentRef.current = true; // Evitar auto-envío si ya se envió
           }
         } catch {
-          console.log('No hay estado de verificación previo válido');
+          // No previous verification state to restore
         }
       }
     }

@@ -210,7 +210,7 @@ e.preventDefault();
             }
 
             try {
-                console.log('Generating invoice PDF for order:', order.order_number || order.id);
+                // Generate invoice PDF
                 const invoiceData = buildInvoiceData({
                     order,
                     customerInfo: formData,
@@ -222,7 +222,7 @@ e.preventDefault();
                 const pdfBlob = await generateInvoicePdfBlob(invoiceData);
                 const pdfBase64 = await blobToBase64(pdfBlob);
                 
-                console.log('Sending invoice email to:', email);
+                // Send invoice email
                 const res = await apiFetch(apiUrl(`/orders/${order.id}/invoice-email`), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -238,7 +238,7 @@ e.preventDefault();
                     return false;
                 }
 
-                console.log('Invoice email sent successfully');
+                // Invoice email sent successfully
                 return true;
             } catch (error) {
                 console.error('Error sending invoice email:', error.message || error);
@@ -294,7 +294,6 @@ e.preventDefault();
     }
 
     const order = await response.json();
-    console.log('Orden creada exitosamente:', order);
     
     // Guardar items confirmados para la factura antes de limpiar el carrito
     const itemsForInvoice = [...cartItems];

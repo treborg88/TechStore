@@ -3,11 +3,14 @@ import { login, register, forgotPassword, resetPassword } from '../../services/a
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmailVerification from './EmailVerification';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 
 export default function LoginPage({ onLoginSuccess, onBackToHome, prefillEmail = '', lockEmail = false, embedded = false, hideRegister = false }) {
 const [isRegister, setIsRegister] = useState(false);
 const [isForgotPassword, setIsForgotPassword] = useState(false);
 const [showPassword, setShowPassword] = useState(false);
+const [passwordFocused, setPasswordFocused] = useState(false);
+const [startedFromEmpty, setStartedFromEmpty] = useState(false);
 const [loading, setLoading] = useState(false);
 const [error, setError] = useState('');
 const [showVerification, setShowVerification] = useState(false);
@@ -27,6 +30,18 @@ const [resetData, setResetData] = useState({
 
 const [resetStep, setResetStep] = useState('input_email'); // input_email, verify_code, success
 
+    // Refresh CSRF token on mount to ensure clean state (clears stale cookies)
+    useEffect(() => {
+        const refreshCsrf = async () => {
+            try {
+                await apiFetch(apiUrl('/auth/csrf'));
+            } catch {
+                // Non-critical: CSRF refresh failed silently
+            }
+        };
+        refreshCsrf();
+    }, []);
+
     // Persistencia para no perder el progreso si se recarga la página
     useEffect(() => {
         const saved = localStorage.getItem('auth_form_persistence');
@@ -39,7 +54,7 @@ const [resetStep, setResetStep] = useState('input_email'); // input_email, verif
                 setShowVerification(parsed.showVerification || false);
                 setResetStep(parsed.resetStep || 'input_email');
             } catch {
-                console.log('No había estado de autenticación previo');
+                // No previous auth state to restore
             }
         }
     }, [prefillEmail]);
@@ -143,6 +158,8 @@ const handleChange = (e) => {
     const handleResetPassword = async (email, code) => {
         setResetData({ ...resetData, email, code });
         setResetStep('new_password');
+        setPasswordFocused(false);
+        setStartedFromEmpty(false);
     };
 
     const handleFinalReset = async (e) => {
@@ -207,6 +224,8 @@ const toggleMode = () => {
     setIsRegister(!isRegister);
     setShowVerification(false);
     setError('');
+    setPasswordFocused(false);
+    setStartedFromEmpty(false);
     setFormData({
     nombre: "",
     email: prefillEmail || "",
@@ -299,13 +318,27 @@ return (
                                     type={showPassword ? "text" : "password"}
                                     placeholder="Mínimo 8 caracteres, 1 mayúscula, 1 número"
                                     value={resetData.newPassword}
-                                    onChange={(e) => setResetData({...resetData, newPassword: e.target.value})}
+                                    onChange={(e) => {
+                                        setResetData({...resetData, newPassword: e.target.value});
+                                        if (e.target.value.length === 0) setStartedFromEmpty(true);
+                                    }}
                                     required
                                     style={{ width: '100%', paddingRight: '80px' }}
+                                    onFocus={(e) => {
+                                        setPasswordFocused(true);
+                                        if (e.target.value.length === 0) setStartedFromEmpty(true);
+                                    }}
+                                    onBlur={() => {
+                                        setPasswordFocused(false);
+                                        setShowPassword(false);
+                                        setStartedFromEmpty(false);
+                                    }}
                                 />
+                                {passwordFocused && startedFromEmpty && resetData.newPassword.length > 0 && (
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
+                                    onMouseDown={(e) => e.preventDefault()}
                                     style={{
                                         position: 'absolute',
                                         right: '10px',
@@ -320,6 +353,7 @@ return (
                                 >
                                     {showPassword ? "Ocultar" : "Mostrar"}
                                 </button>
+                                )}
                             </div>
                         </div>
                         <div className="form-group">
@@ -379,7 +413,11 @@ return (
                 </button>
             </div>
         ) : (
-        <form onSubmit={handleSubmit} className="login-form">
+        <form 
+            onSubmit={(e) => e.preventDefault()} 
+            className="login-form" 
+            onKeyDown={(e) => e.key === 'Enter' && handleSubmit(e)}
+        >
             {isRegister && (
             <div className="form-group">
                 <label htmlFor="nombre">Nombre completo</label>
@@ -421,15 +459,30 @@ return (
                     name="password"
                     placeholder={isRegister ? "Mínimo 8 caracteres, 1 mayúscula, 1 número" : "Ingresa tu contraseña"}
                     value={formData.password}
-                    onChange={handleChange}
+                    onChange={(e) => {
+                        handleChange(e);
+                        // If user clears the field completely, enable Mostrar button
+                        if (e.target.value.length === 0) setStartedFromEmpty(true);
+                    }}
                     required
                     disabled={loading}
                     autoComplete={isRegister ? "new-password" : "current-password"}
                     style={{ width: '100%', paddingRight: '80px' }}
+                    onFocus={(e) => {
+                        setPasswordFocused(true);
+                        if (e.target.value.length === 0) setStartedFromEmpty(true);
+                    }}
+                    onBlur={() => {
+                        setPasswordFocused(false);
+                        setShowPassword(false);
+                        setStartedFromEmpty(false);
+                    }}
                 />
+                {passwordFocused && startedFromEmpty && formData.password.length > 0 && (
                 <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
+                    onMouseDown={(e) => e.preventDefault()}
                     style={{
                         position: 'absolute',
                         right: '10px',
@@ -444,6 +497,7 @@ return (
                 >
                     {showPassword ? "Ocultar" : "Mostrar"}
                 </button>
+                )}
             </div>
             </div>
 
@@ -465,7 +519,8 @@ return (
             )}
 
             <button 
-            type="submit" 
+            type="button" 
+            onClick={handleSubmit}
             className="submit-button"
             disabled={loading}
             style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px' }}
