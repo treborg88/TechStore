@@ -263,8 +263,10 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
                         sector: selectedOrder.shipping_sector,
                         city: selectedOrder.shipping_city,
                         phone: selectedOrder.customer_phone || selectedOrder.phone,
-                        paymentMethod: selectedOrder.payment_method
-                        
+                        paymentMethod: selectedOrder.payment_method,
+                        shippingCost: selectedOrder.shipping_cost,
+                        shippingDistance: selectedOrder.shipping_distance,
+                        shippingCoordinates: selectedOrder.shipping_coordinates
                     }}
                     items={selectedOrder.items || []}
                     onClose={() => setSelectedOrder(null)}

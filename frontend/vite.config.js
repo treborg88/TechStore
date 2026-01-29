@@ -7,4 +7,8 @@ export default defineConfig({
   define: {
     global: 'window',
   },
+  server: {
+    // Allow Cloudflare Tunnel and other external hosts
+    allowedHosts: ['.trycloudflare.com', '.duckdns.org'],
+  },
 })

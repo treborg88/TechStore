@@ -31,7 +31,7 @@
     color: #2563eb;
     padding: 6px 12px;
     border-radius: 20px;
-    font-size: 0.85rem;
+    font-size: 1.1rem;
     font-weight: 600;
     border: 1px solid #dbeafe;
 }
@@ -419,7 +419,7 @@
 .status-tag {
   display: inline-block;
   margin-top: 10px;
-  padding: 4px 12px;
+  padding: 5px 10px;
   border-radius: 20px;
   font-size: 0.85rem;
   font-weight: 600;
@@ -430,11 +430,26 @@
   max-width: 300px;
 }
 
+.subtotal-row{
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  font-weight: 600;
+  color: #334155;
+  font-size: 0.95rem;
+}
+
 .total-row {
   display: flex;
   justify-content: space-between;
-  padding: 8px 0;
+  padding: 2px 0;
   font-size: 1.1rem;
+  color: #334155;
+}
+
+.total-row.shipping-row {
+  font-size: 0.85rem;
+  color: #64748b;
 }
 
 .grand-total {
@@ -442,7 +457,7 @@
   margin-top: 10px;
   padding-top: 15px;
   font-weight: bold;
-  font-size: 1.4rem;
+  font-size: 1.1rem;
   color: var(--primary-color);
 }
 
@@ -503,11 +518,27 @@
   text-align: center;
   box-sizing: border-box;
   margin: 0;
+  border: none;
 }
 
 .download-invoice-btn:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 25px rgba(16, 185, 129, 0.3);
+}
+
+.download-invoice-btn:disabled {
+  background: linear-gradient(135deg, #9ca3af, #6b7280);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.pdf-error-message {
+  color: #ef4444;
+  font-size: 0.85rem;
+  width: 100%;
+  text-align: center;
+  margin-top: 8px;
 }
 
 .continue-shopping-btn {

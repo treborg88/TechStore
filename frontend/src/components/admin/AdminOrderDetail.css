@@ -745,3 +745,60 @@ textarea:focus {
   position: absolute; top: 15px; right: 15px; width: 32px; height: 32px; border-radius: 50%; border: 1px solid #e2e8f0; background: #fff; color: #64748b; font-size: 14px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; z-index: 10;  
 }  
 .close-detail-btn:hover { background: #f1f5f9; color: #ef4444; border-color: #ef4444; transform: rotate(90deg); } 
+
+/* Shipping Cost Info Styles */
+.shipping-cost-info {
+    background: linear-gradient(135deg, #f0fdf4 0%, #ecfeff 100%);
+    border: 1px solid #bbf7d0;
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+}
+
+.shipping-cost-info .info-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 0;
+    border-bottom: 1px dashed #d1fae5;
+}
+
+.shipping-cost-info .info-row:last-child {
+    border-bottom: none;
+}
+
+.shipping-cost-info .info-row strong {
+    color: #166534;
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.shipping-cost-info .info-row span {
+    color: #15803d;
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+
+.shipping-cost-info .info-row.highlight {
+    background: rgba(34, 197, 94, 0.1);
+    margin: 4px -12px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-bottom: none;
+}
+
+.shipping-cost-info .info-row.highlight span {
+    color: #16a34a;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+.shipping-cost-info .info-row.coordinates span {
+    font-family: 'Monaco', 'Menlo', monospace;
+    font-size: 0.8rem;
+    background: #dcfce7;
+    padding: 4px 8px;
+    border-radius: 4px;
+}

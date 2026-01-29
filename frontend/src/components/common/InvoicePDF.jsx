@@ -79,9 +79,17 @@ export const InvoicePDF = ({ invoiceData }) => (
           <View style={styles.summaryRow}>
             <Text style={{...styles.summaryLabel, width: '60%'}}>Subtotal:</Text>
             <Text style={{...styles.summaryValue, width: '40%'}}>
-              {formatCurrency(invoiceData.total, invoiceData.currency)}
+              {formatCurrency(invoiceData.subtotal, invoiceData.currency)}
             </Text>
           </View>
+          {invoiceData.shippingCost > 0 && (
+            <View style={styles.summaryRow}>
+              <Text style={{...styles.summaryLabel, width: '60%'}}>Envío:</Text>
+              <Text style={{...styles.summaryValue, width: '40%'}}>
+                {formatCurrency(invoiceData.shippingCost, invoiceData.currency)}
+              </Text>
+            </View>
+          )}
           <View style={styles.totalRow}>
             <Text style={{...styles.totalLabel, width: '60%'}}>Total:</Text>
             <Text style={{...styles.totalValue, width: '40%'}}>

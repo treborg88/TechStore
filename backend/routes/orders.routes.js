@@ -199,7 +199,8 @@ router.post('/', authenticateToken, async (req, res) => {
     const { 
         notes, shipping_address, items, payment_method, 
         customer_name, customer_email, customer_phone, 
-        shipping_street, shipping_city, shipping_postal_code, shipping_sector 
+        shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+        shipping_cost, shipping_distance, shipping_coordinates
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -262,6 +263,15 @@ router.post('/', authenticateToken, async (req, res) => {
         const orderNumber = generateOrderNumber(orderId);
         await statements.updateOrderNumber(orderNumber, orderId);
 
+        // Update shipping info if provided (cost, distance, coordinates)
+        if (shipping_cost !== undefined || shipping_distance !== undefined || shipping_coordinates) {
+            await statements.updateOrder(orderId, {
+                shipping_cost: shipping_cost || 0,
+                shipping_distance: shipping_distance || null,
+                shipping_coordinates: shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
+            });
+        }
+
         for (const item of itemDetails) {
             await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price);
         }
@@ -311,7 +321,8 @@ router.post('/', authenticateToken, async (req, res) => {
 router.post('/guest', async (req, res) => {
     const { 
         notes, shipping_address, items, customer_info, payment_method, 
-        shipping_street, shipping_city, shipping_postal_code, shipping_sector 
+        shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+        shipping_cost, shipping_distance, shipping_coordinates
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -375,6 +386,21 @@ router.post('/guest', async (req, res) => {
 
         const orderNumber = generateOrderNumber(orderId);
         await statements.updateOrderNumber(orderNumber, orderId);
+
+        // Update shipping info if provided (cost, distance, coordinates)
+        // Wrapped in try-catch in case columns don't exist in database yet
+        if (shipping_cost !== undefined || shipping_distance !== undefined || shipping_coordinates) {
+            try {
+                await statements.updateOrder(orderId, {
+                    shipping_cost: shipping_cost || 0,
+                    shipping_distance: shipping_distance || null,
+                    shipping_coordinates: shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
+                });
+            } catch (shippingError) {
+                // Log warning but don't fail the order creation
+                console.warn('Could not save shipping info for guest order (columns may not exist):', shippingError.message);
+            }
+        }
 
         for (const item of itemDetails) {
             await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price);

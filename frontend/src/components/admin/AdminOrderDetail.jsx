@@ -108,7 +108,10 @@ export default function AdminOrderDetail({
                                     sector: order.shipping_sector,
                                     city: order.shipping_city,
                                     phone: order.customer_phone,
-                                    paymentMethod: order.payment_method
+                                    paymentMethod: order.payment_method,
+                                    shippingCost: order.shipping_cost,
+                                    shippingDistance: order.shipping_distance,
+                                    shippingCoordinates: order.shipping_coordinates
                                 }}
                                 items={order.items || []}
                                 onClose={onClose}
@@ -170,6 +173,42 @@ export default function AdminOrderDetail({
 
                     <div className="detail-card shipping-card">
                         <h3>🚚 Información de Envío</h3>
+                        
+                        {/* Shipping cost and distance info */}
+                        {(order.shipping_cost > 0 || order.shipping_distance) && (
+                            <div className="shipping-cost-info">
+                                {order.shipping_distance && (
+                                    <div className="info-row">
+                                        <strong>📏 Distancia</strong>
+                                        <span>{Number(order.shipping_distance).toFixed(2)} km</span>
+                                    </div>
+                                )}
+                                {order.shipping_cost > 0 && (
+                                    <div className="info-row highlight">
+                                        <strong>💵 Costo Envío</strong>
+                                        <span>{formatCurrency(order.shipping_cost, currencyCode)}</span>
+                                    </div>
+                                )}
+                                {order.shipping_coordinates && (
+                                    <div className="info-row coordinates">
+                                        <strong>📍 Coordenadas</strong>
+                                        <span>
+                                            {(() => {
+                                                try {
+                                                    const coords = typeof order.shipping_coordinates === 'string' 
+                                                        ? JSON.parse(order.shipping_coordinates) 
+                                                        : order.shipping_coordinates;
+                                                    return `${coords.lat?.toFixed(6)}, ${coords.lng?.toFixed(6)}`;
+                                                } catch {
+                                                    return 'N/A';
+                                                }
+                                            })()}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                        
                         {showTrackingForm ? (
                             <div className="tracking-form-container">
                                 <div className="form-group">

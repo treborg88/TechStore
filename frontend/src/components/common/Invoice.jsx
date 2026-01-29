@@ -1,5 +1,5 @@
-import React from 'react';
-import { PDFDownloadLink } from '@react-pdf/renderer';
+import React, { useState, useCallback } from 'react';
+import { pdf } from '@react-pdf/renderer';
 import '../../print.css';
 import './Invoice.css';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -105,6 +105,8 @@ const StatusStepper = ({ currentStatus, paymentMethod, onStatusChange }) => {
 
 const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒', currencyCode }) => {
   const isAuthenticated = !!localStorage.getItem('userData');
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfError, setPdfError] = useState(null);
 
   const invoiceData = buildInvoiceData({
     order,
@@ -114,6 +116,43 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
     siteIcon,
     currencyCode
   });
+
+  // Handle PDF download manually for better error handling
+  const handleDownloadPdf = useCallback(async () => {
+    if (isGeneratingPdf) return;
+    
+    setIsGeneratingPdf(true);
+    setPdfError(null);
+    
+    try {
+      // Validate invoiceData before generating PDF
+      if (!invoiceData || !invoiceData.items || invoiceData.items.length === 0) {
+        throw new Error('No hay items para generar la factura');
+      }
+
+      // Generate PDF blob using React.createElement to avoid JSX issues
+      const blob = await pdf(
+        React.createElement(InvoicePDF, { invoiceData })
+      ).toBlob();
+      
+      // Create download link
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `factura-${order.order_number || order.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Cleanup URL object
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      setPdfError(error.message || 'Error al generar el PDF. Intenta de nuevo.');
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  }, [invoiceData, order, isGeneratingPdf]);
 
     return (
         <div className="order-success printable-area">
@@ -222,11 +261,17 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                 <div className="invoice-totals">
                     <div className="totals-box">
                         <br /><br />
-                        <div className="total-row">
+                        <div className="subtotal-row">
                             <span>Subtotal:</span>
-                          <span>{formatCurrency(invoiceData.total, invoiceData.currency)}</span>
+                          <span>{formatCurrency(invoiceData.subtotal, invoiceData.currency)}</span>
                         </div>
-                        <div className="total-row final">
+                        {invoiceData.shippingCost > 0 && (
+                            <div className="total-row shipping-row">
+                                <span>Envío:</span>
+                                <span>{formatCurrency(invoiceData.shippingCost, invoiceData.currency)}</span>
+                            </div>
+                        )}
+                        <div className="total-row grand-total">
                             <span>Total:</span>
                           <span>{formatCurrency(invoiceData.total, invoiceData.currency)}</span>
                         </div>
@@ -341,13 +386,19 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <StatusTag status={order.status} />
                     </div>
                     <div className="totals-box">
-                        <div className="total-row">
+                        <div className="subtotal-row">
                             <span>Subtotal:</span>
-                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
+                          <span>{formatCurrency(invoiceData.subtotal, invoiceData.currency)}</span>
                         </div>
+                        {invoiceData.shippingCost > 0 && (
+                            <div className="total-row shipping-row">
+                                <span>Envío:</span>
+                                <span>{formatCurrency(invoiceData.shippingCost, invoiceData.currency)}</span>
+                            </div>
+                        )}
                         <div className="total-row grand-total">
                             <span>TOTAL:</span>
-                          <span>{formatCurrency(order.total, invoiceData.currency)}</span>
+                          <span>{formatCurrency(invoiceData.total, invoiceData.currency)}</span>
                         </div>
                     </div>
                 </div>
@@ -371,13 +422,14 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                 >
                     🖨️ Imprimir Factura
                 </button>
-                <PDFDownloadLink
-                    document={<InvoicePDF invoiceData={invoiceData} />}
-                    fileName={`factura-${order.id}.pdf`}
+                <button
                     className="download-invoice-btn"
+                    onClick={handleDownloadPdf}
+                    disabled={isGeneratingPdf}
                 >
-                    {({ loading }) => (loading ? 'Generando PDF...' : '📄 Descargar Factura (PDF)')}
-                </PDFDownloadLink>
+                    {isGeneratingPdf ? 'Generando PDF...' : '📄 Descargar Factura (PDF)'}
+                </button>
+                {pdfError && <span className="pdf-error-message">{pdfError}</span>}
                 <button className="continue-shopping-btn" onClick={onClose}>
                     Continuar Comprando
                 </button>

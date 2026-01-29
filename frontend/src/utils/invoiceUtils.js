@@ -67,6 +67,29 @@ export const buildInvoiceData = ({
   const currentDate = orderDate.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
   const currentTime = orderDate.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: true });
 
+  // Normalize items to handle different data structures
+  const normalizedItems = (items || []).map(item => {
+    // Get the item name (support different field names)
+    const itemName = item.name || item.product_name || 'Producto';
+    // Get the item price (support different field names)
+    const itemPrice = Number(item.price) || Number(item.unit_price) || 0;
+    // Get quantity
+    const itemQuantity = Number(item.quantity) || 1;
+    
+    return {
+      description: itemName,
+      quantity: itemQuantity,
+      unitPrice: itemPrice,
+      taxPercent: '',
+      taxes: '',
+      amount: itemPrice * itemQuantity
+    };
+  });
+
+  // Calculate subtotal from normalized items
+  const subtotal = normalizedItems.reduce((sum, item) => sum + item.amount, 0);
+  const shippingCost = Number(order?.shipping_cost) || Number(customerInfo?.shippingCost) || 0;
+
   return {
     companyName: siteName,
     companyIcon: siteIcon,
@@ -88,15 +111,12 @@ export const buildInvoiceData = ({
     deliveryTime: '3-5 días hábiles',
     currency: currencyCode || 'USD',
     source: order?.order_number || order?.id?.toString(),
-    items: (items || []).map(item => ({
-      description: item.name,
-      quantity: item.quantity,
-      unitPrice: item.price,
-      taxPercent: '',
-      taxes: '',
-      amount: item.price * item.quantity
-    })),
-    total: order?.total || 0
+    items: normalizedItems,
+    subtotal,
+    shippingCost,
+    shippingDistance: order?.shipping_distance || customerInfo?.shippingDistance || null,
+    shippingCoordinates: order?.shipping_coordinates || customerInfo?.shippingCoordinates || null,
+    total: subtotal + shippingCost
   };
 };
 

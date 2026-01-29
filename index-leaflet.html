@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Formulario de Envío con Mapa Interactivo</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet CSS y JS (Mapa Open Source - No requiere API Key) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    
+    <!-- Leaflet Control Geocoder para búsqueda de direcciones -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js"></script>
+    
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+                'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+                sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        .leaflet-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 0.5rem;
+        }
+        /* Estilo personalizado para el control de búsqueda */
+        .leaflet-control-geocoder {
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // ========== ICONOS SVG ==========
+        const MapPin = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                <circle cx="12" cy="10" r="3"></circle>
+            </svg>
+        );
+
+        const Navigation = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+            </svg>
+        );
+
+        const DollarSign = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="12" y1="1" x2="12" y2="23"></line>
+                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+            </svg>
+        );
+
+        const Package = () => (
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line>
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+        );
+
+        const AlertCircle = () => (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+        );
+
+        // ========== CONFIGURACIÓN ==========
+        
+        // Tarifas de envío por distancia (en km)
+        const PRICE_RANGES = [
+            { maxDistance: 5, price: 50, label: 'Zona 1 (0-5km)' },
+            { maxDistance: 10, price: 100, label: 'Zona 2 (5-10km)' },
+            { maxDistance: 20, price: 180, label: 'Zona 3 (10-20km)' },
+            { maxDistance: 50, price: 350, label: 'Zona 4 (20-50km)' },
+            { maxDistance: Infinity, price: 600, label: 'Zona 5 (>50km)' }
+        ];
+
+        // Centro de distribución (Santo Domingo, República Dominicana)
+        const WAREHOUSE_LOCATION = {
+            lat: 18.4861,
+            lng: -69.9312,
+            address: 'Centro de Distribución - Santo Domingo'
+        };
+
+        // ========== COMPONENTE PRINCIPAL ==========
+        const ShippingAddressForm = () => {
+            const mapRef = useRef(null);
+            const mapInstanceRef = useRef(null);
+            const warehouseMarkerRef = useRef(null);
+            const deliveryMarkerRef = useRef(null);
+            const routeLineRef = useRef(null);
+
+            const [formData, setFormData] = useState({
+                fullName: '',
+                phone: '',
+                email: '',
+                address: '',
+                city: '',
+                zipCode: '',
+                notes: ''
+            });
+
+            const [mapData, setMapData] = useState({
+                selectedLocation: null,
+                distance: null,
+                shippingCost: 0,
+                showCoordinatesInInvoice: true,
+                includeAddressInInvoice: true
+            });
+
+            // ========== FUNCIONES AUXILIARES ==========
+            
+            // Calcular distancia usando fórmula de Haversine
+            const calculateDistance = (lat1, lon1, lat2, lon2) => {
+                const R = 6371; // Radio de la Tierra en km
+                const dLat = (lat2 - lat1) * Math.PI / 180;
+                const dLon = (lon2 - lon1) * Math.PI / 180;
+                const a = 
+                    Math.sin(dLat/2) * Math.sin(dLat/2) +
+                    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                    Math.sin(dLon/2) * Math.sin(dLon/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            };
+
+            // Calcular precio basado en distancia
+            const calculateShippingCost = (distance) => {
+                const range = PRICE_RANGES.find(r => distance <= r.maxDistance);
+                return range ? range.price : PRICE_RANGES[PRICE_RANGES.length - 1].price;
+            };
+
+            // Actualizar ubicación de entrega
+            const updateDeliveryLocation = (lat, lng) => {
+                const distance = calculateDistance(
+                    WAREHOUSE_LOCATION.lat,
+                    WAREHOUSE_LOCATION.lng,
+                    lat,
+                    lng
+                );
+                const cost = calculateShippingCost(distance);
+
+                setMapData(prev => ({
+                    ...prev,
+                    selectedLocation: { lat, lng },
+                    distance,
+                    shippingCost: cost
+                }));
+
+                // Actualizar marcador de entrega
+                if (mapInstanceRef.current) {
+                    if (deliveryMarkerRef.current) {
+                        deliveryMarkerRef.current.setLatLng([lat, lng]);
+                    } else {
+                        const deliveryIcon = L.divIcon({
+                            html: '<div style="background-color: #ef4444; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
+                            className: '',
+                            iconSize: [30, 30],
+                            iconAnchor: [15, 30]
+                        });
+
+                        deliveryMarkerRef.current = L.marker([lat, lng], {
+                            icon: deliveryIcon,
+                            draggable: true
+                        }).addTo(mapInstanceRef.current);
+
+                        deliveryMarkerRef.current.on('dragend', (e) => {
+                            const { lat, lng } = e.target.getLatLng();
+                            updateDeliveryLocation(lat, lng);
+                        });
+                    }
+
+                    // Dibujar línea de ruta
+                    if (routeLineRef.current) {
+                        mapInstanceRef.current.removeLayer(routeLineRef.current);
+                    }
+
+                    routeLineRef.current = L.polyline([
+                        [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
+                        [lat, lng]
+                    ], {
+                        color: '#3b82f6',
+                        weight: 4,
+                        opacity: 0.7,
+                        dashArray: '10, 10'
+                    }).addTo(mapInstanceRef.current);
+
+                    // Ajustar vista para mostrar ambos puntos
+                    const bounds = L.latLngBounds([
+                        [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
+                        [lat, lng]
+                    ]);
+                    mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
+                }
+            };
+
+            // ========== EFECTOS ==========
+            
+            // Inicializar mapa
+            useEffect(() => {
+                if (!mapRef.current || mapInstanceRef.current) return;
+
+                // Crear mapa
+                const map = L.map(mapRef.current).setView(
+                    [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
+                    12
+                );
+
+                // Agregar capa de mapa (OpenStreetMap)
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19
+                }).addTo(map);
+
+                // Marcador del almacén
+                const warehouseIcon = L.divIcon({
+                    html: '<div style="background-color: #3b82f6; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-size: 20px;">🏢</div>',
+                    className: '',
+                    iconSize: [40, 40],
+                    iconAnchor: [20, 20]
+                });
+
+                warehouseMarkerRef.current = L.marker(
+                    [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
+                    { icon: warehouseIcon }
+                ).addTo(map);
+
+                warehouseMarkerRef.current.bindPopup(
+                    `<strong>${WAREHOUSE_LOCATION.address}</strong>`
+                );
+
+                // Click en el mapa para seleccionar ubicación
+                map.on('click', (e) => {
+                    updateDeliveryLocation(e.latlng.lat, e.latlng.lng);
+                });
+
+                // Agregar control de búsqueda
+                const geocoder = L.Control.Geocoder.nominatim();
+                const searchControl = L.Control.geocoder({
+                    geocoder: geocoder,
+                    defaultMarkGeocode: false,
+                    placeholder: 'Buscar dirección...',
+                    errorMessage: 'No se encontró la dirección'
+                }).on('markgeocode', (e) => {
+                    const { center, name } = e.geocode;
+                    updateDeliveryLocation(center.lat, center.lng);
+                    setFormData(prev => ({ ...prev, address: name }));
+                    map.setView(center, 15);
+                }).addTo(map);
+
+                mapInstanceRef.current = map;
+
+                // Cleanup
+                return () => {
+                    map.remove();
+                    mapInstanceRef.current = null;
+                };
+            }, []);
+
+            // ========== MANEJADORES DE EVENTOS ==========
+            
+            const handleInputChange = (e) => {
+                const { name, value } = e.target;
+                setFormData(prev => ({ ...prev, [name]: value }));
+            };
+
+            const getCurrentLocation = () => {
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        (position) => {
+                            const { latitude, longitude } = position.coords;
+                            updateDeliveryLocation(latitude, longitude);
+                            
+                            if (mapInstanceRef.current) {
+                                mapInstanceRef.current.setView([latitude, longitude], 15);
+                            }
+                        },
+                        (error) => {
+                            console.error('Error obteniendo ubicación:', error);
+                            alert('No se pudo obtener tu ubicación actual. Por favor, verifica los permisos del navegador.');
+                        },
+                        { enableHighAccuracy: true }
+                    );
+                } else {
+                    alert('Tu navegador no soporta geolocalización');
+                }
+            };
+
+            const generateInvoice = () => {
+                return {
+                    customer: {
+                        name: formData.fullName,
+                        phone: formData.phone,
+                        email: formData.email || 'No proporcionado',
+                    },
+                    shipping: {
+                        ...(mapData.includeAddressInInvoice && {
+                            address: formData.address || 'No especificada',
+                            city: formData.city || 'No especificada',
+                            zipCode: formData.zipCode || 'N/A',
+                        }),
+                        ...(mapData.showCoordinatesInInvoice && mapData.selectedLocation && {
+                            coordinates: {
+                                latitude: mapData.selectedLocation.lat.toFixed(6),
+                                longitude: mapData.selectedLocation.lng.toFixed(6)
+                            }
+                        }),
+                        distance: mapData.distance ? `${mapData.distance.toFixed(2)} km` : 'N/A',
+                        cost: `RD$${mapData.shippingCost.toFixed(2)}`,
+                        notes: formData.notes || 'Ninguna'
+                    },
+                    warehouse: WAREHOUSE_LOCATION.address,
+                    timestamp: new Date().toLocaleString('es-DO')
+                };
+            };
+
+            const handleSubmit = (e) => {
+                e.preventDefault();
+                
+                if (!mapData.selectedLocation) {
+                    alert('⚠️ Por favor selecciona una ubicación en el mapa antes de continuar.');
+                    return;
+                }
+
+                const invoice = generateInvoice();
+                console.log('📦 Factura generada:', invoice);
+                
+                // Formatear factura para mostrar
+                const invoiceText = `
+✅ PEDIDO CONFIRMADO
+
+👤 CLIENTE:
+   Nombre: ${invoice.customer.name}
+   Teléfono: ${invoice.customer.phone}
+   Email: ${invoice.customer.email}
+
+📍 INFORMACIÓN DE ENVÍO:
+${invoice.shipping.address ? `   Dirección: ${invoice.shipping.address}` : ''}
+${invoice.shipping.city ? `   Ciudad: ${invoice.shipping.city}` : ''}
+${invoice.shipping.zipCode ? `   Código Postal: ${invoice.shipping.zipCode}` : ''}
+${invoice.shipping.coordinates ? `   📌 GPS: ${invoice.shipping.coordinates.latitude}, ${invoice.shipping.coordinates.longitude}` : ''}
+   📏 Distancia: ${invoice.shipping.distance}
+   💵 Costo de envío: ${invoice.shipping.cost}
+   📝 Notas: ${invoice.shipping.notes}
+
+🏢 Desde: ${invoice.warehouse}
+🕒 Fecha: ${invoice.timestamp}
+                `.trim();
+
+                alert(invoiceText);
+                
+                // Aquí puedes enviar los datos a tu backend
+                // fetch('/api/orders', { method: 'POST', body: JSON.stringify(invoice) })
+            };
+
+            // ========== RENDERIZADO ==========
+            
+            return (
+                <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+                    <div className="max-w-6xl mx-auto">
+                        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+                            {/* Header */}
+                            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
+                                <div className="flex items-center gap-3">
+                                    <Package />
+                                    <div>
+                                        <h1 className="text-3xl font-bold">Dirección de Envío</h1>
+                                        <p className="text-blue-100 mt-1">
+                                            Selecciona tu ubicación y calcula el costo de envío
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-6">
+                                <form onSubmit={handleSubmit} className="space-y-6">
+                                    <div className="grid md:grid-cols-2 gap-6">
+                                        {/* Columna Izquierda - Formulario */}
+                                        <div className="space-y-4">
+                                            <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                                                <MapPin />
+                                                Datos de Contacto
+                                            </h2>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Nombre Completo *
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="fullName"
+                                                    value={formData.fullName}
+                                                    onChange={handleInputChange}
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                    required
+                                                    placeholder="Ej: Juan Pérez"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Teléfono *
+                                                    </label>
+                                                    <input
+                                                        type="tel"
+                                                        name="phone"
+                                                        value={formData.phone}
+                                                        onChange={handleInputChange}
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        required
+                                                        placeholder="809-555-1234"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Email
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        name="email"
+                                                        value={formData.email}
+                                                        onChange={handleInputChange}
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        placeholder="correo@ejemplo.com"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Dirección
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="address"
+                                                    value={formData.address}
+                                                    onChange={handleInputChange}
+                                                    placeholder="Usa el buscador del mapa o escribe aquí..."
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Ciudad
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="city"
+                                                        value={formData.city}
+                                                        onChange={handleInputChange}
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        placeholder="Santo Domingo"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Código Postal
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        name="zipCode"
+                                                        value={formData.zipCode}
+                                                        onChange={handleInputChange}
+                                                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                        placeholder="10147"
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                    Notas de Entrega
+                                                </label>
+                                                <textarea
+                                                    name="notes"
+                                                    value={formData.notes}
+                                                    onChange={handleInputChange}
+                                                    rows="3"
+                                                    placeholder="Referencias, puntos de referencia, instrucciones especiales..."
+                                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                                />
+                                            </div>
+
+                                            {/* Opciones de Factura */}
+                                            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+                                                <h3 className="font-medium text-gray-800 mb-2">Opciones de Factura</h3>
+                                                
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={mapData.includeAddressInInvoice}
+                                                        onChange={(e) => setMapData(prev => ({ 
+                                                            ...prev, 
+                                                            includeAddressInInvoice: e.target.checked 
+                                                        }))}
+                                                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-sm text-gray-700">
+                                                        Incluir dirección completa en factura
+                                                    </span>
+                                                </label>
+
+                                                <label className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={mapData.showCoordinatesInInvoice}
+                                                        onChange={(e) => setMapData(prev => ({ 
+                                                            ...prev, 
+                                                            showCoordinatesInInvoice: e.target.checked 
+                                                        }))}
+                                                        className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-sm text-gray-700">
+                                                        Mostrar coordenadas GPS en factura
+                                                    </span>
+                                                </label>
+                                            </div>
+
+                                            {/* Información de Costo */}
+                                            {mapData.distance && (
+                                                <div className="bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-lg border-2 border-green-200">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <DollarSign />
+                                                        <h3 className="font-semibold text-gray-800">Costo de Envío</h3>
+                                                    </div>
+                                                    <div className="space-y-2">
+                                                        <p className="text-sm text-gray-600">
+                                                            Distancia: <span className="font-semibold text-gray-800">
+                                                                {mapData.distance.toFixed(2)} km
+                                                            </span>
+                                                        </p>
+                                                        <p className="text-2xl font-bold text-green-600">
+                                                            RD${mapData.shippingCost.toFixed(2)}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            <button
+                                                type="submit"
+                                                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all shadow-lg hover:shadow-xl"
+                                            >
+                                                Confirmar Pedido
+                                            </button>
+                                        </div>
+
+                                        {/* Columna Derecha - Mapa */}
+                                        <div className="space-y-4">
+                                            <div className="flex items-center justify-between">
+                                                <h2 className="text-xl font-semibold text-gray-800 flex items-center gap-2">
+                                                    <Navigation />
+                                                    Ubicación de Entrega
+                                                </h2>
+                                                <button
+                                                    type="button"
+                                                    onClick={getCurrentLocation}
+                                                    className="flex items-center gap-2 px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                                                >
+                                                    <Navigation />
+                                                    Mi Ubicación
+                                                </button>
+                                            </div>
+
+                                            <div 
+                                                ref={mapRef}
+                                                className="w-full rounded-lg border-2 border-gray-300 shadow-lg"
+                                                style={{ height: '400px' }}
+                                            />
+
+                                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                                <div className="flex items-start gap-2">
+                                                    <AlertCircle />
+                                                    <div className="text-sm text-blue-800">
+                                                        <p className="font-medium mb-1">Instrucciones:</p>
+                                                        <ul className="space-y-1 list-disc list-inside">
+                                                            <li>Usa el buscador 🔍 en el mapa para encontrar direcciones</li>
+                                                            <li>Haz clic en cualquier punto del mapa para seleccionar</li>
+                                                            <li>Arrastra el marcador rojo 📍 para ajustar la posición</li>
+                                                            <li>El costo se calcula automáticamente según la distancia</li>
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Tabla de Precios */}
+                                            <div className="bg-gray-50 p-4 rounded-lg">
+                                                <h3 className="font-semibold text-gray-800 mb-3">Tarifas de Envío</h3>
+                                                <div className="space-y-2">
+                                                    {PRICE_RANGES.map((range, index) => {
+                                                        const isActive = mapData.distance && 
+                                                            mapData.distance <= range.maxDistance && 
+                                                            (index === 0 || mapData.distance > PRICE_RANGES[index - 1].maxDistance);
+                                                        
+                                                        return (
+                                                            <div 
+                                                                key={index}
+                                                                className={`flex justify-between items-center p-2 rounded transition-all ${
+                                                                    isActive
+                                                                        ? 'bg-blue-100 border-2 border-blue-400 scale-105'
+                                                                        : 'bg-white'
+                                                                }`}
+                                                            >
+                                                                <span className={`text-sm font-medium ${isActive ? 'text-blue-900' : 'text-gray-700'}`}>
+                                                                    {range.label}
+                                                                </span>
+                                                                <span className={`text-sm font-bold ${isActive ? 'text-blue-600' : 'text-gray-900'}`}>
+                                                                    RD${range.price.toFixed(2)}
+                                                                </span>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // Renderizar la aplicación
+        ReactDOM.render(<ShippingAddressForm />, document.getElementById('root'));
+    </script>
+</body>
+</html>
