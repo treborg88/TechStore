@@ -36,7 +36,7 @@ const PaymentInstructions = ({ order, paymentMethod, invoiceData }) => {
                 <div>
                     <p className="invoice-payment-label">{config.amountLabel}</p>
                     <p className="invoice-payment-amount">
-                        {formatCurrency(order.total, invoiceData.currency)}
+                        {formatCurrency(invoiceData.total, invoiceData.currency)}
                     </p>
                 </div>
             </div>

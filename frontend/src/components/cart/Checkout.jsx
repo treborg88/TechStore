@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
@@ -7,25 +7,10 @@ import Invoice from '../common/Invoice';
 import { buildInvoiceData, generateInvoicePdfBlob } from '../../utils/invoiceUtils';
 import EmailVerification from '../auth/EmailVerification';
 import LoginPage from '../auth/LoginPage';
+import DeliveryMap from './DeliveryMap';
 import '../products/ProductDetail.css';
 import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
-
-// Shipping rates by distance (in km)
-const PRICE_RANGES = [
-    { maxDistance: 5, price: 50, label: 'Zona 1 (0-5km)' },
-    { maxDistance: 10, price: 100, label: 'Zona 2 (5-10km)' },
-    { maxDistance: 20, price: 180, label: 'Zona 3 (10-20km)' },
-    { maxDistance: 50, price: 350, label: 'Zona 4 (20-50km)' },
-    { maxDistance: Infinity, price: 600, label: 'Zona 5 (>50km)' }
-];
-
-// Distribution center location (Santo Domingo, Dominican Republic)
-const WAREHOUSE_LOCATION = {
-    lat: 18.4861,
-    lng: -69.9312,
-    address: 'Centro de Distribución - Santo Domingo'
-};
 
 function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();
@@ -44,18 +29,11 @@ paymentMethod: '' // Nuevo campo para método de pago
 const [step, setStep] = useState(1);
     const [isSubmitting, setIsSubmitting] = useState(false);
     
-    // Map refs and state
-    const mapRef = useRef(null);
-    const mapInstanceRef = useRef(null);
-    const warehouseMarkerRef = useRef(null);
-    const deliveryMarkerRef = useRef(null);
-    const routeLineRef = useRef(null);
     const [mapData, setMapData] = useState({
         selectedLocation: null,
         distance: null,
         shippingCost: 0
     });
-    const [leafletLoaded, setLeafletLoaded] = useState(false);
     const [error, setError] = useState('');
     const [orderCreated, setOrderCreated] = useState(null);
     const [confirmedItems, setConfirmedItems] = useState([]);
@@ -176,211 +154,6 @@ const [step, setStep] = useState(1);
         setError(''); // Limpiar errores al escribir
     };
 
-    // Calculate distance using Haversine formula
-    const calculateDistance = (lat1, lon1, lat2, lon2) => {
-        const R = 6371; // Earth radius in km
-        const dLat = (lat2 - lat1) * Math.PI / 180;
-        const dLon = (lon2 - lon1) * Math.PI / 180;
-        const a = 
-            Math.sin(dLat/2) * Math.sin(dLat/2) +
-            Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-            Math.sin(dLon/2) * Math.sin(dLon/2);
-        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-        return R * c;
-    };
-
-    // Calculate shipping cost based on distance
-    const calculateShippingCost = (distance) => {
-        const range = PRICE_RANGES.find(r => distance <= r.maxDistance);
-        return range ? range.price : PRICE_RANGES[PRICE_RANGES.length - 1].price;
-    };
-
-    // Update delivery location on map
-    const updateDeliveryLocation = useCallback((lat, lng) => {
-        const distance = calculateDistance(
-            WAREHOUSE_LOCATION.lat,
-            WAREHOUSE_LOCATION.lng,
-            lat,
-            lng
-        );
-        const cost = calculateShippingCost(distance);
-
-        setMapData(prev => ({
-            ...prev,
-            selectedLocation: { lat, lng },
-            distance,
-            shippingCost: cost
-        }));
-
-        // Update delivery marker
-        if (mapInstanceRef.current && window.L) {
-            const L = window.L;
-            if (deliveryMarkerRef.current) {
-                deliveryMarkerRef.current.setLatLng([lat, lng]);
-            } else {
-                const deliveryIcon = L.divIcon({
-                    html: '<div style="background-color: #ef4444; width: 30px; height: 30px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 5px rgba(0,0,0,0.3);"></div>',
-                    className: '',
-                    iconSize: [30, 30],
-                    iconAnchor: [15, 30]
-                });
-
-                deliveryMarkerRef.current = L.marker([lat, lng], {
-                    icon: deliveryIcon,
-                    draggable: true
-                }).addTo(mapInstanceRef.current);
-
-                deliveryMarkerRef.current.on('dragend', (e) => {
-                    const { lat: newLat, lng: newLng } = e.target.getLatLng();
-                    updateDeliveryLocation(newLat, newLng);
-                });
-            }
-
-            // Draw route line
-            if (routeLineRef.current) {
-                mapInstanceRef.current.removeLayer(routeLineRef.current);
-            }
-
-            routeLineRef.current = L.polyline([
-                [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
-                [lat, lng]
-            ], {
-                color: '#3b82f6',
-                weight: 4,
-                opacity: 0.7,
-                dashArray: '10, 10'
-            }).addTo(mapInstanceRef.current);
-
-            // Fit bounds to show both points
-            const bounds = L.latLngBounds([
-                [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
-                [lat, lng]
-            ]);
-            mapInstanceRef.current.fitBounds(bounds, { padding: [50, 50] });
-        }
-    }, []);
-
-    // Get current location from browser
-    const getCurrentLocation = () => {
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const { latitude, longitude } = position.coords;
-                    updateDeliveryLocation(latitude, longitude);
-                    
-                    if (mapInstanceRef.current) {
-                        mapInstanceRef.current.setView([latitude, longitude], 15);
-                    }
-                },
-                (error) => {
-                    console.error('Error getting location:', error);
-                    setError('No se pudo obtener tu ubicación. Verifica los permisos del navegador.');
-                },
-                { enableHighAccuracy: true }
-            );
-        } else {
-            setError('Tu navegador no soporta geolocalización');
-        }
-    };
-
-    // Load Leaflet scripts dynamically
-    useEffect(() => {
-        if (window.L) {
-            setLeafletLoaded(true);
-            return;
-        }
-
-        // Load Leaflet CSS
-        const leafletCss = document.createElement('link');
-        leafletCss.rel = 'stylesheet';
-        leafletCss.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-        document.head.appendChild(leafletCss);
-
-        // Load Geocoder CSS
-        const geocoderCss = document.createElement('link');
-        geocoderCss.rel = 'stylesheet';
-        geocoderCss.href = 'https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.css';
-        document.head.appendChild(geocoderCss);
-
-        // Load Leaflet JS
-        const leafletScript = document.createElement('script');
-        leafletScript.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-        leafletScript.onload = () => {
-            // Load Geocoder JS after Leaflet
-            const geocoderScript = document.createElement('script');
-            geocoderScript.src = 'https://unpkg.com/leaflet-control-geocoder@2.4.0/dist/Control.Geocoder.js';
-            geocoderScript.onload = () => setLeafletLoaded(true);
-            document.body.appendChild(geocoderScript);
-        };
-        document.body.appendChild(leafletScript);
-    }, []);
-
-    // Initialize map when step is 2 and Leaflet is loaded
-    useEffect(() => {
-        if (step !== 2 || !leafletLoaded || !mapRef.current || mapInstanceRef.current) return;
-
-        const L = window.L;
-        
-        // Create map
-        const map = L.map(mapRef.current).setView(
-            [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
-            12
-        );
-
-        // Add map layer (OpenStreetMap)
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }).addTo(map);
-
-        // Warehouse marker
-        const warehouseIcon = L.divIcon({
-            html: '<div style="background-color: #3b82f6; width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3); font-size: 20px;">🏢</div>',
-            className: '',
-            iconSize: [40, 40],
-            iconAnchor: [20, 20]
-        });
-
-        warehouseMarkerRef.current = L.marker(
-            [WAREHOUSE_LOCATION.lat, WAREHOUSE_LOCATION.lng],
-            { icon: warehouseIcon }
-        ).addTo(map);
-
-        warehouseMarkerRef.current.bindPopup(
-            `<strong>${WAREHOUSE_LOCATION.address}</strong>`
-        );
-
-        // Click on map to select location
-        map.on('click', (e) => {
-            updateDeliveryLocation(e.latlng.lat, e.latlng.lng);
-        });
-
-        // Add search control
-        const geocoder = L.Control.Geocoder.nominatim();
-        L.Control.geocoder({
-            geocoder: geocoder,
-            defaultMarkGeocode: false,
-            placeholder: 'Buscar dirección...',
-            errorMessage: 'No se encontró la dirección'
-        }).on('markgeocode', (e) => {
-            const { center, name } = e.geocode;
-            updateDeliveryLocation(center.lat, center.lng);
-            setFormData(prev => ({ ...prev, address: name }));
-            map.setView(center, 15);
-        }).addTo(map);
-
-        mapInstanceRef.current = map;
-
-        // Cleanup
-        return () => {
-            if (mapInstanceRef.current) {
-                mapInstanceRef.current.remove();
-                mapInstanceRef.current = null;
-                deliveryMarkerRef.current = null;
-                routeLineRef.current = null;
-            }
-        };
-    }, [step, leafletLoaded, updateDeliveryLocation]);
 
 const handleSubmit = async (e) => {
 e.preventDefault();
@@ -795,10 +568,7 @@ return (
                         {step === 2 && (
                             <form id="step2-form" className="step-form step-form-shipping" onSubmit={(e) => {
                                 e.preventDefault();
-                                if (!mapData.selectedLocation) {
-                                    setError('Por favor selecciona una ubicación en el mapa');
-                                    return;
-                                }
+                                setError('');
                                 setStep(3);
                             }}>
                                 <h3>Detalles de Entrega</h3>
@@ -868,71 +638,20 @@ return (
                                     </div>
                                 </div>
 
-                                {/* Map Section - At the bottom */}
-                                <div className="shipping-map-section">
-                                    <div className="map-header">
-                                        <h4>📍 Ubicación de Entrega</h4>
-                                        <button
-                                            type="button"
-                                            onClick={getCurrentLocation}
-                                            className="btn-location"
-                                        >
-                                            🧭 Mi Ubicación
-                                        </button>
-                                    </div>
-                                    
-                                    <div 
-                                        ref={mapRef}
-                                        className="shipping-map-container"
-                                    />
-                                    
-                                    <div className="map-instructions">
-                                        <p>🔍 Usa el buscador en el mapa para encontrar direcciones</p>
-                                        <p>👆 Haz clic en cualquier punto del mapa para seleccionar</p>
-                                        <p>📍 Arrastra el marcador rojo para ajustar la posición</p>
-                                    </div>
-
-                                    {/* Shipping Cost Card */}
-                                    {mapData.distance && (
-                                        <div className="shipping-cost-card">
-                                            <div className="shipping-cost-header">
-                                                <span>💵 Costo de Envío</span>
-                                            </div>
-                                            <div className="shipping-cost-details">
-                                                <div className="shipping-cost-row">
-                                                    <span>Distancia:</span>
-                                                    <span className="shipping-distance">{mapData.distance.toFixed(2)} km</span>
-                                                </div>
-                                                <div className="shipping-cost-row total">
-                                                    <span>Envío:</span>
-                                                    <span className="shipping-price">{formatCurrency(mapData.shippingCost, currencyCode)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-
-                                    {/* Shipping Rates Table */}
-                                    <div className="shipping-rates-table">
-                                        <h5>Tarifas de Envío</h5>
-                                        <div className="rates-list">
-                                            {PRICE_RANGES.map((range, index) => {
-                                                const isActive = mapData.distance && 
-                                                    mapData.distance <= range.maxDistance && 
-                                                    (index === 0 || mapData.distance > PRICE_RANGES[index - 1].maxDistance);
-                                                
-                                                return (
-                                                    <div 
-                                                        key={index}
-                                                        className={`rate-item ${isActive ? 'active' : ''}`}
-                                                    >
-                                                        <span className="rate-label">{range.label}</span>
-                                                        <span className="rate-price">{formatCurrency(range.price, currencyCode)}</span>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-                                    </div>
-                                </div>
+                                <DeliveryMap
+                                    mapData={mapData}
+                                    setMapData={setMapData}
+                                    onAddressSelect={(address) => {
+                                        setFormData(prev => ({ ...prev, address }));
+                                    }}
+                                    onError={setError}
+                                    currencyCode={currencyCode}
+                                    addressFields={{
+                                        address: formData.address,
+                                        sector: formData.sector,
+                                        city: formData.city
+                                    }}
+                                />
                             </form>
                         )}
 

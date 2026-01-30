@@ -319,17 +319,19 @@
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
+    font-size: 1rem;
+    font-weight: 400;
 }
 
 .summary-row.shipping-row {
-    color: var(--gray-600);
-    font-size: 0.95rem;
+    font-size: 1rem;
+    font-weight: 400;
 }
 
 .summary-row.shipping-row .shipping-pending {
     color: var(--gray-400);
-    font-style: italic;
-    font-size: 0.85rem;
+    font-size: 1rem;
+    font-weight: 400;
 }
 
 .summary-row.distance-row {

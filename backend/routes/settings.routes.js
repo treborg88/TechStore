@@ -7,6 +7,42 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { singleImageUpload } = require('../middleware/upload');
 const { encryptSetting, decryptSetting } = require('../services/encryption.service');
 
+// Public settings that can be exposed to the frontend (no sensitive data)
+const PUBLIC_SETTINGS = [
+    'siteName', 'siteIcon', 'heroTitle', 'heroDescription', 'heroPrimaryBtn', 
+    'heroSecondaryBtn', 'heroImage', 'headerBgColor', 'headerTransparency',
+    'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor', 'textColor',
+    'productDetailHeroImage', 'categoryFiltersConfig', 'productCardConfig',
+    'currencyCode', 'defaultCurrency', 'storePhone', 'storeAddress',
+    // Contact page settings
+    'contactTitle', 'contactSubtitle', 'contactCompany', 'contactEmail', 
+    'contactPhone', 'contactWhatsapp', 'contactAddress', 'contactHours',
+    'contactSupportLine', 'contactMapUrl'
+];
+
+/**
+ * GET /api/settings/public
+ * Get public settings (no auth required)
+ */
+router.get('/public', async (req, res) => {
+    try {
+        const settings = await statements.getSettings();
+        
+        // Only return public settings (filter out sensitive data)
+        const settingsObj = {};
+        for (const { id, value } of settings) {
+            if (PUBLIC_SETTINGS.includes(id)) {
+                settingsObj[id] = value;
+            }
+        }
+        
+        res.json(settingsObj);
+    } catch (error) {
+        console.error('Error obteniendo ajustes públicos:', error);
+        res.status(500).json({ message: 'Error al obtener los ajustes' });
+    }
+});
+
 /**
  * GET /api/settings
  * Get all settings (admin only)

@@ -434,22 +434,24 @@
   display: flex;
   justify-content: space-between;
   padding: 2px 0;
-  font-weight: 600;
+  font-weight: 400;
   color: #334155;
-  font-size: 0.95rem;
+  font-size: 1rem;
 }
 
 .total-row {
   display: flex;
   justify-content: space-between;
   padding: 2px 0;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  font-weight: 400;
   color: #334155;
 }
 
 .total-row.shipping-row {
-  font-size: 0.85rem;
-  color: #64748b;
+  font-size: 1rem;
+  font-weight: 400;
+  color: #334155;
 }
 
 .grand-total {

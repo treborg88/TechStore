@@ -35,7 +35,8 @@ export default function Contact({ user }) {
     const loadSettings = async () => {
       setLoading(true);
       try {
-        const response = await apiFetch(apiUrl('/settings'));
+        // Use public endpoint for loading contact info (no auth required)
+        const response = await apiFetch(apiUrl('/settings/public'));
         if (!response.ok) return;
         const data = await response.json();
         const nextData = { ...defaultContactData };

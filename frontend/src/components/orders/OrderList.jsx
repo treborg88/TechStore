@@ -431,7 +431,7 @@ export default function OrderList({
 									{order.customer_name}
 								</td>
 								<td data-label="Email">{order.customer_email}</td>
-								<td className="admin-table-price" data-label="Total">{formatCurrency(order.total, currencyCode)}</td>
+								<td className="admin-table-price" data-label="Total">{formatCurrency((order.total || 0) + (order.shipping_cost || 0), currencyCode)}</td>
 								<td data-label="Pago">
 									<span className={`admin-chip payment-${order.payment_method || 'cash'}`}>
 										{(order.payment_method === 'cash' || !order.payment_method) && '💵 Efectivo'}
@@ -583,7 +583,7 @@ export default function OrderList({
 
 					<div className="mobile-order-row">
 						<span className="mobile-order-label">Total</span>
-						<span className="mobile-order-value">{formatCurrency(order.total, currencyCode)}</span>
+						<span className="mobile-order-value">{formatCurrency((order.total || 0) + (order.shipping_cost || 0), currencyCode)}</span>
 					</div>
 
 					<div className="mobile-order-row">

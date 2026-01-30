@@ -571,7 +571,8 @@ function App() {
       }
 
       try {
-        const response = await apiFetch(apiUrl('/settings'));
+        // Use public endpoint (no auth required) for frontend settings
+        const response = await apiFetch(apiUrl('/settings/public'));
         if (response.ok) {
           const data = await response.json();
           applySettings(data);
