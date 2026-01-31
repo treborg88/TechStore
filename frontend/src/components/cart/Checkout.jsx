@@ -242,7 +242,8 @@ e.preventDefault();
 
                 if (!res.ok) {
                     const errorData = await res.json().catch(() => ({}));
-                    console.error('Invoice email API error:', errorData.message || res.statusText);
+                    const errorMsg = errorData.detail || errorData.message || res.statusText;
+                    console.error('Invoice email API error:', errorMsg);
                     return false;
                 }
 

@@ -508,11 +508,10 @@ router.post('/:id/invoice-email', async (req, res) => {
         console.log('invoice-email: Attempting to send to', recipientEmail, 'for order', order.order_number || orderId);
 
         // First attempt: send with PDF attachment
-        let emailSent = false;
         let attachmentError = null;
         
         try {
-            emailSent = await sendOrderEmail({
+            await sendOrderEmail({
                 order,
                 items: itemDetails,
                 customer: {
@@ -523,40 +522,41 @@ router.post('/:id/invoice-email', async (req, res) => {
                 shipping: { address: shippingAddress },
                 attachment
             });
+            console.log('invoice-email: Sent successfully with attachment to', recipientEmail);
+            return res.json({ message: 'Correo enviado con adjunto', email: recipientEmail });
         } catch (error) {
             attachmentError = error;
             console.error('invoice-email: Error with attachment, will try without:', error.message);
         }
 
-        if (emailSent) {
-            console.log('invoice-email: Sent successfully with attachment to', recipientEmail);
-            return res.json({ message: 'Correo enviado con adjunto', email: recipientEmail });
-        }
-
         // Fallback: try without attachment
         console.log('invoice-email: Trying fallback without attachment...');
-        const fallbackSent = await sendOrderEmail({
-            order,
-            items: itemDetails,
-            customer: {
-                name: order.customer_name || 'Cliente',
-                email: recipientEmail,
-                phone: order.customer_phone || ''
-            },
-            shipping: { address: shippingAddress }
-        });
-
-        if (fallbackSent) {
+        try {
+            await sendOrderEmail({
+                order,
+                items: itemDetails,
+                customer: {
+                    name: order.customer_name || 'Cliente',
+                    email: recipientEmail,
+                    phone: order.customer_phone || ''
+                },
+                shipping: { address: shippingAddress }
+            });
             console.log('invoice-email: Sent without attachment to', recipientEmail);
             return res.json({ message: 'Correo enviado sin adjunto', email: recipientEmail });
+        } catch (fallbackError) {
+            // Both attempts failed
+            console.error('invoice-email: Both attempts failed for order', orderId);
+            console.error('invoice-email: Attachment error:', attachmentError?.message);
+            console.error('invoice-email: Fallback error:', fallbackError?.message);
+            
+            // Return detailed error message
+            const errorDetail = fallbackError?.message || attachmentError?.message || 'Error desconocido';
+            return res.status(500).json({ 
+                message: 'No se pudo enviar el correo. Verifica la configuración de email.',
+                detail: errorDetail
+            });
         }
-
-        // Both attempts failed
-        console.error('invoice-email: Both attempts failed for order', orderId);
-        return res.status(500).json({ 
-            message: 'No se pudo enviar el correo. Verifica la configuración de email.',
-            detail: attachmentError?.message 
-        });
     } catch (error) {
         console.error('invoice-email: Server error:', error);
         return res.status(500).json({ message: 'Error interno del servidor' });

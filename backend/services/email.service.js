@@ -126,14 +126,14 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         const recipientEmail = (customer?.email || '').trim();
         if (!recipientEmail) {
             console.error('sendOrderEmail: No recipient email provided');
-            return false;
+            throw new Error('No se proporcionó email de destinatario');
         }
 
         // Basic email format validation
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(recipientEmail)) {
             console.error('sendOrderEmail: Invalid email format:', recipientEmail);
-            return false;
+            throw new Error(`Formato de email inválido: ${recipientEmail}`);
         }
 
         const settings = await getSettingsMap();
@@ -141,7 +141,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         
         if (!transporter) {
             console.warn('No email transporter available. Missing mailUser/mailPassword.');
-            return false;
+            throw new Error('Transporte de email no configurado. Falta mailUser/mailPassword en configuración o variables de entorno.');
         }
 
         const fromEmail = settings.mailFrom || settings.mailUser || EMAIL_USER;
@@ -241,7 +241,8 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
     } catch (error) {
         console.error('Error enviando email de orden:', error.message);
         console.error('Email details - To:', customer?.email, 'Order:', order?.order_number || order?.id);
-        return false;
+        // Re-throw the error with details so caller can handle it
+        throw error;
     }
 };
 

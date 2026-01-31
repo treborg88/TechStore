@@ -131,112 +131,32 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
       url: shareUrl,
     };
 
+    // Try native share API (works on Android, iOS, and some desktop browsers)
     if (navigator.share) {
       try {
         await navigator.share(shareData);
+        return; // Success - exit early
       } catch (err) {
-        // User cancelled or error - fallback to copy
-        if (err.name !== 'AbortError') {
-          await handleCopyLink();
-        }
+        // User cancelled sharing - don't show error
+        if (err.name === 'AbortError') return;
+        // Other errors - fallback to copy
+        console.warn('Native share failed:', err.message);
       }
-    } else {
-      await handleCopyLink();
     }
+    // Fallback for desktop browsers without native share
+    await handleCopyLink();
   };
 
-  const ShareMenu = ({ buttonClassName = '', label = 'Compartir' }) => {
-    const [open, setOpen] = useState(false);
-    const [dropDirection, setDropDirection] = useState('up');
-    const menuRef = useRef(null);
-    const buttonRef = useRef(null);
-
-    useEffect(() => {
-      if (!open) return;
-      const buttonRect = buttonRef.current?.getBoundingClientRect();
-      if (buttonRect) {
-        const spaceAbove = buttonRect.top;
-        const spaceBelow = window.innerHeight - buttonRect.bottom;
-        const preferredHeight = 240;
-        if (spaceAbove < preferredHeight && spaceBelow > spaceAbove) {
-          setDropDirection('down');
-        } else {
-          setDropDirection('up');
-        }
-      }
-      const handleClickOutside = (event) => {
-        if (menuRef.current && !menuRef.current.contains(event.target)) {
-          setOpen(false);
-        }
-      };
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }, [open]);
-
-    const handleCopy = async () => {
-      await handleCopyLink();
-      setOpen(false);
-    };
-
-    const closeMenu = () => setOpen(false);
-
-    return (
-      <div className="share-menu" ref={menuRef}>
-        <button
-          type="button"
-          className={`share-toggle-btn ${buttonClassName}`}
-          onClick={() => setOpen((prev) => !prev)}
-          ref={buttonRef}
-        >
-          🔗 {label}
-        </button>
-        {open && (
-          <div className={`share-dropdown ${dropDirection === 'down' ? 'drop-down' : 'drop-up'}`}>
-            <button type="button" className="share-option" onClick={handleShare}>
-              📲 Compartir
-            </button>
-            <button type="button" className="share-option" onClick={handleCopy}>
-              🔗 Copiar enlace
-            </button>
-            <a
-              className="share-option"
-              href={`mailto:?subject=${encodeURIComponent(shareText)}&body=${encodeURIComponent(shareUrl)}`}
-              onClick={closeMenu}
-            >
-              ✉️ Email
-            </a>
-            <a
-              className="share-option"
-              href={`https://wa.me/?text=${encodeURIComponent(`${shareText} ${shareUrl}`)}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={closeMenu}
-            >
-              💬 WhatsApp
-            </a>
-            <a
-              className="share-option"
-              href={`https://www.messenger.com/t/?link=${encodeURIComponent(shareUrl)}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={closeMenu}
-            >
-              💙 Messenger
-            </a>
-            <a
-              className="share-option"
-              href={`https://www.instagram.com/?url=${encodeURIComponent(shareUrl)}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={closeMenu}
-            >
-              📸 Instagram
-            </a>
-          </div>
-        )}
-      </div>
-    );
-  };
+  // Simple share button - triggers native share or copies link
+  const ShareButton = ({ buttonClassName = '', label = 'Compartir' }) => (
+    <button
+      type="button"
+      className={`share-toggle-btn ${buttonClassName}`}
+      onClick={handleShare}
+    >
+      🔗 {label}
+    </button>
+  );
 
   const handleCopyLink = async () => {
     try {
@@ -299,7 +219,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
               >
                 🛒 Comprar Ahora
               </button>
-              <ShareMenu buttonClassName="secondary-button" label="Compartir" />
+              <ShareButton buttonClassName="secondary-button" label="Compartir" />
             </div>
           </div>
         </div>
@@ -384,7 +304,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
               >
                 {isOutOfStock ? 'Agotado' : '🛒 Agregar'}
               </button>
-              <ShareMenu label="Compartir" />
+              <ShareButton label="Compartir" />
             </div>
           </div>
         </div>

@@ -338,20 +338,37 @@
 }
 
 @media (max-width: 640px) {
+  /* Action buttons - ambos en la misma fila */
   .action-buttons {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    display: flex;
+    flex-direction: row;
     gap: 0.5rem;
   }
 
   .add-to-cart-btn,
   .share-toggle-btn {
+    flex: 1;
     max-width: none;
-    width: 100%;
-    padding: 0.6rem 0.5rem;
-    font-size: 0.85rem;
+    padding: 0.75rem 0.5rem;
+    font-size: 0.9rem;
     white-space: nowrap;
     justify-content: center;
+  }
+
+  /* Hero buttons en móvil - mantener en fila */
+  .product-detail-page .hero-buttons {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 0.5rem;
+  }
+
+  .product-detail-page .hero-buttons .primary-button,
+  .product-detail-page .hero-buttons .share-toggle-btn {
+    flex: 1;
+    min-width: 0;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.85rem;
   }
 }
 
