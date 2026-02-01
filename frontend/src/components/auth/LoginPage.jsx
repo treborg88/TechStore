@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { login, register, forgotPassword, resetPassword } from '../../services/authService';
+import { login, register, resetPassword } from '../../services/authService';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmailVerification from './EmailVerification';
