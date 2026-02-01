@@ -9,6 +9,7 @@ import EmailVerification from '../auth/EmailVerification';
 import LoginPage from '../auth/LoginPage';
 import DeliveryMap from './DeliveryMap';
 import StripePayment from './StripePayment';
+import PayPalPayment from './PayPalPayment';
 import '../products/ProductDetail.css';
 import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -45,6 +46,8 @@ const [step, setStep] = useState(1);
     const [friendlyLoginMessage, setFriendlyLoginMessage] = useState('');
     const [showStripePayment, setShowStripePayment] = useState(false);
     const [pendingStripeOrder, setPendingStripeOrder] = useState(null);
+    const [showPayPalPayment, setShowPayPalPayment] = useState(false);
+    const [pendingPayPalOrder, setPendingPayPalOrder] = useState(null);
     
     // Payment methods configuration from settings
     const [paymentMethods, setPaymentMethods] = useState({
@@ -290,7 +293,7 @@ e.preventDefault();
         }
 
         // Validar si el método de pago está disponible
-        if (!['cash', 'transfer', 'stripe'].includes(formData.paymentMethod)) {
+        if (!['cash', 'transfer', 'stripe', 'paypal'].includes(formData.paymentMethod)) {
             setError('Método de pago no válido');
             setIsSubmitting(false);
             return;
@@ -368,6 +371,15 @@ e.preventDefault();
         setShowStripePayment(true);
         setIsSubmitting(false);
         return; // Wait for Stripe payment to complete
+    }
+
+    // For PayPal payments, show payment form instead of completing order
+    if (formData.paymentMethod === 'paypal') {
+        const orderTotal = total + (mapData.shippingCost || 0);
+        setPendingPayPalOrder({ ...order, total: orderTotal });
+        setShowPayPalPayment(true);
+        setIsSubmitting(false);
+        return; // Wait for PayPal payment to complete
     }
     
     // Guardar items confirmados para la factura antes de limpiar el carrito
@@ -822,6 +834,60 @@ return (
                                             setPendingStripeOrder(null);
                                         }}
                                     />
+                                ) : showPayPalPayment && pendingPayPalOrder ? (
+                                    /* Show PayPal payment form when selected */
+                                    <PayPalPayment
+                                        amount={pendingPayPalOrder.total}
+                                        currency="USD"
+                                        orderId={pendingPayPalOrder.id}
+                                        customerEmail={formData.email}
+                                        onSuccess={async (paymentResult) => {
+                                            // Confirm payment with backend to update order status
+                                            try {
+                                                await apiFetch(apiUrl('/payments/paypal/confirm'), {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        paypalOrderId: paymentResult.id,
+                                                        orderId: pendingPayPalOrder.id
+                                                    })
+                                                });
+                                            } catch (err) {
+                                                console.error('Error confirming PayPal payment:', err);
+                                            }
+                                            
+                                            // Update order with paid status for display
+                                            const paidOrder = { 
+                                                ...pendingPayPalOrder, 
+                                                status: 'paid',
+                                                payment_status: 'paid',
+                                                payment_method: 'paypal'
+                                            };
+                                            
+                                            // Save items before clearing cart for invoice
+                                            const itemsForInvoice = [...cartItems];
+                                            
+                                            setShowPayPalPayment(false);
+                                            setOrderCreated(paidOrder);
+                                            setConfirmedItems(itemsForInvoice);
+                                            localStorage.removeItem('checkout_progress');
+                                            
+                                            // Send invoice email with PDF for PayPal payment
+                                            await sendInvoiceEmail(paidOrder, itemsForInvoice);
+                                            
+                                            if (onClearCart) onClearCart();
+                                            if (onOrderComplete) onOrderComplete(paidOrder);
+                                            setStep(5);
+                                        }}
+                                        onError={(error) => {
+                                            console.error('PayPal payment error:', error);
+                                            setError('Error en el pago con PayPal: ' + (error.message || 'Intenta de nuevo'));
+                                        }}
+                                        onCancel={() => {
+                                            setShowPayPalPayment(false);
+                                            setPendingPayPalOrder(null);
+                                        }}
+                                    />
                                 ) : (
                                     <div className="payment-methods">
                                         {/* Dynamically render enabled payment methods */}
@@ -990,13 +1056,13 @@ return (
                 {step === 4 && (
                     <button 
                         type="button" 
-                        className={`btn-confirm ${showStripePayment ? 'btn-disabled-stripe' : ''}`}
+                        className={`btn-confirm ${(showStripePayment || showPayPalPayment) ? 'btn-disabled-stripe' : ''}`}
                         onClick={handleSubmit} 
-                        disabled={isSubmitting || showStripePayment}
-                        title={showStripePayment ? 'Complete el pago para continuar' : ''}
+                        disabled={isSubmitting || showStripePayment || showPayPalPayment}
+                        title={(showStripePayment || showPayPalPayment) ? 'Complete el pago para continuar' : ''}
                     >
-                        {isSubmitting ? 'Procesando...' : (showStripePayment ? 'Continuar' : 'Confirmar Todo el Pedido')} 
-                        <span className="btn-icon">{showStripePayment ? '→' : '✓'}</span>
+                        {isSubmitting ? 'Procesando...' : ((showStripePayment || showPayPalPayment) ? 'Continuar' : 'Confirmar Todo el Pedido')} 
+                        <span className="btn-icon">{(showStripePayment || showPayPalPayment) ? '→' : '✓'}</span>
                     </button>
                 )}
             </div>

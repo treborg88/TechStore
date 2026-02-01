@@ -1,7 +1,14 @@
-// routes/payments.routes.js - Stripe payment processing
+// routes/payments.routes.js - Stripe and PayPal payment processing
 const express = require('express');
 const router = express.Router();
-const { STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET } = require('../config');
+const { 
+    STRIPE_SECRET_KEY, 
+    STRIPE_PUBLISHABLE_KEY, 
+    STRIPE_WEBHOOK_SECRET,
+    PAYPAL_CLIENT_ID,
+    PAYPAL_CLIENT_SECRET,
+    PAYPAL_MODE
+} = require('../config');
 const { statements } = require('../database');
 const { authenticateToken } = require('../middleware/auth');
 const { decryptSetting } = require('../services/encryption.service');
@@ -351,6 +358,245 @@ router.delete('/saved-cards/:cardId', authenticateToken, async (req, res) => {
         console.error('Error deleting saved card:', error.message);
         res.status(500).json({ 
             message: 'Error al eliminar la tarjeta',
+            detail: error.message 
+        });
+    }
+});
+
+// ============================================
+// PayPal Payment Routes
+// ============================================
+
+/**
+ * Helper: Get PayPal credentials from DB or env vars
+ * DB settings take priority over env vars
+ */
+async function getPayPalCredentials() {
+    try {
+        const settings = await statements.getSettings();
+        const settingsObj = {};
+        for (const { id, value } of settings) {
+            settingsObj[id] = value;
+        }
+        
+        // Get clientId from DB
+        let clientId = settingsObj.paypalClientId || null;
+        
+        // Get clientSecret from DB (encrypted)
+        let clientSecret = null;
+        if (settingsObj.paypalClientSecret) {
+            try {
+                clientSecret = decryptSetting(settingsObj.paypalClientSecret);
+            } catch {
+                clientSecret = null;
+            }
+        }
+        
+        // Get test mode from payment methods config
+        let testMode = true;
+        try {
+            const paymentConfig = typeof settingsObj.paymentMethodsConfig === 'string'
+                ? JSON.parse(settingsObj.paymentMethodsConfig)
+                : settingsObj.paymentMethodsConfig;
+            testMode = paymentConfig?.paypal?.testMode !== false;
+        } catch {
+            testMode = true;
+        }
+        
+        // Fallback to env vars if no DB config
+        if (!clientId) clientId = PAYPAL_CLIENT_ID;
+        if (!clientSecret) clientSecret = PAYPAL_CLIENT_SECRET;
+        
+        // Use env PAYPAL_MODE or derive from testMode
+        const mode = !testMode ? 'live' : (PAYPAL_MODE || 'sandbox');
+        
+        return { clientId, clientSecret, mode };
+    } catch (error) {
+        console.error('Error getting PayPal credentials:', error.message);
+        // Fallback to env vars
+        return { 
+            clientId: PAYPAL_CLIENT_ID, 
+            clientSecret: PAYPAL_CLIENT_SECRET, 
+            mode: PAYPAL_MODE || 'sandbox' 
+        };
+    }
+}
+
+/**
+ * Helper: Get PayPal access token
+ */
+async function getPayPalAccessToken() {
+    const { clientId, clientSecret, mode } = await getPayPalCredentials();
+    
+    if (!clientId || !clientSecret) {
+        return null;
+    }
+    
+    const baseUrl = mode === 'live' 
+        ? 'https://api-m.paypal.com' 
+        : 'https://api-m.sandbox.paypal.com';
+    
+    try {
+        const auth = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
+        const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Basic ${auth}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: 'grant_type=client_credentials'
+        });
+        
+        if (!response.ok) {
+            console.error('PayPal auth failed:', await response.text());
+            return null;
+        }
+        
+        const data = await response.json();
+        return { accessToken: data.access_token, baseUrl };
+    } catch (error) {
+        console.error('Error getting PayPal access token:', error.message);
+        return null;
+    }
+}
+
+/**
+ * GET /api/payments/paypal/config
+ * Get PayPal client ID for frontend
+ */
+router.get('/paypal/config', async (req, res) => {
+    const { clientId } = await getPayPalCredentials();
+    
+    if (!clientId) {
+        return res.status(503).json({ message: 'PayPal no está configurado. Configure las credenciales en Ajustes > Pagos.' });
+    }
+    
+    res.json({ 
+        clientId: clientId,
+        currency: 'USD' // PayPal prefers USD, will convert from DOP
+    });
+});
+
+/**
+ * POST /api/payments/paypal/create-order
+ * Create a PayPal order
+ */
+router.post('/paypal/create-order', async (req, res) => {
+    const auth = await getPayPalAccessToken();
+    
+    if (!auth) {
+        return res.status(503).json({ message: 'PayPal no está configurado. Configure las credenciales en Ajustes > Pagos.' });
+    }
+    
+    const { amount, currency = 'USD', orderId, description = 'Compra en TechStore' } = req.body;
+    
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ message: 'Monto inválido' });
+    }
+    
+    try {
+        const response = await fetch(`${auth.baseUrl}/v2/checkout/orders`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${auth.accessToken}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                intent: 'CAPTURE',
+                purchase_units: [{
+                    amount: {
+                        currency_code: currency.toUpperCase(),
+                        value: amount.toFixed(2)
+                    },
+                    description: description,
+                    custom_id: orderId ? String(orderId) : undefined
+                }]
+            })
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('PayPal create order error:', errorData);
+            return res.status(500).json({ message: 'Error al crear orden de PayPal' });
+        }
+        
+        const order = await response.json();
+        
+        res.json({
+            orderId: order.id,
+            status: order.status
+        });
+    } catch (error) {
+        console.error('Error creating PayPal order:', error.message);
+        res.status(500).json({ 
+            message: 'Error al crear el pago con PayPal',
+            detail: error.message 
+        });
+    }
+});
+
+/**
+ * POST /api/payments/paypal/capture-order
+ * Capture (complete) a PayPal order after approval
+ */
+router.post('/paypal/capture-order', async (req, res) => {
+    const auth = await getPayPalAccessToken();
+    
+    if (!auth) {
+        return res.status(503).json({ message: 'PayPal no está configurado' });
+    }
+    
+    const { paypalOrderId, orderId } = req.body;
+    
+    if (!paypalOrderId) {
+        return res.status(400).json({ message: 'PayPal Order ID requerido' });
+    }
+    
+    try {
+        const response = await fetch(`${auth.baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${auth.accessToken}`,
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (!response.ok) {
+            const errorData = await response.text();
+            console.error('PayPal capture error:', errorData);
+            return res.status(500).json({ message: 'Error al capturar el pago de PayPal' });
+        }
+        
+        const captureData = await response.json();
+        
+        // Check if payment was captured successfully
+        if (captureData.status === 'COMPLETED') {
+            // Update order status if orderId provided
+            if (orderId) {
+                await statements.updateOrder(orderId, {
+                    status: 'paid',
+                    payment_method: 'paypal'
+                });
+                console.log('Order', orderId, 'updated to paid status via PayPal');
+            }
+            
+            res.json({
+                success: true,
+                status: captureData.status,
+                captureId: captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id,
+                message: 'Pago completado exitosamente'
+            });
+        } else {
+            res.json({
+                success: false,
+                status: captureData.status,
+                message: `Estado del pago: ${captureData.status}`
+            });
+        }
+    } catch (error) {
+        console.error('Error capturing PayPal order:', error.message);
+        res.status(500).json({ 
+            message: 'Error al procesar el pago con PayPal',
             detail: error.message 
         });
     }

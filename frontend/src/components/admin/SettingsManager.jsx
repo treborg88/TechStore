@@ -93,7 +93,10 @@ function SettingsManager() {
     paymentMethodsConfig: clonePaymentMethodsConfig(),
     // Stripe API Keys (stored separately for encryption)
     stripePublishableKey: '',
-    stripeSecretKey: ''
+    stripeSecretKey: '',
+    // PayPal API Keys (stored separately for encryption)
+    paypalClientId: '',
+    paypalClientSecret: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1098,7 +1101,7 @@ function SettingsManager() {
                           />
                           <label htmlFor="payment-stripe" className="toggle-label">
                             <span className="payment-icon">💳</span>
-                            <span className="payment-name">Tarjeta de Crédito/Débito</span>
+                            <span className="payment-name">Sripe</span>
                           </label>
                         </div>
                         <span className={`status-badge ${settings.paymentMethodsConfig?.stripe?.enabled ? 'active' : ''}`}>
@@ -1200,8 +1203,8 @@ function SettingsManager() {
                       </div>
                     </div>
 
-                    {/* PayPal (Coming Soon) */}
-                    <div className={`payment-method-card ${settings.paymentMethodsConfig?.paypal?.enabled ? 'enabled' : 'disabled'} coming-soon`}>
+                    {/* PayPal */}
+                    <div className={`payment-method-card ${settings.paymentMethodsConfig?.paypal?.enabled ? 'enabled' : 'disabled'}`}>
                       <div className="payment-method-header">
                         <div className="payment-method-toggle">
                           <input
@@ -1215,12 +1218,10 @@ function SettingsManager() {
                                 paypal: { ...prev.paymentMethodsConfig?.paypal, enabled: e.target.checked }
                               }
                             }))}
-                            disabled
                           />
                           <label htmlFor="payment-paypal" className="toggle-label">
                             <span className="payment-icon">🅿️</span>
                             <span className="payment-name">PayPal</span>
-                            <span className="coming-soon-badge">Próximamente</span>
                           </label>
                         </div>
                         <span className={`status-badge ${settings.paymentMethodsConfig?.paypal?.enabled ? 'active' : ''}`}>
@@ -1228,9 +1229,97 @@ function SettingsManager() {
                         </span>
                       </div>
                       <div className="payment-method-details">
-                        <p className="helper-text">
-                          🔜 La integración con PayPal estará disponible próximamente.
-                        </p>
+                        <div className="form-group">
+                          <label>Descripción</label>
+                          <input
+                            type="text"
+                            value={settings.paymentMethodsConfig?.paypal?.description || ''}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                paypal: { ...prev.paymentMethodsConfig?.paypal, description: e.target.value }
+                              }
+                            }))}
+                            placeholder="Paga con tu cuenta PayPal"
+                          />
+                        </div>
+                        
+                        {/* PayPal API Configuration */}
+                        <div className="stripe-config-section paypal-config-section">
+                          <h4 className="stripe-config-title">🔑 Credenciales de PayPal</h4>
+                          
+                          <div className="form-group">
+                            <label className="flex-label">
+                              Modo de Pruebas
+                              <span className={`mode-badge ${settings.paymentMethodsConfig?.paypal?.testMode !== false ? 'test' : 'live'}`}>
+                                {settings.paymentMethodsConfig?.paypal?.testMode !== false ? '🧪 Sandbox' : '🔴 Producción'}
+                              </span>
+                            </label>
+                            <div className="toggle-switch-container">
+                              <label className="toggle-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.paymentMethodsConfig?.paypal?.testMode !== false}
+                                  onChange={(e) => setSettings(prev => ({
+                                    ...prev,
+                                    paymentMethodsConfig: {
+                                      ...prev.paymentMethodsConfig,
+                                      paypal: { ...prev.paymentMethodsConfig?.paypal, testMode: e.target.checked }
+                                    }
+                                  }))}
+                                />
+                                <span className="toggle-slider"></span>
+                              </label>
+                              <span className="toggle-label-text">
+                                {settings.paymentMethodsConfig?.paypal?.testMode !== false 
+                                  ? 'Usa credenciales de Sandbox' 
+                                  : 'Usa credenciales de Producción'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="form-group">
+                            <label>
+                              Client ID
+                              <span className="key-hint">ID de la aplicación</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={settings.paypalClientId || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                paypalClientId: e.target.value
+                              }))}
+                              placeholder="AX..."
+                              className="stripe-key-input"
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label>
+                              Client Secret
+                              <span className="key-hint">Secreto de la aplicación</span>
+                            </label>
+                            <input
+                              type="password"
+                              value={settings.paypalClientSecret || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                paypalClientSecret: e.target.value
+                              }))}
+                              placeholder={settings.paypalClientSecret === '********' ? '••••••••' : 'EL...'}
+                              className="stripe-key-input"
+                            />
+                            <p className="helper-text warning">
+                              🔒 El Client Secret se guarda encriptado y nunca se muestra.
+                            </p>
+                          </div>
+                          
+                          <p className="helper-text">
+                            📋 Obtén tus credenciales en <a href="https://developer.paypal.com/dashboard/applications" target="_blank" rel="noopener noreferrer">developer.paypal.com</a>
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -15,6 +15,7 @@
     "test:e2e:report": "playwright show-report tests/playwright-report"
   },
   "dependencies": {
+    "@paypal/react-paypal-js": "^8.9.2",
     "@react-pdf/renderer": "^4.3.1",
     "@stripe/react-stripe-js": "^5.6.0",
     "@stripe/stripe-js": "^8.7.0",

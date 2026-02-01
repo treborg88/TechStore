@@ -56,7 +56,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
         // Convert to object and mask sensitive fields
         const settingsObj = {};
         for (const { id, value } of settings) {
-            if (id === 'mailPassword' || id === 'stripeSecretKey') {
+            if (id === 'mailPassword' || id === 'stripeSecretKey' || id === 'paypalClientSecret') {
                 // Don't send actual password/keys, just indicate if set
                 settingsObj[id] = value ? '********' : '';
             } else {
@@ -80,7 +80,7 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
         const settings = req.body;
         
         // Sensitive fields that should be encrypted and filtered if empty
-        const sensitiveFields = ['mailPassword', 'stripeSecretKey'];
+        const sensitiveFields = ['mailPassword', 'stripeSecretKey', 'paypalClientSecret'];
         
         // Filter out empty sensitive field updates
         const entries = Object.entries(settings).filter(([key, value]) => {
