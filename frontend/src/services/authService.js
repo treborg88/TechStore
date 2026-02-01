@@ -1,5 +1,5 @@
     // services/authService.js
-   import { apiFetch, apiUrl } from './apiClient';
+   import { apiFetch, apiUrl, refreshCsrfToken } from './apiClient';
 
     // Funciones de autenticación
     export const login = async (email, password) => {
@@ -24,6 +24,9 @@
         if (data.token) {
         localStorage.setItem('authToken', data.token);
         }
+        
+        // Refresh CSRF token after login for mobile compatibility
+        await refreshCsrfToken();
         
         return data.user;
     } catch (error) {
@@ -59,6 +62,9 @@
         if (data.token) {
         localStorage.setItem('authToken', data.token);
         }
+        
+        // Refresh CSRF token after registration for mobile compatibility
+        await refreshCsrfToken();
         
         return data.user;
     } catch (error) {

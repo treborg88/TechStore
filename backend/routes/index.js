@@ -6,6 +6,7 @@ const ordersRoutes = require('./orders.routes');
 const usersRoutes = require('./users.routes');
 const settingsRoutes = require('./settings.routes');
 const verificationRoutes = require('./verification.routes');
+const paymentsRoutes = require('./payments.routes');
 
 module.exports = {
     authRoutes,
@@ -14,5 +15,6 @@ module.exports = {
     ordersRoutes,
     usersRoutes,
     settingsRoutes,
-    verificationRoutes
+    verificationRoutes,
+    paymentsRoutes
 };

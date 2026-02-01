@@ -6,19 +6,28 @@ const createCsrfToken = () => crypto.randomBytes(32).toString('hex');
 
 const getCookieOptions = (req) => {
     const origin = req?.headers?.origin || '';
-    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1');
+    const host = req?.headers?.host || '';
+    const forwardedProto = req?.headers?.['x-forwarded-proto'] || '';
     
-    // Improved secure detection for proxies/tunnels (like devtunnels) where Origin might be missing on GET
-    // TRUST_PROXY must be enabled in express app for req.protocol to be reliable behind proxy
-    const isSecureProtocol = req.protocol === 'https';
+    const isLocal = origin.includes('localhost') || origin.includes('127.0.0.1') || 
+                    host.includes('localhost') || host.includes('127.0.0.1');
+    
+    // Check if connection is secure (HTTPS)
+    const isSecureProtocol = req.protocol === 'https' || forwardedProto === 'https';
     const isSecureOrigin = origin.startsWith('https://');
-    const isSecure = NODE_ENV === 'production' || isSecureOrigin || isSecureProtocol;
+    const isProduction = NODE_ENV === 'production';
+    
+    // For mobile/external access over HTTP, we need to be more permissive
+    const isExternalHttp = !isLocal && !isSecureProtocol && !isSecureOrigin;
+    
+    // Secure cookies only work over HTTPS
+    const secure = isSecureProtocol || isSecureOrigin;
+    
+    // sameSite: 'none' requires secure: true, otherwise use 'lax'
+    // For external HTTP access, use 'lax' to allow cookies
+    const sameSite = secure ? 'none' : 'lax';
 
-    const secure = isSecure;
-    // sameSite: 'none' requires secure: true
-    const sameSite = isLocal ? 'lax' : 'none';
-
-    return { secure, sameSite };
+    return { secure, sameSite, isExternalHttp };
 };
 
 const setCsrfCookie = (req, res) => {
@@ -79,6 +88,17 @@ const csrfProtection = (req, res, next) => {
         return next();
     }
 
+    // Skip auth endpoints that don't need CSRF protection
+    const csrfExemptPaths = [
+        '/api/auth/login',
+        '/api/auth/register',
+        '/api/auth/forgot-password',
+        '/api/auth/reset-password'
+    ];
+    if (csrfExemptPaths.some(path => req.path.startsWith(path))) {
+        return next();
+    }
+
     // Skip if no auth cookie (public endpoints)
     const hasAuthCookie = !!req.cookies?.auth_token;
     if (!hasAuthCookie) {
@@ -88,6 +108,19 @@ const csrfProtection = (req, res, next) => {
     // Validate CSRF token
     const csrfCookie = req.cookies['XSRF-TOKEN'];
     const csrfHeader = req.headers['x-csrf-token'];
+
+    // Log for debugging mobile issues
+    if (!csrfCookie || !csrfHeader) {
+        console.log('CSRF Debug:', {
+            method,
+            path: req.path,
+            hasAuthCookie,
+            hasCsrfCookie: !!csrfCookie,
+            hasCsrfHeader: !!csrfHeader,
+            origin: req.headers.origin,
+            userAgent: req.headers['user-agent']?.substring(0, 50)
+        });
+    }
 
     if (!csrfCookie || !csrfHeader || csrfCookie !== csrfHeader) {
         return res.status(403).json({ message: 'Token CSRF inválido o ausente' });

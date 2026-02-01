@@ -172,6 +172,37 @@
     font-weight: bold;
 }
 
+/* Bank info preview in payment method card */
+.bank-info-preview {
+    margin-top: 8px;
+    padding: 8px 10px;
+    background: var(--gray-100);
+    border-radius: 6px;
+    border-left: 3px solid var(--primary-color);
+}
+
+.bank-info-preview small {
+    color: var(--gray-600);
+    font-size: 0.8rem;
+    white-space: pre-line;
+    line-height: 1.4;
+}
+
+/* No payment methods message */
+.no-payment-methods {
+    text-align: center;
+    padding: 2rem;
+    background: var(--gray-50);
+    border-radius: 12px;
+    border: 2px dashed var(--gray-300);
+}
+
+.no-payment-methods p {
+    margin: 0;
+    color: var(--gray-600);
+    font-size: 1rem;
+}
+
 .badge-soon {
     font-size: 0.75rem;
     color: var(--accent-color);
@@ -408,6 +439,25 @@
 .btn-confirm:hover {
     transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(20, 184, 166, 0.4);
+}
+
+/* Disabled state when Stripe payment is active */
+.btn-confirm.btn-disabled-stripe {
+    background: linear-gradient(135deg, #94a3b8, #64748b);
+    box-shadow: none;
+    cursor: default;
+    opacity: 0.7;
+}
+
+.btn-confirm.btn-disabled-stripe:hover {
+    transform: none;
+    box-shadow: none;
+    cursor: default;
+}
+
+.btn-confirm:disabled {
+    cursor: default;
+    opacity: 0.7;
 }
 
 .success-overlay {

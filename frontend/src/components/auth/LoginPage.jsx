@@ -142,17 +142,10 @@ const handleChange = (e) => {
 
     const handleForgotPassword = async (e) => {
         if (e) e.preventDefault();
-        setLoading(true);
-        try {
-            await forgotPassword(formData.email);
-            toast.success('Código de recuperación enviado');
-            setIsForgotPassword(true);
-            setResetStep('verify_code');
-        } catch (err) {
-            toast.error(err.message);
-        } finally {
-            setLoading(false);
-        }
+        // First show the forgot password form, then user will enter email and submit
+        setIsForgotPassword(true);
+        setResetStep('verify_code');
+        setError('');
     };
 
     const handleResetPassword = async (email, code) => {

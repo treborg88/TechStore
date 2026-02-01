@@ -16,17 +16,11 @@ const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000;
 
 /**
  * GET /api/auth/csrf
- * Refresh CSRF token and clear any stale auth cookies
- * Called by frontend on login page mount to ensure clean state
+ * Get/refresh CSRF token
+ * Returns token in both cookie and response body for mobile compatibility
  */
 router.get('/csrf', (req, res) => {
-    // If there's an auth_token but no valid session, clear it
-    // This handles stale cookies from previous sessions
-    if (req.cookies?.auth_token) {
-        clearAuthCookies(req, res);
-    }
-    
-    // Set fresh CSRF cookie
+    // Always set fresh CSRF cookie and return token in response
     const csrfToken = setCsrfCookie(req, res);
     
     res.json({ success: true, csrfToken });

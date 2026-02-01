@@ -17,7 +17,9 @@ const PUBLIC_SETTINGS = [
     // Contact page settings
     'contactTitle', 'contactSubtitle', 'contactCompany', 'contactEmail', 
     'contactPhone', 'contactWhatsapp', 'contactAddress', 'contactHours',
-    'contactSupportLine', 'contactMapUrl'
+    'contactSupportLine', 'contactMapUrl',
+    // Payment methods configuration
+    'paymentMethodsConfig'
 ];
 
 /**

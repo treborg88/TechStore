@@ -33,6 +33,44 @@ function SettingsManager() {
     const num = Number(value);
     return Number.isNaN(num) ? value : num;
   };
+
+  // Default payment methods configuration
+  const DEFAULT_PAYMENT_METHODS_CONFIG = {
+    cash: {
+      enabled: true,
+      name: 'Pago Contra Entrega',
+      description: 'Paga en efectivo cuando recibas tu pedido',
+      icon: '💵',
+      order: 1
+    },
+    transfer: {
+      enabled: true,
+      name: 'Transferencia Bancaria',
+      description: 'Transferencia o depósito bancario',
+      icon: '🏦',
+      order: 2,
+      bankInfo: ''
+    },
+    stripe: {
+      enabled: true,
+      name: 'Tarjeta de Crédito/Débito',
+      description: 'Visa, MasterCard, American Express',
+      icon: '💳',
+      order: 3
+    },
+    paypal: {
+      enabled: false,
+      name: 'PayPal',
+      description: 'Paga con tu cuenta PayPal',
+      icon: '🅿️',
+      order: 4
+    }
+  };
+
+  const clonePaymentMethodsConfig = (config = DEFAULT_PAYMENT_METHODS_CONFIG) => (
+    JSON.parse(JSON.stringify(config))
+  );
+
   const [settings, setSettings] = useState({
     siteName: 'TechStore',
     siteIcon: '🛍️',
@@ -50,7 +88,8 @@ function SettingsManager() {
     mailUseTls: true,
     mailTemplateHtml: '<div style="font-family: Arial, sans-serif; color:#111827; line-height:1.6;">\n  <div style="background:#111827;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;">\n    <h2 style="margin:0;">{{siteIcon}} {{siteName}}</h2>\n    <p style="margin:4px 0 0;">Tu pedido fue recibido</p>\n  </div>\n  <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 10px 10px;">\n    <p>Hola <strong>{{customerName}}</strong>,</p>\n    <p>Tu orden <strong>{{orderNumber}}</strong> fue tomada y está en proceso de preparación para envío.</p>\n    <h3 style="margin-top:20px;">Resumen</h3>\n    {{itemsTable}}\n    <p style="margin-top:16px;"><strong>Total:</strong> {{total}}</p>\n    <p><strong>Dirección:</strong> {{shippingAddress}}</p>\n    <p><strong>Pago:</strong> {{paymentMethod}}</p>\n    <p style="margin-top:20px;">Gracias por comprar con nosotros.</p>\n  </div>\n</div>',
     categoryFiltersConfig: cloneCategoryConfig(),
-    productCardConfig: cloneProductCardConfig()
+    productCardConfig: cloneProductCardConfig(),
+    paymentMethodsConfig: clonePaymentMethodsConfig()
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -120,6 +159,21 @@ function SettingsManager() {
             typedData[key] = merged;
           } catch {
             typedData[key] = cloneProductCardConfig();
+          }
+        } else if (key === 'paymentMethodsConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            // Merge with defaults to ensure all payment methods exist
+            typedData[key] = {
+              ...clonePaymentMethodsConfig(),
+              ...parsed,
+              cash: { ...clonePaymentMethodsConfig().cash, ...(parsed?.cash || {}) },
+              transfer: { ...clonePaymentMethodsConfig().transfer, ...(parsed?.transfer || {}) },
+              stripe: { ...clonePaymentMethodsConfig().stripe, ...(parsed?.stripe || {}) },
+              paypal: { ...clonePaymentMethodsConfig().paypal, ...(parsed?.paypal || {}) }
+            };
+          } catch {
+            typedData[key] = clonePaymentMethodsConfig();
           }
         } else typedData[key] = value;
       });
@@ -205,7 +259,8 @@ function SettingsManager() {
       const payload = {
         ...settings,
         categoryFiltersConfig: JSON.stringify(settings.categoryFiltersConfig || cloneCategoryConfig()),
-        productCardConfig: JSON.stringify(settings.productCardConfig || cloneProductCardConfig())
+        productCardConfig: JSON.stringify(settings.productCardConfig || cloneProductCardConfig()),
+        paymentMethodsConfig: JSON.stringify(settings.paymentMethodsConfig || clonePaymentMethodsConfig())
       };
       const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',
@@ -396,6 +451,13 @@ function SettingsManager() {
                   onClick={() => setSiteTab('ecommerce')}
                 >
                   E-commerce
+                </button>
+                <button
+                  type="button"
+                  className={`settings-subtab ${siteTab === 'payments' ? 'active' : ''}`}
+                  onClick={() => setSiteTab('payments')}
+                >
+                  💳 Pagos
                 </button>
                 <button
                   type="button"
@@ -896,6 +958,204 @@ function SettingsManager() {
                       </div>
                     </>
                   )}
+                </section>
+              )}
+
+              {siteTab === 'payments' && (
+                <section className="settings-section">
+                  <div className="section-header-static">
+                    <span>💳 Métodos de Pago</span>
+                  </div>
+                  <p className="section-description">
+                    Configura qué métodos de pago estarán disponibles en el checkout. 
+                    Solo los métodos habilitados se mostrarán a los clientes.
+                  </p>
+
+                  <div className="payment-methods-config">
+                    {/* Cash on Delivery */}
+                    <div className={`payment-method-card ${settings.paymentMethodsConfig?.cash?.enabled ? 'enabled' : 'disabled'}`}>
+                      <div className="payment-method-header">
+                        <div className="payment-method-toggle">
+                          <input
+                            type="checkbox"
+                            id="payment-cash"
+                            checked={settings.paymentMethodsConfig?.cash?.enabled ?? true}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                cash: { ...prev.paymentMethodsConfig?.cash, enabled: e.target.checked }
+                              }
+                            }))}
+                          />
+                          <label htmlFor="payment-cash" className="toggle-label">
+                            <span className="payment-icon">💵</span>
+                            <span className="payment-name">Pago Contra Entrega</span>
+                          </label>
+                        </div>
+                        <span className={`status-badge ${settings.paymentMethodsConfig?.cash?.enabled ? 'active' : ''}`}>
+                          {settings.paymentMethodsConfig?.cash?.enabled ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="payment-method-details">
+                        <div className="form-group">
+                          <label>Descripción</label>
+                          <input
+                            type="text"
+                            value={settings.paymentMethodsConfig?.cash?.description || ''}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                cash: { ...prev.paymentMethodsConfig?.cash, description: e.target.value }
+                              }
+                            }))}
+                            placeholder="Paga en efectivo cuando recibas tu pedido"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bank Transfer */}
+                    <div className={`payment-method-card ${settings.paymentMethodsConfig?.transfer?.enabled ? 'enabled' : 'disabled'}`}>
+                      <div className="payment-method-header">
+                        <div className="payment-method-toggle">
+                          <input
+                            type="checkbox"
+                            id="payment-transfer"
+                            checked={settings.paymentMethodsConfig?.transfer?.enabled ?? true}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                transfer: { ...prev.paymentMethodsConfig?.transfer, enabled: e.target.checked }
+                              }
+                            }))}
+                          />
+                          <label htmlFor="payment-transfer" className="toggle-label">
+                            <span className="payment-icon">🏦</span>
+                            <span className="payment-name">Transferencia Bancaria</span>
+                          </label>
+                        </div>
+                        <span className={`status-badge ${settings.paymentMethodsConfig?.transfer?.enabled ? 'active' : ''}`}>
+                          {settings.paymentMethodsConfig?.transfer?.enabled ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="payment-method-details">
+                        <div className="form-group">
+                          <label>Descripción</label>
+                          <input
+                            type="text"
+                            value={settings.paymentMethodsConfig?.transfer?.description || ''}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                transfer: { ...prev.paymentMethodsConfig?.transfer, description: e.target.value }
+                              }
+                            }))}
+                            placeholder="Transferencia o depósito bancario"
+                          />
+                        </div>
+                        <div className="form-group">
+                          <label>Información Bancaria (opcional)</label>
+                          <textarea
+                            value={settings.paymentMethodsConfig?.transfer?.bankInfo || ''}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                transfer: { ...prev.paymentMethodsConfig?.transfer, bankInfo: e.target.value }
+                              }
+                            }))}
+                            placeholder="Banco: XXXX&#10;Cuenta: XXXX-XXXX&#10;Titular: XXXX"
+                            rows="3"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stripe (Credit/Debit Cards) */}
+                    <div className={`payment-method-card ${settings.paymentMethodsConfig?.stripe?.enabled ? 'enabled' : 'disabled'}`}>
+                      <div className="payment-method-header">
+                        <div className="payment-method-toggle">
+                          <input
+                            type="checkbox"
+                            id="payment-stripe"
+                            checked={settings.paymentMethodsConfig?.stripe?.enabled ?? true}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                stripe: { ...prev.paymentMethodsConfig?.stripe, enabled: e.target.checked }
+                              }
+                            }))}
+                          />
+                          <label htmlFor="payment-stripe" className="toggle-label">
+                            <span className="payment-icon">💳</span>
+                            <span className="payment-name">Tarjeta de Crédito/Débito</span>
+                          </label>
+                        </div>
+                        <span className={`status-badge ${settings.paymentMethodsConfig?.stripe?.enabled ? 'active' : ''}`}>
+                          {settings.paymentMethodsConfig?.stripe?.enabled ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="payment-method-details">
+                        <div className="form-group">
+                          <label>Descripción</label>
+                          <input
+                            type="text"
+                            value={settings.paymentMethodsConfig?.stripe?.description || ''}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                stripe: { ...prev.paymentMethodsConfig?.stripe, description: e.target.value }
+                              }
+                            }))}
+                            placeholder="Visa, MasterCard, American Express"
+                          />
+                        </div>
+                        <p className="helper-text">
+                          ⚙️ Configura las credenciales de Stripe en las variables de entorno del servidor (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* PayPal (Coming Soon) */}
+                    <div className={`payment-method-card ${settings.paymentMethodsConfig?.paypal?.enabled ? 'enabled' : 'disabled'} coming-soon`}>
+                      <div className="payment-method-header">
+                        <div className="payment-method-toggle">
+                          <input
+                            type="checkbox"
+                            id="payment-paypal"
+                            checked={settings.paymentMethodsConfig?.paypal?.enabled ?? false}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              paymentMethodsConfig: {
+                                ...prev.paymentMethodsConfig,
+                                paypal: { ...prev.paymentMethodsConfig?.paypal, enabled: e.target.checked }
+                              }
+                            }))}
+                            disabled
+                          />
+                          <label htmlFor="payment-paypal" className="toggle-label">
+                            <span className="payment-icon">🅿️</span>
+                            <span className="payment-name">PayPal</span>
+                            <span className="coming-soon-badge">Próximamente</span>
+                          </label>
+                        </div>
+                        <span className={`status-badge ${settings.paymentMethodsConfig?.paypal?.enabled ? 'active' : ''}`}>
+                          {settings.paymentMethodsConfig?.paypal?.enabled ? 'Activo' : 'Inactivo'}
+                        </span>
+                      </div>
+                      <div className="payment-method-details">
+                        <p className="helper-text">
+                          🔜 La integración con PayPal estará disponible próximamente.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </section>
               )}
 

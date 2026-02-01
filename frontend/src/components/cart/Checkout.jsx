@@ -8,6 +8,7 @@ import { buildInvoiceData, generateInvoicePdfBlob } from '../../utils/invoiceUti
 import EmailVerification from '../auth/EmailVerification';
 import LoginPage from '../auth/LoginPage';
 import DeliveryMap from './DeliveryMap';
+import StripePayment from './StripePayment';
 import '../products/ProductDetail.css';
 import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -22,8 +23,8 @@ address: '',
 sector: '',
 city: '',
 phone: '',
-notes: '', // Nuevo campo opcional para notas/referencias
-paymentMethod: '' // Nuevo campo para método de pago
+notes: '',
+paymentMethod: ''
 });
 
 const [step, setStep] = useState(1);
@@ -42,6 +43,125 @@ const [step, setStep] = useState(1);
     const [_emailExists, setEmailExists] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [friendlyLoginMessage, setFriendlyLoginMessage] = useState('');
+    const [showStripePayment, setShowStripePayment] = useState(false);
+    const [pendingStripeOrder, setPendingStripeOrder] = useState(null);
+    
+    // Payment methods configuration from settings
+    const [paymentMethods, setPaymentMethods] = useState({
+        cash: { enabled: true, name: 'Pago Contra Entrega', description: 'Paga en efectivo cuando recibas tu pedido', icon: '💵' },
+        transfer: { enabled: true, name: 'Transferencia Bancaria', description: 'Transferencia o depósito bancario', icon: '🏦', bankInfo: '' },
+        stripe: { enabled: true, name: 'Tarjeta de Crédito/Débito', description: 'Visa, MasterCard, American Express', icon: '💳' },
+        paypal: { enabled: false, name: 'PayPal', description: 'Paga con tu cuenta PayPal', icon: '🅿️' }
+    });
+
+    // Load payment methods configuration on mount
+    useEffect(() => {
+        const loadPaymentMethods = async () => {
+            try {
+                const res = await apiFetch(apiUrl('/settings/public'));
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.paymentMethodsConfig) {
+                        const config = typeof data.paymentMethodsConfig === 'string' 
+                            ? JSON.parse(data.paymentMethodsConfig) 
+                            : data.paymentMethodsConfig;
+                        
+                        const updatedMethods = {
+                            cash: { ...paymentMethods.cash, ...(config.cash || {}) },
+                            transfer: { ...paymentMethods.transfer, ...(config.transfer || {}) },
+                            stripe: { ...paymentMethods.stripe, ...(config.stripe || {}) },
+                            paypal: { ...paymentMethods.paypal, ...(config.paypal || {}) }
+                        };
+                        
+                        setPaymentMethods(updatedMethods);
+                        
+                        // Auto-select first enabled payment method if none selected
+                        const methodOrder = ['cash', 'transfer', 'stripe', 'paypal'];
+                        const firstEnabled = methodOrder.find(m => updatedMethods[m]?.enabled);
+                        if (firstEnabled && !formData.paymentMethod) {
+                            setFormData(prev => ({ ...prev, paymentMethod: firstEnabled }));
+                        }
+                    }
+                }
+            } catch (err) {
+                console.error('Error loading payment methods:', err);
+            }
+        };
+        loadPaymentMethods();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Helper: Convert blob to base64 for PDF attachment
+    const blobToBase64 = (blob) => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result || '';
+            const base64 = String(result).split(',')[1] || '';
+            resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+    });
+
+    /**
+     * Send invoice email with PDF attachment
+     * Handles errors gracefully without blocking order completion
+     * @param {Object} order - The created order
+     * @param {Array} orderItems - Items to include in invoice
+     * @param {Object} customerFormData - Customer form data (optional, uses formData if not provided)
+     */
+    const sendInvoiceEmail = useCallback(async (order, orderItems, customerFormData = null) => {
+        const customerData = customerFormData || formData;
+        // Validate email before attempting to send
+        const email = customerData.email?.trim();
+        if (!email) {
+            console.warn('sendInvoiceEmail: No email provided, skipping');
+            return false;
+        }
+
+        // Validate items exist
+        if (!orderItems || orderItems.length === 0) {
+            console.warn('sendInvoiceEmail: No items provided, skipping');
+            return false;
+        }
+
+        try {
+            // Generate invoice PDF
+            const invoiceData = buildInvoiceData({
+                order,
+                customerInfo: customerData,
+                items: orderItems,
+                siteName,
+                siteIcon,
+                currencyCode
+            });
+            const pdfBlob = await generateInvoicePdfBlob(invoiceData);
+            const pdfBase64 = await blobToBase64(pdfBlob);
+            
+            // Send invoice email
+            const res = await apiFetch(apiUrl(`/orders/${order.id}/invoice-email`), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    pdfBase64,
+                    email
+                })
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                const errorMsg = errorData.detail || errorData.message || res.statusText;
+                console.error('Invoice email API error:', errorMsg);
+                return false;
+            }
+
+            // Invoice email sent successfully
+            return true;
+        } catch (error) {
+            console.error('Error sending invoice email:', error.message || error);
+            return false;
+        }
+    }, [formData, siteName, siteIcon, currencyCode]);
 
     const getSavedAddressDefaults = useCallback(() => {
         const savedAddr = localStorage.getItem('user_default_address');
@@ -170,8 +290,8 @@ e.preventDefault();
         }
 
         // Validar si el método de pago está disponible
-        if (formData.paymentMethod !== 'cash' && formData.paymentMethod !== 'transfer') {
-            setError('Este método de pago estará disponible próximamente. Por favor selecciona "Pago Contra Entrega" o "Transferencia Bancaria"');
+        if (!['cash', 'transfer', 'stripe'].includes(formData.paymentMethod)) {
+            setError('Método de pago no válido');
             setIsSubmitting(false);
             return;
         }
@@ -185,75 +305,6 @@ e.preventDefault();
         }));
 
         let response;
-
-        const blobToBase64 = (blob) => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-                const result = reader.result || '';
-                const base64 = String(result).split(',')[1] || '';
-                resolve(base64);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-        });
-
-        /**
-         * Send invoice email with PDF attachment
-         * Handles errors gracefully without blocking order completion
-         * @param {Object} order - The created order
-         * @param {Array} orderItems - Items to include in invoice
-         */
-        const sendInvoiceEmail = async (order, orderItems) => {
-            // Validate email before attempting to send
-            const email = formData.email?.trim();
-            if (!email) {
-                console.warn('sendInvoiceEmail: No email provided, skipping');
-                return false;
-            }
-
-            // Validate items exist
-            if (!orderItems || orderItems.length === 0) {
-                console.warn('sendInvoiceEmail: No items provided, skipping');
-                return false;
-            }
-
-            try {
-                // Generate invoice PDF
-                const invoiceData = buildInvoiceData({
-                    order,
-                    customerInfo: formData,
-                    items: orderItems,
-                    siteName,
-                    siteIcon,
-                    currencyCode
-                });
-                const pdfBlob = await generateInvoicePdfBlob(invoiceData);
-                const pdfBase64 = await blobToBase64(pdfBlob);
-                
-                // Send invoice email
-                const res = await apiFetch(apiUrl(`/orders/${order.id}/invoice-email`), {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        pdfBase64,
-                        email
-                    })
-                });
-
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    const errorMsg = errorData.detail || errorData.message || res.statusText;
-                    console.error('Invoice email API error:', errorMsg);
-                    return false;
-                }
-
-                // Invoice email sent successfully
-                return true;
-            } catch (error) {
-                console.error('Error sending invoice email:', error.message || error);
-                return false;
-            }
-        };
 
         if (isAuthenticated) {
             // Usuario autenticado - enviar datos estructurados
@@ -309,6 +360,15 @@ e.preventDefault();
     }
 
     const order = await response.json();
+    
+    // For Stripe payments, show payment form instead of completing order
+    if (formData.paymentMethod === 'stripe') {
+        const orderTotal = total + (mapData.shippingCost || 0);
+        setPendingStripeOrder({ ...order, total: orderTotal });
+        setShowStripePayment(true);
+        setIsSubmitting(false);
+        return; // Wait for Stripe payment to complete
+    }
     
     // Guardar items confirmados para la factura antes de limpiar el carrito
     const itemsForInvoice = [...cartItems];
@@ -708,53 +768,140 @@ return (
                             <div className="step-form">
                                 <h3>Método de Pago</h3>
                                 
-                                <div className="payment-methods">
-                                    <div 
-                                        className={`payment-option ${formData.paymentMethod === 'cash' ? 'selected' : ''}`}
-                                        onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
-                                    >
-                                        <div className="payment-icon">💵</div>
-                                        <div className="payment-info">
-                                            <h4>Pago Contra Entrega</h4>
-                                            <p>Paga en efectivo cuando recibas tu pedido</p>
-                                        </div>
-                                        <div className="payment-check">
-                                            {formData.paymentMethod === 'cash' && '✓'}
-                                        </div>
-                                    </div>
+                                {/* Show Stripe payment form when selected */}
+                                {showStripePayment && pendingStripeOrder ? (
+                                    <StripePayment
+                                        amount={pendingStripeOrder.total}
+                                        currency="dop"
+                                        orderId={pendingStripeOrder.id}
+                                        customerEmail={formData.email}
+                                        onSuccess={async (paymentIntent) => {
+                                            // Confirm payment with backend to update order status
+                                            try {
+                                                await apiFetch(apiUrl('/payments/confirm'), {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        paymentIntentId: paymentIntent.id,
+                                                        orderId: pendingStripeOrder.id
+                                                    })
+                                                });
+                                            } catch (err) {
+                                                console.error('Error confirming payment:', err);
+                                            }
+                                            
+                                            // Update order with paid status for display
+                                            const paidOrder = { 
+                                                ...pendingStripeOrder, 
+                                                status: 'paid',
+                                                payment_status: 'paid',
+                                                payment_method: 'stripe'
+                                            };
+                                            
+                                            // Save items before clearing cart for invoice
+                                            const itemsForInvoice = [...cartItems];
+                                            
+                                            setShowStripePayment(false);
+                                            setOrderCreated(paidOrder);
+                                            setConfirmedItems(itemsForInvoice);
+                                            localStorage.removeItem('checkout_progress');
+                                            
+                                            // Send invoice email with PDF for Stripe payment
+                                            await sendInvoiceEmail(paidOrder, itemsForInvoice);
+                                            
+                                            if (onClearCart) onClearCart();
+                                            if (onOrderComplete) onOrderComplete(paidOrder);
+                                            setStep(5);
+                                        }}
+                                        onError={(error) => {
+                                            console.error('Stripe payment error:', error);
+                                            setError('Error en el pago: ' + (error.message || 'Intenta de nuevo'));
+                                        }}
+                                        onCancel={() => {
+                                            setShowStripePayment(false);
+                                            setPendingStripeOrder(null);
+                                        }}
+                                    />
+                                ) : (
+                                    <div className="payment-methods">
+                                        {/* Dynamically render enabled payment methods */}
+                                        {paymentMethods.cash?.enabled && (
+                                            <div 
+                                                className={`payment-option ${formData.paymentMethod === 'cash' ? 'selected' : ''}`}
+                                                onClick={() => setFormData({...formData, paymentMethod: 'cash'})}
+                                            >
+                                                <div className="payment-icon">{paymentMethods.cash.icon || '💵'}</div>
+                                                <div className="payment-info">
+                                                    <h4>{paymentMethods.cash.name || 'Pago Contra Entrega'}</h4>
+                                                    <p>{paymentMethods.cash.description || 'Paga en efectivo cuando recibas tu pedido'}</p>
+                                                </div>
+                                                <div className="payment-check">
+                                                    {formData.paymentMethod === 'cash' && '✓'}
+                                                </div>
+                                            </div>
+                                        )}
 
-                                    <div 
-                                        className={`payment-option ${formData.paymentMethod === 'transfer' ? 'selected' : ''}`}
-                                        onClick={() => setFormData({...formData, paymentMethod: 'transfer'})}
-                                    >
-                                        <div className="payment-icon">🏦</div>
-                                        <div className="payment-info">
-                                            <h4>Transferencia Bancaria</h4>
-                                            <p>Transferencia o depósito bancario</p>
-                                        </div>
-                                        <div className="payment-check">
-                                            {formData.paymentMethod === 'transfer' && '✓'}
-                                        </div>
-                                    </div>
+                                        {paymentMethods.transfer?.enabled && (
+                                            <div 
+                                                className={`payment-option ${formData.paymentMethod === 'transfer' ? 'selected' : ''}`}
+                                                onClick={() => setFormData({...formData, paymentMethod: 'transfer'})}
+                                            >
+                                                <div className="payment-icon">{paymentMethods.transfer.icon || '🏦'}</div>
+                                                <div className="payment-info">
+                                                    <h4>{paymentMethods.transfer.name || 'Transferencia Bancaria'}</h4>
+                                                    <p>{paymentMethods.transfer.description || 'Transferencia o depósito bancario'}</p>
+                                                    {paymentMethods.transfer.bankInfo && (
+                                                        <div className="bank-info-preview">
+                                                            <small>{paymentMethods.transfer.bankInfo}</small>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="payment-check">
+                                                    {formData.paymentMethod === 'transfer' && '✓'}
+                                                </div>
+                                            </div>
+                                        )}
 
-                                    <div className="payment-option disabled">
-                                        <div className="payment-icon">💳</div>
-                                        <div className="payment-info">
-                                            <h4>Pago en Línea</h4>
-                                            <p>PayPal, Stripe, MercadoPago</p>
-                                            <span className="badge-soon">Próximamente</span>
-                                        </div>
-                                    </div>
+                                        {paymentMethods.stripe?.enabled && (
+                                            <div 
+                                                className={`payment-option ${formData.paymentMethod === 'stripe' ? 'selected' : ''}`}
+                                                onClick={() => setFormData({...formData, paymentMethod: 'stripe'})}
+                                            >
+                                                <div className="payment-icon">{paymentMethods.stripe.icon || '💳'}</div>
+                                                <div className="payment-info">
+                                                    <h4>{paymentMethods.stripe.name || 'Tarjeta de Crédito/Débito'}</h4>
+                                                    <p>{paymentMethods.stripe.description || 'Visa, MasterCard, American Express'}</p>
+                                                </div>
+                                                <div className="payment-check">
+                                                    {formData.paymentMethod === 'stripe' && '✓'}
+                                                </div>
+                                            </div>
+                                        )}
 
-                                    <div className="payment-option disabled">
-                                        <div className="payment-icon">💳</div>
-                                        <div className="payment-info">
-                                            <h4>Tarjeta de Crédito/Débito</h4>
-                                            <p>Visa, MasterCard, American Express</p>
-                                            <span className="badge-soon">Próximamente</span>
-                                        </div>
+                                        {paymentMethods.paypal?.enabled && (
+                                            <div 
+                                                className={`payment-option ${formData.paymentMethod === 'paypal' ? 'selected' : ''}`}
+                                                onClick={() => setFormData({...formData, paymentMethod: 'paypal'})}
+                                            >
+                                                <div className="payment-icon">{paymentMethods.paypal.icon || '🅿️'}</div>
+                                                <div className="payment-info">
+                                                    <h4>{paymentMethods.paypal.name || 'PayPal'}</h4>
+                                                    <p>{paymentMethods.paypal.description || 'Paga con tu cuenta PayPal'}</p>
+                                                </div>
+                                                <div className="payment-check">
+                                                    {formData.paymentMethod === 'paypal' && '✓'}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Show message if no payment methods available */}
+                                        {!paymentMethods.cash?.enabled && !paymentMethods.transfer?.enabled && !paymentMethods.stripe?.enabled && !paymentMethods.paypal?.enabled && (
+                                            <div className="no-payment-methods">
+                                                <p>⚠️ No hay métodos de pago disponibles en este momento.</p>
+                                            </div>
+                                        )}
                                     </div>
-                                </div>
+                                )}
                             </div>
                         )}
                     </div>
@@ -843,11 +990,13 @@ return (
                 {step === 4 && (
                     <button 
                         type="button" 
-                        className="btn-confirm" 
+                        className={`btn-confirm ${showStripePayment ? 'btn-disabled-stripe' : ''}`}
                         onClick={handleSubmit} 
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || showStripePayment}
+                        title={showStripePayment ? 'Complete el pago para continuar' : ''}
                     >
-                        {isSubmitting ? 'Procesando...' : 'Confirmar Todo el Pedido'} <span className="btn-icon">✓</span>
+                        {isSubmitting ? 'Procesando...' : (showStripePayment ? 'Continuar' : 'Confirmar Todo el Pedido')} 
+                        <span className="btn-icon">{showStripePayment ? '→' : '✓'}</span>
                     </button>
                 )}
             </div>

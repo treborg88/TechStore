@@ -20,5 +20,9 @@ module.exports = {
     EMAIL_SERVICE: process.env.EMAIL_SERVICE || 'gmail',
     NODE_ENV: process.env.NODE_ENV || 'development',
     FRONTEND_URL: process.env.FRONTEND_URL,
-    BASE_URL: process.env.BASE_URL
+    BASE_URL: process.env.BASE_URL,
+    // Stripe configuration
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET
 };

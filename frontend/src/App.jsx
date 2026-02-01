@@ -5,7 +5,7 @@ import './components/auth/LoginPage.css';
 import { getCurrentUser, logout } from './services/authService';
 
 import { API_URL, DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from './config';
-import { apiFetch, apiUrl } from './services/apiClient';
+import { apiFetch, apiUrl, initializeCsrfToken } from './services/apiClient';
 import { Toaster, toast } from 'react-hot-toast';
 
 // Common components
@@ -613,6 +613,8 @@ function App() {
   // Manage cart synchronization
   useEffect(() => {
     if (user) {
+      // Initialize CSRF token on app load for mobile compatibility
+      initializeCsrfToken();
       fetchCart();
     }
   }, [user, fetchCart]);
