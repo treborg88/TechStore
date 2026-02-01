@@ -56,7 +56,8 @@ function SettingsManager() {
       name: 'Tarjeta de Crédito/Débito',
       description: 'Visa, MasterCard, American Express',
       icon: '💳',
-      order: 3
+      order: 3,
+      testMode: true // true = test keys, false = live keys
     },
     paypal: {
       enabled: false,
@@ -89,7 +90,10 @@ function SettingsManager() {
     mailTemplateHtml: '<div style="font-family: Arial, sans-serif; color:#111827; line-height:1.6;">\n  <div style="background:#111827;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;">\n    <h2 style="margin:0;">{{siteIcon}} {{siteName}}</h2>\n    <p style="margin:4px 0 0;">Tu pedido fue recibido</p>\n  </div>\n  <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 10px 10px;">\n    <p>Hola <strong>{{customerName}}</strong>,</p>\n    <p>Tu orden <strong>{{orderNumber}}</strong> fue tomada y está en proceso de preparación para envío.</p>\n    <h3 style="margin-top:20px;">Resumen</h3>\n    {{itemsTable}}\n    <p style="margin-top:16px;"><strong>Total:</strong> {{total}}</p>\n    <p><strong>Dirección:</strong> {{shippingAddress}}</p>\n    <p><strong>Pago:</strong> {{paymentMethod}}</p>\n    <p style="margin-top:20px;">Gracias por comprar con nosotros.</p>\n  </div>\n</div>',
     categoryFiltersConfig: cloneCategoryConfig(),
     productCardConfig: cloneProductCardConfig(),
-    paymentMethodsConfig: clonePaymentMethodsConfig()
+    paymentMethodsConfig: clonePaymentMethodsConfig(),
+    // Stripe API Keys (stored separately for encryption)
+    stripePublishableKey: '',
+    stripeSecretKey: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1116,9 +1120,82 @@ function SettingsManager() {
                             placeholder="Visa, MasterCard, American Express"
                           />
                         </div>
-                        <p className="helper-text">
-                          ⚙️ Configura las credenciales de Stripe en las variables de entorno del servidor (STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY)
-                        </p>
+                        
+                        {/* Stripe API Keys Configuration */}
+                        <div className="stripe-config-section">
+                          <h4 className="stripe-config-title">🔑 Credenciales de Stripe</h4>
+                          
+                          <div className="form-group">
+                            <label className="flex-label">
+                              Modo de Pruebas
+                              <span className={`mode-badge ${settings.paymentMethodsConfig?.stripe?.testMode !== false ? 'test' : 'live'}`}>
+                                {settings.paymentMethodsConfig?.stripe?.testMode !== false ? '🧪 Test' : '🔴 Producción'}
+                              </span>
+                            </label>
+                            <div className="toggle-switch-container">
+                              <label className="toggle-switch">
+                                <input
+                                  type="checkbox"
+                                  checked={settings.paymentMethodsConfig?.stripe?.testMode !== false}
+                                  onChange={(e) => setSettings(prev => ({
+                                    ...prev,
+                                    paymentMethodsConfig: {
+                                      ...prev.paymentMethodsConfig,
+                                      stripe: { ...prev.paymentMethodsConfig?.stripe, testMode: e.target.checked }
+                                    }
+                                  }))}
+                                />
+                                <span className="toggle-slider"></span>
+                              </label>
+                              <span className="toggle-label-text">
+                                {settings.paymentMethodsConfig?.stripe?.testMode !== false 
+                                  ? 'Usa claves de prueba (pk_test_, sk_test_)' 
+                                  : 'Usa claves de producción (pk_live_, sk_live_)'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="form-group">
+                            <label>
+                              Clave Pública (Publishable Key)
+                              <span className="key-hint">{settings.paymentMethodsConfig?.stripe?.testMode !== false ? 'pk_test_...' : 'pk_live_...'}</span>
+                            </label>
+                            <input
+                              type="text"
+                              value={settings.stripePublishableKey || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                stripePublishableKey: e.target.value
+                              }))}
+                              placeholder={settings.paymentMethodsConfig?.stripe?.testMode !== false ? 'pk_test_xxxxxxxxxxxx' : 'pk_live_xxxxxxxxxxxx'}
+                              className="stripe-key-input"
+                            />
+                          </div>
+                          
+                          <div className="form-group">
+                            <label>
+                              Clave Secreta (Secret Key)
+                              <span className="key-hint">{settings.paymentMethodsConfig?.stripe?.testMode !== false ? 'sk_test_...' : 'sk_live_...'}</span>
+                            </label>
+                            <input
+                              type="password"
+                              value={settings.stripeSecretKey || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                stripeSecretKey: e.target.value
+                              }))}
+                              placeholder={settings.stripeSecretKey === '********' ? '••••••••' : (settings.paymentMethodsConfig?.stripe?.testMode !== false ? 'sk_test_xxxxxxxxxxxx' : 'sk_live_xxxxxxxxxxxx')}
+                              className="stripe-key-input"
+                            />
+                            <p className="helper-text warning">
+                              🔒 La clave secreta se guarda encriptada y nunca se muestra.
+                            </p>
+                          </div>
+                          
+                          <p className="helper-text">
+                            📋 Obtén tus claves en <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noopener noreferrer">dashboard.stripe.com/apikeys</a>
+                          </p>
+                        </div>
                       </div>
                     </div>
 

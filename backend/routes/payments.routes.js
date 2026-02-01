@@ -1,20 +1,81 @@
 // routes/payments.routes.js - Stripe payment processing
 const express = require('express');
 const router = express.Router();
-const { STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET } = require('../config');
+const { STRIPE_SECRET_KEY, STRIPE_PUBLISHABLE_KEY, STRIPE_WEBHOOK_SECRET } = require('../config');
 const { statements } = require('../database');
 const { authenticateToken } = require('../middleware/auth');
+const { decryptSetting } = require('../services/encryption.service');
 
-// Initialize Stripe
-const stripe = STRIPE_SECRET_KEY ? require('stripe')(STRIPE_SECRET_KEY) : null;
+/**
+ * Helper: Get Stripe instance using keys from DB or env vars
+ * DB settings take priority over env vars
+ */
+async function getStripeInstance() {
+    try {
+        // Try to get keys from database (admin configured)
+        const settings = await statements.getSettings();
+        const settingsObj = {};
+        for (const { id, value } of settings) {
+            settingsObj[id] = value;
+        }
+        
+        // Check for DB-configured secret key (encrypted)
+        let secretKey = null;
+        if (settingsObj.stripeSecretKey) {
+            try {
+                secretKey = decryptSetting(settingsObj.stripeSecretKey);
+            } catch {
+                // Decryption failed, key might be plain text or corrupted
+                secretKey = null;
+            }
+        }
+        
+        // Fallback to env var if no DB key
+        if (!secretKey) {
+            secretKey = STRIPE_SECRET_KEY;
+        }
+        
+        if (!secretKey) {
+            return null;
+        }
+        
+        return require('stripe')(secretKey);
+    } catch (error) {
+        console.error('Error getting Stripe instance:', error.message);
+        // Fallback to env var
+        if (STRIPE_SECRET_KEY) {
+            return require('stripe')(STRIPE_SECRET_KEY);
+        }
+        return null;
+    }
+}
+
+/**
+ * Helper: Get Stripe publishable key from DB or env vars
+ */
+async function getPublishableKey() {
+    try {
+        const settings = await statements.getSettings();
+        for (const { id, value } of settings) {
+            if (id === 'stripePublishableKey' && value) {
+                return value;
+            }
+        }
+    } catch (error) {
+        console.error('Error getting publishable key:', error.message);
+    }
+    return STRIPE_PUBLISHABLE_KEY;
+}
 
 /**
  * POST /api/payments/create-intent
  * Create a Stripe PaymentIntent for an order
  */
 router.post('/create-intent', async (req, res) => {
+    const stripe = await getStripeInstance();
+    
     if (!stripe) {
-        return res.status(503).json({ message: 'Stripe no está configurado' });
+        return res.status(503).json({ message: 'Stripe no está configurado. Configure las claves en Ajustes > Pagos.' });
     }
 
     const { amount, currency = 'dop', orderId, customerEmail, metadata = {} } = req.body;
@@ -60,6 +121,8 @@ router.post('/create-intent', async (req, res) => {
  * Confirm payment was successful and update order
  */
 router.post('/confirm', async (req, res) => {
+    const stripe = await getStripeInstance();
+    
     if (!stripe) {
         return res.status(503).json({ message: 'Stripe no está configurado' });
     }
@@ -112,6 +175,8 @@ router.post('/confirm', async (req, res) => {
  * Note: This endpoint needs raw body, not JSON parsed
  */
 router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const stripe = await getStripeInstance();
+    
     if (!stripe || !STRIPE_WEBHOOK_SECRET) {
         return res.status(503).json({ message: 'Webhook no configurado' });
     }
@@ -177,15 +242,15 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
  * GET /api/payments/config
  * Get Stripe publishable key for frontend
  */
-router.get('/config', (req, res) => {
-    const { STRIPE_PUBLISHABLE_KEY } = require('../config');
+router.get('/config', async (req, res) => {
+    const publishableKey = await getPublishableKey();
     
-    if (!STRIPE_PUBLISHABLE_KEY) {
-        return res.status(503).json({ message: 'Stripe no está configurado' });
+    if (!publishableKey) {
+        return res.status(503).json({ message: 'Stripe no está configurado. Configure las claves en Ajustes > Pagos.' });
     }
 
     res.json({ 
-        publishableKey: STRIPE_PUBLISHABLE_KEY,
+        publishableKey,
         currency: 'dop'
     });
 });
@@ -196,6 +261,8 @@ router.get('/config', (req, res) => {
  * Requires authentication
  */
 router.get('/saved-cards', authenticateToken, async (req, res) => {
+    const stripe = await getStripeInstance();
+    
     if (!stripe) {
         return res.status(503).json({ message: 'Stripe no está configurado' });
     }
@@ -248,6 +315,8 @@ router.get('/saved-cards', authenticateToken, async (req, res) => {
  * Requires authentication
  */
 router.delete('/saved-cards/:cardId', authenticateToken, async (req, res) => {
+    const stripe = await getStripeInstance();
+    
     if (!stripe) {
         return res.status(503).json({ message: 'Stripe no está configurado' });
     }

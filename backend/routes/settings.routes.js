@@ -56,8 +56,8 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
         // Convert to object and mask sensitive fields
         const settingsObj = {};
         for (const { id, value } of settings) {
-            if (id === 'mailPassword') {
-                // Don't send actual password, just indicate if set
+            if (id === 'mailPassword' || id === 'stripeSecretKey') {
+                // Don't send actual password/keys, just indicate if set
                 settingsObj[id] = value ? '********' : '';
             } else {
                 settingsObj[id] = value;
@@ -79,14 +79,18 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const settings = req.body;
         
-        // Filter out empty password updates
+        // Sensitive fields that should be encrypted and filtered if empty
+        const sensitiveFields = ['mailPassword', 'stripeSecretKey'];
+        
+        // Filter out empty sensitive field updates
         const entries = Object.entries(settings).filter(([key, value]) => {
-            if (key !== 'mailPassword') return true;
-            return value !== undefined && value !== null && String(value).trim() !== '';
+            if (!sensitiveFields.includes(key)) return true;
+            return value !== undefined && value !== null && String(value).trim() !== '' && String(value).trim() !== '********';
         });
         
         const promises = entries.map(([key, value]) => {
-            if (key === 'mailPassword') {
+            // Encrypt sensitive fields
+            if (sensitiveFields.includes(key)) {
                 const encrypted = encryptSetting(value);
                 return statements.updateSetting(key, encrypted);
             }
