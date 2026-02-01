@@ -35,46 +35,66 @@ const getStripePromise = async () => {
 };
 
 /**
- * Get card brand icon SVG
+ * Get card brand icon - Using Stripe's official icons
  */
 const getCardBrandIcon = (brand) => {
     const icons = {
         visa: (
-            <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="saved-card-brand-icon">
-                <rect width="38" height="24" rx="4" fill="#1A1F71"/>
-                <path d="M15.5 16.5H13L14.75 8H17.25L15.5 16.5Z" fill="white"/>
-                <path d="M23.25 8.25C22.75 8 22 7.75 21 7.75C18.5 7.75 16.75 9 16.75 10.75C16.75 12.25 18.25 13 19.25 13.5C20.5 14 20.75 14.25 20.75 14.75C20.75 15.5 19.75 15.75 19 15.75C17.75 15.75 17.25 15.5 16.25 15.25L15.75 15L15.25 18C16.25 18.5 17.5 18.75 18.75 18.75C21.5 18.75 23.25 17.5 23.25 15.5C23.25 14.25 22.5 13.25 21 12.5C20 12 19.5 11.75 19.5 11.25C19.5 10.75 20 10.25 21 10.25C21.75 10.25 22.5 10.5 23 10.75L23.25 10.75L23.75 8.25H23.25Z" fill="white"/>
-                <path d="M27 8H25C24.25 8 23.75 8.25 23.5 9L19.5 16.5H22.25L22.75 15H26L26.25 16.5H28.75L27 8ZM23.5 13L24.75 10L25.5 13H23.5Z" fill="white"/>
-                <path d="M12 8L9.5 14L9.25 12.75C8.75 11 7 9.25 5 8.25L7.5 16.5H10.25L14.75 8H12Z" fill="white"/>
-            </svg>
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg" 
+                alt="Visa" 
+                className="saved-card-brand-icon"
+            />
         ),
         mastercard: (
-            <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="saved-card-brand-icon">
-                <rect width="38" height="24" rx="4" fill="#F5F5F5"/>
-                <circle cx="15" cy="12" r="7" fill="#EB001B"/>
-                <circle cx="23" cy="12" r="7" fill="#F79E1B"/>
-                <path d="M19 6.5C20.5 7.75 21.5 9.75 21.5 12C21.5 14.25 20.5 16.25 19 17.5C17.5 16.25 16.5 14.25 16.5 12C16.5 9.75 17.5 7.75 19 6.5Z" fill="#FF5F00"/>
-            </svg>
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg" 
+                alt="Mastercard" 
+                className="saved-card-brand-icon"
+            />
         ),
         amex: (
-            <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="saved-card-brand-icon">
-                <rect width="38" height="24" rx="4" fill="#006FCF"/>
-                <path d="M5 12H7.5L8.5 9.5L9.5 12H12V9L13.5 12H15.5L17 9V12H20.5L21.5 10.5L22.5 12H25.5V8H22L21 9.5L20 8H13L12 10L11 8H7L5 12Z" fill="white"/>
-                <path d="M5 16L7 12H9.5L7.5 14.5H10.5L11.5 13.5L12.5 14.5H17V12.5L18 14L19 12.5V14.5H25.5L26.5 13L27.5 14.5H30V12H27L26 13.5L25 12H18.5L17.5 13.5L16.5 12H12L11 13.5L10 12H5V16Z" fill="white"/>
-            </svg>
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg" 
+                alt="American Express" 
+                className="saved-card-brand-icon"
+            />
         ),
         discover: (
-            <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="saved-card-brand-icon">
-                <rect width="38" height="24" rx="4" fill="#FF6000"/>
-                <ellipse cx="19" cy="12" rx="8" ry="6" fill="white"/>
-            </svg>
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/discover-ac52cd46f89fa40a29a0bfb954e33173.svg" 
+                alt="Discover" 
+                className="saved-card-brand-icon"
+            />
+        ),
+        jcb: (
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/jcb-271fd06e6e7a2c52692571f7f086eb6d.svg" 
+                alt="JCB" 
+                className="saved-card-brand-icon"
+            />
+        ),
+        diners: (
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/diners-fbcbd3360f8e3f629cdaa80e93abdb8b.svg" 
+                alt="Diners Club" 
+                className="saved-card-brand-icon"
+            />
+        ),
+        unionpay: (
+            <img 
+                src="https://js.stripe.com/v3/fingerprinted/img/unionpay-8a10aefc7571139ea942eceea8c5f0c3.svg" 
+                alt="UnionPay" 
+                className="saved-card-brand-icon"
+            />
         )
     };
     
+    // Default card icon for unknown brands
     return icons[brand?.toLowerCase()] || (
-        <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="saved-card-brand-icon">
-            <rect width="38" height="24" rx="4" fill="#6B7280"/>
-            <rect x="6" y="9" width="26" height="6" rx="1" fill="white"/>
+        <svg viewBox="0 0 32 21" fill="none" xmlns="http://www.w3.org/2000/svg" className="saved-card-brand-icon">
+            <rect x="0.5" y="0.5" width="31" height="20" rx="3.5" fill="#F6F9FC" stroke="#DFE3E8"/>
+            <rect x="4" y="8" width="24" height="5" rx="1" fill="#A3ACB9"/>
         </svg>
     );
 };
@@ -140,13 +160,9 @@ const SavedCardsManager = ({ onCardsChange }) => {
         }
     };
 
+    // Don't show loading spinner - just return null while loading
     if (loading) {
-        return (
-            <div className="saved-cards-loading">
-                <div className="mini-spinner"></div>
-                <span>Cargando tarjetas guardadas...</span>
-            </div>
-        );
+        return null;
     }
 
     if (cards.length === 0) {
@@ -224,28 +240,25 @@ const SavedCardsManager = ({ onCardsChange }) => {
 };
 
 /**
- * Card brand icons component
+ * Card brand icons component - Using Stripe's official icons
  */
 const CardBrands = () => (
     <div className="card-brands">
-        <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="card-icon visa">
-            <rect width="38" height="24" rx="4" fill="#1A1F71"/>
-            <path d="M15.5 16.5H13L14.75 8H17.25L15.5 16.5Z" fill="white"/>
-            <path d="M23.25 8.25C22.75 8 22 7.75 21 7.75C18.5 7.75 16.75 9 16.75 10.75C16.75 12.25 18.25 13 19.25 13.5C20.5 14 20.75 14.25 20.75 14.75C20.75 15.5 19.75 15.75 19 15.75C17.75 15.75 17.25 15.5 16.25 15.25L15.75 15L15.25 18C16.25 18.5 17.5 18.75 18.75 18.75C21.5 18.75 23.25 17.5 23.25 15.5C23.25 14.25 22.5 13.25 21 12.5C20 12 19.5 11.75 19.5 11.25C19.5 10.75 20 10.25 21 10.25C21.75 10.25 22.5 10.5 23 10.75L23.25 10.75L23.75 8.25H23.25Z" fill="white"/>
-            <path d="M27 8H25C24.25 8 23.75 8.25 23.5 9L19.5 16.5H22.25L22.75 15H26L26.25 16.5H28.75L27 8ZM23.5 13L24.75 10L25.5 13H23.5Z" fill="white"/>
-            <path d="M12 8L9.5 14L9.25 12.75C8.75 11 7 9.25 5 8.25L7.5 16.5H10.25L14.75 8H12Z" fill="white"/>
-        </svg>
-        <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="card-icon mastercard">
-            <rect width="38" height="24" rx="4" fill="#F5F5F5"/>
-            <circle cx="15" cy="12" r="7" fill="#EB001B"/>
-            <circle cx="23" cy="12" r="7" fill="#F79E1B"/>
-            <path d="M19 6.5C20.5 7.75 21.5 9.75 21.5 12C21.5 14.25 20.5 16.25 19 17.5C17.5 16.25 16.5 14.25 16.5 12C16.5 9.75 17.5 7.75 19 6.5Z" fill="#FF5F00"/>
-        </svg>
-        <svg viewBox="0 0 38 24" fill="none" xmlns="http://www.w3.org/2000/svg" className="card-icon amex">
-            <rect width="38" height="24" rx="4" fill="#006FCF"/>
-            <path d="M5 12H7.5L8.5 9.5L9.5 12H12V9L13.5 12H15.5L17 9V12H20.5L21.5 10.5L22.5 12H25.5V8H22L21 9.5L20 8H13L12 10L11 8H7L5 12Z" fill="white"/>
-            <path d="M5 16L7 12H9.5L7.5 14.5H10.5L11.5 13.5L12.5 14.5H17V12.5L18 14L19 12.5V14.5H25.5L26.5 13L27.5 14.5H30V12H27L26 13.5L25 12H18.5L17.5 13.5L16.5 12H12L11 13.5L10 12H5V16Z" fill="white"/>
-        </svg>
+        <img 
+            src="https://js.stripe.com/v3/fingerprinted/img/visa-729c05c240c4bdb47b03ac81d9945bfe.svg" 
+            alt="Visa" 
+            className="card-icon"
+        />
+        <img 
+            src="https://js.stripe.com/v3/fingerprinted/img/mastercard-4d8844094130711885b5e41b28c9848f.svg" 
+            alt="Mastercard" 
+            className="card-icon"
+        />
+        <img 
+            src="https://js.stripe.com/v3/fingerprinted/img/amex-a49b82f46c5cd6a96a6e418a6ca1717c.svg" 
+            alt="American Express" 
+            className="card-icon"
+        />
     </div>
 );
 

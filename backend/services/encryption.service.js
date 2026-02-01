@@ -50,8 +50,12 @@ const decryptSetting = (value) => {
         
         return decrypted.toString('utf8');
     } catch (error) {
-        console.error('Error decrypting setting:', error);
-        return value;
+        console.error('❌ Error decrypting setting - the encryption key may have changed or the value is corrupted');
+        console.error('   This typically happens when SETTINGS_ENCRYPTION_SECRET or JWT_SECRET changes.');
+        console.error('   You may need to re-enter the password in the admin settings.');
+        console.error('   Error details:', error.message);
+        // Return null to indicate decryption failed (not the encrypted value)
+        return null;
     }
 };
 

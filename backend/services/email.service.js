@@ -32,11 +32,36 @@ const createMailTransporter = (settings = {}) => {
     const envUser = EMAIL_USER || '';
     const envPass = EMAIL_PASS || '';
 
+    // Log configuration source for debugging
+    const hasDbUser = !!settingsUser;
+    const hasDbPass = !!settingsPass;
+    const hasEnvUser = !!envUser;
+    const hasEnvPass = !!envPass;
+
+    console.log('📧 Email configuration check:');
+    console.log(`   Database mailUser: ${hasDbUser ? '✅ Set' : '❌ Not set'}`);
+    console.log(`   Database mailPassword: ${hasDbPass ? '✅ Set' : '❌ Not set or decryption failed'}`);
+    console.log(`   ENV EMAIL_USER: ${hasEnvUser ? '✅ Set' : '❌ Not set'}`);
+    console.log(`   ENV EMAIL_PASS: ${hasEnvPass ? '✅ Set' : '❌ Not set'}`);
+
     const useSettingsCreds = settingsUser && settingsPass;
     const user = useSettingsCreds ? settingsUser : envUser;
     const pass = useSettingsCreds ? settingsPass : envPass;
 
+    if (useSettingsCreds) {
+        console.log('   Using: Database credentials');
+    } else if (envUser && envPass) {
+        console.log('   Using: Environment variable credentials');
+    }
+
     if (!user || !pass) {
+        console.error('❌ Email transport CANNOT be created:');
+        if (!user) console.error('   - Missing email user (mailUser in DB or EMAIL_USER in .env)');
+        if (!pass) console.error('   - Missing email password (mailPassword in DB or EMAIL_PASS in .env)');
+        if (hasDbUser && !hasDbPass) {
+            console.error('   ⚠️  Database has mailUser but mailPassword is missing or decryption failed!');
+            console.error('      This usually means the password needs to be re-entered in Admin > Ajustes.');
+        }
         return null;
     }
 
@@ -97,17 +122,29 @@ const sendMailWithSettings = async (mailOptions) => {
     const transporter = createMailTransporter(settings);
     
     if (!transporter) {
-        throw new Error('Email transport not configured');
+        throw new Error('Email transport not configured. Check server logs for details.');
     }
 
     const fromEmail = settings.mailFrom || settings.mailUser || EMAIL_USER || mailOptions.from;
     const fromName = settings.mailFromName || settings.siteName || 'TechStore';
     const from = fromEmail ? `${fromName} <${fromEmail}>` : mailOptions.from;
 
-    await transporter.sendMail({
-        ...mailOptions,
-        from
-    });
+    try {
+        await transporter.sendMail({
+            ...mailOptions,
+            from
+        });
+        console.log(`✅ Email sent successfully to: ${mailOptions.to}`);
+    } catch (error) {
+        console.error('❌ Failed to send email:');
+        console.error(`   To: ${mailOptions.to}`);
+        console.error(`   Error: ${error.message}`);
+        if (error.code === 'EAUTH') {
+            console.error('   ⚠️  Authentication failed - the email password may be incorrect.');
+            console.error('      Please verify the password in Admin > Ajustes > Email Settings.');
+        }
+        throw error;
+    }
 };
 
 /**

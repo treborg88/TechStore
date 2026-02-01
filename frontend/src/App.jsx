@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, Suspense, lazy } from 'react'
 import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import './App.css';
 import './components/auth/LoginPage.css';
-import { getCurrentUser, logout } from './services/authService';
+import { getCurrentUser, logout, isSessionExpired } from './services/authService';
 
 import { API_URL, DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from './config';
 import { apiFetch, apiUrl, initializeCsrfToken } from './services/apiClient';
@@ -143,9 +143,33 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [error, setError] = useState(null);
-  const [user, setUser] = useState(getCurrentUser());
+  
+  // Initialize user state with session expiry check
+  const [user, setUser] = useState(() => {
+    // Check if session is expired on initial load
+    if (isSessionExpired()) {
+      logout(); // Clear expired session data
+      return null;
+    }
+    return getCurrentUser();
+  });
 
   const navigate = useNavigate();
+
+  // Handle session expiry on page load/refresh - redirect to home if expired
+  useEffect(() => {
+    const checkSession = () => {
+      if (user && isSessionExpired()) {
+        logout();
+        setUser(null);
+        setCartItems([]);
+        localStorage.removeItem('checkout_progress');
+        toast.error("Tu sesión ha expirado. Por favor inicia sesión nuevamente.");
+        navigate('/');
+      }
+    };
+    checkSession();
+  }, [navigate, user]);
 
   const updateProductStock = useCallback((productId, delta) => {
     setProducts((prev) => prev.map((product) => {

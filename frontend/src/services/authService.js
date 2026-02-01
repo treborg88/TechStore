@@ -1,6 +1,9 @@
     // services/authService.js
    import { apiFetch, apiUrl, refreshCsrfToken } from './apiClient';
 
+    // Session duration constant (24 hours in milliseconds)
+    const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
+
     // Funciones de autenticación
     export const login = async (email, password) => {
     try {
@@ -19,8 +22,9 @@
 
         const data = await response.json();
         
-        // Guardar datos del usuario
+        // Guardar datos del usuario y timestamp de inicio de sesión
         localStorage.setItem('userData', JSON.stringify(data.user));
+        localStorage.setItem('sessionStartTime', Date.now().toString());
         if (data.token) {
         localStorage.setItem('authToken', data.token);
         }
@@ -57,8 +61,9 @@
 
         const data = await response.json();
         
-        // Guardar datos del usuario automáticamente después del registro
+        // Guardar datos del usuario y timestamp de inicio de sesión automáticamente después del registro
         localStorage.setItem('userData', JSON.stringify(data.user));
+        localStorage.setItem('sessionStartTime', Date.now().toString());
         if (data.token) {
         localStorage.setItem('authToken', data.token);
         }
@@ -81,6 +86,7 @@
     }
     localStorage.removeItem('userData');
     localStorage.removeItem('authToken');
+    localStorage.removeItem('sessionStartTime');
     
     // Limpiar carritos guardados (opcional)
     const keys = Object.keys(localStorage);
@@ -104,6 +110,18 @@
     export const isLoggedIn = () => {
     const userData = localStorage.getItem('userData');
     return !!userData;
+    };
+
+    // Check if session has expired (24 hours)
+    export const isSessionExpired = () => {
+    const sessionStartTime = localStorage.getItem('sessionStartTime');
+    if (!sessionStartTime) {
+        // If no timestamp exists but user data exists, session is considered expired
+        const userData = localStorage.getItem('userData');
+        return !!userData;
+    }
+    const elapsed = Date.now() - parseInt(sessionStartTime, 10);
+    return elapsed >= SESSION_DURATION_MS;
     };
 
     export const getAuthToken = () => {
@@ -148,6 +166,7 @@
     logout,
     getCurrentUser,
     isLoggedIn,
+    isSessionExpired,
     getAuthToken
     };
 
