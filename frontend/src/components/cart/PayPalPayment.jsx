@@ -12,7 +12,8 @@ const PayPalPayment = ({
     amount, 
     currency = 'USD', 
     orderId, 
-    customerEmail: _customerEmail,
+    // eslint-disable-next-line no-unused-vars
+    customerEmail,
     onSuccess, 
     onError, 
     onCancel 
