@@ -12,7 +12,7 @@ const PayPalPayment = ({
     amount, 
     currency = 'USD', 
     orderId, 
-    customerEmail,
+    customerEmail: _customerEmail,
     onSuccess, 
     onError, 
     onCancel 
