@@ -1,5 +1,5 @@
 .settings-manager {
-  max-width: 800px;
+  max-width: 1200px;
   margin: 2rem auto;
   background: white;
   padding: 2rem;
@@ -30,6 +30,79 @@
   gap: 2rem;
 }
 
+/* Layout con sidebar */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 2rem;
+  min-height: 500px;
+}
+
+.settings-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  background: #f9fafb;
+  padding: 1rem;
+  border-radius: 12px;
+  height: fit-content;
+  position: sticky;
+  top: 100px;
+}
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: #4b5563;
+  font-weight: 500;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+}
+
+.settings-nav-item:hover {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+.settings-nav-item.active {
+  background: #2563eb;
+  color: white;
+}
+
+.settings-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Responsive sidebar */
+@media (max-width: 768px) {
+  .settings-layout {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .settings-sidebar {
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+    padding: 0.75rem;
+    gap: 0.5rem;
+  }
+  
+  .settings-nav-item {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8rem;
+  }
+}
+
+/* Estilos anteriores de subtabs (mantener por compatibilidad) */
 .settings-subtabs {
   display: flex;
   flex-wrap: wrap;
@@ -329,6 +402,10 @@
   gap: 1rem;
 }
 
+.category-settings-list.compact {
+  gap: 0.5rem;
+}
+
 .category-settings-card {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -339,9 +416,207 @@
   gap: 0.75rem;
 }
 
+/* Estilos para categorías compactas y plegables */
+.category-settings-card.compact {
+  padding: 0;
+  gap: 0;
+  overflow: hidden;
+}
+
+.category-settings-card.compact .category-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  background: #f9fafb;
+  transition: background 0.15s ease;
+}
+
+.category-settings-card.compact .category-card-header:hover {
+  background: #f3f4f6;
+}
+
+.category-settings-card.compact.expanded .category-card-header {
+  background: #eff6ff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.category-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.category-icon {
+  font-size: 1.2rem;
+}
+
+.category-name {
+  font-weight: 600;
+  color: #111827;
+}
+
+.category-slug {
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.category-expand-icon {
+  color: #9ca3af;
+  font-size: 0.75rem;
+  transition: transform 0.2s ease;
+}
+
+.category-settings-card.compact .category-card-body {
+  padding: 1rem;
+  background: #fff;
+  border-top: none;
+}
+
+.category-settings-card.compact .category-card-body .settings-grid {
+  padding: 0;
+  margin-bottom: 0.75rem;
+}
+
+.category-settings-card.compact .category-settings-actions {
+  padding-top: 0.5rem;
+  border-top: 1px solid #f3f4f6;
+}
+
 .category-settings-actions {
   display: flex;
   justify-content: flex-end;
+}
+
+/* Estilos globales compactos */
+.settings-subsection.styles-compact {
+  margin-top: 1.5rem;
+}
+
+.settings-subsection.styles-compact h4 {
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.style-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 0.5rem;
+  background: #fafafa;
+}
+
+.style-group summary {
+  padding: 0.6rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.9rem;
+  color: #374151;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.style-group summary::-webkit-details-marker {
+  display: none;
+}
+
+.style-group summary::after {
+  content: '▼';
+  margin-left: auto;
+  font-size: 0.7rem;
+  color: #9ca3af;
+  transition: transform 0.2s ease;
+}
+
+.style-group[open] summary::after {
+  transform: rotate(180deg);
+}
+
+.style-group[open] summary {
+  border-bottom: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  border-radius: 8px 8px 0 0;
+}
+
+.style-group-content {
+  padding: 0.75rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  background: #fff;
+  border-radius: 0 0 8px 8px;
+}
+
+.style-group-content.colors-row {
+  align-items: flex-end;
+}
+
+/* Campos inline */
+.inline-field {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.inline-field label {
+  font-size: 0.8rem;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.inline-field input[type="number"],
+.inline-field input[type="text"] {
+  width: 70px;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.inline-field.small input[type="text"] {
+  width: 100px;
+}
+
+.inline-field.wide input[type="text"] {
+  width: 180px;
+}
+
+.inline-field select {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  background: #fff;
+}
+
+.inline-field span {
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+/* Campos de color compactos */
+.color-field {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.color-field input[type="color"] {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 2px;
+}
+
+.color-field span {
+  font-size: 0.75rem;
+  color: #6b7280;
 }
 
 .settings-secondary-btn {
@@ -593,6 +868,27 @@
 }
 
 .status-badge.active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+/* Status badge inline para toggles de pago */
+.payment-toggle-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.status-badge-inline {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.status-badge-inline.active {
   background: #d1fae5;
   color: #065f46;
 }

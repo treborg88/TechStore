@@ -153,7 +153,14 @@
   border-radius: 8px;
   font-weight: 600;
   background: var(--white);
+  color: #1f2937;
   cursor: pointer;
+}
+
+.tracker-filters select option {
+  background-color: #ffffff;
+  color: #1f2937;
+  padding: 8px 12px;
 }
 
 /* Lista de órdenes */

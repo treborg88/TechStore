@@ -27,6 +27,7 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
     const [leafletLoaded, setLeafletLoaded] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
+    const [ratesExpanded, setRatesExpanded] = useState(false);
     const geocodeTimeoutRef = useRef(null);
     const lastGeocodedRef = useRef(''); // Para evitar búsquedas repetidas
     const initialGeocodeAttemptedRef = useRef(false); // Para geocodificar al entrar al paso 2
@@ -454,12 +455,12 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                 className="shipping-map-container"
             />
 
-            <div className="map-instructions">
+            {/* <div className="map-instructions">
                 <p>✅ El mapa se actualiza automáticamente al escribir la dirección</p>
                 <p>🔍 Usa el buscador en el mapa para encontrar direcciones</p>
                 <p>👆 Haz clic en cualquier punto del mapa para seleccionar</p>
                 <p>📍 Arrastra el marcador rojo para ajustar la posición</p>
-            </div>
+            </div> */}
 
             {mapData.distance && (
                 <div className="shipping-cost-card">
@@ -480,24 +481,54 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
             )}
 
             <div className="shipping-rates-table">
-                <h5>Tarifas de Envío</h5>
-                <div className="rates-list">
-                    {PRICE_RANGES.map((range, index) => {
-                        const isActive = mapData.distance && 
-                            mapData.distance <= range.maxDistance && 
-                            (index === 0 || mapData.distance > PRICE_RANGES[index - 1].maxDistance);
-
-                        return (
-                            <div 
-                                key={index}
-                                className={`rate-item ${isActive ? 'active' : ''}`}
-                            >
-                                <span className="rate-label">{range.label}</span>
-                                <span className="rate-price">{formatCurrency(range.price, currencyCode)}</span>
-                            </div>
-                        );
-                    })}
+                <div 
+                    className="rates-header-toggle"
+                    onClick={() => setRatesExpanded(!ratesExpanded)}
+                    style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                        padding: '10px 12px',
+                        backgroundColor: '#f8fafc',
+                        borderRadius: ratesExpanded ? '8px 8px 0 0' : '8px',
+                        border: '1px solid #e2e8f0',
+                        transition: 'all 0.2s ease'
+                    }}
+                >
+                    <h5 style={{ margin: 0, fontSize: '0.95rem', color: '#374151' }}>📋 Tarifas de Envío</h5>
+                    <span style={{ 
+                        transform: ratesExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease',
+                        fontSize: '0.9rem'
+                    }}>
+                        ▼
+                    </span>
                 </div>
+                {ratesExpanded && (
+                    <div className="rates-list" style={{
+                        borderTop: 'none',
+                        borderRadius: '0 0 8px 8px',
+                        border: '1px solid #e2e8f0',
+                        borderTop: 'none'
+                    }}>
+                        {PRICE_RANGES.map((range, index) => {
+                            const isActive = mapData.distance && 
+                                mapData.distance <= range.maxDistance && 
+                                (index === 0 || mapData.distance > PRICE_RANGES[index - 1].maxDistance);
+
+                            return (
+                                <div 
+                                    key={index}
+                                    className={`rate-item ${isActive ? 'active' : ''}`}
+                                >
+                                    <span className="rate-label">{range.label}</span>
+                                    <span className="rate-price">{formatCurrency(range.price, currencyCode)}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
         </div>
     );

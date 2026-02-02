@@ -238,16 +238,20 @@
 
 .action-buttons {
   display: flex;
+  flex-direction: row;
   gap: 1rem;
+  align-items: center;
 }
 
 .add-to-cart-btn {
-  flex: 0 1 220px;
-  max-width: 190px;
+  flex: 0 0 auto;
+  min-width: 150px;
+  max-width: 220px;
+  height: 48px;
   background-color: #2563eb;
   color: white;
   border: none;
-  padding: 1rem;
+  padding: 0 1.25rem;
   border-radius: 8px;
   font-weight: 600;
   font-size: 1rem;
@@ -257,6 +261,7 @@
   align-items: center;
   justify-content: center;
   gap: 0.5rem;
+  white-space: nowrap;
 }
 
 .add-to-cart-btn:hover {
@@ -343,13 +348,16 @@
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
+    align-items: center;
   }
 
   .add-to-cart-btn,
   .share-toggle-btn {
-    flex: 1;
+    flex: 1 1 auto;
+    min-width: 0;
     max-width: none;
-    padding: 0.75rem 0.5rem;
+    height: 44px;
+    padding: 0 0.75rem;
     font-size: 0.9rem;
     white-space: nowrap;
     justify-content: center;

@@ -16,7 +16,6 @@ export default function Header({
   isSticky = false
 }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const navigate = useNavigate();
 
   const closeMobileMenu = () => setMobileMenuOpen(false);
@@ -38,11 +37,6 @@ export default function Header({
       navigate('/admin');
     }
     closeMobileMenu();
-  };
-
-  const handleSettingsToggle = (event) => {
-    event.preventDefault();
-    setSettingsMenuOpen((prev) => !prev);
   };
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -79,27 +73,7 @@ export default function Header({
             {user && user.role === 'admin' && (
               <>
                 <a href="#" className="nav-link" onClick={handleAdminNav}>Administrar</a>
-                <div className="nav-dropdown">
-                  <a href="#" className="nav-link" onClick={handleSettingsToggle}>Ajustes ▾</a>
-                  {settingsMenuOpen && (
-                    <div className="nav-dropdown-menu">
-                      <Link
-                        to="/settings#site"
-                        className="nav-dropdown-item"
-                        onClick={() => setSettingsMenuOpen(false)}
-                      >
-                        Ajuste del sitio
-                      </Link>
-                      <Link
-                        to="/settings#email"
-                        className="nav-dropdown-item"
-                        onClick={() => setSettingsMenuOpen(false)}
-                      >
-                        Configuración de correo
-                      </Link>
-                    </div>
-                  )}
-                </div>
+                <Link to="/settings" className="nav-link">Ajustes</Link>
               </>
             )}
           </nav>
@@ -160,8 +134,7 @@ export default function Header({
           {user && user.role === 'admin' && (
             <>
               <a href="#" className="mobile-nav-link" onClick={handleAdminNav}>Administrar</a>
-              <Link to="/settings#site" className="mobile-nav-link" onClick={closeMobileMenu}>Ajuste del sitio</Link>
-              <Link to="/settings#email" className="mobile-nav-link" onClick={closeMobileMenu}>Configuración de correo</Link>
+              <Link to="/settings" className="mobile-nav-link" onClick={closeMobileMenu}>Ajustes</Link>
             </>
           )}
 

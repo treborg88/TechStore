@@ -1,5 +1,6 @@
 import React from "react";
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { BASE_URL } from '../../config';
 import '../products/ProductDetail.css';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -9,7 +10,12 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose,
     const navigate = useNavigate();
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
 
+    // Validate cart has items before navigating to checkout
     const handleCheckout = () => {
+        if (!cartItems || cartItems.length === 0) {
+            toast.error('Tu carrito está vacío. Agrega productos antes de continuar.');
+            return;
+        }
         navigate('/checkout');
     };
 

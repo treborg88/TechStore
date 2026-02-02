@@ -57,6 +57,18 @@ const [step, setStep] = useState(1);
         paypal: { enabled: false, name: 'PayPal', description: 'Paga con tu cuenta PayPal', icon: '🅿️' }
     });
 
+    // Validate cart has items - redirect if empty and no order created
+    useEffect(() => {
+        if (!orderCreated && (!cartItems || cartItems.length === 0)) {
+            setError('Tu carrito está vacío. Agrega productos antes de continuar.');
+            // Redirect to cart after a brief delay to show message
+            const timer = setTimeout(() => {
+                navigate('/cart');
+            }, 2000);
+            return () => clearTimeout(timer);
+        }
+    }, [cartItems, orderCreated, navigate]);
+
     // Load payment methods configuration on mount
     useEffect(() => {
         const loadPaymentMethods = async () => {
@@ -284,6 +296,13 @@ e.preventDefault();
     try {
         setIsSubmitting(true);
         setError('');
+
+        // Validar que hay productos en el carrito
+        if (!cartItems || cartItems.length === 0) {
+            setError('Tu carrito está vacío. Agrega al menos un producto para continuar.');
+            setIsSubmitting(false);
+            return;
+        }
 
         // Validar que se haya seleccionado un método de pago
         if (!formData.paymentMethod) {
@@ -569,6 +588,11 @@ return (
                             ) : (
                                 <form id="step1-form" className="step-form" onSubmit={(e) => {
                                     e.preventDefault();
+                                    // Validate cart has items before proceeding
+                                    if (!cartItems || cartItems.length === 0) {
+                                        setError('Tu carrito está vacío. Agrega productos antes de continuar.');
+                                        return;
+                                    }
                                     const user = getCurrentUser();
                                     if (user || isEmailVerified) {
                                         setStep(2);
@@ -641,6 +665,11 @@ return (
                         {step === 2 && (
                             <form id="step2-form" className="step-form step-form-shipping" onSubmit={(e) => {
                                 e.preventDefault();
+                                // Validate cart has items before proceeding
+                                if (!cartItems || cartItems.length === 0) {
+                                    setError('Tu carrito está vacío. Agrega productos antes de continuar.');
+                                    return;
+                                }
                                 setError('');
                                 setStep(3);
                             }}>
@@ -976,6 +1005,19 @@ return (
                         <div className="checkout-summary-column">
                             <div className="summary-card">
                                 <h3>Tu Carrito</h3>
+                                {(!cartItems || cartItems.length === 0) ? (
+                                    <div className="empty-cart-warning">
+                                        <p>⚠️ Tu carrito está vacío</p>
+                                        <button 
+                                            type="button" 
+                                            className="btn-back-to-store"
+                                            onClick={() => navigate('/')}
+                                        >
+                                            Volver a la tienda
+                                        </button>
+                                    </div>
+                                ) : (
+                                <>
                                 <div className="mini-item-list">
                                     {cartItems.map(item => (
                                         <div key={item.id} className="mini-item">
@@ -1019,6 +1061,8 @@ return (
                                     <span>Total</span>
                                     <span>{formatCurrency(total + mapData.shippingCost, currencyCode)}</span>
                                 </div>
+                                </>
+                                )}
                             </div>
                         </div>
             </div>
@@ -1048,7 +1092,14 @@ return (
                 )}
 
                 {step === 3 && (
-                    <button type="button" className="btn-next" onClick={() => setStep(4)}>
+                    <button type="button" className="btn-next" onClick={() => {
+                        // Validate cart has items before proceeding to payment
+                        if (!cartItems || cartItems.length === 0) {
+                            setError('Tu carrito está vacío. Agrega productos antes de continuar.');
+                            return;
+                        }
+                        setStep(4);
+                    }}>
                         Siguiente <span className="btn-icon">→</span>
                     </button>
                 )}
