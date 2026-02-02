@@ -507,7 +507,6 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                 </div>
                 {ratesExpanded && (
                     <div className="rates-list" style={{
-                        borderTop: 'none',
                         borderRadius: '0 0 8px 8px',
                         border: '1px solid #e2e8f0',
                         borderTop: 'none'
