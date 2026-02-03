@@ -3,7 +3,7 @@ import { pdf } from '@react-pdf/renderer';
 import '../../print.css';
 import './Invoice.css';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { STATUS_CONFIG, PAYMENT_METHODS, buildInvoiceData } from '../../utils/invoiceUtils';
+import { STATUS_CONFIG, PAYMENT_METHODS, buildInvoiceData, getPaymentStatusLabel } from '../../utils/invoiceUtils';
 import InvoicePDF from './InvoicePDF';
 
 const PaymentInstructions = ({ order, paymentMethod, invoiceData }) => {
@@ -66,11 +66,39 @@ const COD_STATUS_STEPS = [
     { id: 'paid', ...STATUS_CONFIG.paid }
 ];
 
+// StatusTag genérico para mostrar el estado de la orden
 const StatusTag = ({ status }) => {
     const config = STATUS_CONFIG[status] || { label: status, icon: '' };
     return (
         <div className={`status-tag status-${status}`}>
             {config.icon} {config.label}
+        </div>
+    );
+};
+
+// PaymentStatusTag: muestra el estado de pago considerando el método de pago
+const PaymentStatusTag = ({ status, paymentMethod }) => {
+    const label = getPaymentStatusLabel(status, paymentMethod);
+    const isPaid = ['paid', 'delivered'].includes(status);
+    const isCODPending = paymentMethod === 'cash' && !isPaid;
+    
+    // Determinar estilo visual basado en el estado
+    const getStatusClass = () => {
+        if (isPaid) return 'paid';
+        if (isCODPending) return 'cod-pending';
+        return 'pending_payment';
+    };
+    
+    // Icono según el estado
+    const getIcon = () => {
+        if (isPaid) return '💰';
+        if (isCODPending) return '💵';
+        return '⏳';
+    };
+    
+    return (
+        <div className={`status-tag status-${getStatusClass()}`}>
+            {getIcon()} {label}
         </div>
     );
 };
@@ -383,7 +411,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <p>
                             {PAYMENT_METHODS[customerInfo.paymentMethod]?.icon} {PAYMENT_METHODS[customerInfo.paymentMethod]?.label}
                         </p>
-                        <StatusTag status={order.status} />
+                        <PaymentStatusTag status={order.status} paymentMethod={customerInfo.paymentMethod} />
                     </div>
                     <div className="totals-box">
                         <div className="subtotal-row">

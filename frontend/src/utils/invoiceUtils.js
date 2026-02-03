@@ -14,6 +14,33 @@ export const STATUS_CONFIG = {
     cancelled: { label: 'Cancelado', icon: '❌', color: '#6b7280' }
 };
 
+/**
+ * Determina el estado de pago basado en el status de la orden y método de pago
+ * @param {string} orderStatus - Estado actual de la orden
+ * @param {string} paymentMethod - Método de pago (cash, transfer, online, card)
+ * @returns {string} - Etiqueta del estado de pago
+ */
+export const getPaymentStatusLabel = (orderStatus, paymentMethod) => {
+    // Si el estado es pagado o entregado, siempre es "Pagado"
+    if (['paid', 'delivered'].includes(orderStatus)) {
+        return 'Pagado';
+    }
+    
+    // Para COD (contra entrega): si está en camino o entregado, el pago está pendiente hasta entrega
+    if (paymentMethod === 'cash') {
+        if (['to_ship', 'shipped'].includes(orderStatus)) {
+            return 'Pago al Entregar';
+        }
+        // Estado inicial COD: pendiente de envío
+        if (orderStatus === 'pending_payment') {
+            return 'Pago al Entregar';
+        }
+    }
+    
+    // Para otros métodos, si no está pagado es "Pendiente"
+    return 'Pendiente';
+};
+
 export const PAYMENT_METHODS = {
     cash: { 
         label: 'Pago Contra Entrega', 
@@ -22,7 +49,7 @@ export const PAYMENT_METHODS = {
         instructions: {
             fields: [
                 { label: 'Tipo de Pago', value: 'Efectivo al Recibir' },
-                { label: 'Estado del Pedido', getValue: (order) => ['paid', 'delivered'].includes(order.status) ? 'Pagado' : 'Pendiente de Pago' },
+                { label: 'Estado del Pedido', getValue: (order) => getPaymentStatusLabel(order.status, 'cash') },
                 { label: 'Referencia', getValue: (order) => order.order_number || order.id }
             ],
             amountLabel: 'Total a Pagar',
@@ -52,7 +79,10 @@ export const PAYMENT_METHODS = {
         }
     },
     online: { label: 'Pago en Línea', icon: '💳', detail: 'Pago en Línea' },
-    card: { label: 'Tarjeta de Crédito/Débito', icon: '💳', detail: 'Tarjeta' }
+    card: { label: 'Tarjeta de Crédito/Débito', icon: '💳', detail: 'Tarjeta' },
+    // Métodos de pago online específicos
+    stripe: { label: 'Tarjeta de Crédito/Débito', icon: '💳', detail: 'Stripe' },
+    paypal: { label: 'PayPal', icon: '🅿️', detail: 'PayPal' }
 };
 
 export const buildInvoiceData = ({
@@ -107,7 +137,8 @@ export const buildInvoiceData = ({
     customerID: customerInfo?.identification || 'N/A',
     seller: 'Sistema Online',
     paymentType: PAYMENT_METHODS[customerInfo?.paymentMethod]?.label || 'Pendiente',
-    paymentStatus: ['paid', 'delivered'].includes(order?.status) ? 'Pagado' : 'Pendiente',
+    // Estado de pago considerando el método: COD se paga al entregar
+    paymentStatus: getPaymentStatusLabel(order?.status, customerInfo?.paymentMethod),
     deliveryTime: '3-5 días hábiles',
     currency: currencyCode || 'USD',
     source: order?.order_number || order?.id?.toString(),

@@ -14,8 +14,45 @@ import '../products/ProductDetail.css';
 import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-function Checkout({ cartItems, total, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
+function Checkout({ cartItems: propCartItems, total: propTotal, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();
+    
+    // Use internal cart items state that can be recovered from pending payment
+    const [internalCartItems, setInternalCartItems] = useState(() => {
+        // First try to use prop items
+        if (propCartItems && propCartItems.length > 0) {
+            return propCartItems;
+        }
+        // Fallback: recover from pending payment state
+        try {
+            const savedStripe = localStorage.getItem('pending_stripe_payment');
+            if (savedStripe) {
+                const parsed = JSON.parse(savedStripe);
+                if (parsed.cartItems && parsed.cartItems.length > 0) {
+                    return parsed.cartItems;
+                }
+            }
+            const savedPayPal = localStorage.getItem('pending_paypal_payment');
+            if (savedPayPal) {
+                const parsed = JSON.parse(savedPayPal);
+                if (parsed.cartItems && parsed.cartItems.length > 0) {
+                    return parsed.cartItems;
+                }
+            }
+        } catch (e) {
+            console.error('Error recovering cart items from pending payment:', e);
+        }
+        return [];
+    });
+    
+    // Effective cart items: use props if available, otherwise internal state
+    const cartItems = (propCartItems && propCartItems.length > 0) ? propCartItems : internalCartItems;
+    
+    // Calculate total from effective cart items
+    const total = (propCartItems && propCartItems.length > 0) 
+        ? propTotal 
+        : internalCartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+
     const [formData, setFormData] = useState({
 firstName: '',
 lastName: '',
@@ -44,10 +81,37 @@ const [step, setStep] = useState(1);
     const [_emailExists, setEmailExists] = useState(false);
     const [showLogin, setShowLogin] = useState(false);
     const [friendlyLoginMessage, setFriendlyLoginMessage] = useState('');
-    const [showStripePayment, setShowStripePayment] = useState(false);
-    const [pendingStripeOrder, setPendingStripeOrder] = useState(null);
-    const [showPayPalPayment, setShowPayPalPayment] = useState(false);
-    const [pendingPayPalOrder, setPendingPayPalOrder] = useState(null);
+    // Initialize pending payment states from localStorage to survive page reloads
+    const [showStripePayment, setShowStripePayment] = useState(() => {
+        try {
+            const saved = localStorage.getItem('pending_stripe_payment');
+            return saved ? JSON.parse(saved).showPayment : false;
+        } catch { return false; }
+    });
+    const [pendingStripeOrder, setPendingStripeOrder] = useState(() => {
+        try {
+            const saved = localStorage.getItem('pending_stripe_payment');
+            if (!saved) return null;
+            const parsed = JSON.parse(saved);
+            // Use pendingData (new format) or order (legacy format)
+            return parsed.pendingData || parsed.order || null;
+        } catch { return null; }
+    });
+    const [showPayPalPayment, setShowPayPalPayment] = useState(() => {
+        try {
+            const saved = localStorage.getItem('pending_paypal_payment');
+            return saved ? JSON.parse(saved).showPayment : false;
+        } catch { return false; }
+    });
+    const [pendingPayPalOrder, setPendingPayPalOrder] = useState(() => {
+        try {
+            const saved = localStorage.getItem('pending_paypal_payment');
+            if (!saved) return null;
+            const parsed = JSON.parse(saved);
+            // Use pendingData (new format) or order (legacy format)
+            return parsed.pendingData || parsed.order || null;
+        } catch { return null; }
+    });
     
     // Payment methods configuration from settings
     const [paymentMethods, setPaymentMethods] = useState({
@@ -57,9 +121,48 @@ const [step, setStep] = useState(1);
         paypal: { enabled: false, name: 'PayPal', description: 'Paga con tu cuenta PayPal', icon: '🅿️' }
     });
 
-    // Validate cart has items - redirect if empty and no order created
+    // Restore pending payment state on mount (recovers from page reload during payment)
     useEffect(() => {
-        if (!orderCreated && (!cartItems || cartItems.length === 0)) {
+        // Restore Stripe pending payment
+        const savedStripe = localStorage.getItem('pending_stripe_payment');
+        if (savedStripe) {
+            try {
+                const parsed = JSON.parse(savedStripe);
+                if (parsed.formData) setFormData(parsed.formData);
+                if (parsed.mapData) setMapData(parsed.mapData);
+                if (parsed.cartItems && parsed.cartItems.length > 0) {
+                    setInternalCartItems(parsed.cartItems);
+                }
+                // Set step to payment step
+                setStep(4);
+            } catch (e) {
+                console.error('Error restoring Stripe payment state:', e);
+            }
+        }
+        // Restore PayPal pending payment
+        const savedPayPal = localStorage.getItem('pending_paypal_payment');
+        if (savedPayPal) {
+            try {
+                const parsed = JSON.parse(savedPayPal);
+                if (parsed.formData) setFormData(parsed.formData);
+                if (parsed.mapData) setMapData(parsed.mapData);
+                if (parsed.cartItems && parsed.cartItems.length > 0) {
+                    setInternalCartItems(parsed.cartItems);
+                }
+                // Set step to payment step
+                setStep(4);
+            } catch (e) {
+                console.error('Error restoring PayPal payment state:', e);
+            }
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Run only on mount
+
+    // Validate cart has items - redirect if empty and no order/pending payment exists
+    useEffect(() => {
+        // Don't redirect if order is created or there's a pending payment in progress
+        const hasPendingPayment = pendingStripeOrder || pendingPayPalOrder;
+        if (!orderCreated && !hasPendingPayment && (!cartItems || cartItems.length === 0)) {
             setError('Tu carrito está vacío. Agrega productos antes de continuar.');
             // Redirect to cart after a brief delay to show message
             const timer = setTimeout(() => {
@@ -67,7 +170,7 @@ const [step, setStep] = useState(1);
             }, 2000);
             return () => clearTimeout(timer);
         }
-    }, [cartItems, orderCreated, navigate]);
+    }, [cartItems, orderCreated, pendingStripeOrder, pendingPayPalOrder, navigate]);
 
     // Load payment methods configuration on mount
     useEffect(() => {
@@ -318,6 +421,57 @@ e.preventDefault();
             return;
         }
 
+        // For Stripe payments - show payment form BEFORE creating order
+        // Order will be created after payment is confirmed
+        if (formData.paymentMethod === 'stripe') {
+            const orderTotal = total + (mapData.shippingCost || 0);
+            // Store pending data (no order yet, just preparation data)
+            const pendingData = { 
+                total: orderTotal,
+                items: cartItems,
+                formData: formData,
+                mapData: mapData
+            };
+            setPendingStripeOrder(pendingData);
+            setShowStripePayment(true);
+            // Persist pending payment state and cart items to survive page reloads
+            localStorage.setItem('pending_stripe_payment', JSON.stringify({
+                showPayment: true,
+                pendingData: pendingData,
+                cartItems: cartItems,
+                formData: formData,
+                mapData: mapData
+            }));
+            setIsSubmitting(false);
+            return; // Wait for Stripe payment to complete, then create order
+        }
+
+        // For PayPal payments - show payment form BEFORE creating order
+        // Order will be created after payment is confirmed
+        if (formData.paymentMethod === 'paypal') {
+            const orderTotal = total + (mapData.shippingCost || 0);
+            // Store pending data (no order yet, just preparation data)
+            const pendingData = { 
+                total: orderTotal,
+                items: cartItems,
+                formData: formData,
+                mapData: mapData
+            };
+            setPendingPayPalOrder(pendingData);
+            setShowPayPalPayment(true);
+            // Persist pending payment state and cart items to survive page reloads
+            localStorage.setItem('pending_paypal_payment', JSON.stringify({
+                showPayment: true,
+                pendingData: pendingData,
+                cartItems: cartItems,
+                formData: formData,
+                mapData: mapData
+            }));
+            setIsSubmitting(false);
+            return; // Wait for PayPal payment to complete, then create order
+        }
+
+        // For cash/transfer payments - create order immediately (no payment gateway)
         const isAuthenticated = !!getCurrentUser();
 
         // Preparar items para el backend
@@ -376,30 +530,14 @@ e.preventDefault();
                     }
                 })
             });
-        }    if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || 'Error al crear la orden');
-    }
+        }
+        
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({}));
+            throw new Error(errorData.message || 'Error al crear la orden');
+        }
 
-    const order = await response.json();
-    
-    // For Stripe payments, show payment form instead of completing order
-    if (formData.paymentMethod === 'stripe') {
-        const orderTotal = total + (mapData.shippingCost || 0);
-        setPendingStripeOrder({ ...order, total: orderTotal });
-        setShowStripePayment(true);
-        setIsSubmitting(false);
-        return; // Wait for Stripe payment to complete
-    }
-
-    // For PayPal payments, show payment form instead of completing order
-    if (formData.paymentMethod === 'paypal') {
-        const orderTotal = total + (mapData.shippingCost || 0);
-        setPendingPayPalOrder({ ...order, total: orderTotal });
-        setShowPayPalPayment(true);
-        setIsSubmitting(false);
-        return; // Wait for PayPal payment to complete
-    }
+        const order = await response.json();
     
     // Guardar items confirmados para la factura antes de limpiar el carrito
     const itemsForInvoice = [...cartItems];
@@ -486,6 +624,8 @@ return (
                     }}
                     customerInfo={{
                         ...formData,
+                        // Use payment_method from order if available (more reliable after Stripe/PayPal payments)
+                        paymentMethod: orderCreated.payment_method || formData.paymentMethod,
                         shippingCost: mapData.shippingCost,
                         shippingDistance: mapData.distance,
                         shippingCoordinates: mapData.selectedLocation
@@ -814,45 +954,123 @@ return (
                                     <StripePayment
                                         amount={pendingStripeOrder.total}
                                         currency="dop"
-                                        orderId={pendingStripeOrder.id}
+                                        orderId={null}
                                         customerEmail={formData.email}
                                         onSuccess={async (paymentIntent) => {
-                                            // Confirm payment with backend to update order status
+                                            // Payment confirmed - NOW create the order
                                             try {
-                                                await apiFetch(apiUrl('/payments/confirm'), {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        paymentIntentId: paymentIntent.id,
-                                                        orderId: pendingStripeOrder.id
-                                                    })
-                                                });
+                                                setIsSubmitting(true);
+                                                
+                                                // Get data from pending state or localStorage
+                                                let orderFormData = formData;
+                                                let orderMapData = mapData;
+                                                let orderCartItems = cartItems.length > 0 ? cartItems : [];
+                                                
+                                                // Recover from localStorage if needed (page reload scenario)
+                                                if (orderCartItems.length === 0) {
+                                                    try {
+                                                        const savedPayment = localStorage.getItem('pending_stripe_payment');
+                                                        if (savedPayment) {
+                                                            const parsed = JSON.parse(savedPayment);
+                                                            orderCartItems = parsed.cartItems || [];
+                                                            orderFormData = parsed.formData || formData;
+                                                            orderMapData = parsed.mapData || mapData;
+                                                        }
+                                                    } catch (e) { console.error('Error recovering data:', e); }
+                                                }
+                                                
+                                                const isAuthenticated = !!getCurrentUser();
+                                                const orderItems = orderCartItems.map(item => ({
+                                                    product_id: item.id,
+                                                    quantity: item.quantity
+                                                }));
+                                                
+                                                // Create order with payment already confirmed
+                                                let response;
+                                                if (isAuthenticated) {
+                                                    response = await apiFetch(apiUrl('/orders'), {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            items: orderItems,
+                                                            payment_method: 'stripe',
+                                                            payment_status: 'paid',
+                                                            payment_intent_id: paymentIntent.id,
+                                                            customer_name: `${orderFormData.firstName} ${orderFormData.lastName}`,
+                                                            customer_email: orderFormData.email,
+                                                            customer_phone: orderFormData.phone,
+                                                            shipping_street: orderFormData.address,
+                                                            shipping_city: orderFormData.city,
+                                                            shipping_sector: orderFormData.sector,
+                                                            notes: orderFormData.notes,
+                                                            shipping_cost: orderMapData.shippingCost,
+                                                            shipping_distance: orderMapData.distance,
+                                                            shipping_coordinates: orderMapData.selectedLocation,
+                                                            skipEmail: true
+                                                        })
+                                                    });
+                                                } else {
+                                                    response = await apiFetch(apiUrl('/orders/guest'), {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            items: orderItems,
+                                                            payment_method: 'stripe',
+                                                            payment_status: 'paid',
+                                                            payment_intent_id: paymentIntent.id,
+                                                            shipping_street: orderFormData.address,
+                                                            shipping_city: orderFormData.city,
+                                                            shipping_sector: orderFormData.sector,
+                                                            notes: orderFormData.notes,
+                                                            shipping_cost: orderMapData.shippingCost,
+                                                            shipping_distance: orderMapData.distance,
+                                                            shipping_coordinates: orderMapData.selectedLocation,
+                                                            skipEmail: true,
+                                                            customer_info: {
+                                                                name: `${orderFormData.firstName} ${orderFormData.lastName}`,
+                                                                email: orderFormData.email,
+                                                                phone: orderFormData.phone
+                                                            }
+                                                        })
+                                                    });
+                                                }
+                                                
+                                                if (!response.ok) {
+                                                    const errorData = await response.json().catch(() => ({}));
+                                                    throw new Error(errorData.message || 'Error al crear la orden');
+                                                }
+                                                
+                                                const order = await response.json();
+                                                const paidOrder = { 
+                                                    ...order, 
+                                                    total: pendingStripeOrder.total,
+                                                    status: 'paid',
+                                                    payment_status: 'paid',
+                                                    payment_method: 'stripe'
+                                                };
+                                                
+                                                setShowStripePayment(false);
+                                                setOrderCreated(paidOrder);
+                                                setConfirmedItems(orderCartItems);
+                                                
+                                                // Clear all persisted payment/checkout state
+                                                localStorage.removeItem('checkout_progress');
+                                                localStorage.removeItem('pending_stripe_payment');
+                                                
+                                                // Send invoice email
+                                                await sendInvoiceEmail(paidOrder, orderCartItems, orderFormData);
+                                                
+                                                // Clear cart AFTER order is created
+                                                if (onClearCart) onClearCart();
+                                                if (onOrderComplete) onOrderComplete(paidOrder);
+                                                setStep(5);
+                                                
                                             } catch (err) {
-                                                console.error('Error confirming payment:', err);
+                                                console.error('Error creating order after payment:', err);
+                                                setError('Pago confirmado pero hubo un error creando la orden. Contacta soporte con tu ID de pago: ' + paymentIntent.id);
+                                            } finally {
+                                                setIsSubmitting(false);
                                             }
-                                            
-                                            // Update order with paid status for display
-                                            const paidOrder = { 
-                                                ...pendingStripeOrder, 
-                                                status: 'paid',
-                                                payment_status: 'paid',
-                                                payment_method: 'stripe'
-                                            };
-                                            
-                                            // Save items before clearing cart for invoice
-                                            const itemsForInvoice = [...cartItems];
-                                            
-                                            setShowStripePayment(false);
-                                            setOrderCreated(paidOrder);
-                                            setConfirmedItems(itemsForInvoice);
-                                            localStorage.removeItem('checkout_progress');
-                                            
-                                            // Send invoice email with PDF for Stripe payment
-                                            await sendInvoiceEmail(paidOrder, itemsForInvoice);
-                                            
-                                            if (onClearCart) onClearCart();
-                                            if (onOrderComplete) onOrderComplete(paidOrder);
-                                            setStep(5);
                                         }}
                                         onError={(error) => {
                                             console.error('Stripe payment error:', error);
@@ -861,6 +1079,7 @@ return (
                                         onCancel={() => {
                                             setShowStripePayment(false);
                                             setPendingStripeOrder(null);
+                                            localStorage.removeItem('pending_stripe_payment');
                                         }}
                                     />
                                 ) : showPayPalPayment && pendingPayPalOrder ? (
@@ -868,45 +1087,123 @@ return (
                                     <PayPalPayment
                                         amount={pendingPayPalOrder.total}
                                         currency="USD"
-                                        orderId={pendingPayPalOrder.id}
+                                        orderId={null}
                                         customerEmail={formData.email}
                                         onSuccess={async (paymentResult) => {
-                                            // Confirm payment with backend to update order status
+                                            // Payment confirmed - NOW create the order
                                             try {
-                                                await apiFetch(apiUrl('/payments/paypal/confirm'), {
-                                                    method: 'POST',
-                                                    headers: { 'Content-Type': 'application/json' },
-                                                    body: JSON.stringify({
-                                                        paypalOrderId: paymentResult.id,
-                                                        orderId: pendingPayPalOrder.id
-                                                    })
-                                                });
+                                                setIsSubmitting(true);
+                                                
+                                                // Get data from pending state or localStorage
+                                                let orderFormData = formData;
+                                                let orderMapData = mapData;
+                                                let orderCartItems = cartItems.length > 0 ? cartItems : [];
+                                                
+                                                // Recover from localStorage if needed (page reload scenario)
+                                                if (orderCartItems.length === 0) {
+                                                    try {
+                                                        const savedPayment = localStorage.getItem('pending_paypal_payment');
+                                                        if (savedPayment) {
+                                                            const parsed = JSON.parse(savedPayment);
+                                                            orderCartItems = parsed.cartItems || [];
+                                                            orderFormData = parsed.formData || formData;
+                                                            orderMapData = parsed.mapData || mapData;
+                                                        }
+                                                    } catch (e) { console.error('Error recovering data:', e); }
+                                                }
+                                                
+                                                const isAuthenticated = !!getCurrentUser();
+                                                const orderItems = orderCartItems.map(item => ({
+                                                    product_id: item.id,
+                                                    quantity: item.quantity
+                                                }));
+                                                
+                                                // Create order with payment already confirmed
+                                                let response;
+                                                if (isAuthenticated) {
+                                                    response = await apiFetch(apiUrl('/orders'), {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            items: orderItems,
+                                                            payment_method: 'paypal',
+                                                            payment_status: 'paid',
+                                                            paypal_order_id: paymentResult.id,
+                                                            customer_name: `${orderFormData.firstName} ${orderFormData.lastName}`,
+                                                            customer_email: orderFormData.email,
+                                                            customer_phone: orderFormData.phone,
+                                                            shipping_street: orderFormData.address,
+                                                            shipping_city: orderFormData.city,
+                                                            shipping_sector: orderFormData.sector,
+                                                            notes: orderFormData.notes,
+                                                            shipping_cost: orderMapData.shippingCost,
+                                                            shipping_distance: orderMapData.distance,
+                                                            shipping_coordinates: orderMapData.selectedLocation,
+                                                            skipEmail: true
+                                                        })
+                                                    });
+                                                } else {
+                                                    response = await apiFetch(apiUrl('/orders/guest'), {
+                                                        method: 'POST',
+                                                        headers: { 'Content-Type': 'application/json' },
+                                                        body: JSON.stringify({
+                                                            items: orderItems,
+                                                            payment_method: 'paypal',
+                                                            payment_status: 'paid',
+                                                            paypal_order_id: paymentResult.id,
+                                                            shipping_street: orderFormData.address,
+                                                            shipping_city: orderFormData.city,
+                                                            shipping_sector: orderFormData.sector,
+                                                            notes: orderFormData.notes,
+                                                            shipping_cost: orderMapData.shippingCost,
+                                                            shipping_distance: orderMapData.distance,
+                                                            shipping_coordinates: orderMapData.selectedLocation,
+                                                            skipEmail: true,
+                                                            customer_info: {
+                                                                name: `${orderFormData.firstName} ${orderFormData.lastName}`,
+                                                                email: orderFormData.email,
+                                                                phone: orderFormData.phone
+                                                            }
+                                                        })
+                                                    });
+                                                }
+                                                
+                                                if (!response.ok) {
+                                                    const errorData = await response.json().catch(() => ({}));
+                                                    throw new Error(errorData.message || 'Error al crear la orden');
+                                                }
+                                                
+                                                const order = await response.json();
+                                                const paidOrder = { 
+                                                    ...order, 
+                                                    total: pendingPayPalOrder.total,
+                                                    status: 'paid',
+                                                    payment_status: 'paid',
+                                                    payment_method: 'paypal'
+                                                };
+                                                
+                                                setShowPayPalPayment(false);
+                                                setOrderCreated(paidOrder);
+                                                setConfirmedItems(orderCartItems);
+                                                
+                                                // Clear all persisted payment/checkout state
+                                                localStorage.removeItem('checkout_progress');
+                                                localStorage.removeItem('pending_paypal_payment');
+                                                
+                                                // Send invoice email
+                                                await sendInvoiceEmail(paidOrder, orderCartItems, orderFormData);
+                                                
+                                                // Clear cart AFTER order is created
+                                                if (onClearCart) onClearCart();
+                                                if (onOrderComplete) onOrderComplete(paidOrder);
+                                                setStep(5);
+                                                
                                             } catch (err) {
-                                                console.error('Error confirming PayPal payment:', err);
+                                                console.error('Error creating order after payment:', err);
+                                                setError('Pago confirmado pero hubo un error creando la orden. Contacta soporte con tu ID de pago: ' + paymentResult.id);
+                                            } finally {
+                                                setIsSubmitting(false);
                                             }
-                                            
-                                            // Update order with paid status for display
-                                            const paidOrder = { 
-                                                ...pendingPayPalOrder, 
-                                                status: 'paid',
-                                                payment_status: 'paid',
-                                                payment_method: 'paypal'
-                                            };
-                                            
-                                            // Save items before clearing cart for invoice
-                                            const itemsForInvoice = [...cartItems];
-                                            
-                                            setShowPayPalPayment(false);
-                                            setOrderCreated(paidOrder);
-                                            setConfirmedItems(itemsForInvoice);
-                                            localStorage.removeItem('checkout_progress');
-                                            
-                                            // Send invoice email with PDF for PayPal payment
-                                            await sendInvoiceEmail(paidOrder, itemsForInvoice);
-                                            
-                                            if (onClearCart) onClearCart();
-                                            if (onOrderComplete) onOrderComplete(paidOrder);
-                                            setStep(5);
                                         }}
                                         onError={(error) => {
                                             console.error('PayPal payment error:', error);
@@ -915,6 +1212,7 @@ return (
                                         onCancel={() => {
                                             setShowPayPalPayment(false);
                                             setPendingPayPalOrder(null);
+                                            localStorage.removeItem('pending_paypal_payment');
                                         }}
                                     />
                                 ) : (

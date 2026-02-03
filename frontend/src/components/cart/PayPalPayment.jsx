@@ -54,8 +54,8 @@ const PayPalPayment = ({
                 body: JSON.stringify({
                     amount,
                     currency,
-                    orderId,
-                    description: `Orden #${orderId}`
+                    orderId: orderId || null,
+                    description: orderId ? `Orden #${orderId}` : `Pago de ${currency} ${amount}`
                 })
             });
 
@@ -84,7 +84,7 @@ const PayPalPayment = ({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     paypalOrderId: data.orderID,
-                    orderId
+                    orderId: orderId || null
                 })
             });
 

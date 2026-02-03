@@ -197,7 +197,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  */
 router.post('/', authenticateToken, async (req, res) => {
     const { 
-        notes, shipping_address, items, payment_method, 
+        notes, shipping_address, items, payment_method, payment_status,
         customer_name, customer_email, customer_phone, 
         shipping_street, shipping_city, shipping_postal_code, shipping_sector,
         shipping_cost, shipping_distance, shipping_coordinates
@@ -258,7 +258,13 @@ router.post('/', authenticateToken, async (req, res) => {
         );
         orderId = orderResult.lastInsertRowid;
 
-        await statements.updateOrderStatus('pending_payment', orderId);
+        // Determine initial status based on payment method and payment status
+        // Online payments (stripe, paypal) that are already paid should start as 'paid'
+        const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
+        const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
+        const initialStatus = isPaidOnline ? 'paid' : 'pending_payment';
+        
+        await statements.updateOrderStatus(initialStatus, orderId);
 
         const orderNumber = generateOrderNumber(orderId);
         await statements.updateOrderNumber(orderNumber, orderId);
@@ -320,7 +326,7 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.post('/guest', async (req, res) => {
     const { 
-        notes, shipping_address, items, customer_info, payment_method, 
+        notes, shipping_address, items, customer_info, payment_method, payment_status,
         shipping_street, shipping_city, shipping_postal_code, shipping_sector,
         shipping_cost, shipping_distance, shipping_coordinates
     } = req.body;
@@ -382,7 +388,13 @@ router.post('/guest', async (req, res) => {
         );
         orderId = orderResult.lastInsertRowid;
 
-        await statements.updateOrderStatus('pending_payment', orderId);
+        // Determine initial status based on payment method and payment status
+        // Online payments (stripe, paypal) that are already paid should start as 'paid'
+        const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
+        const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
+        const initialStatus = isPaidOnline ? 'paid' : 'pending_payment';
+
+        await statements.updateOrderStatus(initialStatus, orderId);
 
         const orderNumber = generateOrderNumber(orderId);
         await statements.updateOrderNumber(orderNumber, orderId);

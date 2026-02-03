@@ -639,13 +639,25 @@ function App() {
     if (user) {
       // Initialize CSRF token on app load for mobile compatibility
       initializeCsrfToken();
-      fetchCart();
+      // Don't fetch cart from server if there's a pending payment in progress
+      // (the order was created but payment not yet confirmed)
+      const hasPendingPayment = localStorage.getItem('pending_stripe_payment') || 
+                                 localStorage.getItem('pending_paypal_payment');
+      if (!hasPendingPayment) {
+        fetchCart();
+      }
     }
   }, [user, fetchCart]);
 
   // Persistent cart storage (for refresh resilience)
+  // Skip persistence if there's a pending payment to avoid overwriting saved cart items
   useEffect(() => {
-    localStorage.setItem('cart_persistence', JSON.stringify(cartItems));
+    const hasPendingPayment = localStorage.getItem('pending_stripe_payment') || 
+                               localStorage.getItem('pending_paypal_payment');
+    // Only persist if no pending payment OR if cart has items
+    if (!hasPendingPayment || cartItems.length > 0) {
+      localStorage.setItem('cart_persistence', JSON.stringify(cartItems));
+    }
   }, [cartItems]);
 
   return (
