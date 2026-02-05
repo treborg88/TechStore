@@ -8,7 +8,16 @@ export default defineConfig({
     global: 'window',
   },
   server: {
-    // Allow Cloudflare Tunnel and other external hosts
-    allowedHosts: ['.trycloudflare.com', '.duckdns.org'],
+    host: '0.0.0.0',
+    port: 5173,
+    strictPort: true,
+    // Allow Cloudflare Tunnel and your domain
+    allowedHosts: [
+      '.trycloudflare.com',
+      '.eonsclover.com',
+      'eonsclover.com',
+      'www.eonsclover.com',
+      'localhost'
+    ],
   },
 })

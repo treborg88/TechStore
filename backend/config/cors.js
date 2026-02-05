@@ -3,6 +3,10 @@ const cors = require('cors');
 
 const corsOptions = {
     origin: [
+        'http://eonsclover.com',
+        'https://eonsclover.com',
+        'http://www.eonsclover.com',
+        'https://www.eonsclover.com',
         'https://6sfq7hfx-5173.use2.devtunnels.ms',
         'https://6sfq7hfx-5001.use2.devtunnels.ms',
         'http://192.168.100.41:5173',

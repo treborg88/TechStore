@@ -8,11 +8,11 @@ const isLocalhost = typeof window !== 'undefined' &&
 // Valores por defecto basados en el entorno
 const DEFAULT_API_URL = isLocalhost 
     ? 'http://localhost:5001/api' 
-    : 'http://143.47.118.165:5001/api';
+    : '/api';
 
 const DEFAULT_BASE_URL = isLocalhost 
     ? 'http://localhost:5173' 
-    : 'http://143.47.118.165:5173';
+    : 'https://eonsclover.com';
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
