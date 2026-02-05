@@ -6,9 +6,10 @@ const isLocalhost = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
 // Valores por defecto basados en el entorno
+// En producción usa ruta relativa /api (nginx hace proxy al backend)
 const DEFAULT_API_URL = isLocalhost 
     ? 'http://localhost:5001/api' 
-    : '/api';
+    : 'https://eonsclover.com/api';
 
 const DEFAULT_BASE_URL = isLocalhost 
     ? 'http://localhost:5173' 
