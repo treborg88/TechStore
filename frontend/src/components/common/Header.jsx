@@ -155,7 +155,13 @@ export default function Header({
 
         <div className="header-desktop-spacer"></div>
 
-        <nav className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}>
+        <nav 
+          className={`mobile-nav ${mobileMenuOpen ? 'open' : ''}`}
+          style={{
+            '--header-bg-color': headerSettings.bgColor || '#2563eb',
+            '--header-text-color': headerSettings.textColor || '#ffffff'
+          }}
+        >
           <button className="close-mobile-nav" onClick={closeMobileMenu}>✕</button>
           
           <Link to="/" className="mobile-nav-link" onClick={(e) => { handleLogoClick(e); closeMobileMenu(); }}>Productos</Link>
@@ -172,7 +178,7 @@ export default function Header({
           {user ? (
             <>
               <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); onProfileOpen && onProfileOpen(); closeMobileMenu(); }}>Mi Perfil</a>
-              <button className="mobile-nav-link" onClick={() => { onLogout(); closeMobileMenu(); }} style={{ background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer', color: 'var(--white)' }}>
+              <button className="mobile-nav-link" onClick={() => { onLogout(); closeMobileMenu(); }} style={{ background: 'none', border: 'none', textAlign: 'left', width: '100%', cursor: 'pointer', color: 'inherit' }}>
                 Cerrar Sesión
               </button>
             </>

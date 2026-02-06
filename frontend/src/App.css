@@ -138,7 +138,7 @@ ul {
   max-height: 100vh;
   overflow-y: auto;
   border-bottom-right-radius: 16px;
-  background-color:  rgb(75, 33, 213);
+  background-color: var(--header-bg-color, var(--primary-color));
   box-shadow: 2px 4px 12px rgba(0,0,0,0.15);
   z-index: 4001;
   transition: left 0.3s ease;
@@ -175,22 +175,22 @@ ul {
   background: none;
   border: none;
   font-size: 1.6rem;
-  color: var(--white);
+  color: var(--header-text-color, #ffffff);
   cursor: pointer;
   padding: 0 6px;
 }
 
 .mobile-nav-link {
   font-size: 1.05rem;
-  color: var(--white);
+  color: var(--header-text-color, #ffffff);
   padding: 8px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.28);
   font-weight: 500;
 }
 
 .mobile-nav-link:hover {
-  color: var(--white);
-  background-color: var(--primary-hover);
+  color: var(--header-text-color, #ffffff);
+  background-color: rgba(255, 255, 255, 0.1);
 }
 
 /* Header */
@@ -454,9 +454,6 @@ ul {
   background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
 }
 
-.hero-section.show-image {
-  /* Al activarse esta clase, la transición de background-image (inline) será suave */
-}
 
 .hero-container {
   display: flex;
