@@ -15,7 +15,8 @@ function SettingsManager() {
     theme: true,
     home: true,
     product: true,
-    identity: true,
+    identity: false,
+    heroText: false,
     ecommerce: true,
     promos: true,
     filters: true,
@@ -86,6 +87,10 @@ function SettingsManager() {
   const [settings, setSettings] = useState({
     siteName: 'TechStore',
     siteIcon: '🛍️',
+    siteLogo: '',
+    siteLogoSize: 40,
+    siteNameImage: '',
+    siteNameImageSize: 32,
     maintenanceMode: false,
     freeShippingThreshold: 50000,
     contactEmail: 'soporte@techstore.com',
@@ -99,6 +104,36 @@ function SettingsManager() {
     mailPort: 587,
     mailUseTls: true,
     mailTemplateHtml: '<div style="font-family: Arial, sans-serif; color:#111827; line-height:1.6;">\n  <div style="background:#111827;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;">\n    <h2 style="margin:0;">{{siteIcon}} {{siteName}}</h2>\n    <p style="margin:4px 0 0;">Tu pedido fue recibido</p>\n  </div>\n  <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 10px 10px;">\n    <p>Hola <strong>{{customerName}}</strong>,</p>\n    <p>Tu orden <strong>{{orderNumber}}</strong> fue tomada y está en proceso de preparación para envío.</p>\n    <h3 style="margin-top:20px;">Resumen</h3>\n    {{itemsTable}}\n    <p style="margin-top:16px;"><strong>Total:</strong> {{total}}</p>\n    <p><strong>Dirección:</strong> {{shippingAddress}}</p>\n    <p><strong>Pago:</strong> {{paymentMethod}}</p>\n    <p style="margin-top:20px;">Gracias por comprar con nosotros.</p>\n  </div>\n</div>',
+    // Hero text configuration
+    heroTitle: 'La Mejor Tecnología a Tu Alcance',
+    heroDescription: 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
+    heroTitleSize: 2.1,
+    heroDescriptionSize: 1.05,
+    heroPositionY: 'center',
+    heroPositionX: 'left',
+    heroImageWidth: 100,
+    heroOverlayOpacity: 0.5,
+    heroHeight: 360,
+    heroTextColor: '#ffffff',
+    headerTextColor: '#ffffff',
+    headerButtonColor: '#ffffff',
+    headerButtonTextColor: '#2563eb',
+    // Banner image overlay settings
+    heroBannerImage: '',
+    heroBannerSize: 150,
+    heroBannerPositionX: 'right',
+    heroBannerPositionY: 'center',
+    heroBannerOpacity: 100,
+    // Product Detail Hero settings
+    productDetailHeroImage: '',
+    productDetailUseHomeHero: true,
+    productDetailHeroHeight: 200,
+    productDetailHeroOverlayOpacity: 0.5,
+    productDetailHeroBannerImage: '',
+    productDetailHeroBannerSize: 120,
+    productDetailHeroBannerPositionX: 'right',
+    productDetailHeroBannerPositionY: 'center',
+    productDetailHeroBannerOpacity: 100,
     categoryFiltersConfig: cloneCategoryConfig(),
     productCardConfig: cloneProductCardConfig(),
     paymentMethodsConfig: clonePaymentMethodsConfig(),
@@ -854,56 +889,309 @@ function SettingsManager() {
                   </button>
                   {openSections.product && (
                     <>
-                      <div className="form-group">
-                        <label>Banner Superior (Opcional)</label>
-                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'productDetailHeroImage')} />
-                        {settings.productDetailHeroImage && (
-                          <div className="settings-preview">
-                            <img src={settings.productDetailHeroImage} alt="Product Detail Banner" />
-                            <button type="button" onClick={() => setSettings(prev => ({ ...prev, productDetailHeroImage: '' }))} className="delete-image-btn">Eliminar</button>
-                          </div>
-                        )}
-                        <p className="field-hint">Este banner aparecerá en la parte superior de cada producto.</p>
+                      {/* Checkbox para usar configuración del Home */}
+                      <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={settings.productDetailUseHomeHero ?? true}
+                            onChange={(e) => setSettings(prev => ({ ...prev, productDetailUseHomeHero: e.target.checked }))}
+                          />
+                          Usar misma configuración del Hero del Home
+                        </label>
                       </div>
+
+                      {/* Si NO usa la configuración del home, mostrar opciones */}
+                      {!settings.productDetailUseHomeHero && (
+                        <div className="hero-settings-compact">
+                          {/* Imagen del Hero */}
+                          <div className="hero-image-row">
+                            <div className="form-group-compact" style={{ flex: 1 }}>
+                              <label>Imagen del Hero</label>
+                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'productDetailHeroImage')} />
+                            </div>
+                            {settings.productDetailHeroImage && (
+                              <div className="settings-preview-compact">
+                                <img src={settings.productDetailHeroImage} alt="Product Hero" />
+                                <button type="button" onClick={() => setSettings(prev => ({ ...prev, productDetailHeroImage: '' }))} className="delete-text-btn">eliminar</button>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Altura y oscurecimiento */}
+                          <div className="settings-grid-3" style={{ marginTop: '0.5rem' }}>
+                            <div className="form-group-compact inline-label">
+                              <label>Altura <input type="number" name="productDetailHeroHeight" min="100" max="400" step="20" value={settings.productDetailHeroHeight || 200} onChange={handleChange} className="size-input-mini" />px</label>
+                            </div>
+                            <div className="form-group-compact inline-label">
+                              <label>Oscurecer <input type="number" name="productDetailHeroOverlayOpacity" min="0" max="80" step="5" value={Math.round((settings.productDetailHeroOverlayOpacity ?? 0.5) * 100)} onChange={(e) => handleChange({ target: { name: 'productDetailHeroOverlayOpacity', value: parseFloat(e.target.value) / 100 } })} className="size-input-mini" />%</label>
+                            </div>
+                          </div>
+
+                          {/* Imagen superpuesta del Banner */}
+                          <div className="banner-image-section">
+                            <label className="section-label">Imagen Superpuesta del Banner</label>
+                            <div className="hero-image-row">
+                              <div className="form-group-compact" style={{ flex: 1 }}>
+                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'productDetailHeroBannerImage')} />
+                              </div>
+                              {settings.productDetailHeroBannerImage && (
+                                <div className="settings-preview-compact">
+                                  <img src={settings.productDetailHeroBannerImage} alt="Banner overlay" />
+                                  <button type="button" onClick={() => setSettings(prev => ({ ...prev, productDetailHeroBannerImage: '' }))} className="delete-text-btn">eliminar</button>
+                                </div>
+                              )}
+                            </div>
+                            {settings.productDetailHeroBannerImage && (
+                              <div className="settings-grid-4" style={{ marginTop: '0.5rem' }}>
+                                <div className="form-group-compact inline-label">
+                                  <label>Tamaño <input type="number" name="productDetailHeroBannerSize" min="50" max="300" step="10" value={settings.productDetailHeroBannerSize || 120} onChange={handleChange} className="size-input-mini" />px</label>
+                                </div>
+                                <div className="form-group-compact">
+                                  <label>Pos. Horizontal</label>
+                                  <select name="productDetailHeroBannerPositionX" value={settings.productDetailHeroBannerPositionX || 'right'} onChange={handleChange}>
+                                    <option value="left">Izquierda</option>
+                                    <option value="center">Centro</option>
+                                    <option value="right">Derecha</option>
+                                  </select>
+                                </div>
+                                <div className="form-group-compact">
+                                  <label>Pos. Vertical</label>
+                                  <select name="productDetailHeroBannerPositionY" value={settings.productDetailHeroBannerPositionY || 'center'} onChange={handleChange}>
+                                    <option value="top">Arriba</option>
+                                    <option value="center">Centro</option>
+                                    <option value="bottom">Abajo</option>
+                                  </select>
+                                </div>
+                                <div className="form-group-compact inline-label">
+                                  <label>Opacidad <input type="number" name="productDetailHeroBannerOpacity" min="10" max="100" step="5" value={settings.productDetailHeroBannerOpacity || 100} onChange={handleChange} className="size-input-mini" />%</label>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      {settings.productDetailUseHomeHero && (
+                        <p className="field-hint" style={{ marginTop: '0.5rem' }}>Se usará la imagen y configuración del Hero del Home.</p>
+                      )}
                     </>
                   )}
                 </section>
               )}
 
               {siteTab === 'identity' && (
-                <section className="settings-section collapsible">
-                  <button type="button" className="section-toggle" onClick={() => toggleSection('identity')}>
-                    <span>🏠 Identidad y Navegación</span>
-                    <span className="toggle-indicator">{openSections.identity ? '−' : '+'}</span>
-                  </button>
-                  {openSections.identity && (
-                    <>
-                      <div className="settings-grid">
-                        <div className="form-group">
-                          <label>Nombre del Sitio</label>
-                          <input type="text" name="siteName" value={settings.siteName} onChange={handleChange} />
+                <>
+                  {/* Identidad y Navegación */}
+                  <section className={`settings-section collapsible ${openSections.identity ? 'open' : ''}`}>
+                    <button type="button" className={`section-toggle ${openSections.identity ? 'open' : ''}`} onClick={() => toggleSection('identity')}>
+                      <span>🏠 Identidad y Navegación</span>
+                      <span className="toggle-indicator">{openSections.identity ? '−' : '+'}</span>
+                    </button>
+                    {openSections.identity && (
+                      <div className="identity-settings-compact">
+                        {/* Nombre e Icono */}
+                        <div className="settings-grid-compact">
+                          <div className="form-group-compact">
+                            <label>Nombre del Sitio</label>
+                            <input type="text" name="siteName" value={settings.siteName} onChange={handleChange} />
+                          </div>
+                          <div className="form-group-compact">
+                            <label>Icono (Emoji)</label>
+                            <input type="text" name="siteIcon" value={settings.siteIcon} onChange={handleChange} />
+                          </div>
                         </div>
-                        <div className="form-group">
-                          <label>Icono (Emoji)</label>
-                          <input type="text" name="siteIcon" value={settings.siteIcon} onChange={handleChange} />
+
+                        {/* Logo y Nombre Imagen en fila */}
+                        <div className="identity-images-row">
+                          <div className="identity-image-block">
+                            <div className="form-group-compact">
+                              <label>Logo <input type="number" name="siteLogoSize" min="20" max="80" step="2" value={settings.siteLogoSize || 40} onChange={handleChange} className="size-input-mini" />px</label>
+                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'siteLogo')} />
+                            </div>
+                            {settings.siteLogo && (
+                              <div className="settings-preview-compact">
+                                <img src={settings.siteLogo} alt="Logo" style={{ height: '30px' }} />
+                                <button type="button" onClick={() => setSettings(prev => ({ ...prev, siteLogo: '' }))} className="delete-text-btn">eliminar</button>
+                              </div>
+                            )}
+                          </div>
+                          <div className="identity-image-block">
+                            <div className="form-group-compact">
+                              <label>Nombre <input type="number" name="siteNameImageSize" min="16" max="60" step="2" value={settings.siteNameImageSize || 32} onChange={handleChange} className="size-input-mini" />px</label>
+                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'siteNameImage')} />
+                            </div>
+                            {settings.siteNameImage && (
+                              <div className="settings-preview-compact">
+                                <img src={settings.siteNameImage} alt="Nombre" style={{ height: '24px' }} />
+                                <button type="button" onClick={() => setSettings(prev => ({ ...prev, siteNameImage: '' }))} className="delete-text-btn">eliminar</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Transparencia */}
+                        <div className="form-group-compact inline-label">
+                          <label>Transparencia <input type="number" name="headerTransparency" min="0" max="100" value={settings.headerTransparency || 100} onChange={handleChange} className="size-input-mini" />%</label>
                         </div>
                       </div>
-                
-                      <div className="form-group">
-                        <label>Color de Barra Superior</label>
-                        <div className="color-input-wrapper">
-                          <input type="color" name="headerBgColor" value={settings.headerBgColor || '#2563eb'} onChange={handleChange} />
-                          <span>{settings.headerBgColor}</span>
+                    )}
+                  </section>
+
+                  {/* Texto del Hero */}
+                  <section className={`settings-section collapsible hero-section-compact ${openSections.heroText ? 'open' : ''}`} style={{ marginTop: '0.5rem' }}>
+                    <button type="button" className={`section-toggle ${openSections.heroText ? 'open' : ''}`} onClick={() => toggleSection('heroText')}>
+                      <span>📝 Texto del Hero (Banner Principal)</span>
+                      <span className="toggle-indicator">{openSections.heroText ? '−' : '+'}</span>
+                    </button>
+                    {openSections.heroText && (
+                      <div className="hero-settings-compact">
+                        {/* Color pickers compactos al inicio */}
+                        <div className="color-pickers-row">
+                          <div className="color-picker-compact" title="Color Principal (Header)">
+                            <input type="color" name="headerBgColor" value={settings.headerBgColor || '#2563eb'} onChange={handleChange} />
+                            <span>Principal</span>
+                          </div>
+                          <div className="color-picker-compact" title="Color Secundario">
+                            <input type="color" name="secondaryColor" value={settings.secondaryColor || '#419579'} onChange={handleChange} />
+                            <span>Secundario</span>
+                          </div>
+                          <div className="color-picker-compact" title="Color de Acento">
+                            <input type="color" name="accentColor" value={settings.accentColor || '#901ab7'} onChange={handleChange} />
+                            <span>Acento</span>
+                          </div>
+                          <div className="color-picker-compact" title="Color de Fondo">
+                            <input type="color" name="backgroundColor" value={settings.backgroundColor || '#f8fafc'} onChange={handleChange} />
+                            <span>Fondo</span>
+                          </div>
+                          <div className="color-picker-compact" title="Texto Hero">
+                            <input type="color" name="heroTextColor" value={settings.heroTextColor || '#ffffff'} onChange={handleChange} />
+                            <span>Hero</span>
+                          </div>
+                          <div className="color-picker-compact" title="Texto/Links Header">
+                            <input type="color" name="headerTextColor" value={settings.headerTextColor || '#ffffff'} onChange={handleChange} />
+                            <span>Links</span>
+                          </div>
+                          <div className="color-picker-compact" title="Fondo Botón">
+                            <input type="color" name="headerButtonColor" value={settings.headerButtonColor || '#ffffff'} onChange={handleChange} />
+                            <span>Btn Fondo</span>
+                          </div>
+                          <div className="color-picker-compact" title="Texto Botón">
+                            <input type="color" name="headerButtonTextColor" value={settings.headerButtonTextColor || '#2563eb'} onChange={handleChange} />
+                            <span>Btn Texto</span>
+                          </div>
+                        </div>
+
+                        {/* Título y Descripción en grid */}
+                        <div className="settings-grid-compact">
+                          <div className="form-group-compact">
+                            <label>Título</label>
+                            <input type="text" name="heroTitle" value={settings.heroTitle || ''} onChange={handleChange} placeholder="La Mejor Tecnología..." />
+                          </div>
+                          <div className="form-group-compact">
+                            <label>Descripción</label>
+                            <input type="text" name="heroDescription" value={settings.heroDescription || ''} onChange={handleChange} placeholder="Descubre nuestra selección..." />
+                          </div>
+                        </div>
+
+                        {/* Tamaños y posiciones */}
+                        <div className="settings-grid-4">
+                          <div className="form-group-compact inline-label">
+                            <label>Título <input type="number" name="heroTitleSize" min="1" max="5" step="0.1" value={settings.heroTitleSize || 2.1} onChange={handleChange} className="size-input-mini" />rem</label>
+                          </div>
+                          <div className="form-group-compact inline-label">
+                            <label>Desc. <input type="number" name="heroDescriptionSize" min="0.8" max="2.5" step="0.05" value={settings.heroDescriptionSize || 1.05} onChange={handleChange} className="size-input-mini" />rem</label>
+                          </div>
+                          <div className="form-group-compact">
+                            <label>Pos. Vertical</label>
+                            <select name="heroPositionY" value={settings.heroPositionY || 'center'} onChange={handleChange}>
+                              <option value="flex-start">Arriba</option>
+                              <option value="center">Centro</option>
+                              <option value="flex-end">Abajo</option>
+                            </select>
+                          </div>
+                          <div className="form-group-compact">
+                            <label>Pos. Horizontal</label>
+                            <select name="heroPositionX" value={settings.heroPositionX || 'left'} onChange={handleChange}>
+                              <option value="left">Izquierda</option>
+                              <option value="center">Centro</option>
+                              <option value="right">Derecha</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Imagen y ajustes */}
+                        <div className="hero-image-row">
+                          <div className="form-group-compact" style={{ flex: 1 }}>
+                            <label>Imagen del Hero</label>
+                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImage')} />
+                          </div>
+                          {settings.heroImage && (
+                            <div className="settings-preview-compact">
+                              <img src={settings.heroImage} alt="Hero" />
+                              <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroImage: '' }))} className="delete-text-btn">eliminar</button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Altura, ancho y oscurecimiento */}
+                        <div className="settings-grid-3">
+                          <div className="form-group-compact inline-label">
+                            <label>Altura <input type="number" name="heroHeight" min="200" max="600" step="20" value={settings.heroHeight || 360} onChange={handleChange} className="size-input-mini" />px</label>
+                          </div>
+                          <div className="form-group-compact inline-label">
+                            <label>Ancho <input type="number" name="heroImageWidth" min="50" max="100" step="5" value={settings.heroImageWidth || 100} onChange={handleChange} className="size-input-mini" />%</label>
+                          </div>
+                          <div className="form-group-compact inline-label">
+                            <label>Oscurecer <input type="number" name="heroOverlayOpacity" min="0" max="80" step="5" value={Math.round((settings.heroOverlayOpacity ?? 0.5) * 100)} onChange={(e) => handleChange({ target: { name: 'heroOverlayOpacity', value: parseFloat(e.target.value) / 100 } })} className="size-input-mini" />%</label>
+                          </div>
+                        </div>
+
+                        {/* Imagen superpuesta del Banner */}
+                        <div className="banner-image-section">
+                          <label className="section-label">Imagen Superpuesta del Banner</label>
+                          <div className="hero-image-row">
+                            <div className="form-group-compact" style={{ flex: 1 }}>
+                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroBannerImage')} />
+                            </div>
+                            {settings.heroBannerImage && (
+                              <div className="settings-preview-compact">
+                                <img src={settings.heroBannerImage} alt="Banner overlay" />
+                                <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroBannerImage: '' }))} className="delete-text-btn">eliminar</button>
+                              </div>
+                            )}
+                          </div>
+                          {settings.heroBannerImage && (
+                            <div className="settings-grid-4" style={{ marginTop: '0.5rem' }}>
+                              <div className="form-group-compact inline-label">
+                                <label>Tamaño <input type="number" name="heroBannerSize" min="50" max="500" step="10" value={settings.heroBannerSize || 150} onChange={handleChange} className="size-input-mini" />px</label>
+                              </div>
+                              <div className="form-group-compact">
+                                <label>Pos. Horizontal</label>
+                                <select name="heroBannerPositionX" value={settings.heroBannerPositionX || 'right'} onChange={handleChange}>
+                                  <option value="left">Izquierda</option>
+                                  <option value="center">Centro</option>
+                                  <option value="right">Derecha</option>
+                                </select>
+                              </div>
+                              <div className="form-group-compact">
+                                <label>Pos. Vertical</label>
+                                <select name="heroBannerPositionY" value={settings.heroBannerPositionY || 'center'} onChange={handleChange}>
+                                  <option value="top">Arriba</option>
+                                  <option value="center">Centro</option>
+                                  <option value="bottom">Abajo</option>
+                                </select>
+                              </div>
+                              <div className="form-group-compact inline-label">
+                                <label>Opacidad <input type="number" name="heroBannerOpacity" min="10" max="100" step="5" value={settings.heroBannerOpacity || 100} onChange={handleChange} className="size-input-mini" />%</label>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
-                
-                      <div className="form-group">
-                        <label>Transparencia de Barra ({settings.headerTransparency || 100}%)</label>
-                        <input type="range" name="headerTransparency" min="0" max="100" value={settings.headerTransparency || 100} onChange={handleChange} />
-                      </div>
-                    </>
-                  )}
-                </section>
+                    )}
+                  </section>
+                </>
               )}
 
               {siteTab === 'payments' && (

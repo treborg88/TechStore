@@ -9,10 +9,18 @@ const { encryptSetting, decryptSetting } = require('../services/encryption.servi
 
 // Public settings that can be exposed to the frontend (no sensitive data)
 const PUBLIC_SETTINGS = [
-    'siteName', 'siteIcon', 'heroTitle', 'heroDescription', 'heroPrimaryBtn', 
-    'heroSecondaryBtn', 'heroImage', 'headerBgColor', 'headerTransparency',
+    'siteName', 'siteIcon', 'siteLogo', 'siteLogoSize', 'siteNameImage', 'siteNameImageSize',
+    'heroTitle', 'heroDescription', 'heroPrimaryBtn', 
+    'heroSecondaryBtn', 'heroImage', 'heroTitleSize', 'heroDescriptionSize',
+    'heroPositionX', 'heroPositionY', 'heroImageWidth', 'heroOverlayOpacity', 'heroHeight',
+    'heroTextColor', 'headerTextColor', 'headerButtonColor', 'headerButtonTextColor',
+    'heroBannerImage', 'heroBannerSize', 'heroBannerPositionX', 'heroBannerPositionY', 'heroBannerOpacity',
+    'headerBgColor', 'headerTransparency',
     'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor', 'textColor',
-    'productDetailHeroImage', 'categoryFiltersConfig', 'productCardConfig',
+    'productDetailHeroImage', 'productDetailUseHomeHero', 'productDetailHeroHeight', 'productDetailHeroOverlayOpacity',
+    'productDetailHeroBannerImage', 'productDetailHeroBannerSize', 'productDetailHeroBannerPositionX', 
+    'productDetailHeroBannerPositionY', 'productDetailHeroBannerOpacity',
+    'categoryFiltersConfig', 'productCardConfig',
     'currencyCode', 'defaultCurrency', 'storePhone', 'storeAddress',
     // Contact page settings
     'contactTitle', 'contactSubtitle', 'contactCompany', 'contactEmail', 

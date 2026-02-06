@@ -4,7 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 export default function Header({
   siteName = 'TechStore',
   siteIcon = '🛍️',
-  headerSettings = { bgColor: '#2563eb', transparency: 100 },
+  siteLogo = '',
+  siteLogoSize = 40,
+  siteNameImage = '',
+  siteNameImageSize = 32,
+  headerSettings = { bgColor: '#2563eb', transparency: 100, textColor: '#ffffff', buttonColor: '#ffffff', buttonTextColor: '#2563eb' },
   cartItems = [],
   user = null,
   onCartOpen,
@@ -41,13 +45,34 @@ export default function Header({
 
   const cartItemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
 
+  // Convert hex color to rgba with transparency
+  // transparency: 0 = fully transparent, 100 = fully opaque
+  const getHeaderBgColor = () => {
+    const hex = headerSettings.bgColor || '#2563eb';
+    const transparency = headerSettings.transparency ?? 100;
+    
+    // Parse hex color
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    // transparency 100 = alpha 1 (opaque), transparency 0 = alpha 0 (transparent)
+    const alpha = transparency / 100;
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  };
+
+  // Header is considered transparent when transparency is less than 100
+  const isTransparentHeader = (headerSettings.transparency ?? 100) < 100;
+
+  // Header text color for nav links
+  const headerTextColor = headerSettings.textColor || '#ffffff';
+
   return (
     <header 
-      className={`header ${headerSettings.transparency < 100 ? 'is-transparent' : ''}`}
+      className={`header ${isTransparentHeader ? 'is-transparent' : ''}`}
       style={{
-        backgroundColor: headerSettings.transparency < 100 
-          ? `${headerSettings.bgColor}${Math.round((headerSettings.transparency / 100) * 255).toString(16).padStart(2, '0')}`
-          : headerSettings.bgColor,
+        backgroundColor: getHeaderBgColor(),
+        '--header-text-color': headerTextColor,
         ...(isSticky && { position: 'sticky', top: 0, zIndex: 3200, width: '100%' })
       }}
     >
@@ -61,8 +86,16 @@ export default function Header({
         </button>
 
         <Link to="/" className="logo-container" style={{ textDecoration: 'none', color: 'inherit' }} onClick={handleLogoClick}>
-          <div className="logo">{siteIcon}</div>
-          <h1 className="site-title">{siteName}</h1>
+          {siteLogo ? (
+            <img src={siteLogo} alt={siteName} className="logo-image" style={{ height: `${siteLogoSize}px` }} />
+          ) : (
+            <div className="logo">{siteIcon}</div>
+          )}
+          {siteNameImage ? (
+            <img src={siteNameImage} alt={siteName} className="site-name-image" style={{ height: `${siteNameImageSize}px` }} />
+          ) : (
+            <h1 className="site-title">{siteName}</h1>
+          )}
         </Link>
         
         <div className="header-nav-actions-group">
@@ -100,23 +133,21 @@ export default function Header({
                 <button 
                   className="user-name-btn desktop-only" 
                   onClick={() => onProfileOpen && onProfileOpen()}
-                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold', marginRight: '10px' }}
                 >
                   Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
                 </button>
                 <button 
                   className="user-name-btn mobile-only" 
                   onClick={() => onProfileOpen && onProfileOpen()}
-                  style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', fontSize: '1rem', fontWeight: 'bold' }}
                 >
                   Hola, {user?.name ? (user.name.includes('@') ? user.name.split('@')[0] : user.name.split(' ')[0]) : 'Usuario'}
                 </button>
-                <button className="login-button desktop-only" onClick={onLogout}>Cerrar</button>
+                <button className="login-button desktop-only" onClick={onLogout} style={{ backgroundColor: headerSettings.buttonColor || '#ffffff', color: headerSettings.buttonTextColor || '#2563eb' }}>Cerrar</button>
               </>
             ) : (
               <>
-                <button className="login-button desktop-only" onClick={() => navigate('/login')}>Iniciar Sesión</button>
-                <button className="login-button mobile-only" onClick={() => navigate('/login')}>Iniciar Sesión</button>
+                <button className="login-button desktop-only" onClick={() => navigate('/login')} style={{ backgroundColor: headerSettings.buttonColor || '#ffffff', color: headerSettings.buttonTextColor || '#2563eb' }}>Iniciar Sesión</button>
+                <button className="login-button mobile-only" onClick={() => navigate('/login')} style={{ backgroundColor: headerSettings.buttonColor || '#ffffff', color: headerSettings.buttonTextColor || '#2563eb' }}>Iniciar Sesión</button>
               </>
             )}
           </div>

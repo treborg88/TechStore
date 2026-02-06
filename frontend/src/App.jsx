@@ -101,16 +101,36 @@ function App() {
   // Estados de configuración del sitio
   const [siteName, setSiteName] = useState(() => localStorage.getItem('siteName') || 'TechStore');
   const [siteIcon, setSiteIcon] = useState(() => localStorage.getItem('siteIcon') || '🛍️');
+  const [siteLogo, setSiteLogo] = useState(() => localStorage.getItem('siteLogo') || '');
+  const [siteLogoSize, setSiteLogoSize] = useState(() => parseInt(localStorage.getItem('siteLogoSize')) || 40);
+  const [siteNameImage, setSiteNameImage] = useState(() => localStorage.getItem('siteNameImage') || '');
+  const [siteNameImageSize, setSiteNameImageSize] = useState(() => parseInt(localStorage.getItem('siteNameImageSize')) || 32);
   const [heroSettings, setHeroSettings] = useState({
     title: 'La Mejor Tecnología a Tu Alcance',
     description: 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
     primaryBtn: 'Ver Productos',
     secondaryBtn: 'Ofertas Especiales',
-    image: ''
+    image: '',
+    titleSize: 2.1,
+    descriptionSize: 1.05,
+    positionY: 'center',
+    positionX: 'left',
+    imageWidth: 100,
+    overlayOpacity: 0.5,
+    height: 360,
+    textColor: '#ffffff',
+    bannerImage: '',
+    bannerSize: 150,
+    bannerPositionX: 'right',
+    bannerPositionY: 'center',
+    bannerOpacity: 100
   });
   const [headerSettings, setHeaderSettings] = useState({
     bgColor: '#2563eb',
-    transparency: 100
+    transparency: 100,
+    textColor: '#ffffff',
+    buttonColor: '#ffffff',
+    buttonTextColor: '#2563eb'
   });
   const [themeSettings, setThemeSettings] = useState({
     primaryColor: '#2563eb',
@@ -120,6 +140,16 @@ function App() {
     textColor: '#1e293b'
   });
   const [productDetailHeroImage, setProductDetailHeroImage] = useState('');
+  const [productDetailHeroSettings, setProductDetailHeroSettings] = useState({
+    useHomeHero: true,
+    height: 200,
+    overlayOpacity: 0.5,
+    bannerImage: '',
+    bannerSize: 120,
+    bannerPositionX: 'right',
+    bannerPositionY: 'center',
+    bannerOpacity: 100
+  });
   const [categoryFilterSettings, setCategoryFilterSettings] = useState(() => (
     JSON.parse(JSON.stringify(DEFAULT_CATEGORY_FILTERS_CONFIG))
   ));
@@ -516,6 +546,34 @@ function App() {
     fetchProducts('todos');
   }, [fetchProducts]);
 
+  // Actualizar título de la página y favicon dinámicamente
+  useEffect(() => {
+    // Actualizar título de la página
+    document.title = siteName || 'TechStore';
+    
+    // Actualizar favicon
+    const favicon = document.getElementById('favicon');
+    if (favicon) {
+      if (siteLogo) {
+        // Usar logo como favicon si existe
+        favicon.href = siteLogo;
+        favicon.type = 'image/png';
+      } else if (siteIcon) {
+        // Crear emoji favicon usando canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = 64;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.font = '56px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(siteIcon, 32, 36);
+        favicon.href = canvas.toDataURL('image/png');
+        favicon.type = 'image/png';
+      }
+    }
+  }, [siteName, siteIcon, siteLogo]);
+
   // Cargar ajustes del sitio
   useEffect(() => {
     const applySettings = (data) => {
@@ -527,19 +585,57 @@ function App() {
         setSiteIcon(data.siteIcon);
         localStorage.setItem('siteIcon', data.siteIcon);
       }
-      if (data.heroTitle || data.heroDescription || data.heroPrimaryBtn || data.heroSecondaryBtn || data.heroImage) {
+      // siteLogo can be empty string, so check for undefined
+      if (data.siteLogo !== undefined) {
+        setSiteLogo(data.siteLogo || '');
+        localStorage.setItem('siteLogo', data.siteLogo || '');
+      }
+      // siteNameImage can be empty string, so check for undefined
+      if (data.siteNameImage !== undefined) {
+        setSiteNameImage(data.siteNameImage || '');
+        localStorage.setItem('siteNameImage', data.siteNameImage || '');
+      }
+      // Logo and name image sizes
+      if (data.siteLogoSize !== undefined) {
+        const size = parseInt(data.siteLogoSize) || 40;
+        setSiteLogoSize(size);
+        localStorage.setItem('siteLogoSize', size.toString());
+      }
+      if (data.siteNameImageSize !== undefined) {
+        const size = parseInt(data.siteNameImageSize) || 32;
+        setSiteNameImageSize(size);
+        localStorage.setItem('siteNameImageSize', size.toString());
+      }
+      if (data.heroTitle || data.heroDescription || data.heroPrimaryBtn || data.heroSecondaryBtn || data.heroImage || data.heroTitleSize || data.heroDescriptionSize || data.heroPositionY || data.heroPositionX || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor || data.heroBannerImage) {
         setHeroSettings({
           title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
           description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
           primaryBtn: data.heroPrimaryBtn || 'Ver Productos',
           secondaryBtn: data.heroSecondaryBtn || 'Ofertas Especiales',
-          image: data.heroImage || ''
+          image: data.heroImage || '',
+          titleSize: parseFloat(data.heroTitleSize) || 2.1,
+          descriptionSize: parseFloat(data.heroDescriptionSize) || 1.05,
+          positionY: data.heroPositionY || 'center',
+          positionX: data.heroPositionX || 'left',
+          imageWidth: parseFloat(data.heroImageWidth) || 100,
+          overlayOpacity: parseFloat(data.heroOverlayOpacity) ?? 0.5,
+          height: parseFloat(data.heroHeight) || 360,
+          textColor: data.heroTextColor || '#ffffff',
+          bannerImage: data.heroBannerImage || '',
+          bannerSize: parseFloat(data.heroBannerSize) || 150,
+          bannerPositionX: data.heroBannerPositionX || 'right',
+          bannerPositionY: data.heroBannerPositionY || 'center',
+          bannerOpacity: parseFloat(data.heroBannerOpacity) || 100
         });
       }
-      if (data.headerBgColor || data.headerTransparency) {
+      if (data.headerBgColor || data.headerTransparency !== undefined || data.headerTextColor || data.headerButtonColor || data.headerButtonTextColor) {
+        const transparencyValue = parseInt(data.headerTransparency);
         setHeaderSettings({
           bgColor: data.headerBgColor || '#2563eb',
-          transparency: parseInt(data.headerTransparency) || 100
+          transparency: !isNaN(transparencyValue) ? transparencyValue : 100,
+          textColor: data.headerTextColor || '#ffffff',
+          buttonColor: data.headerButtonColor || '#ffffff',
+          buttonTextColor: data.headerButtonTextColor || '#2563eb'
         });
       }
       if (data.primaryColor) {
@@ -551,8 +647,18 @@ function App() {
           textColor: data.textColor || '#1e293b'
         });
       }
-      if (data.productDetailHeroImage) {
-        setProductDetailHeroImage(data.productDetailHeroImage);
+      if (data.productDetailHeroImage || data.productDetailUseHomeHero !== undefined) {
+        setProductDetailHeroImage(data.productDetailHeroImage || '');
+        setProductDetailHeroSettings({
+          useHomeHero: data.productDetailUseHomeHero !== 'false' && data.productDetailUseHomeHero !== false,
+          height: parseFloat(data.productDetailHeroHeight) || 200,
+          overlayOpacity: parseFloat(data.productDetailHeroOverlayOpacity) ?? 0.5,
+          bannerImage: data.productDetailHeroBannerImage || '',
+          bannerSize: parseFloat(data.productDetailHeroBannerSize) || 120,
+          bannerPositionX: data.productDetailHeroBannerPositionX || 'right',
+          bannerPositionY: data.productDetailHeroBannerPositionY || 'center',
+          bannerOpacity: parseFloat(data.productDetailHeroBannerOpacity) || 100
+        });
       }
       if (data.categoryFiltersConfig) {
         try {
@@ -675,6 +781,10 @@ function App() {
         <Header
           siteName={siteName}
           siteIcon={siteIcon}
+          siteLogo={siteLogo}
+          siteLogoSize={siteLogoSize}
+          siteNameImage={siteNameImage}
+          siteNameImageSize={siteNameImageSize}
           headerSettings={headerSettings}
           cartItems={cartItems}
           user={user}
@@ -767,7 +877,13 @@ function App() {
               addToCart={addToCart} 
               user={user}
               onRefresh={fetchProducts}
-              heroImage={productDetailHeroImage}
+              heroImage={productDetailHeroSettings.useHomeHero ? heroSettings.image : productDetailHeroImage}
+              heroSettings={productDetailHeroSettings.useHomeHero ? heroSettings : {
+                ...productDetailHeroSettings,
+                image: productDetailHeroImage,
+                height: productDetailHeroSettings.height,
+                overlayOpacity: productDetailHeroSettings.overlayOpacity
+              }}
               currencyCode={productCardSettings.currency}
               onCartOpen={() => navigate('/cart')}
             />

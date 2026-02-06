@@ -134,6 +134,11 @@
   background: #fff;
 }
 
+.settings-section.collapsible.open {
+  background: #f0f9ff;
+  border-color: #bae6fd;
+}
+
 .settings-section.collapsible .section-description {
   margin: 0 1.5rem 1rem;
 }
@@ -157,6 +162,11 @@
   font-weight: 600;
   color: #111827;
   cursor: pointer;
+}
+
+.section-toggle.open {
+  background: #e0f2fe;
+  color: #0369a1;
 }
 
 .toggle-indicator {
@@ -246,7 +256,7 @@
   font-family: inherit;
   font-size: 1rem;
   color: #1f2937;
-  background-color: #f9fafb;
+  background-color: #ffffff;
 }
 
 .password-field {
@@ -325,6 +335,238 @@
   color: #6b7280;
 }
 
+/* Compact color pickers row */
+.color-pickers-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  padding: 0.5rem;
+  background: #f9fafb;
+  border-radius: 8px;
+}
+
+.color-picker-compact {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.color-picker-compact input[type="color"] {
+  width: 32px;
+  height: 32px;
+  padding: 1px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.color-picker-compact span {
+  font-size: 0.7rem;
+  color: #6b7280;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* Hero section compact styles */
+.hero-settings-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.settings-grid-compact {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.settings-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+.settings-grid-4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.form-group-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.form-group-compact label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #374151;
+}
+
+.form-group-compact input[type="text"],
+.form-group-compact input[type="number"],
+.form-group-compact select {
+  padding: 0.35rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
+.form-group-compact input[type="range"] {
+  height: 6px;
+}
+
+.form-group-compact input[type="file"] {
+  font-size: 0.8rem;
+}
+
+/* Mini size input */
+.size-input-mini {
+  width: 48px;
+  padding: 0.15rem 0.25rem;
+  font-size: 0.75rem;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  text-align: center;
+  margin: 0 0.25rem;
+  background-color: #ffffff;
+  color: #1f2937;
+}
+
+.size-input-mini::-webkit-inner-spin-button,
+.size-input-mini::-webkit-outer-spin-button {
+  opacity: 1;
+}
+
+/* Inline label for compact settings */
+.form-group-compact.inline-label {
+  flex-direction: row;
+  align-items: center;
+}
+
+.form-group-compact.inline-label label {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.hero-image-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+/* Banner image section styling */
+.banner-image-section {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px dashed #d1d5db;
+}
+
+.banner-image-section .section-label {
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #374151;
+  margin-bottom: 0.5rem;
+}
+
+.settings-preview-compact {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  background: #f3f4f6;
+  border-radius: 6px;
+}
+
+.settings-preview-compact img {
+  width: 80px;
+  height: 50px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.delete-image-btn-small {
+  background: #ef4444;
+  color: white;
+  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.delete-image-btn-small:hover {
+  background: #dc2626;
+}
+
+.delete-text-btn {
+  background: none;
+  border: none;
+  color: #ef4444;
+  font-size: 0.7rem;
+  cursor: pointer;
+  padding: 0.15rem 0.25rem;
+  text-decoration: underline;
+}
+
+.delete-text-btn:hover {
+  color: #dc2626;
+}
+
+/* Identity section compact styles */
+.identity-settings-compact {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.5rem 0;
+}
+
+.identity-images-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.identity-image-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.identity-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (max-width: 768px) {
+  .settings-grid-3,
+  .settings-grid-4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .hero-image-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .identity-images-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-preview {
   margin-top: 0.5rem;
   padding: 0.5rem;
@@ -343,16 +585,20 @@
 }
 
 .delete-image-btn {
-  background: none;
-  border: none;
-  color: #ef4444;
+  background: #fee2e2;
+  border: 1px solid #fca5a5;
+  color: #dc2626;
   font-size: 0.875rem;
   cursor: pointer;
-  padding: 0.25rem 0.5rem;
+  padding: 0.35rem 0.75rem;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: background-color 0.2s, border-color 0.2s;
 }
 
 .delete-image-btn:hover {
-  text-decoration: underline;
+  background: #fecaca;
+  border-color: #f87171;
 }
 
 .section-description {

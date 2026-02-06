@@ -9,7 +9,7 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ProductDetail.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCartOpen, currencyCode }) {
+function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSettings, onCartOpen, currencyCode }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -183,17 +183,61 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, onCart
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock < 5;
 
+  // Hero styles from settings
+  const heroHeight = heroSettings?.height || 200;
+  const heroOverlay = heroSettings?.overlayOpacity ?? 0.5;
+  const hasBannerImage = heroSettings?.bannerImage;
+  
+  // Banner overlay positioning
+  const getBannerStyles = () => {
+    if (!hasBannerImage) return null;
+    const posX = heroSettings?.bannerPositionX || 'right';
+    const posY = heroSettings?.bannerPositionY || 'center';
+    const styles = {
+      position: 'absolute',
+      width: `${heroSettings?.bannerSize || 120}px`,
+      height: 'auto',
+      maxHeight: '90%',
+      objectFit: 'contain',
+      opacity: (heroSettings?.bannerOpacity || 100) / 100,
+      zIndex: 1,
+      pointerEvents: 'none'
+    };
+    // Horizontal
+    if (posX === 'left') { styles.left = '5%'; styles.right = 'auto'; }
+    else if (posX === 'center') { styles.left = '50%'; styles.transform = 'translateX(-50%)'; }
+    else { styles.right = '5%'; styles.left = 'auto'; }
+    // Vertical
+    if (posY === 'top') { styles.top = '10%'; styles.bottom = 'auto'; }
+    else if (posY === 'center') { styles.top = '50%'; styles.transform = (styles.transform || '') + ' translateY(-50%)'; }
+    else { styles.bottom = '10%'; styles.top = 'auto'; }
+    return styles;
+  };
+
   return (
     <div className="product-detail-page">
       <section 
         className={`hero-section ${heroImage ? 'has-bg' : ''}`}
-        style={heroImage ? { 
-          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${heroImage})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        } : {}}
+        style={{
+          ...(heroImage ? { 
+            backgroundImage: `linear-gradient(rgba(0,0,0,${heroOverlay}), rgba(0,0,0,${heroOverlay})), url(${heroImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          } : {}),
+          minHeight: `${heroHeight}px`,
+          position: 'relative'
+        }}
       >
+        {/* Banner overlay image */}
+        {hasBannerImage && (
+          <img 
+            src={heroSettings.bannerImage} 
+            alt="" 
+            style={getBannerStyles()}
+            className="hero-banner-overlay"
+          />
+        )}
         <div className="container hero-container">
           <div className="hero-content">
             <button 

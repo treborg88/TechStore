@@ -310,18 +310,100 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     handleCategoryChange(categorySlug);
   };
 
+  // Hero style variables for dynamic positioning and sizing
+  const heroStyleVars = useMemo(() => {
+    const positionX = heroSettings?.positionX || 'left';
+    const positionY = heroSettings?.positionY || 'center';
+    
+    // Map positionX to text-align and align-items
+    const textAlign = positionX === 'center' ? 'center' : positionX === 'right' ? 'right' : 'left';
+    const alignItems = positionX === 'center' ? 'center' : positionX === 'right' ? 'flex-end' : 'flex-start';
+    
+    return {
+      '--hero-title-size': `${heroSettings?.titleSize || 2.1}rem`,
+      '--hero-description-size': `${heroSettings?.descriptionSize || 1.05}rem`,
+      '--hero-justify-content': positionY,
+      '--hero-align-items': alignItems,
+      '--hero-text-align': textAlign,
+      '--hero-image-width': `${heroSettings?.imageWidth || 100}%`,
+      '--hero-min-height': `${heroSettings?.height || 360}px`,
+      '--hero-text-color': heroSettings?.textColor || '#ffffff'
+    };
+  }, [heroSettings?.titleSize, heroSettings?.descriptionSize, heroSettings?.positionX, heroSettings?.positionY, heroSettings?.imageWidth, heroSettings?.height, heroSettings?.textColor]);
+
+  // Banner overlay image styles
+  const bannerOverlayStyles = useMemo(() => {
+    if (!heroSettings?.bannerImage) return null;
+    
+    const posX = heroSettings?.bannerPositionX || 'right';
+    const posY = heroSettings?.bannerPositionY || 'center';
+    
+    const styles = {
+      position: 'absolute',
+      width: `${heroSettings?.bannerSize || 150}px`,
+      height: 'auto',
+      maxHeight: '90%',
+      objectFit: 'contain',
+      opacity: (heroSettings?.bannerOpacity || 100) / 100,
+      zIndex: 1,
+      pointerEvents: 'none'
+    };
+    
+    // Horizontal position
+    if (posX === 'left') {
+      styles.left = '5%';
+      styles.right = 'auto';
+    } else if (posX === 'center') {
+      styles.left = '50%';
+      styles.transform = 'translateX(-50%)';
+    } else {
+      styles.right = '5%';
+      styles.left = 'auto';
+    }
+    
+    // Vertical position
+    if (posY === 'top') {
+      styles.top = '10%';
+      styles.bottom = 'auto';
+    } else if (posY === 'center') {
+      styles.top = '50%';
+      styles.transform = (styles.transform || '') + ' translateY(-50%)';
+    } else {
+      styles.bottom = '10%';
+      styles.top = 'auto';
+    }
+    
+    return styles;
+  }, [heroSettings?.bannerImage, heroSettings?.bannerSize, heroSettings?.bannerPositionX, heroSettings?.bannerPositionY, heroSettings?.bannerOpacity]);
+
+  // Calculate overlay opacity for hero image
+  const overlayOpacity = heroSettings?.overlayOpacity ?? 0.5;
+
   return (
     <>
       {/* Hero Section */}
       <section 
         className={`hero-section ${heroSettings?.image && imageLoaded ? 'has-bg show-image' : 'has-bg'}`}
-        style={heroSettings?.image && imageLoaded ? { 
-          backgroundImage: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${localHeroImage || heroSettings.image})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat'
-        } : {}}
+        style={{
+          ...(heroSettings?.image && imageLoaded ? { 
+            backgroundImage: `linear-gradient(rgba(0,0,0,${overlayOpacity}), rgba(0,0,0,${overlayOpacity})), url(${localHeroImage || heroSettings.image})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            backgroundRepeat: 'no-repeat'
+          } : {}),
+          ...heroStyleVars,
+          position: 'relative'
+        }}
       >
+        {/* Banner overlay image */}
+        {heroSettings?.bannerImage && bannerOverlayStyles && (
+          <img 
+            src={heroSettings.bannerImage} 
+            alt="" 
+            style={bannerOverlayStyles}
+            className="hero-banner-overlay"
+          />
+        )}
         <div className="container hero-container">
           <div className="hero-content">
             <h2 className="hero-title">{heroSettings?.title || "La Mejor Tecnología a Tu Alcance"}</h2>
