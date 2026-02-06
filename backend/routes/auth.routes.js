@@ -2,9 +2,13 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const router = express.Router();
 
 const { statements } = require('../database');
+
+// Generate unique session ID for each login (per device/browser)
+const generateSessionId = () => crypto.randomBytes(16).toString('hex');
 const { JWT_SECRET } = require('../config');
 const { authenticateToken, blacklistToken } = require('../middleware/auth');
 const { setAuthCookies, setCsrfCookie, clearAuthCookies, getCookieOptions } = require('../middleware/csrf');
@@ -92,13 +96,17 @@ router.post('/register', async (req, res) => {
         // Delete used verification code
         await statements.deleteVerificationCodes(email.toLowerCase(), 'register');
 
-        // Generate JWT
+        // Generate unique session ID for this device
+        const sessionId = generateSessionId();
+
+        // Generate JWT with sessionId
         const token = jwt.sign(
             { 
                 id: newUser.id, 
                 email: newUser.email,
                 name: newUser.name,
-                role: newUser.role 
+                role: newUser.role,
+                sessionId  // Unique per device/browser
             },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
@@ -119,6 +127,7 @@ router.post('/register', async (req, res) => {
             message: 'Usuario registrado exitosamente',
             user: userResponse,
             token,
+            sessionId,
             csrfToken
         });
 
@@ -156,12 +165,16 @@ router.post('/login', async (req, res) => {
 
         await statements.updateLastLogin(user.id);
 
+        // Generate unique session ID for this device
+        const sessionId = generateSessionId();
+
         const token = jwt.sign(
             { 
                 id: user.id, 
                 email: user.email,
                 name: user.name,
-                role: user.role 
+                role: user.role,
+                sessionId  // Unique per device/browser
             },
             JWT_SECRET,
             { expiresIn: TOKEN_EXPIRY }
@@ -188,6 +201,7 @@ router.post('/login', async (req, res) => {
             message: 'Login exitoso',
             user: userResponse,
             token,
+            sessionId,
             csrfToken
         });
 
@@ -430,15 +444,22 @@ router.put('/profile', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/auth/logout
- * Logout and invalidate token
+ * Logout and invalidate token (only affects current session/device)
  */
-router.post('/logout', authenticateToken, (req, res) => {
+router.post('/logout', authenticateToken, async (req, res) => {
     const { secure, sameSite } = getCookieOptions(req);
     res.clearCookie('auth_token', { path: '/', secure, sameSite });
     res.clearCookie('XSRF-TOKEN', { path: '/', secure, sameSite });
     
-    // Add token to blacklist
-    blacklistToken(req.token, TOKEN_EXPIRY_MS);
+    // Add token to blacklist with user and session info
+    // This only invalidates the current session, not other devices
+    await blacklistToken(
+        req.token, 
+        req.user.id, 
+        req.user.sessionId, 
+        TOKEN_EXPIRY_MS, 
+        'logout'
+    );
     
     res.json({ message: 'Logout exitoso' });
 });

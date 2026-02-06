@@ -153,12 +153,14 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     paddingRight: 20,
     color: '#4B5563',
+    fontSize: 9,
   },
   summaryValue: {
     width: '15%',
     textAlign: 'right',
     fontFamily: 'Helvetica-Bold',
     color: '#111827',
+    fontSize: 9,
   },
   totalRow: {
     flexDirection: 'row',

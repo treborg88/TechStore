@@ -186,6 +186,33 @@ function App() {
 
   const navigate = useNavigate();
 
+  // Sync session across tabs using storage event
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      // User logged out in another tab
+      if (event.key === 'authToken' && !event.newValue && user) {
+        setUser(null);
+        setCartItems([]);
+        localStorage.removeItem('checkout_progress');
+        toast.error("Sesión cerrada en otra pestaña");
+        navigate('/');
+      }
+      // User logged in in another tab
+      if (event.key === 'userData' && event.newValue && !user) {
+        try {
+          const newUser = JSON.parse(event.newValue);
+          setUser(newUser);
+          toast.success(`Sesión iniciada como ${newUser.name}`);
+        } catch {
+          // Invalid JSON, ignore
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [user, navigate]);
+
   // Handle session expiry on page load/refresh - redirect to home if expired
   useEffect(() => {
     const checkSession = () => {

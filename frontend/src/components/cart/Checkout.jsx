@@ -601,10 +601,18 @@ return (
                         >
                             ← Volver
                         </button>
-                        <h2 className="hero-title">Finalizar Pedido</h2>
+                        <h2 className="hero-title">
+                            {step === 1 && 'Información Personal'}
+                            {step === 2 && 'Información de Envío'}
+                            {step === 3 && 'Revisión del Pedido'}
+                            {step === 4 && 'Método de Pago'}
+                        </h2>
                         <p className="hero-text">
                             <span className="hero-category-badge">CHECKOUT</span>
-                            Completa tu información de envío y selecciona tu método de pago.
+                            {step === 1 && 'Completa tu información personal y de contacto.'}
+                            {step === 2 && 'Agrega la dirección de envío y puedes seleccionar tu ubicación en el mapa en 📍 Mi Ubicación o pinchando en el mapa.'}
+                            {step === 3 && 'Verifica que los datos y productos del pedido estén correctos para continuar.'}
+                            {step === 4 && 'Selecciona tu método de pago preferido.'}
                         </p>
                     </div>
                 </div>
@@ -756,7 +764,7 @@ return (
                                     <h3>Información Personal</h3>
                                     <div className="form-grid">
                                         <div className="form-group">
-                                            <label>Nombre</label>
+                                            <label>Nombre *</label>
                                             <input
                                                 type="text"
                                                 name="firstName"
@@ -768,7 +776,7 @@ return (
                                             />
                                         </div>
                                         <div className="form-group">
-                                            <label>Apellidos</label>
+                                            <label>Apellidos *</label>
                                             <input
                                                 type="text"
                                                 name="lastName"
@@ -780,23 +788,37 @@ return (
                                             />
                                         </div>
                                     </div>
-                                    <div className="form-group" style={{marginBottom: '20px'}}>
-                                        <label>Correo Electrónico</label>
-                                        <input
-                                            type="email"
-                                            name="email"
-                                            placeholder="correo@ejemplo.com"
-                                            value={formData.email}
-                                            onChange={(e) => {
-                                                handleInputChange(e);
-                                                const user = getCurrentUser();
-                                                if (!user) {
-                                                    setIsEmailVerified(false);
-                                                }
-                                            }}
-                                            required
-                                            disabled={isSubmitting}
-                                        />
+                                    <div className="form-grid" style={{marginBottom: '20px'}}>
+                                        <div className="form-group">
+                                            <label>Correo Electrónico *</label>
+                                            <input
+                                                type="email"
+                                                name="email"
+                                                placeholder="correo@ejemplo.com"
+                                                value={formData.email}
+                                                onChange={(e) => {
+                                                    handleInputChange(e);
+                                                    const user = getCurrentUser();
+                                                    if (!user) {
+                                                        setIsEmailVerified(false);
+                                                    }
+                                                }}
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
+                                        <div className="form-group">
+                                            <label>Teléfono de Contacto *</label>
+                                            <input
+                                                type="tel"
+                                                name="phone"
+                                                placeholder="Ej. 809-555-0123"
+                                                value={formData.phone}
+                                                onChange={handleInputChange}
+                                                required
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
                                     </div>
                                 </form>
                             )
@@ -854,18 +876,6 @@ return (
                                                 disabled={isSubmitting}
                                             />
                                         </div>
-                                    </div>
-                                    <div className="form-group" style={{marginBottom: '15px'}}>
-                                        <label>Teléfono de Contacto *</label>
-                                        <input
-                                            type="tel"
-                                            name="phone"
-                                            placeholder="Ej. 809-555-0123"
-                                            value={formData.phone}
-                                            onChange={handleInputChange}
-                                            required
-                                            disabled={isSubmitting}
-                                        />
                                     </div>
                                     <div className="form-group" style={{marginBottom: '20px'}}>
                                         <label>Notas de Entrega (Opcional)</label>

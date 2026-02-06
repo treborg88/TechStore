@@ -463,20 +463,23 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
             </div> */}
 
             {mapData.distance && (
-                <div className="shipping-cost-card">
-                    <div className="shipping-cost-header">
-                        <span>💵 Costo de Envío</span>
-                    </div>
-                    <div className="shipping-cost-details">
-                        <div className="shipping-cost-row">
-                            <span>Distancia:</span>
-                            <span className="shipping-distance">{mapData.distance.toFixed(2)} km</span>
-                        </div>
-                        <div className="shipping-cost-row total">
-                            <span>Envío:</span>
-                            <span className="shipping-price">{formatCurrency(mapData.shippingCost, currencyCode)}</span>
-                        </div>
-                    </div>
+                <div className="shipping-cost-card" style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    backgroundColor: '#f0fdf4',
+                    border: '1px solid #86efac',
+                    borderRadius: '8px',
+                    flexWrap: 'wrap',
+                    gap: '10px'
+                }}>
+                    <span style={{ fontWeight: 600, color: '#166534' }}>
+                        💵 Costo de Envío: <span className="shipping-price">{formatCurrency(mapData.shippingCost, currencyCode)}</span>
+                    </span>
+                    <span style={{ color: '#475569', fontSize: '0.9rem' }}>
+                        Distancia: <span className="shipping-distance" style={{ fontWeight: 500 }}>{mapData.distance.toFixed(2)} km</span>
+                    </span>
                 </div>
             )}
 

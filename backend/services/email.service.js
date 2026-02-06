@@ -229,7 +229,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                         <div>
                             <p style="margin: 4px 0;"><strong>Dirección:</strong> ${shipping.address}</p>
                             <p style="margin: 4px 0;"><strong>Teléfono:</strong> ${customer.phone || 'N/A'}</p>
-                            <p style="margin: 4px 0;"><strong>Método de pago:</strong> ${order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method}</p>
+                            <p style="margin: 4px 0;"><strong>Método de pago:</strong> ${order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method === 'stripe' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'paypal' ? 'PayPal' : order.payment_method === 'card' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'online' ? 'Pago en Línea' : order.payment_method}</p>
                         </div>
                         <div style="text-align:right;">
                             <p style="margin: 4px 0;"><strong>Total:</strong> ${formatCurrency(order.total)}</p>
@@ -253,7 +253,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                 customerEmail: customer.email,
                 customerPhone: customer.phone || 'N/A',
                 shippingAddress: shipping.address,
-                paymentMethod: order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method,
+                paymentMethod: order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method === 'stripe' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'paypal' ? 'PayPal' : order.payment_method === 'card' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'online' ? 'Pago en Línea' : order.payment_method,
                 status: order.status,
                 total: formatCurrency(order.total),
                 itemsTable

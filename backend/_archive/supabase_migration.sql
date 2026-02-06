@@ -83,3 +83,35 @@ BEGIN
     RETURN FALSE;
 END;
 $$;
+
+-- Tabla para token blacklist (sesiones revocadas)
+-- Permite logout por dispositivo sin afectar otras sesiones
+CREATE TABLE IF NOT EXISTS token_blacklist (
+    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+    token_hash TEXT NOT NULL,           -- Hash del token (no guardar token completo por seguridad)
+    session_id TEXT,                    -- Identificador único de sesión/dispositivo
+    user_id BIGINT REFERENCES users(id) ON DELETE CASCADE,
+    expires_at TIMESTAMPTZ NOT NULL,    -- Cuándo expira el token original
+    revoked_at TIMESTAMPTZ DEFAULT NOW(),
+    reason TEXT DEFAULT 'logout'        -- logout, password_change, admin_revoke, etc.
+);
+
+-- Índice para búsqueda rápida por hash de token
+CREATE INDEX IF NOT EXISTS idx_token_blacklist_hash ON token_blacklist(token_hash);
+
+-- Índice para limpieza de tokens expirados
+CREATE INDEX IF NOT EXISTS idx_token_blacklist_expires ON token_blacklist(expires_at);
+
+-- Función para limpiar tokens expirados (ejecutar periódicamente)
+CREATE OR REPLACE FUNCTION cleanup_expired_blacklist_tokens()
+RETURNS INTEGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    deleted_count INTEGER;
+BEGIN
+    DELETE FROM token_blacklist WHERE expires_at < NOW();
+    GET DIAGNOSTICS deleted_count = ROW_COUNT;
+    RETURN deleted_count;
+END;
+$$;

@@ -197,7 +197,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onClear, onClose,
                                         className="checkout-btn" 
                                         onClick={handleCheckout}
                                     >
-                                        Finalizar Compra
+                                        Realizar Compra
                                     </button>
                                     <button 
                                         className="clear-cart-btn" 

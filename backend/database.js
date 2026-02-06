@@ -730,6 +730,65 @@ const statements = {
       throw error;
     }
     return data;
+  },
+
+  // Token Blacklist - Persistent storage for revoked tokens
+  addToBlacklist: async (tokenHash, sessionId, userId, expiresAt, reason = 'logout') => {
+    const { data, error } = await supabase
+      .from('token_blacklist')
+      .insert([{ 
+        token_hash: tokenHash, 
+        session_id: sessionId,
+        user_id: userId,
+        expires_at: expiresAt,
+        reason 
+      }])
+      .select()
+      .single();
+    if (error) {
+      // If table doesn't exist, log warning but don't fail
+      if (error.code === 'PGRST205' || error.message.includes('not found')) {
+        console.warn('⚠️ token_blacklist table not found. Using in-memory fallback.');
+        return null;
+      }
+      throw error;
+    }
+    return data;
+  },
+
+  isTokenBlacklisted: async (tokenHash) => {
+    const { data, error } = await supabase
+      .from('token_blacklist')
+      .select('id')
+      .eq('token_hash', tokenHash)
+      .gt('expires_at', new Date().toISOString())
+      .limit(1);
+    if (error) {
+      // If table doesn't exist, return false (not blacklisted)
+      if (error.code === 'PGRST205' || error.message.includes('not found')) {
+        return false;
+      }
+      throw error;
+    }
+    return data && data.length > 0;
+  },
+
+  revokeAllUserSessions: async (userId, exceptSessionId = null) => {
+    // This would be used for "logout all devices" feature
+    // For now, we just mark tokens - actual implementation would need token tracking
+    console.log(`Revoking all sessions for user ${userId} except ${exceptSessionId}`);
+    return true;
+  },
+
+  cleanupExpiredBlacklistTokens: async () => {
+    const { error } = await supabase
+      .from('token_blacklist')
+      .delete()
+      .lt('expires_at', new Date().toISOString());
+    if (error && error.code !== 'PGRST205') {
+      console.error('Error cleaning up blacklist:', error);
+    }
+    return true;
   }
 };
 

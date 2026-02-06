@@ -22,11 +22,14 @@
 
         const data = await response.json();
         
-        // Guardar datos del usuario y timestamp de inicio de sesión
+        // Guardar datos del usuario, sessionId y timestamp de inicio de sesión
         localStorage.setItem('userData', JSON.stringify(data.user));
         localStorage.setItem('sessionStartTime', Date.now().toString());
         if (data.token) {
         localStorage.setItem('authToken', data.token);
+        }
+        if (data.sessionId) {
+        localStorage.setItem('sessionId', data.sessionId);
         }
         
         // Refresh CSRF token after login for mobile compatibility
@@ -61,11 +64,14 @@
 
         const data = await response.json();
         
-        // Guardar datos del usuario y timestamp de inicio de sesión automáticamente después del registro
+        // Guardar datos del usuario, sessionId y timestamp de inicio de sesión automáticamente después del registro
         localStorage.setItem('userData', JSON.stringify(data.user));
         localStorage.setItem('sessionStartTime', Date.now().toString());
         if (data.token) {
         localStorage.setItem('authToken', data.token);
+        }
+        if (data.sessionId) {
+        localStorage.setItem('sessionId', data.sessionId);
         }
         
         // Refresh CSRF token after registration for mobile compatibility
@@ -86,6 +92,7 @@
     }
     localStorage.removeItem('userData');
     localStorage.removeItem('authToken');
+    localStorage.removeItem('sessionId');
     localStorage.removeItem('sessionStartTime');
     
     // Limpiar carritos guardados (opcional)
@@ -95,6 +102,10 @@
         localStorage.removeItem(key);
         }
     });
+    };
+
+    export const getSessionId = () => {
+        return localStorage.getItem('sessionId') || '';
     };
 
     export const getCurrentUser = () => {
@@ -167,6 +178,7 @@
     getCurrentUser,
     isLoggedIn,
     isSessionExpired,
-    getAuthToken
+    getAuthToken,
+    getSessionId
     };
 
