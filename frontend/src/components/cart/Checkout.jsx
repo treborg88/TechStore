@@ -116,7 +116,7 @@ const [step, setStep] = useState(1);
     // Payment methods configuration from settings
     const [paymentMethods, setPaymentMethods] = useState({
         cash: { enabled: true, name: 'Pago Contra Entrega', description: 'Paga en efectivo cuando recibas tu pedido', icon: '💵' },
-        transfer: { enabled: true, name: 'Transferencia Bancaria', description: 'Transferencia o depósito bancario', icon: '🏦', bankInfo: '' },
+        transfer: { enabled: true, name: 'Transferencia Bancaria', description: 'Transferencia o depósito bancario', icon: '🏦', bankName: '', bankHolder: '', bankAccount: '', transferNote: '' },
         stripe: { enabled: true, name: 'Tarjeta de Crédito/Débito', description: 'Visa, MasterCard, American Express', icon: '💳' },
         paypal: { enabled: false, name: 'PayPal', description: 'Paga con tu cuenta PayPal', icon: '🅿️' }
     });
@@ -1253,9 +1253,9 @@ return (
                                                 <div className="payment-info">
                                                     <h4>{paymentMethods.transfer.name || 'Transferencia Bancaria'}</h4>
                                                     <p>{paymentMethods.transfer.description || 'Transferencia o depósito bancario'}</p>
-                                                    {paymentMethods.transfer.bankInfo && (
+                                                    {paymentMethods.transfer.bankName && (
                                                         <div className="bank-info-preview">
-                                                            <small>{paymentMethods.transfer.bankInfo}</small>
+                                                            <small>{paymentMethods.transfer.bankName} — {paymentMethods.transfer.bankAccount}</small>
                                                         </div>
                                                     )}
                                                 </div>

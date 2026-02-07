@@ -4,6 +4,7 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import './SettingsManager.css';
 import EmailSettingsSection from './EmailSettingsSection';
+import DatabaseSection from './DatabaseSection';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 
 function SettingsManager() {
@@ -61,7 +62,10 @@ function SettingsManager() {
       description: 'Transferencia o depósito bancario',
       icon: '🏦',
       order: 2,
-      bankInfo: ''
+      bankName: '',
+      bankHolder: '',
+      bankAccount: '',
+      transferNote: ''
     },
     stripe: {
       enabled: true,
@@ -539,6 +543,13 @@ function SettingsManager() {
                 onClick={() => setSiteTab('email')}
               >
                 ✉️ Correo
+              </button>
+              <button
+                type="button"
+                className={`settings-nav-item ${siteTab === 'database' ? 'active' : ''}`}
+                onClick={() => setSiteTab('database')}
+              >
+                🗄️ Base de datos
               </button>
             </nav>
 
@@ -1293,19 +1304,66 @@ function SettingsManager() {
                             placeholder="Transferencia o depósito bancario"
                           />
                         </div>
+                        <div className="settings-grid">
+                          <div className="form-group">
+                            <label>Nombre del Banco</label>
+                            <input
+                              type="text"
+                              value={settings.paymentMethodsConfig?.transfer?.bankName || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                paymentMethodsConfig: {
+                                  ...prev.paymentMethodsConfig,
+                                  transfer: { ...prev.paymentMethodsConfig?.transfer, bankName: e.target.value }
+                                }
+                              }))}
+                              placeholder="Ej: Banco Popular"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Titular de la Cuenta</label>
+                            <input
+                              type="text"
+                              value={settings.paymentMethodsConfig?.transfer?.bankHolder || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                paymentMethodsConfig: {
+                                  ...prev.paymentMethodsConfig,
+                                  transfer: { ...prev.paymentMethodsConfig?.transfer, bankHolder: e.target.value }
+                                }
+                              }))}
+                              placeholder="Ej: Mi Tienda Online SRL"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>Cuenta / CLABE / Link de Pago</label>
+                            <input
+                              type="text"
+                              value={settings.paymentMethodsConfig?.transfer?.bankAccount || ''}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                paymentMethodsConfig: {
+                                  ...prev.paymentMethodsConfig,
+                                  transfer: { ...prev.paymentMethodsConfig?.transfer, bankAccount: e.target.value }
+                                }
+                              }))}
+                              placeholder="Ej: 1234-5678-9012-3456"
+                            />
+                          </div>
+                        </div>
                         <div className="form-group">
-                          <label>Información Bancaria (opcional)</label>
+                          <label>Nota Importante (instrucciones de pago)</label>
                           <textarea
-                            value={settings.paymentMethodsConfig?.transfer?.bankInfo || ''}
+                            value={settings.paymentMethodsConfig?.transfer?.transferNote || ''}
                             onChange={(e) => setSettings(prev => ({
                               ...prev,
                               paymentMethodsConfig: {
                                 ...prev.paymentMethodsConfig,
-                                transfer: { ...prev.paymentMethodsConfig?.transfer, bankInfo: e.target.value }
+                                transfer: { ...prev.paymentMethodsConfig?.transfer, transferNote: e.target.value }
                               }
                             }))}
-                            placeholder="Banco: XXXX&#10;Cuenta: XXXX-XXXX&#10;Titular: XXXX"
-                            rows="3"
+                            placeholder="Ej: Envía tu comprobante de pago por WhatsApp al 829-000-0000 indicando tu número de orden."
+                            rows="2"
                           />
                         </div>
                       </div>
@@ -1887,7 +1945,11 @@ function SettingsManager() {
               )}
 
               {siteTab === 'email' && (
-                <EmailSettingsSection settings={settings} onChange={handleChange} />
+                <EmailSettingsSection settings={settings} onChange={handleChange} setSettings={setSettings} />
+              )}
+
+              {siteTab === 'database' && (
+                <DatabaseSection />
               )}
 
             </div>

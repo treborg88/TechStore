@@ -66,13 +66,14 @@ export const PAYMENT_METHODS = {
         detail: 'Transferencia Bancaria',
         instructions: {
             fields: [
-                { label: 'Banco', value: 'Banco Ejemplo' },
-                { label: 'Titular', value: 'Mi Tienda Online' },
-                { label: 'Cuenta / CLABE', value: '1234-5678-9012-3456' }
+                { label: 'Banco', key: 'bankName', value: 'Banco Ejemplo' },
+                { label: 'Titular', key: 'bankHolder', value: 'Mi Tienda Online' },
+                { label: 'Cuenta / CLABE', key: 'bankAccount', value: '1234-5678-9012-3456' }
             ],
             amountLabel: 'Monto a Pagar',
             note: {
                 icon: '⚠️',
+                key: 'transferNote',
                 text: (order) => `Envía tu comprobante de pago por correo a pagos@mitienda.com o por WhatsApp para validar tu orden. Indica el número de orden #${order.id} en el mensaje.`,
                 highlight: 'Importante:'
             }
@@ -83,6 +84,39 @@ export const PAYMENT_METHODS = {
     // Métodos de pago online específicos
     stripe: { label: 'Tarjeta de Crédito/Débito', icon: '💳', detail: 'Stripe' },
     paypal: { label: 'PayPal', icon: '🅿️', detail: 'PayPal' }
+};
+
+/**
+ * Builds a resolved PAYMENT_METHODS config using dynamic transfer settings
+ * @param {Object} transferConfig - Transfer config from paymentMethodsConfig.transfer
+ * @returns {Object} - Merged PAYMENT_METHODS with dynamic values
+ */
+export const getResolvedPaymentMethods = (transferConfig) => {
+    if (!transferConfig) return PAYMENT_METHODS;
+
+    // Deep-clone transfer instructions and override with config values
+    const resolvedTransfer = { ...PAYMENT_METHODS.transfer };
+    const fields = PAYMENT_METHODS.transfer.instructions.fields.map(field => {
+        // If field has a key and config provides a non-empty value, use it
+        if (field.key && transferConfig[field.key]) {
+            return { ...field, value: transferConfig[field.key] };
+        }
+        return field;
+    });
+
+    const note = { ...PAYMENT_METHODS.transfer.instructions.note };
+    // Override note text if transferNote is configured
+    if (transferConfig.transferNote) {
+        note.text = transferConfig.transferNote;
+    }
+
+    resolvedTransfer.instructions = {
+        ...PAYMENT_METHODS.transfer.instructions,
+        fields,
+        note
+    };
+
+    return { ...PAYMENT_METHODS, transfer: resolvedTransfer };
 };
 
 export const buildInvoiceData = ({

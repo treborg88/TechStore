@@ -117,6 +117,63 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 /**
+ * GET /api/settings/db-status
+ * Get database connection info (admin only, sensitive data masked)
+ */
+router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const supabaseUrl = process.env.SUPABASE_URL || '';
+        const supabaseKey = process.env.SUPABASE_KEY || '';
+
+        // Extract project ref from URL (e.g. https://abc123.supabase.co -> abc123)
+        let projectRef = '';
+        try {
+            const urlObj = new URL(supabaseUrl);
+            projectRef = urlObj.hostname.split('.')[0] || '';
+        } catch { /* invalid URL */ }
+
+        // Mask the API key: show first 8 and last 4 chars
+        const maskedKey = supabaseKey.length > 12
+            ? `${supabaseKey.slice(0, 8)}...${supabaseKey.slice(-4)}`
+            : supabaseKey ? '••••••••' : '';
+
+        // Test actual connection with a lightweight query
+        let connected = false;
+        let tableCount = 0;
+        try {
+            const { data, error } = await require('../database').supabase
+                .from('settings')
+                .select('id', { count: 'exact', head: true });
+            connected = !error;
+            // Try to count main tables
+            const tables = ['users', 'products', 'orders', 'order_items', 'cart', 'settings'];
+            let count = 0;
+            for (const t of tables) {
+                const { error: tErr } = await require('../database').supabase
+                    .from(t)
+                    .select('id', { count: 'exact', head: true });
+                if (!tErr) count++;
+            }
+            tableCount = count;
+        } catch { /* connection failed */ }
+
+        res.json({
+            provider: 'Supabase (PostgreSQL)',
+            url: supabaseUrl || 'No configurada',
+            projectRef,
+            apiKeySet: !!supabaseKey,
+            maskedKey,
+            connected,
+            tableCount,
+            dashboardUrl: projectRef ? `https://supabase.com/dashboard/project/${projectRef}` : ''
+        });
+    } catch (error) {
+        console.error('Error getting DB status:', error);
+        res.status(500).json({ message: 'Error al obtener estado de la base de datos' });
+    }
+});
+
+/**
  * POST /api/settings/upload
  * Upload settings image (admin only)
  */

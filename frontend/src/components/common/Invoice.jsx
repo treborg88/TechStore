@@ -1,16 +1,19 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import '../../print.css';
 import './Invoice.css';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { STATUS_CONFIG, PAYMENT_METHODS, buildInvoiceData, getPaymentStatusLabel } from '../../utils/invoiceUtils';
+import { STATUS_CONFIG, PAYMENT_METHODS, getResolvedPaymentMethods, buildInvoiceData, getPaymentStatusLabel } from '../../utils/invoiceUtils';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 import InvoicePDF from './InvoicePDF';
 
-const PaymentInstructions = ({ order, paymentMethod, invoiceData }) => {
-    const config = PAYMENT_METHODS[paymentMethod]?.instructions;
+// PaymentInstructions accepts a resolved methods map
+const PaymentInstructions = ({ order, paymentMethod, invoiceData, resolvedMethods }) => {
+    const methods = resolvedMethods || PAYMENT_METHODS;
+    const config = methods[paymentMethod]?.instructions;
     if (!config) return null;
 
-    const methodConfig = PAYMENT_METHODS[paymentMethod];
+    const methodConfig = methods[paymentMethod];
 
     return (
         <div className="invoice-payment-instructions no-print">
@@ -135,6 +138,30 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
   const isAuthenticated = !!localStorage.getItem('userData');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState(null);
+  // Resolved payment methods with dynamic transfer config from settings
+  const [resolvedMethods, setResolvedMethods] = useState(PAYMENT_METHODS);
+
+  // Load transfer config from public settings on mount
+  useEffect(() => {
+    const loadTransferConfig = async () => {
+      try {
+        const res = await apiFetch(apiUrl('/settings/public'));
+        if (res.ok) {
+          const data = await res.json();
+          const config = typeof data.paymentMethodsConfig === 'string'
+            ? JSON.parse(data.paymentMethodsConfig)
+            : data.paymentMethodsConfig;
+          if (config?.transfer) {
+            setResolvedMethods(getResolvedPaymentMethods(config.transfer));
+          }
+        }
+      } catch (err) {
+        // Fallback to static defaults on error
+        console.warn('Could not load transfer config:', err.message);
+      }
+    };
+    loadTransferConfig();
+  }, []);
 
   const invoiceData = buildInvoiceData({
     order,
@@ -409,7 +436,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <div className="payment-info-box">
                         <h4>Método de Pago</h4>
                         <p>
-                            {PAYMENT_METHODS[customerInfo.paymentMethod]?.icon} {PAYMENT_METHODS[customerInfo.paymentMethod]?.label}
+                            {resolvedMethods[customerInfo.paymentMethod]?.icon} {resolvedMethods[customerInfo.paymentMethod]?.label}
                         </p>
                         <PaymentStatusTag status={order.status} paymentMethod={customerInfo.paymentMethod} />
                     </div>
@@ -435,7 +462,8 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
             <PaymentInstructions 
                 order={order} 
                 paymentMethod={customerInfo.paymentMethod} 
-                invoiceData={invoiceData} 
+                invoiceData={invoiceData}
+                resolvedMethods={resolvedMethods}
             />
             {showSuccess && !isAuthenticated && (
                 <div className="guest-info no-print">

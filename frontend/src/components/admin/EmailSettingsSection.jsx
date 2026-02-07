@@ -1,14 +1,29 @@
 import React, { useState } from 'react';
 
-function EmailSettingsSection({ settings, onChange }) {
+/**
+ * Email & invoice footer settings section
+ * Manages SMTP credentials and bank transfer details for invoices
+ */
+function EmailSettingsSection({ settings, onChange, setSettings }) {
   const [showPassword, setShowPassword] = useState(false);
   const [credentialsTab, setCredentialsTab] = useState('correo');
 
+  // Helper to update nested paymentMethodsConfig.transfer fields
+  const handleTransferField = (field, value) => {
+    setSettings(prev => ({
+      ...prev,
+      paymentMethodsConfig: {
+        ...prev.paymentMethodsConfig,
+        transfer: { ...prev.paymentMethodsConfig?.transfer, [field]: value }
+      }
+    }));
+  };
+
   return (
     <section className="settings-section">
-      <h3>🔐 Manejo de credencia</h3>
+      <h3>✉️ Correo y Facturación</h3>
       <p className="section-description">
-        Administra las credenciales de correo y base de datos de manera segura.
+        Configura el envío de correos y los datos del pie de factura.
       </p>
 
       <div className="settings-subtabs">
@@ -17,14 +32,14 @@ function EmailSettingsSection({ settings, onChange }) {
           className={`settings-subtab ${credentialsTab === 'correo' ? 'active' : ''}`}
           onClick={() => setCredentialsTab('correo')}
         >
-          Correo
+          Correo SMTP
         </button>
         <button
           type="button"
-          className={`settings-subtab ${credentialsTab === 'db' ? 'active' : ''}`}
-          onClick={() => setCredentialsTab('db')}
+          className={`settings-subtab ${credentialsTab === 'factura' ? 'active' : ''}`}
+          onClick={() => setCredentialsTab('factura')}
         >
-          Base de datos
+          Pie de Factura
         </button>
       </div>
 
@@ -121,36 +136,64 @@ function EmailSettingsSection({ settings, onChange }) {
               value={settings.mailTemplateHtml || ''}
               onChange={onChange}
               rows="8"
-              placeholder="Usa variables como {{siteName}}, {{orderNumber}}, {{customerName}}, {{itemsTable}}, {{total}}"
+              placeholder="Usa variables como {{siteName}}, {{orderNumber}}, {{customerName}}, {{itemsTable}}, {{total}}, {{subtotal}}, {{shippingCost}}"
             />
             <p className="field-hint">
-              Variables disponibles: {'{{siteName}}'}, {'{{siteIcon}}'}, {'{{orderNumber}}'}, {'{{customerName}}'}, {'{{customerEmail}}'}, {'{{customerPhone}}'}, {'{{shippingAddress}}'}, {'{{paymentMethod}}'}, {'{{status}}'}, {'{{total}}'}, {'{{itemsTable}}'}.
+              Variables disponibles: {'{{siteName}}'}, {'{{siteIcon}}'}, {'{{orderNumber}}'}, {'{{customerName}}'}, {'{{customerEmail}}'}, {'{{customerPhone}}'}, {'{{shippingAddress}}'}, {'{{paymentMethod}}'}, {'{{status}}'}, {'{{subtotal}}'}, {'{{shippingCost}}'}, {'{{total}}'}, {'{{itemsTable}}'}.
             </p>
           </div>
         </>
       )}
 
-      {credentialsTab === 'db' && (
+      {credentialsTab === 'factura' && (
         <>
+          <p className="section-description">
+            Estos datos aparecen en el pie de factura cuando el método de pago es Transferencia Bancaria.
+          </p>
           <div className="settings-grid">
             <div className="form-group">
-              <label>Proveedor</label>
-              <input type="text" value="Supabase" disabled />
+              <label>Nombre del Banco</label>
+              <input
+                type="text"
+                value={settings.paymentMethodsConfig?.transfer?.bankName || ''}
+                onChange={(e) => handleTransferField('bankName', e.target.value)}
+                placeholder="Ej: Banco Popular"
+              />
             </div>
             <div className="form-group">
-              <label>URL de la base de datos</label>
-              <input type="text" value="Configurada en .env" disabled />
+              <label>Titular de la Cuenta</label>
+              <input
+                type="text"
+                value={settings.paymentMethodsConfig?.transfer?.bankHolder || ''}
+                onChange={(e) => handleTransferField('bankHolder', e.target.value)}
+                placeholder="Ej: Mi Tienda Online SRL"
+              />
             </div>
             <div className="form-group">
-              <label>API Key</label>
-              <input type="text" value="••••••••••••••" disabled />
+              <label>Cuenta / CLABE / Link de Pago</label>
+              <input
+                type="text"
+                value={settings.paymentMethodsConfig?.transfer?.bankAccount || ''}
+                onChange={(e) => handleTransferField('bankAccount', e.target.value)}
+                placeholder="Ej: 1234-5678-9012-3456"
+              />
             </div>
           </div>
-          <p className="field-hint">
-            Para cambiar credenciales de base de datos, actualiza las variables del backend (.env) y reinicia el servidor.
-          </p>
+          <div className="form-group">
+            <label>Nota Importante (instrucciones de pago)</label>
+            <textarea
+              value={settings.paymentMethodsConfig?.transfer?.transferNote || ''}
+              onChange={(e) => handleTransferField('transferNote', e.target.value)}
+              placeholder="Ej: Envía tu comprobante de pago por WhatsApp al 829-000-0000 indicando tu número de orden."
+              rows="3"
+            />
+            <p className="field-hint">
+              Este texto aparece como nota destacada en la factura del cliente.
+            </p>
+          </div>
         </>
       )}
+
     </section>
   );
 }

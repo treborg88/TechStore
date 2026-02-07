@@ -185,7 +185,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         const fromName = settings.mailFromName || settings.siteName || 'TechStore';
         const from = `${fromName} <${fromEmail}>`;
 
-        // Build items table HTML
+        // Build item rows HTML
         const itemRows = items.map((item) => `
             <tr>
                 <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
@@ -195,6 +195,12 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
             </tr>
         `).join('');
 
+        // Calculate shipping cost and grand total
+        const shippingCost = Number(order.shipping_cost) || 0;
+        const subtotal = Number(order.total) || 0;
+        const grandTotal = subtotal + shippingCost;
+
+        // Build items table HTML with totals breakdown included
         const itemsTable = `
             <table style="width:100%; border-collapse: collapse; font-size: 14px;">
                 <thead>
@@ -208,6 +214,20 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                 <tbody>
                     ${itemRows}
                 </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" style="padding:8px 6px; text-align:right; border-top:1px solid #e5e7eb;"><strong>Subtotal:</strong></td>
+                        <td style="padding:8px 6px; text-align:right; border-top:1px solid #e5e7eb;">${formatCurrency(subtotal)}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="padding:8px 6px; text-align:right;"><strong>Cargo por envío:</strong></td>
+                        <td style="padding:8px 6px; text-align:right;">${shippingCost > 0 ? formatCurrency(shippingCost) : 'Gratis'}</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" style="padding:10px 6px; text-align:right; border-top:2px solid #111827; font-size:16px;"><strong>Total:</strong></td>
+                        <td style="padding:10px 6px; text-align:right; border-top:2px solid #111827; font-size:16px;"><strong>${formatCurrency(grandTotal)}</strong></td>
+                    </tr>
+                </tfoot>
             </table>
         `;
 
@@ -225,16 +245,11 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                     <h3 style="margin-top: 20px;">Resumen de la orden</h3>
                     ${itemsTable}
 
-                    <div style="margin-top: 16px; display: flex; justify-content: space-between;">
-                        <div>
-                            <p style="margin: 4px 0;"><strong>Dirección:</strong> ${shipping.address}</p>
-                            <p style="margin: 4px 0;"><strong>Teléfono:</strong> ${customer.phone || 'N/A'}</p>
-                            <p style="margin: 4px 0;"><strong>Método de pago:</strong> ${order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method === 'stripe' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'paypal' ? 'PayPal' : order.payment_method === 'card' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'online' ? 'Pago en Línea' : order.payment_method}</p>
-                        </div>
-                        <div style="text-align:right;">
-                            <p style="margin: 4px 0;"><strong>Total:</strong> ${formatCurrency(order.total)}</p>
-                            <p style="margin: 4px 0; color: #6b7280;">Estado: ${order.status}</p>
-                        </div>
+                    <div style="margin-top: 16px;">
+                        <p style="margin: 4px 0;"><strong>Dirección:</strong> ${shipping.address}</p>
+                        <p style="margin: 4px 0;"><strong>Teléfono:</strong> ${customer.phone || 'N/A'}</p>
+                        <p style="margin: 4px 0;"><strong>Método de pago:</strong> ${order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method === 'stripe' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'paypal' ? 'PayPal' : order.payment_method === 'card' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'online' ? 'Pago en Línea' : order.payment_method}</p>
+                        <p style="margin: 4px 0; color: #6b7280;">Estado: ${order.status}</p>
                     </div>
 
                     <p style="margin-top: 20px;">Gracias por comprar con nosotros.</p>
@@ -255,7 +270,9 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                 shippingAddress: shipping.address,
                 paymentMethod: order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method === 'stripe' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'paypal' ? 'PayPal' : order.payment_method === 'card' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'online' ? 'Pago en Línea' : order.payment_method,
                 status: order.status,
-                total: formatCurrency(order.total),
+                subtotal: formatCurrency(subtotal),
+                shippingCost: shippingCost > 0 ? formatCurrency(shippingCost) : 'Gratis',
+                total: formatCurrency(grandTotal),
                 itemsTable
             })
             : defaultTemplate;
