@@ -387,6 +387,7 @@ const statements = {
     return { lastInsertRowid: data.id };
   },
   getOrdersByUserId: async (user_id) => {
+    // Todas las órdenes vinculadas al user_id
     const { data, error } = await supabase
       .from('orders')
       .select('*')
@@ -541,27 +542,37 @@ const statements = {
     };
   },
   getOrdersByEmail: async (email) => {
-    // This is a bit more complex because we need to check both orders.customer_email and users.email
-    // We'll do two queries or a complex one. Let's do a simple approach.
-    const { data, error } = await supabase
-      .from('orders')
-      .select(`
-        *,
-        users (name, email)
-      `)
-      .or(`customer_email.ilike.${email},users.email.ilike.${email}`)
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error('Error getOrdersByEmail:', error);
+    // Buscar el user_id del usuario registrado con este email y traer sus órdenes
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('id')
+        .ilike('email', email)
+        .maybeSingle();
+
+      if (!userData?.id) return [];
+
+      // Traer todas las órdenes de este usuario por su ID (limpio, sin filtros de texto)
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*, users (name, email)')
+        .eq('user_id', userData.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error getOrdersByEmail:', error);
+        return [];
+      }
+
+      return (data || []).map(order => ({
+        ...order,
+        customer_name: order.users ? order.users.name : order.customer_name,
+        customer_email: order.users ? order.users.email : order.customer_email
+      }));
+    } catch (err) {
+      console.error('Error global en getOrdersByEmail:', err);
       return [];
     }
-
-    return data.map(order => ({
-      ...order,
-      customer_name: order.users ? order.users.name : order.customer_name,
-      customer_email: order.users ? order.users.email : order.customer_email
-    }));
   },
 
   // Order Items

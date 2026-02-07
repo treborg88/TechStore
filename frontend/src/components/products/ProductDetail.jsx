@@ -4,12 +4,12 @@ import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Footer from '../common/Footer';
-import { API_URL, BASE_URL } from '../../config';
+import { API_URL, BASE_URL, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ProductDetail.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSettings, onCartOpen, currencyCode }) {
+function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSettings, onCartOpen, currencyCode, productCardSettings }) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
@@ -214,8 +214,25 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
     return styles;
   };
 
+  // Build CSS variables from product card settings (same source as Home page)
+  const cardStyleVars = (() => {
+    const cfg = productCardSettings && typeof productCardSettings === 'object' ? productCardSettings : DEFAULT_PRODUCT_CARD_CONFIG;
+    if (cfg.useDefault) return {};
+    const s = { ...DEFAULT_PRODUCT_CARD_CONFIG.styles, ...(cfg.styles || {}) };
+    return {
+      '--product-price-color': s.priceColor || undefined,
+      '--product-price-size': s.priceSize ? `${s.priceSize}px` : undefined,
+      '--product-price-weight': s.priceWeight || undefined,
+      '--product-button-bg': s.buttonBg || undefined,
+      '--product-button-color': s.buttonText || undefined,
+      '--product-button-radius': s.buttonRadius ? `${s.buttonRadius}px` : undefined,
+      '--product-button-border': s.buttonBorder || undefined,
+      '--product-button-shadow': s.buttonShadow || undefined,
+    };
+  })();
+
   return (
-    <div className="product-detail-page">
+    <div className="product-detail-page" style={cardStyleVars}>
       <section 
         className={`hero-section ${heroImage ? 'has-bg' : ''}`}
         style={{

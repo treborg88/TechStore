@@ -1,7 +1,11 @@
 import { API_URL } from '../config';
 
 // In-memory CSRF token fallback for mobile browsers where cookies may not work
-let csrfTokenCache = '';
+// Exported as object so authService can update it from login/register responses
+export let csrfTokenCache = '';
+
+// Setter for csrfTokenCache (used by authService after login/register)
+export const setCsrfTokenCache = (token) => { csrfTokenCache = token; };
 
 export const getCsrfToken = () => {
   if (typeof document === 'undefined') return csrfTokenCache || '';
@@ -57,6 +61,7 @@ export const apiFetch = async (url, options = {}) => {
   }
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    // Always read fresh from cookie (shared across tabs)
     let csrfToken = getCsrfToken();
     
     // If no CSRF token and user is authenticated, try to refresh it
@@ -69,11 +74,32 @@ export const apiFetch = async (url, options = {}) => {
     }
   }
 
-  return fetch(url, {
+  const response = await fetch(url, {
     credentials: 'include',
     ...options,
     headers
   });
+
+  // Auto-retry once on CSRF failure: re-read cookie (may have been updated by another tab)
+  if (response.status === 403 && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
+    const body = await response.clone().json().catch(() => ({}));
+    if (body.message && body.message.includes('CSRF')) {
+      // Re-read cookie (another tab may have refreshed it)
+      const freshToken = getCsrfToken();
+      if (freshToken && freshToken !== headers['x-csrf-token']) {
+        headers['x-csrf-token'] = freshToken;
+        return fetch(url, { credentials: 'include', ...options, headers });
+      }
+      // Cookie also stale — fetch new token from server and retry
+      const serverToken = await refreshCsrfToken();
+      if (serverToken) {
+        headers['x-csrf-token'] = serverToken;
+        return fetch(url, { credentials: 'include', ...options, headers });
+      }
+    }
+  }
+
+  return response;
 };
 
 export const apiUrl = (path) => `${API_URL}${path}`;

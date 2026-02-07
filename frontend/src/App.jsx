@@ -912,6 +912,7 @@ function App() {
                 overlayOpacity: productDetailHeroSettings.overlayOpacity
               }}
               currencyCode={productCardSettings.currency}
+              productCardSettings={productCardSettings}
               onCartOpen={() => navigate('/cart')}
             />
           } />

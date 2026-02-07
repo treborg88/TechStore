@@ -116,9 +116,9 @@
 }
 
 .product-detail-container .product-price {
-  font-size: 2rem;
-  font-weight: 700;
-  color: #2563eb;
+  font-size: var(--product-price-size, 2rem);
+  font-weight: var(--product-price-weight, 700);
+  color: var(--product-price-color, var(--primary-color));
 }
 
 /* Description Section and Editor */
@@ -248,11 +248,11 @@
   min-width: 150px;
   max-width: 220px;
   height: 48px;
-  background-color: #2563eb;
-  color: white;
-  border: none;
+  background-color: var(--product-button-bg, var(--primary-color));
+  color: var(--product-button-color, white);
+  border: var(--product-button-border, none);
   padding: 0 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--product-button-radius, 8px);
   font-weight: 600;
   font-size: 1rem;
   cursor: pointer;
@@ -262,10 +262,12 @@
   justify-content: center;
   gap: 0.5rem;
   white-space: nowrap;
+  box-shadow: var(--product-button-shadow, none);
 }
 
 .add-to-cart-btn:hover {
-  background-color: #1d4ed8;
+  background-color: var(--product-button-bg, var(--primary-hover, var(--primary-color)));
+  filter: brightness(0.9);
 }
 
 .add-to-cart-btn:disabled {
@@ -281,10 +283,10 @@
 
 .share-toggle-btn {
   padding: 12px 18px;
-  border-radius: 8px;
-  border: 2px solid #3b82f6;
+  border-radius: var(--product-button-radius, 8px);
+  border: 2px solid var(--product-button-bg, var(--primary-color));
   background: #fff;
-  color: #2563eb;
+  color: var(--product-button-bg, var(--primary-color));
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -471,7 +473,7 @@
 
 .similar-product-price {
   font-size: 1rem;
-  color: #2563eb;
+  color: var(--product-price-color, var(--primary-color));
   font-weight: 700;
 }
 

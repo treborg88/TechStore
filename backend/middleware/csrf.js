@@ -30,9 +30,12 @@ const getCookieOptions = (req) => {
     return { secure, sameSite, isExternalHttp };
 };
 
-const setCsrfCookie = (req, res) => {
+// Set CSRF cookie — reuses existing token if present to avoid multi-tab conflicts
+const setCsrfCookie = (req, res, { forceNew = false } = {}) => {
     const { secure, sameSite } = getCookieOptions(req);
-    const csrfToken = createCsrfToken();
+    // Reuse existing cookie token unless forced (login/register always force new)
+    const existing = !forceNew ? req.cookies?.['XSRF-TOKEN'] : null;
+    const csrfToken = existing || createCsrfToken();
 
     res.cookie('XSRF-TOKEN', csrfToken, {
         httpOnly: false, // JS must read this
@@ -45,6 +48,7 @@ const setCsrfCookie = (req, res) => {
     return csrfToken;
 };
 
+// Set auth + CSRF cookies — forces new CSRF token on login/register (new session)
 const setAuthCookies = (req, res, token) => {
     const { secure, sameSite } = getCookieOptions(req);
 
@@ -56,7 +60,8 @@ const setAuthCookies = (req, res, token) => {
         path: '/'
     });
 
-    return setCsrfCookie(req, res);
+    // Force new CSRF token on authentication (new session = new CSRF)
+    return setCsrfCookie(req, res, { forceNew: true });
 };
 
 // Clear auth cookies (for logout or session reset)

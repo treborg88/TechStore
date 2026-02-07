@@ -24,7 +24,7 @@ const TOKEN_EXPIRY_MS = 24 * 60 * 60 * 1000;
  * Returns token in both cookie and response body for mobile compatibility
  */
 router.get('/csrf', (req, res) => {
-    // Always set fresh CSRF cookie and return token in response
+    // Reuse existing CSRF cookie if present (avoids multi-tab conflicts)
     const csrfToken = setCsrfCookie(req, res);
     
     res.json({ success: true, csrfToken });

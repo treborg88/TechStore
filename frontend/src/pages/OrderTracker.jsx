@@ -31,8 +31,8 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchType, setSearchType] = useState('id');
-  const [filter, setFilter] = useState('active');
+  const [searchType, setSearchType] = useState(user ? 'email' : 'id');
+  const [filter, setFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isSearchResult, setIsSearchResult] = useState(false);
@@ -63,15 +63,14 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
     const query = searchQuery.trim();
     if (!query) return setError('Ingresa un valor de búsqueda');
     
-    // Validar código completo (formato W-YYMMDD-XXXXX) o email
+    // Validar según tipo de búsqueda
     if (searchType === 'id') {
-      const isValidFormat = /^[A-Z]-\d{6}-\d{5}$/.test(query);
+      const isValidFormat = /^[A-Z]-\d{6}-\d+$/.test(query);
       if (!isValidFormat) {
-        return setError(`Número de orden inválido "${query}". El formato correcto debe ser W-YYMMDD-XXXXX (ejemplo: W-240115-00001)`);
+        return setError('Formato: W-YYMMDD-XXXXX (ejemplo: W-240115-00001)');
       }
     } else if (searchType === 'email') {
-      const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query);
-      if (!isEmail) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query)) {
         return setError('Ingresa un correo electrónico válido');
       }
     }
@@ -160,18 +159,18 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
             <form onSubmit={handleSearch} className="tracker-search">
               <div className="search-types">
                 <button type="button" className={searchType === 'id' ? 'active' : ''} 
-                  onClick={() => { setSearchType('id'); setSearchQuery(''); }}>
-                  🔢 Por Número
+                  onClick={() => { setSearchType('id'); setSearchQuery(''); setError(''); }}>
+                  🔢 Número de Orden
                 </button>
                 <button type="button" className={searchType === 'email' ? 'active' : ''} 
-                  onClick={() => { setSearchType('email'); setSearchQuery(''); }}>
-                  📧 Por Email
+                  onClick={() => { setSearchType('email'); setSearchQuery(''); setError(''); }}>
+                  📧 Email de Usuario
                 </button>
               </div>
               <div className="search-input-row">
                 <input
                   type={searchType === 'email' ? 'email' : 'text'}
-                  placeholder={searchType === 'id' ? 'Código completo: W-YYMMDD-XXXXX' : 'tu@email.com'}
+                  placeholder={searchType === 'id' ? 'W-YYMMDD-XXXXX' : 'correo del usuario registrado'}
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   disabled={loading}

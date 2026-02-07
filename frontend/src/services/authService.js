@@ -1,5 +1,5 @@
     // services/authService.js
-   import { apiFetch, apiUrl, refreshCsrfToken } from './apiClient';
+   import { apiFetch, apiUrl, setCsrfTokenCache } from './apiClient';
 
     // Session duration constant (24 hours in milliseconds)
     const SESSION_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -32,8 +32,10 @@
         localStorage.setItem('sessionId', data.sessionId);
         }
         
-        // Refresh CSRF token after login for mobile compatibility
-        await refreshCsrfToken();
+        // Store CSRF token from login response for mobile (cookie already set by server)
+        if (data.csrfToken) {
+        setCsrfTokenCache(data.csrfToken);
+        }
         
         return data.user;
     } catch (error) {
@@ -74,8 +76,10 @@
         localStorage.setItem('sessionId', data.sessionId);
         }
         
-        // Refresh CSRF token after registration for mobile compatibility
-        await refreshCsrfToken();
+        // Store CSRF token from register response for mobile (cookie already set by server)
+        if (data.csrfToken) {
+        setCsrfTokenCache(data.csrfToken);
+        }
         
         return data.user;
     } catch (error) {
