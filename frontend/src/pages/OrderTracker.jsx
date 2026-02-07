@@ -25,6 +25,57 @@ const STATUS_MAP = {
 const COMPLETED_STATUSES = ['delivered', 'cancelled', 'refund'];
 const ORDERS_PER_PAGE = 10;
 
+// Flujo normal de estados para el timeline
+const TIMELINE_FLOW = ['pending_payment', 'paid', 'to_ship', 'shipped', 'delivered'];
+// Estados de cancelación/devolución (se muestran aparte)
+const CANCEL_STATUSES = ['cancelled', 'return', 'refund'];
+
+/**
+ * Timeline visual del progreso de la orden.
+ * Muestra cada paso del flujo normal con indicador de completado/actual/pendiente.
+ */
+function OrderTimeline({ status }) {
+  const isCancelled = CANCEL_STATUSES.includes(status);
+  const currentIdx = TIMELINE_FLOW.indexOf(status);
+
+  return (
+    <div className="order-timeline">
+      <div className="timeline-steps">
+        {TIMELINE_FLOW.map((step, i) => {
+          // Determinar estado visual de cada paso
+          let stepClass = 'pending';
+          if (isCancelled) {
+            stepClass = 'pending';
+          } else if (i < currentIdx) {
+            stepClass = 'done';
+          } else if (i === currentIdx) {
+            stepClass = 'current';
+          }
+
+          const info = STATUS_MAP[step] || { icon: '?', text: step };
+          const isLast = i === TIMELINE_FLOW.length - 1;
+
+          return (
+            <div key={step} className={`timeline-step ${stepClass}`}>
+              <div className="timeline-dot">
+                <span className="timeline-icon">{info.icon}</span>
+              </div>
+              {!isLast && <div className="timeline-line" />}
+              <span className="timeline-label">{info.text}</span>
+            </div>
+          );
+        })}
+      </div>
+      {/* Indicador especial si la orden fue cancelada/devuelta */}
+      {isCancelled && (
+        <div className="timeline-cancelled">
+          {STATUS_MAP[status]?.icon} {STATUS_MAP[status]?.text}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'Mi Tienda Online', siteIcon = '🛒' }) {
   // Estado principal
   const [orders, setOrders] = useState([]);
@@ -250,6 +301,10 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
               </button>
             </div>
             <div style={{ height: '100%', overflowY: 'auto' }}>
+              {/* Timeline visual del estado */}
+              <div style={{ padding: '16px 20px 0' }}>
+                <OrderTimeline status={selectedOrder.status} />
+              </div>
               
                 <Invoice 
                     order={selectedOrder}

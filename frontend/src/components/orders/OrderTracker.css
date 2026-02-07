@@ -454,6 +454,143 @@
   .tracker-filters { flex-direction: column; gap: 10px; align-items: stretch; }
   .order-modal { max-height: 90vh; border-radius: 16px 16px 0 0; position: fixed; bottom: 0; }
 }
+
+/* ============================
+   OrderTimeline - Progreso visual
+   ============================ */
+.order-timeline {
+  padding: 8px 0 12px;
+}
+
+.timeline-steps {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+}
+
+.timeline-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+  z-index: 1;
+}
+
+/* Dot container */
+.timeline-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--divider-color, #e2e8f0);
+  background: var(--white, #fff);
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 2;
+}
+
+.timeline-icon {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+/* Connecting line between steps */
+.timeline-line {
+  position: absolute;
+  top: 18px;
+  left: calc(50% + 18px);
+  width: calc(100% - 36px);
+  height: 2px;
+  background: var(--divider-color, #e2e8f0);
+  z-index: 0;
+  transition: background 0.3s ease;
+}
+
+.timeline-label {
+  margin-top: 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--gray-400, #9ca3af);
+  text-align: center;
+  max-width: 70px;
+  line-height: 1.2;
+  transition: color 0.3s ease;
+}
+
+/* States: done */
+.timeline-step.done .timeline-dot {
+  background: var(--primary-color, #2563eb);
+  border-color: var(--primary-color, #2563eb);
+}
+
+.timeline-step.done .timeline-icon {
+  filter: brightness(0) invert(1);
+}
+
+.timeline-step.done .timeline-line {
+  background: var(--primary-color, #2563eb);
+}
+
+.timeline-step.done .timeline-label {
+  color: var(--primary-color, #2563eb);
+}
+
+/* States: current */
+.timeline-step.current .timeline-dot {
+  background: var(--primary-color, #2563eb);
+  border-color: var(--primary-color, #2563eb);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+  animation: timelinePulse 2s ease-in-out infinite;
+}
+
+.timeline-step.current .timeline-icon {
+  filter: brightness(0) invert(1);
+}
+
+.timeline-step.current .timeline-label {
+  color: var(--gray-800, #1e293b);
+  font-weight: 700;
+}
+
+@keyframes timelinePulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.1); }
+}
+
+/* States: pending */
+.timeline-step.pending .timeline-dot {
+  background: var(--gray-100, #f3f4f6);
+  border-color: var(--divider-color, #e2e8f0);
+}
+
+.timeline-step.pending .timeline-icon {
+  opacity: 0.4;
+}
+
+/* Cancelled / Return / Refund badge */
+.timeline-cancelled {
+  text-align: center;
+  margin-top: 12px;
+  padding: 8px 16px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 8px;
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+/* Responsive timeline */
+@media (max-width: 480px) {
+  .timeline-dot { width: 30px; height: 30px; }
+  .timeline-icon { font-size: 0.75rem; }
+  .timeline-line { top: 15px; left: calc(50% + 15px); width: calc(100% - 30px); }
+  .timeline-label { font-size: 0.58rem; max-width: 56px; }
+}
   
 /* Invoice Mode for Order Tracker */  
 .order-modal.invoice-mode {  
