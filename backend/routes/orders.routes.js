@@ -54,6 +54,20 @@ const restoreStockForOrder = async (orderId, oldStatus, newStatus) => {
 };
 
 /**
+ * GET /api/orders/counts
+ * Get order counts grouped by status (admin only)
+ */
+router.get('/counts', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const counts = await statements.getOrderCounts();
+        res.json(counts);
+    } catch (error) {
+        console.error('Error obteniendo conteos de órdenes:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
  * GET /api/orders
  * Get all orders (admin only)
  */

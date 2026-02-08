@@ -42,7 +42,10 @@ export default function OrderList({
 	currencyCode,
 	siteName = 'TechStore',
 	siteIcon = '🛒',
-	onForceRefresh
+	onForceRefresh,
+	orderCounts = {},
+	orderAlertEnabled = false,
+	onToggleOrderAlert
 }) {
 	// const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' }); // Moved to parent
     const orderFilters = filters || { search: '', status: 'all', type: 'all', paymentType: 'all' };
@@ -651,6 +654,16 @@ export default function OrderList({
 						<h3>Gestión de Órdenes</h3>
 						<span>
 							{filteredOrders.length} / {orders.length} órdenes
+							{onToggleOrderAlert && (
+								<button
+									type="button"
+									className={`admin-btn ghost order-alert-toggle ${orderAlertEnabled ? 'active' : ''}`}
+									onClick={() => onToggleOrderAlert(!orderAlertEnabled)}
+									title={orderAlertEnabled ? 'Desactivar alerta de nuevas órdenes' : 'Activar alerta de nuevas órdenes'}
+								>
+									{orderAlertEnabled ? '🔔' : '🔕'}
+								</button>
+							)}
 							{onForceRefresh && (
 								<button
 									type="button"
@@ -708,6 +721,10 @@ export default function OrderList({
 									const currentIdx = steps.findIndex(s => s.id === orderFilters.status);
 									const isHighlighted = orderFilters.status !== 'all' && index > 0 && index < currentIdx;
 									const isActive = orderFilters.status === step.id;
+									// Count: 'all' sums all statuses, others use specific status count
+									const count = step.id === 'all'
+										? Object.values(orderCounts).reduce((s, v) => s + v, 0)
+										: (orderCounts[step.id] || 0);
 									
 									return (
 										<div 
@@ -717,6 +734,9 @@ export default function OrderList({
 										>
 											<span className="step-icon">{step.icon}</span>
 											<span className="step-label">{step.label}</span>
+											{count > 0 && (
+												<span className="step-count-badge">{count}</span>
+											)}
 										</div>
 									);
 								})}

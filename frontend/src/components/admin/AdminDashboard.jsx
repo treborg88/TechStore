@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react';
+import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -8,6 +8,7 @@ import UserList from './UserList';
 import SettingsManager from './SettingsManager';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { BASE_URL } from '../../config';
+import { playNotificationSound } from '../../utils/notificationSound';
 
 // Resolve product image URL (handles full URLs and /images/ paths)
 const resolveImageUrl = (img) => {
@@ -30,9 +31,18 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 
 	// All orders for analytics (overview tab)
 	const [allOrders, setAllOrders] = useState([]);
+
+	// Order counts by status (for stepper badges)
+	const [orderCounts, setOrderCounts] = useState({});
 	
 	// User stats (lifted from UserList)
 	const [userStats, setUserStats] = useState({ total: 0 });
+
+	// New order alert: toggle + polling state
+	const [orderAlertEnabled, setOrderAlertEnabled] = useState(() => {
+		return localStorage.getItem('admin_order_alert') === 'true';
+	});
+	const prevOrderTotalRef = useRef(null);
 
 	// Analytics states
 	const [salesPeriod, setSalesPeriod] = useState('week'); // 'day', 'week', 'month', 'year'
@@ -105,6 +115,18 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 		}
 	}, [ordersPagination.limit, orderFilters]);
 
+	// Fetch order counts grouped by status (lightweight query for badges)
+	const loadOrderCounts = useCallback(async () => {
+		try {
+			const response = await apiFetch(apiUrl('/orders/counts'));
+			if (!response.ok) throw new Error('Error al cargar conteos');
+			const counts = await response.json();
+			setOrderCounts(counts);
+		} catch (error) {
+			console.error('Error cargando conteos de órdenes:', error);
+		}
+	}, []);
+
 	// Fetch all orders for analytics (overview) — runs once on mount
 	const loadAllOrders = useCallback(async () => {
 		try {
@@ -132,12 +154,14 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 	useEffect(() => {
 		if (activeTab === 'orders') {
 			loadOrders(1);
+			loadOrderCounts();
 		}
 		if (activeTab === 'overview') {
 			loadAllOrders();
 			loadOrders(1);
+			loadOrderCounts();
 		}
-	}, [activeTab, loadOrders, loadAllOrders]);
+	}, [activeTab, loadOrders, loadAllOrders, loadOrderCounts]);
 
     // Reload orders when filters change
     useEffect(() => {
@@ -148,6 +172,51 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
             return () => clearTimeout(timeoutId);
         }
     }, [orderFilters, activeTab, loadOrders]);
+
+	// Persist alert toggle in localStorage
+	useEffect(() => {
+		localStorage.setItem('admin_order_alert', orderAlertEnabled);
+	}, [orderAlertEnabled]);
+
+	// Polling: check for new orders every 30s when alert is enabled
+	useEffect(() => {
+		if (!orderAlertEnabled) return;
+
+		const pollNewOrders = async () => {
+			try {
+				const response = await apiFetch(apiUrl('/orders/counts'));
+				if (!response.ok) return;
+				const counts = await response.json();
+				const currentTotal = Object.values(counts).reduce((s, v) => s + v, 0);
+
+				// Compare with previous total; skip first load to avoid false alert
+				if (prevOrderTotalRef.current !== null && currentTotal > prevOrderTotalRef.current) {
+					const newCount = currentTotal - prevOrderTotalRef.current;
+					playNotificationSound();
+					toast(`🔔 ${newCount === 1 ? 'Nueva orden recibida' : `${newCount} nuevas órdenes`}`, {
+						duration: 5000,
+						style: { background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }
+					});
+					// Refresh counts and orders list if on orders/overview tab
+					setOrderCounts(counts);
+					if (activeTab === 'orders' || activeTab === 'overview') {
+						loadOrders(1);
+					}
+				} else {
+					// Silent update of badge counts
+					setOrderCounts(counts);
+				}
+				prevOrderTotalRef.current = currentTotal;
+			} catch (_error) {
+				// Silently ignore polling errors
+			}
+		};
+
+		// Initial baseline load
+		pollNewOrders();
+		const intervalId = setInterval(pollNewOrders, 30000);
+		return () => clearInterval(intervalId);
+	}, [orderAlertEnabled, activeTab, loadOrders]);
 
 	// Calculate stats for overview (uses allOrders for accurate totals)
 	const stats = useMemo(() => {
@@ -602,10 +671,14 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					onPageChange={(page) => loadOrders(page)}
 					siteName={siteName}
 					siteIcon={siteIcon}
+					orderCounts={orderCounts}
+					orderAlertEnabled={orderAlertEnabled}
+					onToggleOrderAlert={setOrderAlertEnabled}
 					onForceRefresh={() => {
 						// Clear all orders cache keys
 						Object.keys(localStorage).filter(k => k.startsWith('orders_cache_')).forEach(k => localStorage.removeItem(k));
 						loadOrders(ordersPagination.page);
+						loadOrderCounts();
 					}}
 				/>
 			)}

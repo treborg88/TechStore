@@ -2197,6 +2197,22 @@ ul {
   transform: rotate(180deg);
 }
 
+/* Order alert toggle button */
+.order-alert-toggle {
+  font-size: 1rem;
+  padding: 4px 8px;
+  min-width: auto;
+  line-height: 1;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  opacity: 0.5;
+}
+
+.order-alert-toggle.active {
+  opacity: 1;
+}
+
 /* ===== Users mobile compact list ===== */
 .users-desktop { display: block; }
 .users-mobile  { display: none; }
@@ -2429,6 +2445,35 @@ ul {
 .filter-step .step-icon {
   font-size: 1.1rem;
   margin-right: 4px;
+}
+
+/* Subtle count badge on stepper steps */
+.step-count-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  margin-left: 5px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 9px;
+  background-color: #f4a0a0;
+  color: #7a1a1a;
+}
+
+/* When the step is active, make the badge stand out against the primary bg */
+.filter-step.active .step-count-badge {
+  background-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+
+/* When the step is highlighted, subtler tones */
+.filter-step.highlighted .step-count-badge {
+  background-color: rgba(30, 64, 175, 0.15);
+  color: #1e40af;
 }
 
 .filter-step:hover:not(.active):not(.highlighted) {

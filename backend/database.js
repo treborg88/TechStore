@@ -499,6 +499,23 @@ const statements = {
 
     return { data: formattedData, total: count };
   },
+  // Returns order count grouped by status: { pending_payment: 3, paid: 5, ... }
+  getOrderCounts: async () => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('status');
+
+    if (error) {
+      console.error('Error getOrderCounts:', error);
+      return {};
+    }
+
+    // Aggregate counts by status
+    return data.reduce((acc, order) => {
+      acc[order.status] = (acc[order.status] || 0) + 1;
+      return acc;
+    }, {});
+  },
   getOrderWithCustomerById: async (id) => {
     const { data, error } = await supabase
       .from('orders')
