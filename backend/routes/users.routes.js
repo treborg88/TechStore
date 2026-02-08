@@ -1,9 +1,64 @@
 // routes/users.routes.js - User management routes (admin)
 const express = require('express');
 const router = express.Router();
+const bcrypt = require('bcrypt');
 
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+
+/**
+ * POST /api/users
+ * Create a new user (admin only)
+ */
+router.post('/', authenticateToken, requireAdmin, async (req, res) => {
+    const { name, email, password, role } = req.body;
+
+    // Validate required fields
+    if (!name || !email || !password) {
+        return res.status(400).json({ message: 'Nombre, email y contraseña son requeridos' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+        return res.status(400).json({ message: 'Formato de email inválido' });
+    }
+
+    // Validate password (min 8 chars, uppercase, lowercase, number)
+    if (password.length < 8) {
+        return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres' });
+    }
+
+    // Validate role
+    const validRole = ['admin', 'customer'].includes(role) ? role : 'customer';
+
+    try {
+        // Check if email already exists
+        const existingUser = await statements.getUserByEmail(email.toLowerCase());
+        if (existingUser) {
+            return res.status(409).json({ message: 'El email ya está registrado' });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create user (not guest)
+        const result = await statements.createUser(
+            name.trim(),
+            email.toLowerCase().trim(),
+            hashedPassword,
+            validRole,
+            0 // is_guest = false
+        );
+
+        const newUser = await statements.getUserById(result.lastInsertRowid);
+        console.log('Usuario creado por admin:', { id: newUser.id, email: newUser.email, role: validRole });
+        res.status(201).json({ message: 'Usuario creado exitosamente', user: newUser });
+    } catch (error) {
+        console.error('Error creando usuario:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
 
 /**
  * GET /api/users

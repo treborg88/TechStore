@@ -5,7 +5,7 @@ const router = express.Router();
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { singleImageUpload } = require('../middleware/upload');
-const { encryptSetting, decryptSetting } = require('../services/encryption.service');
+const { encryptSetting } = require('../services/encryption.service');
 
 // Public settings that can be exposed to the frontend (no sensitive data)
 const PUBLIC_SETTINGS = [
@@ -64,7 +64,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
         // Convert to object and mask sensitive fields
         const settingsObj = {};
         for (const { id, value } of settings) {
-            if (id === 'mailPassword' || id === 'stripeSecretKey' || id === 'paypalClientSecret') {
+            if (id === 'mailPassword' || id === 'stripeSecretKey' || id === 'paypalClientSecret' || id === 'dbSupabaseKey') {
                 // Don't send actual password/keys, just indicate if set
                 settingsObj[id] = value ? '********' : '';
             } else {
@@ -88,7 +88,7 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
         const settings = req.body;
         
         // Sensitive fields that should be encrypted and filtered if empty
-        const sensitiveFields = ['mailPassword', 'stripeSecretKey', 'paypalClientSecret'];
+        const sensitiveFields = ['mailPassword', 'stripeSecretKey', 'paypalClientSecret', 'dbSupabaseKey'];
         
         // Filter out empty sensitive field updates
         const entries = Object.entries(settings).filter(([key, value]) => {
@@ -141,7 +141,7 @@ router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
         let connected = false;
         let tableCount = 0;
         try {
-            const { data, error } = await require('../database').supabase
+            const { error } = await require('../database').supabase
                 .from('settings')
                 .select('id', { count: 'exact', head: true });
             connected = !error;
@@ -159,7 +159,7 @@ router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
 
         res.json({
             provider: 'Supabase (PostgreSQL)',
-            url: supabaseUrl || 'No configurada',
+            url: supabaseUrl || '',
             projectRef,
             apiKeySet: !!supabaseKey,
             maskedKey,

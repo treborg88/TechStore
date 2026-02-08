@@ -64,12 +64,22 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
     const status = req.query.status || 'all';
     const paymentType = req.query.paymentType || 'all';
     const type = req.query.type || 'all';
+    const includeItems = req.query.includeItems === 'true';
 
     try {
         const { data: orders, total } = await statements.getOrdersPaginated(page, limit, search, status, paymentType, type);
         
+        // Optionally attach items to each order (for analytics)
+        let responseData = orders;
+        if (includeItems) {
+            responseData = await Promise.all(orders.map(async (order) => ({
+                ...order,
+                items: await statements.getOrderItems(order.id)
+            })));
+        }
+
         res.json({
-            data: orders,
+            data: responseData,
             total,
             page,
             limit,
