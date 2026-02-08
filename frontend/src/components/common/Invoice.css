@@ -718,11 +718,15 @@
 
   .invoice-details-table {
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     display: block;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .invoice-details-table table {
-    min-width: 500px; /* Force scroll on very small screens */
+    min-width: 320px;
+    width: 100%;
   }
 
   .grand-total {

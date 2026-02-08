@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
-import Invoice from '../common/Invoice';
+import React, { useState, useCallback } from 'react';
+import { pdf } from '@react-pdf/renderer';
+import InvoicePDF from '../common/InvoicePDF';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { PAYMENT_METHODS, buildInvoiceData } from '../../utils/invoiceUtils';
 import './AdminOrderDetail.css';
 
 const ONLINE_ORDER_STEPS = [
@@ -41,10 +43,36 @@ export default function AdminOrderDetail({
         carrier: order.carrier || '', 
         trackingNumber: order.tracking_number || '' 
     });
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
     const isCOD = order.payment_method === 'cash';
     const steps = isCOD ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS;
     const currentStatusIndex = steps.findIndex((step) => step.id === order.status);
+
+    // Separate main flow steps from extra options (return, refund, cancelled)
+    const EXTRA_STATUS_IDS = ['return', 'refund', 'cancelled'];
+    const mainSteps = steps.filter(s => !EXTRA_STATUS_IDS.includes(s.id));
+    const extraSteps = steps.filter(s => EXTRA_STATUS_IDS.includes(s.id));
+
+    // Disable "Confirmar Pago" if already paid or any status after paid
+    const paidIndex = steps.findIndex(s => s.id === 'paid');
+    const isAlreadyPaid = currentStatusIndex >= 0 && paidIndex >= 0 && currentStatusIndex >= paidIndex;
+    const items = order.items || [];
+
+    // Build customer info and invoice data for PDF generation
+    const customerInfo = {
+        firstName: order.customer_name?.split(' ')[0] || '',
+        lastName: order.customer_name?.split(' ').slice(1).join(' ') || '',
+        email: order.customer_email,
+        address: order.shipping_street,
+        sector: order.shipping_sector,
+        city: order.shipping_city,
+        phone: order.customer_phone,
+        paymentMethod: order.payment_method,
+        shippingCost: order.shipping_cost,
+        shippingDistance: order.shipping_distance,
+        shippingCoordinates: order.shipping_coordinates
+    };
     
     const handleTrackingSubmit = (e) => {
         e.preventDefault();
@@ -62,12 +90,43 @@ export default function AdminOrderDetail({
         return parsed.toLocaleDateString('es-DO');
     };
 
+    // Payment method label helper
+    const paymentLabel = PAYMENT_METHODS[order.payment_method]?.label || 'Pendiente';
+    const paymentIcon = PAYMENT_METHODS[order.payment_method]?.icon || '💳';
+
+    // Subtotal calculation
+    const subtotal = items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    const shippingCost = order.shipping_cost || 0;
+    const total = (order.total || 0) + shippingCost;
+
+    // PDF Download handler
+    const handleDownloadPdf = useCallback(async () => {
+        if (isGeneratingPdf) return;
+        setIsGeneratingPdf(true);
+        try {
+            const invoiceData = buildInvoiceData({ order, customerInfo, items, siteName, siteIcon, currencyCode });
+            const blob = await pdf(React.createElement(InvoicePDF, { invoiceData })).toBlob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `factura-${order.order_number || order.id}.pdf`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error generating PDF:', error);
+        } finally {
+            setIsGeneratingPdf(false);
+        }
+    }, [order, customerInfo, items, siteName, siteIcon, currencyCode, isGeneratingPdf]);
+
     return (
         <div className="admin-order-detail-page">
+            {/* Header card with order ID, status, total */}
             <div className="admin-order-summary-card">
                 <div className="summary-header">
                     <div className="header-left">
-                        {/* Back button to return to orders list */}
                         <button 
                             className="back-button" 
                             onClick={onClose} 
@@ -83,57 +142,124 @@ export default function AdminOrderDetail({
                     </div>
                     <div className="header-right">
                         <span className="total-label">Total</span>
-                        <span className="total-value">{formatCurrency(order.total, currencyCode)}</span>
+                        <span className="total-value">{formatCurrency(total, currencyCode)}</span>
                         <span className="date-badge">
-                            Fecha: <strong>{formatDate(order.created_at || order.createdAt)}</strong> 📅
+                            📅 {formatDate(order.created_at || order.createdAt)}
                         </span>
                     </div>
                 </div>
             </div>
 
             <div className="admin-detail-content">
+                {/* Main content: order info cards */}
                 <div className="detail-main">
-                    <div className="detail-card invoice-card">
-                        
-                        
-                        <div className="invoice-container-full">
-                            
-                            <Invoice 
-                                order={order}
-                                customerInfo={{
-                                    firstName: order.customer_name?.split(' ')[0] || '',
-                                    lastName: order.customer_name?.split(' ').slice(1).join(' ') || '',
-                                    email: order.customer_email,
-                                    address: order.shipping_street,
-                                    sector: order.shipping_sector,
-                                    city: order.shipping_city,
-                                    phone: order.customer_phone,
-                                    paymentMethod: order.payment_method,
-                                    shippingCost: order.shipping_cost,
-                                    shippingDistance: order.shipping_distance,
-                                    shippingCoordinates: order.shipping_coordinates
-                                }}
-                                items={order.items || []}
-                                onClose={onClose}
-                                showSuccess={false}
-                                onStatusChange={(newStatus) => onStatusChange(order.id, newStatus)}
-                                siteName={siteName}
-                                siteIcon={siteIcon}
-                                currencyCode={currencyCode}
-                            />
-                            
+
+                    {/* Unified order info block */}
+                    <div className="detail-card order-info-block">
+                        {/* Customer section */}
+                        <div className="order-section">
+                            <h3 className="card-section-header">👤 Cliente</h3>
+                            <div className="admin-info-grid">
+                                <div className="admin-info-item">
+                                    <span className="admin-info-label">Nombre</span>
+                                    <span className="admin-info-value">{order.customer_name || '—'}</span>
+                                </div>
+                                <div className="admin-info-item">
+                                    <span className="admin-info-label">Email</span>
+                                    <span className="admin-info-value">{order.customer_email || '—'}</span>
+                                </div>
+                                <div className="admin-info-item">
+                                    <span className="admin-info-label">Teléfono</span>
+                                    <span className="admin-info-value">{order.customer_phone || '—'}</span>
+                                </div>
+                                <div className="admin-info-item">
+                                    <span className="admin-info-label">Dirección</span>
+                                    <span className="admin-info-value">
+                                        {[order.shipping_street, order.shipping_sector, order.shipping_city]
+                                            .filter(Boolean).join(', ') || '—'}
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        
+
+                        {/* Products section */}
+                        <div className="order-section">
+                            <h3 className="card-section-header">📦 Productos ({items.length})</h3>
+                            <div className="admin-items-list">
+                                {items.map((item, idx) => (
+                                    <div className="admin-item-row" key={item.id || idx}>
+                                        <div className="admin-item-info">
+                                            <span className="admin-item-name">{item.name}</span>
+                                            <span className="admin-item-qty">× {item.quantity}</span>
+                                        </div>
+                                        <span className="admin-item-price">
+                                            {formatCurrency(item.price * item.quantity, currencyCode)}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Totals */}
+                            <div className="admin-totals">
+                                <div className="admin-total-row">
+                                    <span>Subtotal</span>
+                                    <span>{formatCurrency(subtotal, currencyCode)}</span>
+                                </div>
+                                {shippingCost > 0 && (
+                                    <div className="admin-total-row">
+                                        <span>Envío</span>
+                                        <span>{formatCurrency(shippingCost, currencyCode)}</span>
+                                    </div>
+                                )}
+                                <div className="admin-total-row admin-grand-total">
+                                    <span>Total</span>
+                                    <span>{formatCurrency(total, currencyCode)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Payment section */}
+                        <div className="order-section">
+                            <h3 className="card-section-header">💳 Pago</h3>
+                            <div className="admin-info-grid payment-row">
+                                <div className="admin-info-item">
+                                    <span className="admin-info-label">Método</span>
+                                    <span className="admin-info-value">{paymentIcon} {paymentLabel}</span>
+                                </div>
+                                <div className="admin-info-item">
+                                    <span className="admin-info-label">Estado</span>
+                                    <span className="admin-info-value">
+                                        {steps.find(s => s.id === order.status)?.icon} {steps.find(s => s.id === order.status)?.label || order.status}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Print / Download actions */}
+                    <div className="detail-card admin-doc-actions">
+                        <button className="admin-btn ghost full-width" onClick={() => window.print()}>
+                            🖨️ Imprimir Factura
+                        </button>
+                        <button 
+                            className="admin-btn ghost full-width" 
+                            onClick={handleDownloadPdf}
+                            disabled={isGeneratingPdf}
+                        >
+                            {isGeneratingPdf ? '⏳ Generando...' : '📄 Descargar PDF'}
+                        </button>
                     </div>
                 </div>
 
+                {/* Sidebar: status management, shipping, notes */}
                 <div className="detail-sidebar">
                     <div className="detail-card status-card">
-                        <h3>📦 Información de Envío</h3>
+                        <h3>📦 Estado de la Orden</h3>
+                        {/* Main flow status pills */}
                         <div className="status-pills">
-                            {steps.slice(0, 4).map((step, index) => {
+                            {mainSteps.map((step) => {
+                                const globalIndex = steps.findIndex(s => s.id === step.id);
                                 const isActive = step.id === order.status;
-                                const isCompleted = currentStatusIndex >= 0 && index <= currentStatusIndex;
+                                const isCompleted = currentStatusIndex >= 0 && globalIndex <= currentStatusIndex;
                                 return (
                                     <button
                                         type="button"
@@ -141,28 +267,36 @@ export default function AdminOrderDetail({
                                         className={`status-pill ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
                                         onClick={() => onStatusChange(order.id, step.id)}
                                     >
-                                        {step.label}
+                                        {step.icon} {step.label}
                                     </button>
                                 );
                             })}
                         </div>
-                        <div className="status-select-row">
-                            <label>Cambiar Estado</label>
-                            <select
-                                value={order.status}
-                                onChange={(e) => onStatusChange(order.id, e.target.value)}
-                                className="admin-status-select"
-                            >
-                                {steps.map(s => (
-                                    <option key={s.id} value={s.id}>{s.icon} {s.label}</option>
-                                ))}
-                            </select>
-                        </div>
+                        {/* Collapsible extra options: return, refund, cancelled */}
+                        <details className="more-options-toggle">
+                            <summary>⚙️ Más opciones</summary>
+                            <div className="status-pills extra-pills">
+                                {extraSteps.map((step) => {
+                                    const isActive = step.id === order.status;
+                                    return (
+                                        <button
+                                            type="button"
+                                            key={step.id}
+                                            className={`status-pill ${isActive ? 'active' : ''}`}
+                                            onClick={() => onStatusChange(order.id, step.id)}
+                                        >
+                                            {step.icon} {step.label}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </details>
                         <div className="action-buttons">
-                            <button className="admin-btn primary full-width" onClick={() => onStatusChange(order.id, order.status)}>
-                                🔄 Cambiar Estado
-                            </button>
-                            <button className="admin-btn success full-width" onClick={() => onStatusChange(order.id, 'paid')}>
+                            <button
+                                className="admin-btn success full-width"
+                                onClick={() => onStatusChange(order.id, 'paid')}
+                                disabled={isAlreadyPaid}
+                            >
                                 ✓ Confirmar Pago
                             </button>
                             <button className="admin-btn danger full-width" onClick={() => onDelete && onDelete(order.id)}>
@@ -205,6 +339,22 @@ export default function AdminOrderDetail({
                                             })()}
                                         </span>
                                     </div>
+                                )}
+                                {/* Open Google Maps directions to the delivery coordinates */}
+                                {order.shipping_coordinates && (
+                                    <button
+                                        className="admin-btn primary sm full-width"
+                                        onClick={() => {
+                                            try {
+                                                const coords = typeof order.shipping_coordinates === 'string'
+                                                    ? JSON.parse(order.shipping_coordinates)
+                                                    : order.shipping_coordinates;
+                                                window.open(`https://www.google.com/maps/dir/?api=1&destination=${coords.lat},${coords.lng}`, '_blank');
+                                            } catch { /* ignore */ }
+                                        }}
+                                    >
+                                        📍 Abrir en el Mapa
+                                    </button>
                                 )}
                             </div>
                         )}
@@ -250,7 +400,6 @@ export default function AdminOrderDetail({
                                     </>
                                 ) : (
                                     <>
-                                        <p className="helper-text">Estimar cuando el pago esté confirmado.</p>
                                         <button className="admin-btn primary sm full-width" onClick={() => setShowTrackingForm(true)}>Añadir Datos de Envío</button>
                                     </>
                                 )}
@@ -260,40 +409,23 @@ export default function AdminOrderDetail({
 
                     <div className="detail-card notes-card">
                         <h3>📝 Notas Internas</h3>
-                        <div className="note-display">
-                            <div className="note-author">
-                                <div className="avatar">👤</div>
-                                <div className="note-meta">
-                                    <strong>Admin</strong>
-                                    <span className="note-subtitle">Admin</span>
-                                </div>
-                            </div>
-                            <div className="note-content">
-                                {internalNotes || 'Nota interna de prueba (prácticamente, solo visible para el administrador).'}
-                            </div>
-                        </div>
-                        <button className="admin-btn primary full-width add-note-btn">
-                            + Agregar Nota
-                        </button>
                         <p className="helper-text">Información privada para administración.</p>
                         <textarea
                             value={internalNotes}
                             onChange={(e) => setInternalNotes(e.target.value)}
                             placeholder="Añade notas sobre el despacho, problemas, etc."
-                            rows="6"
+                            rows="4"
                         />
                         <button 
                             className="admin-btn primary full-width" 
                             onClick={() => onSaveNotes(order.id, internalNotes)}
                             disabled={isSubmitting || internalNotes === order.internal_notes}
                         >
-                            {isSubmitting ? 'Guardando...' : 'Guardar Nota'}
+                            {isSubmitting ? 'Guardando...' : '💾 Guardar Nota'}
                         </button>
                     </div>
                 </div>
             </div>
-
-            
         </div>
     );
 }

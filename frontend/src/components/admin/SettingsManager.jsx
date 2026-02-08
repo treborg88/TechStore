@@ -9,7 +9,6 @@ import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '..
 
 function SettingsManager() {
   const location = useLocation();
-  const [_menuOpen, _setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState('site');
   const [siteTab, setSiteTab] = useState('general');
   const [openSections, setOpenSections] = useState({
@@ -146,7 +145,10 @@ function SettingsManager() {
     stripeSecretKey: '',
     // PayPal API Keys (stored separately for encryption)
     paypalClientId: '',
-    paypalClientSecret: ''
+    paypalClientSecret: '',
+    // Database credentials (reference copy)
+    dbSupabaseUrl: '',
+    dbSupabaseKey: ''
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -1949,7 +1951,7 @@ function SettingsManager() {
               )}
 
               {siteTab === 'database' && (
-                <DatabaseSection />
+                <DatabaseSection settings={settings} onChange={handleChange} setSettings={setSettings} />
               )}
 
             </div>

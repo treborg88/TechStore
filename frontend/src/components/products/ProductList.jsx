@@ -17,7 +17,7 @@ function blankProduct() {
 	};
 }
 
-export default function ProductList({ products, onRefresh, isLoading, pagination, currencyCode }) {
+export default function ProductList({ products, onRefresh, isLoading, pagination, currencyCode, onForceRefresh }) {
 	const [newProduct, setNewProduct] = useState(blankProduct());
 	const [customCategory, setCustomCategory] = useState('');
 	const [editingProduct, setEditingProduct] = useState(null);
@@ -414,6 +414,17 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 					<h3>Listado actual</h3>
 					<span>
 						{filteredProducts.length} / {products.length} productos
+						{onForceRefresh && (
+							<button
+								type="button"
+								className="admin-btn ghost refresh-btn"
+								onClick={onForceRefresh}
+								disabled={isLoading}
+								title="Actualizar datos"
+							>
+								🔄
+							</button>
+						)}
 					</span>
 				</div>
 
@@ -688,8 +699,17 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 										<div className="mobile-product-header">
 											<div className="mobile-product-main">
 												<img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.src = '/images/sin imagen.jpeg'; }} />
-												<div className="mobile-product-title">{product.name}</div>
+												<div className="mobile-product-info">
+													<div className="mobile-product-title">{product.name}</div>
+													<div className="mobile-product-subtitle">
+														<span className="mobile-product-category">{product.category}</span>
+														<span className={`mobile-product-stock ${product.stock > 0 ? 'in-stock' : 'out-stock'}`}>
+															Stock: {product.stock}
+														</span>
+													</div>
+												</div>
 											</div>
+											<span className="mobile-product-price">{formatCurrency(product.price, currencyCode)}</span>
 										</div>
 
 									{isEditing && (

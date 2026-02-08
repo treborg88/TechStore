@@ -7,17 +7,29 @@ import ProductList from '../products/ProductList';
 import UserList from './UserList';
 import SettingsManager from './SettingsManager';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { BASE_URL } from '../../config';
+
+// Resolve product image URL (handles full URLs and /images/ paths)
+const resolveImageUrl = (img) => {
+	if (!img) return null;
+	if (img.startsWith('http')) return img;
+	// Bare filenames (legacy data) can't be served — skip them
+	return null;
+};
 
 export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️' }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
-	// Orders management states
+	// Orders management states (paginated — for Orders tab)
 	const [orders, setOrders] = useState([]);
 	const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 	const [focusOrderId, setFocusOrderId] = useState(null);
     const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' });
     const [ordersPagination, setOrdersPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+
+	// All orders for analytics (overview tab)
+	const [allOrders, setAllOrders] = useState([]);
 	
 	// User stats (lifted from UserList)
 	const [userStats, setUserStats] = useState({ total: 0 });
@@ -25,6 +37,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 	// Analytics states
 	const [salesPeriod, setSalesPeriod] = useState('week'); // 'day', 'week', 'month', 'year'
 	const [topProductsLimit, setTopProductsLimit] = useState(5);
+	const [selectedBar, setSelectedBar] = useState(null); // Index of clicked bar
 
 	const loadOrders = useCallback(async (page = 1) => {
 		try {
@@ -92,12 +105,39 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 		}
 	}, [ordersPagination.limit, orderFilters]);
 
+	// Fetch all orders for analytics (overview) — runs once on mount
+	const loadAllOrders = useCallback(async () => {
+		try {
+			const cacheKey = 'all_orders_analytics_cache';
+			const cachedData = localStorage.getItem(cacheKey);
+			if (cachedData) {
+				const parsed = JSON.parse(cachedData);
+				// 2-minute cache for full analytics data
+				if (Date.now() - parsed.timestamp < 2 * 60 * 1000) {
+					setAllOrders(parsed.data);
+					return;
+				}
+			}
+			const response = await apiFetch(apiUrl('/orders?page=1&limit=1000&status=all&type=all&paymentType=all&search=&includeItems=true'));
+			if (!response.ok) throw new Error('Error al cargar datos analíticos');
+			const result = await response.json();
+			setAllOrders(result.data);
+			localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: result.data }));
+		} catch (error) {
+			console.error('Error cargando datos analíticos:', error);
+		}
+	}, []);
+
 	// Load data based on active tab
 	useEffect(() => {
-		if (activeTab === 'orders' || activeTab === 'overview') {
+		if (activeTab === 'orders') {
 			loadOrders(1);
 		}
-	}, [activeTab, loadOrders]);
+		if (activeTab === 'overview') {
+			loadAllOrders();
+			loadOrders(1);
+		}
+	}, [activeTab, loadOrders, loadAllOrders]);
 
     // Reload orders when filters change
     useEffect(() => {
@@ -109,13 +149,14 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
         }
     }, [orderFilters, activeTab, loadOrders]);
 
-	// Calculate stats for overview
+	// Calculate stats for overview (uses allOrders for accurate totals)
 	const stats = useMemo(() => {
-		const totalRevenue = orders
+		const src = allOrders.length > 0 ? allOrders : orders;
+		const totalRevenue = src
 			.filter(o => o.status !== 'cancelled' && o.status !== 'refund')
 			.reduce((sum, o) => sum + o.total, 0);
 		
-		const pendingOrders = orders.filter(o => 
+		const pendingOrders = src.filter(o => 
 			o.status === 'pending' || 
 			o.status === 'pending_payment' || 
 			o.status === 'paid' || 
@@ -125,20 +166,21 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 
 		return {
 			revenue: totalRevenue,
-			totalOrders: orders.length,
+			totalOrders: src.length,
 			pendingOrders,
 			totalProducts: products.length,
 			lowStockProducts,
 			totalUsers: userStats.total,
-			activeUsers: 'N/A' // Active users count not available with pagination
+			activeUsers: 'N/A'
 		};
-	}, [orders, products, userStats]);
+	}, [allOrders, orders, products, userStats]);
 
-	// Analytics: Sales by period
+	// Analytics: Sales by period (uses allOrders for full dataset)
 	const salesByPeriod = useMemo(() => {
+		const src = allOrders.length > 0 ? allOrders : orders;
 		const now = new Date();
 		const periods = [];
-		const periodCount = salesPeriod === 'day' ? 7 : salesPeriod === 'week' ? 8 : salesPeriod === 'month' ? 6 : 12;
+		const periodCount = 7;
 
 		// Generate period labels and data
 		for (let i = periodCount - 1; i >= 0; i--) {
@@ -161,17 +203,20 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 				label = periodDate.getFullYear().toString();
 			}
 
-			const periodOrders = orders.filter(order => {
+			const periodOrders = src.filter(order => {
 				if (order.status === 'cancelled' || order.status === 'refund') return false;
 				const orderDate = new Date(order.created_at);
 				
 				if (salesPeriod === 'day') {
 					return orderDate.toDateString() === periodDate.toDateString();
 				} else if (salesPeriod === 'week') {
+					// Normalize boundaries to full-day range to avoid time-of-day mismatches
 					const weekStart = new Date(periodDate);
 					weekStart.setDate(periodDate.getDate() - periodDate.getDay());
+					weekStart.setHours(0, 0, 0, 0);
 					const weekEnd = new Date(weekStart);
 					weekEnd.setDate(weekStart.getDate() + 6);
+					weekEnd.setHours(23, 59, 59, 999);
 					return orderDate >= weekStart && orderDate <= weekEnd;
 				} else if (salesPeriod === 'month') {
 					return orderDate.getMonth() === periodDate.getMonth() && 
@@ -188,19 +233,21 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 
 		const maxRevenue = Math.max(...periods.map(p => p.revenue), 1);
 		return periods.map(p => ({ ...p, percentage: (p.revenue / maxRevenue) * 100 }));
-	}, [orders, salesPeriod]);
+	}, [allOrders, orders, salesPeriod]);
 
-	// Analytics: Top selling products
+	// Analytics: Top selling products (uses allOrders for full dataset)
 	const topSellingProducts = useMemo(() => {
+		const src = allOrders.length > 0 ? allOrders : orders;
 		const productSales = {};
 		
-		orders.forEach(order => {
+		src.forEach(order => {
 			if (order.status === 'cancelled' || order.status === 'refund') return;
 			(order.items || []).forEach(item => {
 				if (!productSales[item.product_id]) {
 					productSales[item.product_id] = {
 						productId: item.product_id,
-						name: item.product_name || 'Producto desconocido',
+						name: item.product_name || item.name || 'Producto desconocido',
+						image: item.image || null,
 						quantity: 0,
 						revenue: 0
 					};
@@ -214,21 +261,29 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 			.sort((a, b) => b.revenue - a.revenue)
 			.slice(0, topProductsLimit)
 			.map((product, index) => {
-				const _maxRevenue = productSales[Object.keys(productSales)[0]]?.revenue || 1;
+				const totalRevenue = Object.values(productSales).reduce((sum, p) => sum + p.revenue, 0) || 1;
+				// Cross-reference with products prop for reliable image URL
+				const catalogProduct = products.find(p => p.id === product.productId);
+				const resolvedImage = catalogProduct?.images?.[0]?.image_path
+					|| catalogProduct?.image
+					|| product.image
+					|| null;
 				return {
 					...product,
-					percentage: (product.revenue / Object.values(productSales).reduce((sum, p) => sum + p.revenue, 0)) * 100,
+					image: resolvedImage,
+					percentage: (product.revenue / totalRevenue) * 100,
 					rank: index + 1
 				};
 			});
-	}, [orders, topProductsLimit]);
+	}, [allOrders, orders, topProductsLimit, products]);
 
-	// Recent orders for overview
+	// Recent orders for overview (uses allOrders for full dataset)
 	const recentOrders = useMemo(() => {
-		return [...orders]
+		const src = allOrders.length > 0 ? allOrders : orders;
+		return [...src]
 			.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
 			.slice(0, 5);
-	}, [orders]);
+	}, [allOrders, orders]);
 
 	return (
 		<div className="admin-dashboard">
@@ -269,46 +324,62 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 				<section className="admin-section overview-section">
 					<div className="admin-section-header">
 						<h3>📊 Panel General</h3>
-						<span>Vista completa de tu negocio</span>
+						<span>
+							Vista completa de tu negocio
+							{/* Refresh overview: clears analytics cache and reloads */}
+							<button
+								type="button"
+								className="admin-btn ghost refresh-btn"
+								onClick={() => {
+									localStorage.removeItem('all_orders_analytics_cache');
+									loadAllOrders();
+									toast.success('Datos actualizados');
+								}}
+								title="Actualizar datos"
+							>
+								🔄
+							</button>
+						</span>
 					</div>
 					
 					{/* KPI Cards */}
 					<div className="stats-grid">
-						<div className="stat-card revenue">
+						{/* Clickable stat cards — navigate to respective tabs */}
+						<button type="button" className="stat-card revenue" onClick={() => setActiveTab('orders')}>
 							<div className="stat-icon">💰</div>
 							<div className="stat-info">
 								<h4>Ingresos Totales</h4>
 								<p className="stat-value">{formatCurrency(stats.revenue, currencyCode)}</p>
 								<span className="stat-sub">En {stats.totalOrders} órdenes</span>
 							</div>
-						</div>
+						</button>
 
-						<div className="stat-card orders">
+						<button type="button" className="stat-card orders" onClick={() => setActiveTab('orders')}>
 							<div className="stat-icon">🛍️</div>
 							<div className="stat-info">
 								<h4>Órdenes Pendientes</h4>
 								<p className="stat-value">{stats.pendingOrders}</p>
 								<span className="stat-sub">De {stats.totalOrders} totales</span>
 							</div>
-						</div>
+						</button>
 
-						<div className="stat-card products">
+						<button type="button" className="stat-card products" onClick={() => setActiveTab('products')}>
 							<div className="stat-icon">📦</div>
 							<div className="stat-info">
 								<h4>Productos</h4>
 								<p className="stat-value">{stats.totalProducts}</p>
 								<span className="stat-sub">{stats.lowStockProducts} con stock bajo</span>
 							</div>
-						</div>
+						</button>
 
-						<div className="stat-card users">
+						<button type="button" className="stat-card users" onClick={() => setActiveTab('users')}>
 							<div className="stat-icon">👥</div>
 							<div className="stat-info">
 								<h4>Usuarios</h4>
 								<p className="stat-value">{stats.totalUsers}</p>
 								<span className="stat-sub">Registrados</span>
 							</div>
-						</div>
+						</button>
 					</div>
 
 					{/* Analytics Section */}
@@ -347,13 +418,19 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 							<div className="chart-container">
 								<div className="bar-chart">
 									{salesByPeriod.map((period, index) => (
-										<div key={index} className="bar-wrapper">
-											<div className="bar-label-top">{formatCurrency(period.revenue, currencyCode)}</div>
+										<div key={index} className={`bar-wrapper ${selectedBar === index ? 'active' : ''}`}>
+											{/* Tooltip: visible only for the selected bar */}
+											{selectedBar === index && (
+												<div className="bar-tooltip">
+													{formatCurrency(period.revenue, currencyCode)}
+													<span className="bar-tooltip-orders">({period.orders} órdenes)</span>
+												</div>
+											)}
 											<div className="bar-column">
 												<div 
 													className="bar-fill"
 													style={{ height: `${period.percentage}%` }}
-													title={`${period.label}: ${formatCurrency(period.revenue, currencyCode)} (${period.orders} órdenes)`}
+													onClick={() => setSelectedBar(selectedBar === index ? null : index)}
 												/>
 											</div>
 											<div className="bar-label">{period.label}</div>
@@ -386,6 +463,16 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 									topSellingProducts.map((product) => (
 										<div key={product.productId} className="top-product-item">
 											<div className="product-rank">#{product.rank}</div>
+											{/* Product thumbnail */}
+											{resolveImageUrl(product.image) ? (
+												<img
+													className="top-product-thumb"
+													src={resolveImageUrl(product.image)}
+													alt={product.name}
+													onError={(e) => { e.currentTarget.style.display = 'none'; e.currentTarget.nextElementSibling.style.display = 'flex'; }}
+												/>
+											) : null}
+											<div className="top-product-thumb placeholder" style={{ display: resolveImageUrl(product.image) ? 'none' : 'flex' }}>📦</div>
 											<div className="product-info">
 												<div className="product-name">{product.name}</div>
 												<div className="product-stats">
@@ -496,8 +583,9 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					isLoading={isLoading} 
 					pagination={pagination} 
 					currencyCode={currencyCode}
-				/>
-			)}
+					onForceRefresh={onRefresh}
+				/>)}
+
 
 			{/* Orders Tab */}
 			{activeTab === 'orders' && (
@@ -507,13 +595,18 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					onRefresh={() => loadOrders(ordersPagination.page)} 
 					focusOrderId={focusOrderId}
 					onClearFocusOrderId={() => setFocusOrderId(null)}
-                    filters={orderFilters}
-                    onFilterChange={setOrderFilters}
-                    pagination={ordersPagination}
-						currencyCode={currencyCode}
-                    onPageChange={(page) => loadOrders(page)}
-                    siteName={siteName}
-                    siteIcon={siteIcon}
+					filters={orderFilters}
+					onFilterChange={setOrderFilters}
+					pagination={ordersPagination}
+					currencyCode={currencyCode}
+					onPageChange={(page) => loadOrders(page)}
+					siteName={siteName}
+					siteIcon={siteIcon}
+					onForceRefresh={() => {
+						// Clear all orders cache keys
+						Object.keys(localStorage).filter(k => k.startsWith('orders_cache_')).forEach(k => localStorage.removeItem(k));
+						loadOrders(ordersPagination.page);
+					}}
 				/>
 			)}
 

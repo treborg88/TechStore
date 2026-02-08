@@ -41,7 +41,8 @@ export default function OrderList({
 	onPageChange,
 	currencyCode,
 	siteName = 'TechStore',
-	siteIcon = '🛍️'
+	siteIcon = '🛒',
+	onForceRefresh
 }) {
 	// const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' }); // Moved to parent
     const orderFilters = filters || { search: '', status: 'all', type: 'all', paymentType: 'all' };
@@ -359,7 +360,18 @@ export default function OrderList({
 					</div>
 				</div>
 			)}
-			<table className="admin-table">
+			<table className="admin-table orders-table">
+				<colgroup>
+					<col style={{ width: '40px' }} />
+					<col style={{ width: '12%' }} />
+					<col style={{ width: '14%' }} />
+					<col style={{ width: '18%' }} />
+					<col style={{ width: '10%' }} />
+					<col style={{ width: '12%' }} />
+					<col style={{ width: '14%' }} />
+					<col style={{ width: '8%' }} />
+					<col style={{ width: '12%' }} />
+				</colgroup>
 				<thead>
 					<tr>
 						<th style={{ width: '40px', textAlign: 'center' }}>
@@ -438,6 +450,8 @@ export default function OrderList({
 										{order.payment_method === 'transfer' && '🏦 Transferencia'}
 										{order.payment_method === 'online' && '💳 Online'}
 										{order.payment_method === 'card' && '💳 Tarjeta'}
+										{order.payment_method === 'stripe' && '💳 Tarjeta'}
+										{order.payment_method === 'paypal' && '🌐 PayPal'}
 									</span>
 								</td>
 								<td data-label="Estado">
@@ -594,6 +608,8 @@ export default function OrderList({
 								{order.payment_method === 'transfer' && '🏦 Transferencia'}
 								{order.payment_method === 'online' && '💳 Online'}
 								{order.payment_method === 'card' && '💳 Tarjeta'}
+								{order.payment_method === 'stripe' && '💳 Tarjeta'}
+								{order.payment_method === 'paypal' && '🌐 PayPal'}
 							</span>
 						</span>
 					</div>
@@ -635,6 +651,17 @@ export default function OrderList({
 						<h3>Gestión de Órdenes</h3>
 						<span>
 							{filteredOrders.length} / {orders.length} órdenes
+							{onForceRefresh && (
+								<button
+									type="button"
+									className="admin-btn ghost refresh-btn"
+									onClick={onForceRefresh}
+									disabled={isLoading}
+									title="Actualizar datos"
+								>
+									🔄
+								</button>
+							)}
 						</span>
 					</div>
 
