@@ -652,7 +652,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					isLoading={isLoading} 
 					pagination={pagination} 
 					currencyCode={currencyCode}
-					onForceRefresh={onRefresh}
+					onForceRefresh={() => onRefresh('todos', 1, { force: true })}
 				/>)}
 
 

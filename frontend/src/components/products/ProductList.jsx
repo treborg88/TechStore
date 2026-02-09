@@ -252,7 +252,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		}
 	};
 
-	const handleUpdate = async () => {
+	const handleUpdate = async (event) => {
+		event.preventDefault();
 		if (!editingProduct) {
 			return;
 		}
@@ -418,7 +419,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 							<button
 								type="button"
 								className="admin-btn ghost refresh-btn"
-								onClick={onForceRefresh}
+								onClick={() => onForceRefresh()}
 								disabled={isLoading}
 								title="Actualizar datos"
 							>
@@ -692,7 +693,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 									<div
 										key={product.id}
 										className={`mobile-product-card ${isExpanded ? 'expanded' : ''}`}
-										onClick={() => startEditing(product)}
+										onClick={() => { if (!isEditing) startEditing(product); }}
 										role="button"
 										tabIndex={0}
 									>
