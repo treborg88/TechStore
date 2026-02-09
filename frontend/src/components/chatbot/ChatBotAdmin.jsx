@@ -72,10 +72,10 @@ function ChatBotAdmin({ settings, onChange, setSettings }) {
         <label className="chatbot-admin__toggle-label">
           <input
             type="checkbox"
-            checked={settings.chatbotEnabled === 'true'}
-            onChange={e => updateField('chatbotEnabled', e.target.checked ? 'true' : 'false')}
+            checked={settings.chatbotEnabled === true || settings.chatbotEnabled === 'true'}
+            onChange={e => updateField('chatbotEnabled', e.target.checked)}
           />
-          <span>Chatbot {settings.chatbotEnabled === 'true' ? 'activado' : 'desactivado'}</span>
+          <span>Chatbot {settings.chatbotEnabled === true || settings.chatbotEnabled === 'true' ? 'activado' : 'desactivado'}</span>
         </label>
       </section>
 
