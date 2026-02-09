@@ -30,6 +30,9 @@ const Checkout = lazy(() => import('./components/cart/Checkout'));
 const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'));
 const SettingsManager = lazy(() => import('./components/admin/SettingsManager'));
 
+// Chatbot
+const ChatBot = lazy(() => import('./components/chatbot/ChatBot'));
+
 // Pages
 const OrderTracker = lazy(() => import('./pages/OrderTracker'));
 const Home = lazy(() => import('./pages/Home'));
@@ -576,7 +579,7 @@ function App() {
   // Actualizar título de la página y favicon dinámicamente
   useEffect(() => {
     // Actualizar título de la página
-    document.title = siteName || 'TechStore';
+    document.title = siteName || 'Tienda en linea';
     
     // Actualizar favicon
     const favicon = document.getElementById('favicon');
@@ -964,6 +967,11 @@ function App() {
       </Suspense>
 
       <Footer />
+
+      {/* Chatbot widget - renders globally, self-manages visibility */}
+      <Suspense fallback={null}>
+        <ChatBot />
+      </Suspense>
     </div>
     </>
   );

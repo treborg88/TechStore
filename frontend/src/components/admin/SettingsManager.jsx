@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import './SettingsManager.css';
 import EmailSettingsSection from './EmailSettingsSection';
 import DatabaseSection from './DatabaseSection';
+import ChatBotAdmin from '../chatbot/ChatBotAdmin';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 
 function SettingsManager() {
@@ -552,6 +553,13 @@ function SettingsManager() {
                 onClick={() => setSiteTab('database')}
               >
                 🗄️ Base de datos
+              </button>
+              <button
+                type="button"
+                className={`settings-nav-item ${siteTab === 'chatbot' ? 'active' : ''}`}
+                onClick={() => setSiteTab('chatbot')}
+              >
+                🤖 Chatbot
               </button>
             </nav>
 
@@ -1952,6 +1960,10 @@ function SettingsManager() {
 
               {siteTab === 'database' && (
                 <DatabaseSection settings={settings} onChange={handleChange} setSettings={setSettings} />
+              )}
+
+              {siteTab === 'chatbot' && (
+                <ChatBotAdmin settings={settings} onChange={handleChange} setSettings={setSettings} />
               )}
 
             </div>

@@ -22,7 +22,8 @@ const {
     usersRoutes, 
     settingsRoutes, 
     verificationRoutes,
-    paymentsRoutes
+    paymentsRoutes,
+    chatbotRoutes
 } = require('./routes');
 
 // Share page utilities
@@ -80,6 +81,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/payments', paymentsRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 
 // --- Share Page (OG meta tags for social sharing) ---
 app.get('/p/:slug', async (req, res) => {

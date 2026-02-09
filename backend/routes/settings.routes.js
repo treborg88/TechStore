@@ -27,7 +27,10 @@ const PUBLIC_SETTINGS = [
     'contactPhone', 'contactWhatsapp', 'contactAddress', 'contactHours',
     'contactSupportLine', 'contactMapUrl',
     // Payment methods configuration
-    'paymentMethodsConfig'
+    'paymentMethodsConfig',
+    // Chatbot public settings
+    'chatbotEnabled', 'chatbotGreeting', 'chatbotMaxMessages',
+    'chatbotPlaceholder', 'chatbotColor'
 ];
 
 /**
