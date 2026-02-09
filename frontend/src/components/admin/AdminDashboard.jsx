@@ -207,7 +207,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					setOrderCounts(counts);
 				}
 				prevOrderTotalRef.current = currentTotal;
-			} catch (_error) {
+			} catch {
 				// Silently ignore polling errors
 			}
 		};

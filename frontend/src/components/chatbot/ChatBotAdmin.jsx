@@ -9,7 +9,7 @@ import './ChatBotAdmin.css';
  * Sección de configuración del chatbot.
  * Recibe props del SettingsManager padre: settings, onChange, setSettings
  */
-function ChatBotAdmin({ settings, onChange, setSettings }) {
+function ChatBotAdmin({ settings, onChange: _onChange, setSettings }) {
   const [providers, setProviders] = useState([]);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState(null);

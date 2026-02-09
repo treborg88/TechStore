@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { pdf } from '@react-pdf/renderer';
 import InvoicePDF from '../common/InvoicePDF';
 import { formatCurrency } from '../../utils/formatCurrency';
@@ -57,10 +57,10 @@ export default function AdminOrderDetail({
     // Disable "Confirmar Pago" if already paid or any status after paid
     const paidIndex = steps.findIndex(s => s.id === 'paid');
     const isAlreadyPaid = currentStatusIndex >= 0 && paidIndex >= 0 && currentStatusIndex >= paidIndex;
-    const items = order.items || [];
+    const items = useMemo(() => order.items || [], [order.items]);
 
     // Build customer info and invoice data for PDF generation
-    const customerInfo = {
+    const customerInfo = useMemo(() => ({
         firstName: order.customer_name?.split(' ')[0] || '',
         lastName: order.customer_name?.split(' ').slice(1).join(' ') || '',
         email: order.customer_email,
@@ -72,7 +72,7 @@ export default function AdminOrderDetail({
         shippingCost: order.shipping_cost,
         shippingDistance: order.shipping_distance,
         shippingCoordinates: order.shipping_coordinates
-    };
+    }), [order.customer_name, order.customer_email, order.shipping_street, order.shipping_sector, order.shipping_city, order.customer_phone, order.payment_method, order.shipping_cost, order.shipping_distance, order.shipping_coordinates]);
     
     const handleTrackingSubmit = (e) => {
         e.preventDefault();
