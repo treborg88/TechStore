@@ -87,6 +87,13 @@ ul {
   padding: 0 16px;
 }
 
+/* Más margen lateral en desktop para mejor legibilidad */
+@media (min-width: 1024px) {
+  .container {
+    padding: 0 64px;
+  }
+}
+
 /* Mobile Menu Button */
 .mobile-menu-btn {
   display: block; /* Visible on mobile */
