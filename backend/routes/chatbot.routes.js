@@ -5,30 +5,29 @@ const express = require('express');
 const router = express.Router();
 const rateLimit = require('express-rate-limit');
 
-const { statements } = require('../database');
 const { chatCompletion, getProviderList } = require('../services/llm/adapter');
+const { buildDynamicContext, getSuggestions } = require('../services/llm/contextBuilder');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { decryptSetting } = require('../services/encryption.service');
 const jwt = require('jsonwebtoken');
 const { JWT_SECRET } = require('../config');
 
 /**
- * Extrae el nombre del usuario del JWT sin exigir autenticación.
- * Retorna el nombre solo si es un nombre real (no email ni número).
+ * Extrae datos del usuario del JWT sin exigir autenticación.
+ * Retorna { name, userId } o nulls si no hay token válido.
  */
-const extractUserName = (req) => {
+const extractUserFromToken = (req) => {
   try {
     const authHeader = req.headers['authorization'];
     const token = (authHeader && authHeader.split(' ')[1]) || req.cookies?.auth_token;
-    if (!token) return null;
+    if (!token) return { name: null, userId: null };
     const decoded = jwt.verify(token, JWT_SECRET);
     const name = (decoded.name || '').trim();
-    if (!name) return null;
-    // Descartar si es un email o solo números
-    if (name.includes('@') || /^\d+$/.test(name)) return null;
-    return name;
+    // Descartar nombre si es un email o solo números
+    const safeName = (name && !name.includes('@') && !/^\d+$/.test(name)) ? name : null;
+    return { name: safeName, userId: decoded.id || null };
   } catch {
-    return null;
+    return { name: null, userId: null };
   }
 };
 
@@ -48,6 +47,7 @@ const chatLimiter = rateLimit({
  * Lee configuración del chatbot desde app_settings
  */
 const getChatbotSettings = async () => {
+  const { statements } = require('../database');
   const allSettings = await statements.getSettings();
   const map = {};
   for (const { id, value } of allSettings) {
@@ -56,43 +56,37 @@ const getChatbotSettings = async () => {
   return map;
 };
 
-// --- Caché del system prompt (evita consultas DB en cada mensaje) ---
+// --- Caché del system prompt LIGERO (solo reglas y personalidad, sin productos) ---
 let _promptCache = { text: null, expiry: 0 };
 const PROMPT_CACHE_TTL = 15 * 60 * 1000; // 15 minutos
 
 /**
- * Obtiene el system prompt cacheado, o lo reconstruye si expiró
+ * Obtiene el system prompt cacheado, o lo reconstruye si expiró.
+ * NOTA: Este prompt es LIGERO — no incluye productos ni datos dinámicos.
+ * El contexto relevante se inyecta en el user message por el contextBuilder.
  */
 const getCachedSystemPrompt = async (settings) => {
   const now = Date.now();
   if (_promptCache.text && now < _promptCache.expiry) {
     return _promptCache.text;
   }
-  const prompt = await buildSystemPrompt(settings);
+  const prompt = await buildSlimSystemPrompt(settings);
   _promptCache = { text: prompt, expiry: now + PROMPT_CACHE_TTL };
   return prompt;
 };
 
 /**
- * Construye el system prompt con contexto de la tienda y productos
+ * System prompt SLIM: solo reglas, personalidad e info de la tienda.
+ * Los datos dinámicos (productos, pedidos, KB) se inyectan aparte.
  */
-const buildSystemPrompt = async (settings) => {
-  // Info de la tienda desde settings públicos
+const buildSlimSystemPrompt = async (settings) => {
+  // Info de la tienda desde settings
+  const { statements } = require('../database');
   const allSettings = await statements.getSettings();
   const store = {};
   for (const { id, value } of allSettings) store[id] = value;
 
-  // Productos (resumen compacto - solo mencionar stock si está bajo <5)
-  const { data: products } = await statements.getProductsPaginated(1, 50, '', 'all');
-  const productSummary = (products || []).map(p => {
-    const stockNote = p.stock <= 0 ? ' [AGOTADO]' : (p.stock < 5 ? ` [Últimas ${p.stock} unidades]` : '');
-    return `- ${p.name} | ${p.category || 'General'} | $${p.price}${stockNote}`;
-  }).join('\n');
-
-  // Categorías únicas
-  const categories = [...new Set((products || []).map(p => p.category).filter(Boolean))];
-
-  // System prompt configurable con contexto inyectado
+  // Personalidad y verbosidad configurables
   const personality = settings.chatbotPersonality || 'friendly';
   const verbosity = settings.chatbotVerbosity || 'normal';
   const customPrompt = settings.chatbotSystemPrompt || '';
@@ -120,15 +114,13 @@ REGLAS ESTRICTAS:
 - Menciona el nombre de la tienda SOLO en el saludo inicial, no lo repitas después.
 - Solo responde sobre la tienda, sus productos y procesos.
 - Si preguntan algo fuera del ámbito de la tienda, di amablemente que solo puedes ayudar con temas de la tienda.
-- NUNCA inventes productos, precios o información que no esté en el contexto.
+- NUNCA inventes productos, precios o información que no esté en el contexto proporcionado.
 - Si no tienes la información, sugiere contactar directamente a la tienda.
 - NO generes código, HTML ni contenido técnico.
-- puede agregar links de productos si estan disponible
+- Puedes agregar links de productos si están disponibles.
 - Formatea con **negritas** lo importante. Usa • para listas.
 - SOLO menciona el stock si está bajo (menos de 5 unidades) o agotado.
-
-
-
+- Usa SOLO la información del CONTEXTO DINÁMICO proporcionado en cada mensaje.
 
 INFORMACIÓN DE LA TIENDA:
 • Nombre: ${store.siteName || 'Tienda en línea'}
@@ -150,12 +142,7 @@ RASTREO DE PEDIDOS:
 - Usar el enlace de seguimiento enviado por email (compras de invitado)
 - Estados posibles: pendiente, pagado, enviado, entregado, cancelado
 
-CATEGORÍAS DISPONIBLES: ${categories.join(', ') || 'Ver en la tienda'}
-
-PRODUCTOS DISPONIBLES:
-${productSummary || 'No hay productos cargados actualmente.'}
-
-${customPrompt ? `\nINSTRUCCIONES ADICIONALES DEL ADMINISTRADOR:\n${customPrompt}` : ''}`;
+${customPrompt ? `INSTRUCCIONES ADICIONALES DEL ADMINISTRADOR:\n${customPrompt}` : ''}`;
 };
 
 /**
@@ -180,12 +167,13 @@ router.get('/config', async (_req, res) => {
 
 /**
  * POST /api/chatbot/message
- * Recibe mensaje del usuario, genera respuesta con LLM
- * Body: { message: string, history: [{role, content}] }
+ * Recibe mensaje del usuario, genera respuesta con LLM.
+ * Body: { message: string, history: [{role, content}], pageContext?: {page, productId, cartItemCount} }
+ * Response: { reply: string, usage?: Object, suggestions?: string[] }
  */
 router.post('/message', chatLimiter, async (req, res) => {
   try {
-    const { message, history = [] } = req.body;
+    const { message, history = [], pageContext } = req.body;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ message: 'Mensaje vacío.' });
@@ -229,26 +217,43 @@ router.post('/message', chatLimiter, async (req, res) => {
     const maxTokens = parseInt(settings.chatbotMaxTokens) || 500;
     const temperature = parseFloat(settings.chatbotTemperature) || 0.3;
 
-    // Construir system prompt con contexto (cacheado 5 min)
+    // System prompt SLIM (reglas + tienda, cacheado 15 min)
     let systemPrompt = await getCachedSystemPrompt(settings);
 
-    // Si el usuario está logueado, agregar su nombre al contexto
-    const userName = extractUserName(req);
+    // Extraer identidad del usuario del JWT
+    const { name: userName, userId } = extractUserFromToken(req);
     if (userName) {
-      systemPrompt += `\n\nEl usuario actual se llama ${userName}. Usa su nombre de forma natural en la conversación.`;
+      systemPrompt += `\n\nEl usuario actual se llama ${userName}. Usa su nombre de forma natural.`;
     }
 
-    // Armar historial de conversación (limitar a últimos 6 mensajes para ahorrar tokens)
+    // Armar historial reciente para contexto conversacional (últimos 6 mensajes)
     const recentHistory = history.slice(-6).map(h => ({
       role: h.role === 'user' ? 'user' : 'assistant',
       content: String(h.content).slice(0, 500)
     }));
 
+    // --- Contexto dinámico según intención + página + conversación ---
+    const { dynamicContext, intentInfo } = await buildDynamicContext({
+      message: message.trim(),
+      history: recentHistory,
+      pageContext: pageContext || null,
+      userId,
+      settings
+    });
+
+    // Inyectar contexto dinámico en el user message (ahorra tokens vs system prompt)
+    const userMessageWithContext = dynamicContext
+      ? `[CONTEXTO DINÁMICO para esta pregunta:\n${dynamicContext}\n]\n\nPregunta del usuario: ${message.trim()}`
+      : message.trim();
+
     const messages = [
       { role: 'system', content: systemPrompt },
       ...recentHistory,
-      { role: 'user', content: message.trim() }
+      { role: 'user', content: userMessageWithContext }
     ];
+
+    // Log del contexto para debug (intención + contexto dinámico)
+    console.log(`\n🤖 Chatbot | Intent: ${intentInfo.primaryIntent} | Page: ${pageContext?.page || 'N/A'} | User: ${userName || 'anon'} | Context: ${dynamicContext.length} chars`);
 
     // Llamar al LLM
     const { text, usage } = await chatCompletion({
@@ -267,7 +272,10 @@ router.post('/message', chatLimiter, async (req, res) => {
       });
     }
 
-    res.json({ reply: text, usage });
+    // Generar sugerencias contextuales (quick replies)
+    const suggestions = getSuggestions(intentInfo, pageContext);
+
+    res.json({ reply: text, usage, suggestions });
 
   } catch (error) {
     console.error('❌ Chatbot error:', error.message);

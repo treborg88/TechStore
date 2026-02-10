@@ -1,22 +1,46 @@
 // ChatBot.jsx - Widget de chat con LLM (conecta al backend /api/chatbot)
 // Modular, lazy-loaded. Se puede desactivar desde admin o eliminando del App.jsx.
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ChatBot.css';
 
 // --- Constantes ---
 const BOT_NAME = 'Asistente';
 const FALLBACK_ICON = '🤖';
-const FALLBACK_TOGGLE = '💬';
 
 /**
- * Renderiza texto con negritas (**texto**) y listas (• item)
+ * Detecta la página actual y extrae metadata útil para el contexto del chatbot
+ */
+const detectPageContext = (pathname) => {
+  // Mapear rutas a tipos de página con extracción de productId
+  if (pathname.startsWith('/product/')) {
+    const productId = pathname.split('/product/')[1]?.split('?')[0] || null;
+    return { page: 'product-detail', productId };
+  }
+  if (pathname === '/cart') return { page: 'cart' };
+  if (pathname === '/checkout') return { page: 'checkout' };
+  if (pathname === '/orders' || pathname.startsWith('/orders')) return { page: 'orders' };
+  if (pathname === '/contact') return { page: 'contact' };
+  if (pathname === '/profile') return { page: 'profile' };
+  if (pathname === '/login' || pathname === '/register') return { page: 'auth' };
+  return { page: 'home' };
+};
+
+/**
+ * Renderiza texto con negritas (**texto**), links (URLs) y listas (• item)
  */
 const renderText = (text) => {
-  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  // Separar por negritas y URLs
+  const parts = text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s),]+)/g);
   return parts.map((part, i) => {
+    // Negritas
     if (part.startsWith('**') && part.endsWith('**')) {
       return <strong key={i}>{part.slice(2, -2)}</strong>;
+    }
+    // URLs — convertir a link clickeable
+    if (/^https?:\/\//.test(part)) {
+      return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="chatbot-link">{part}</a>;
     }
     return part;
   });
@@ -29,12 +53,14 @@ function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [config, setConfig] = useState(null); // null = cargando, false = deshabilitado
   const [messages, setMessages] = useState([]);
+  const [suggestions, setSuggestions] = useState([]); // Quick replies del backend
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [siteLogo, setSiteLogo] = useState('');
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const configLoaded = useRef(false);
+  const location = useLocation();
 
   // Leer logo del sitio desde localStorage
   useEffect(() => {
@@ -74,8 +100,10 @@ function ChatBot() {
   }, [isOpen]);
 
   // Enviar mensaje al backend
-  const handleSend = useCallback(async () => {
-    const trimmed = input.trim();
+  const handleSend = useCallback(async (overrideMessage) => {
+    // Ignorar si overrideMessage es un evento de React (click del botón)
+    const msg = (typeof overrideMessage === 'string') ? overrideMessage : input;
+    const trimmed = msg.trim();
     if (!trimmed || loading) return;
 
     const maxMessages = config?.maxMessages || 30;
@@ -87,6 +115,7 @@ function ChatBot() {
       return updated.length > maxMessages ? updated.slice(-maxMessages) : updated;
     });
     setInput('');
+    setSuggestions([]); // Limpiar sugerencias al enviar
     setLoading(true);
 
     try {
@@ -99,10 +128,19 @@ function ChatBot() {
           content: m.text
         }));
 
+      // Detectar contexto de página actual
+      const pageContext = detectPageContext(location.pathname);
+
+      // Agregar info del carrito si está disponible
+      try {
+        const cartData = JSON.parse(localStorage.getItem('cart_persistence') || '[]');
+        pageContext.cartItemCount = cartData.length || 0;
+      } catch { /* ignorar */ }
+
       const res = await apiFetch(apiUrl('/chatbot/message'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, history })
+        body: JSON.stringify({ message: trimmed, history, pageContext })
       });
 
       const data = await res.json();
@@ -112,6 +150,11 @@ function ChatBot() {
         const updated = [...prev, { from: 'bot', text: botText }];
         return updated.length > maxMessages ? updated.slice(-maxMessages) : updated;
       });
+
+      // Mostrar sugerencias (quick replies) del backend
+      if (data.suggestions && data.suggestions.length > 0) {
+        setSuggestions(data.suggestions);
+      }
     } catch {
       setMessages(prev => [
         ...prev,
@@ -120,7 +163,12 @@ function ChatBot() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, config]);
+  }, [input, loading, messages, config, location.pathname]);
+
+  // Handler para click en sugerencia (quick reply)
+  const handleSuggestionClick = useCallback((text) => {
+    handleSend(text);
+  }, [handleSend]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -179,6 +227,16 @@ function ChatBot() {
             {loading && (
               <div className="chatbot-msg chatbot-msg--bot chatbot-typing">
                 <span className="chatbot-dot" /><span className="chatbot-dot" /><span className="chatbot-dot" />
+              </div>
+            )}
+            {/* Quick replies (sugerencias contextuales) */}
+            {!loading && suggestions.length > 0 && (
+              <div className="chatbot-suggestions">
+                {suggestions.map((s, i) => (
+                  <button key={i} className="chatbot-suggestion-btn" onClick={() => handleSuggestionClick(s)}>
+                    {s}
+                  </button>
+                ))}
               </div>
             )}
             <div ref={messagesEndRef} />

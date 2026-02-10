@@ -275,6 +275,84 @@ function ChatBotAdmin({ settings, onChange, setSettings }) {
           <small>Estas instrucciones se agregan al contexto base del asistente. Úsalas para personalizar el comportamiento.</small>
         </div>
       </section>
+
+      {/* --- Contexto Dinámico (toggles) --- */}
+      <section className="chatbot-admin__section">
+        <h3>Contexto Inteligente</h3>
+        <p className="chatbot-admin__section-desc">
+          El chatbot detecta automáticamente la intención del usuario y carga solo la información relevante.
+          Activa o desactiva fuentes de contexto según tus necesidades.
+        </p>
+        <label className="chatbot-admin__toggle-label">
+          <input
+            type="checkbox"
+            checked={settings.chatbotContextOrders !== 'false'}
+            onChange={e => updateField('chatbotContextOrders', e.target.checked)}
+          />
+          <span>Permitir consulta de pedidos (usuarios logueados)</span>
+        </label>
+        <small className="chatbot-admin__field-hint">Si está activo, los usuarios pueden preguntar por el estado de sus pedidos.</small>
+      </section>
+
+      {/* --- Base de Conocimiento --- */}
+      <section className="chatbot-admin__section">
+        <h3>Base de Conocimiento</h3>
+        <p className="chatbot-admin__section-desc">
+          Agrega información que el chatbot usará para responder preguntas sobre políticas, envíos, etc.
+          Se carga automáticamente cuando el usuario pregunta sobre estos temas.
+        </p>
+
+        <div className="chatbot-admin__field">
+          <label>Política de Envío</label>
+          <textarea
+            rows={3}
+            value={settings.chatbotKbShipping || ''}
+            onChange={e => updateField('chatbotKbShipping', e.target.value)}
+            placeholder="Ej: Envío gratis en compras mayores a $50. Tiempo estimado: 3-5 días hábiles. Cobertura: todo el país."
+          />
+        </div>
+
+        <div className="chatbot-admin__field">
+          <label>Política de Devoluciones</label>
+          <textarea
+            rows={3}
+            value={settings.chatbotKbReturns || ''}
+            onChange={e => updateField('chatbotKbReturns', e.target.value)}
+            placeholder="Ej: Aceptamos devoluciones dentro de los 30 días. El producto debe estar sin usar y con empaque original."
+          />
+        </div>
+
+        <div className="chatbot-admin__field">
+          <label>Métodos de Pago</label>
+          <textarea
+            rows={3}
+            value={settings.chatbotKbPayments || ''}
+            onChange={e => updateField('chatbotKbPayments', e.target.value)}
+            placeholder="Ej: Aceptamos tarjetas de crédito/débito, PayPal, transferencia bancaria y pago contra entrega."
+          />
+        </div>
+
+        <div className="chatbot-admin__field">
+          <label>Términos y Condiciones (resumen)</label>
+          <textarea
+            rows={3}
+            value={settings.chatbotKbTerms || ''}
+            onChange={e => updateField('chatbotKbTerms', e.target.value)}
+            placeholder="Ej: Al realizar una compra, aceptas nuestros términos. Los precios pueden cambiar sin previo aviso."
+          />
+        </div>
+
+        <div className="chatbot-admin__field">
+          <label>Preguntas Frecuentes (FAQ)</label>
+          <textarea
+            rows={4}
+            value={settings.chatbotKbFaq || ''}
+            onChange={e => updateField('chatbotKbFaq', e.target.value)}
+            placeholder="Ej: ¿Hacen envíos internacionales? No, solo envíos nacionales.&#10;¿Puedo recoger en tienda? Sí, en horario de 9am a 6pm."
+          />
+          <small>Formato libre. Cada pregunta-respuesta en una línea. Se muestra al chatbot cuando el usuario hace preguntas generales.</small>
+        </div>
+      </section>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { API_URL, BASE_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
@@ -66,7 +66,38 @@ paymentMethod: ''
 });
 
 const [step, setStep] = useState(1);
+    const [slideDirection, setSlideDirection] = useState(''); // 'slide-left' o 'slide-right'
+    const checkoutRef = useRef(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Wrapper para cambiar de step con animación lateral
+    const goToStep = useCallback((newStep) => {
+        setSlideDirection(newStep > step ? 'slide-left' : 'slide-right');
+        setStep(newStep);
+    }, [step]);
+
+    // Click en indicador de pasos: atrás libre, adelante solo al siguiente (dispara el botón existente)
+    const handleStepClick = useCallback((targetStep) => {
+        if (targetStep === step) return;
+        // Hacia atrás: navegar libre
+        if (targetStep < step) {
+            goToStep(targetStep);
+            return;
+        }
+        // Hacia adelante: solo un paso y dispara el submit/botón del step actual
+        if (targetStep !== step + 1) return;
+        // Dispara el botón "Siguiente" o form submit del step actual
+        if (step === 1) {
+            const form = document.getElementById('step1-form');
+            if (form) form.requestSubmit();
+        } else if (step === 2) {
+            const form = document.getElementById('step2-form');
+            if (form) form.requestSubmit();
+        } else if (step === 3) {
+            const btn = document.querySelector('.checkout-actions-container .btn-next');
+            if (btn) btn.click();
+        }
+    }, [step, goToStep]);
     
     const [mapData, setMapData] = useState({
         selectedLocation: null,
@@ -120,6 +151,11 @@ const [step, setStep] = useState(1);
         stripe: { enabled: true, name: 'Tarjeta de Crédito/Débito', description: 'Visa, MasterCard, American Express', icon: '💳' },
         paypal: { enabled: false, name: 'PayPal', description: 'Paga con tu cuenta PayPal', icon: '🅿️' }
     });
+
+    // Salto instantáneo al tope de la página cada vez que cambia el step
+    useEffect(() => {
+        window.scrollTo({ top: 0, behavior: 'instant' });
+    }, [step]);
 
     // Restore pending payment state on mount (recovers from page reload during payment)
     useEffect(() => {
@@ -594,7 +630,7 @@ return (
         <div className="checkout-page product-detail-page">
             <section className="hero-section">
                 <div className="container hero-container">
-                    <div className="hero-content">
+                    <div className={`hero-content ${slideDirection}`} key={`hero-step-${step}`}>
                         <button 
                             className="back-btn-new hero-back-btn" 
                             onClick={onClose}
@@ -648,13 +684,13 @@ return (
                     currencyCode={currencyCode}
                 />
             ) : (
-        <div className="checkout-flow-container">
-            {/* Indicador de pasos */}
+        <div className="checkout-flow-container" ref={checkoutRef}>
+            {/* Indicador de pasos - clickeable */}
             <div className="checkout-steps">
-                <div className={`step ${step >= 1 ? 'active' : ''}`}>1. Datos</div>
-                <div className={`step ${step >= 2 ? 'active' : ''}`}>2. Envió</div>
-                <div className={`step ${step >= 3 ? 'active' : ''}`}>3. Revisión</div>
-                <div className={`step ${step >= 4 ? 'active' : ''}`}>4. Pago</div>
+                <div className={`step ${step >= 1 ? 'active' : ''} ${1 < step || 1 === step + 1 ? 'clickable' : ''}`} onClick={() => handleStepClick(1)}>1. Datos</div>
+                <div className={`step ${step >= 2 ? 'active' : ''} ${2 < step || 2 === step + 1 ? 'clickable' : ''}`} onClick={() => handleStepClick(2)}>2. Envió</div>
+                <div className={`step ${step >= 3 ? 'active' : ''} ${3 < step || 3 === step + 1 ? 'clickable' : ''}`} onClick={() => handleStepClick(3)}>3. Revisión</div>
+                <div className={`step ${step >= 4 ? 'active' : ''} ${4 < step || 4 === step + 1 ? 'clickable' : ''}`} onClick={() => handleStepClick(4)}>4. Pago</div>
             </div>
 
             {error && (
@@ -665,7 +701,7 @@ return (
 
             <div className="cart-layout">
                 <div className="checkout-form-column">
-                    <div className="form-card-container">
+                    <div className={`form-card-container ${slideDirection}`} key={`step-content-${step}`}>
                         {step === 1 && (
                             showLogin ? (
                                 <div className="verification-step-wrapper">
@@ -687,7 +723,7 @@ return (
                                             if (onLoginSuccess) {
                                                 await onLoginSuccess(userData);
                                             }
-                                            setStep(2);
+                                            goToStep(2);
                                         }}
                                         onBackToHome={() => setShowLogin(false)}
                                     />
@@ -721,7 +757,7 @@ return (
                                         onVerified={() => {
                                             setIsEmailVerified(true);
                                             setShowVerification(false);
-                                            setStep(2);
+                                            goToStep(2);
                                         }}
                                         onCancel={() => setShowVerification(false)}
                                     />
@@ -743,7 +779,7 @@ return (
                                     }
                                     const user = getCurrentUser();
                                     if (user || isEmailVerified) {
-                                        setStep(2);
+                                        goToStep(2);
                                         return;
                                     }
                                     setEmailExists(false);
@@ -833,7 +869,7 @@ return (
                                     return;
                                 }
                                 setError('');
-                                setStep(3);
+                                goToStep(3);
                             }}>
                                 <h3>Detalles de Entrega</h3>
                                 
@@ -1073,7 +1109,7 @@ return (
                                                 // Clear cart AFTER order is created
                                                 if (onClearCart) onClearCart();
                                                 if (onOrderComplete) onOrderComplete(paidOrder);
-                                                setStep(5);
+                                                goToStep(5);
                                                 
                                             } catch (err) {
                                                 console.error('Error creating order after payment:', err);
@@ -1206,7 +1242,7 @@ return (
                                                 // Clear cart AFTER order is created
                                                 if (onClearCart) onClearCart();
                                                 if (onOrderComplete) onOrderComplete(paidOrder);
-                                                setStep(5);
+                                                goToStep(5);
                                                 
                                             } catch (err) {
                                                 console.error('Error creating order after payment:', err);
@@ -1311,6 +1347,8 @@ return (
                 </div>
 
                         <div className="checkout-summary-column">
+                            {/* Resumen del carrito solo visible en paso 3 (revisión) */}
+                            {step === 3 && (
                             <div className="summary-card">
                                 <h3>Tu Carrito</h3>
                                 {(!cartItems || cartItems.length === 0) ? (
@@ -1372,6 +1410,7 @@ return (
                                 </>
                                 )}
                             </div>
+                            )}
                         </div>
             </div>
 
@@ -1380,7 +1419,7 @@ return (
                     <button 
                         type="button" 
                         className="btn-back" 
-                        onClick={() => setStep(step - 1)}
+                        onClick={() => goToStep(step - 1)}
                         disabled={isSubmitting}
                     >
                         <span className="btn-icon">←</span> Atrás
@@ -1406,7 +1445,7 @@ return (
                             setError('Tu carrito está vacío. Agrega productos antes de continuar.');
                             return;
                         }
-                        setStep(4);
+                        goToStep(4);
                     }}>
                         Siguiente <span className="btn-icon">→</span>
                     </button>

@@ -4,6 +4,23 @@
     background-color: var(--light-bg);
 }
 
+/* Transición lateral entre steps */
+@keyframes slideFromRight {
+    from { opacity: 0; transform: translateX(60px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes slideFromLeft {
+    from { opacity: 0; transform: translateX(-60px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+
+.slide-left {
+    animation: slideFromRight 0.35s ease-out;
+}
+.slide-right {
+    animation: slideFromLeft 0.35s ease-out;
+}
+
 .checkout-content.container {
     max-width: 1300px; /* Igual que el homepage */
     width: 100%;
@@ -60,6 +77,15 @@
 .checkout-steps .step.active {
     background: var(--primary-color);
     color: white;
+}
+
+/* Steps clickeables: atrás libre, adelante solo el siguiente */
+.checkout-steps .step.clickable {
+    cursor: pointer;
+}
+.checkout-steps .step.clickable:hover {
+    filter: brightness(0.9);
+    transform: scale(1.04);
 }
 
 .form-grid {
