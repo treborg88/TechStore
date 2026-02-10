@@ -53,7 +53,6 @@ function ChatBot() {
   const [isOpen, setIsOpen] = useState(false);
   const [config, setConfig] = useState(null); // null = cargando, false = deshabilitado
   const [messages, setMessages] = useState([]);
-  const [suggestions, setSuggestions] = useState([]); // Quick replies del backend
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [siteLogo, setSiteLogo] = useState('');
@@ -115,7 +114,6 @@ function ChatBot() {
       return updated.length > maxMessages ? updated.slice(-maxMessages) : updated;
     });
     setInput('');
-    setSuggestions([]); // Limpiar sugerencias al enviar
     setLoading(true);
 
     try {
@@ -151,10 +149,6 @@ function ChatBot() {
         return updated.length > maxMessages ? updated.slice(-maxMessages) : updated;
       });
 
-      // Mostrar sugerencias (quick replies) del backend
-      if (data.suggestions && data.suggestions.length > 0) {
-        setSuggestions(data.suggestions);
-      }
     } catch {
       setMessages(prev => [
         ...prev,
@@ -164,11 +158,6 @@ function ChatBot() {
       setLoading(false);
     }
   }, [input, loading, messages, config, location.pathname]);
-
-  // Handler para click en sugerencia (quick reply)
-  const handleSuggestionClick = useCallback((text) => {
-    handleSend(text);
-  }, [handleSend]);
 
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -227,16 +216,6 @@ function ChatBot() {
             {loading && (
               <div className="chatbot-msg chatbot-msg--bot chatbot-typing">
                 <span className="chatbot-dot" /><span className="chatbot-dot" /><span className="chatbot-dot" />
-              </div>
-            )}
-            {/* Quick replies (sugerencias contextuales) */}
-            {!loading && suggestions.length > 0 && (
-              <div className="chatbot-suggestions">
-                {suggestions.map((s, i) => (
-                  <button key={i} className="chatbot-suggestion-btn" onClick={() => handleSuggestionClick(s)}>
-                    {s}
-                  </button>
-                ))}
               </div>
             )}
             <div ref={messagesEndRef} />
