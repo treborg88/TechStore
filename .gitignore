@@ -14,7 +14,9 @@ build/
 .env.test.local
 .env.production.local
 frontend/.env*
+!frontend/.env.example
 backend/.env*
+!backend/.env.example
 
 # Logs
 logs

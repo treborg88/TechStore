@@ -1,14 +1,28 @@
 require('dotenv').config();
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
+// --- Supabase client (nullable — app runs in "setup mode" without credentials) ---
+let supabase = null;
+let dbConfigured = false;
 
-if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Error: SUPABASE_URL y SUPABASE_KEY deben estar definidos en el archivo .env');
+const initSupabase = (url, key) => {
+  if (!url || !key) return false;
+  try {
+    supabase = createClient(url, key);
+    dbConfigured = true;
+    return true;
+  } catch (err) {
+    console.error('❌ Error inicializando Supabase:', err.message);
+    return false;
+  }
+};
+
+// Boot: try env vars
+if (!initSupabase(process.env.SUPABASE_URL, process.env.SUPABASE_KEY)) {
+  console.warn('⚠️  SUPABASE_URL / SUPABASE_KEY no configurados.');
+  console.warn('   La app arrancará en modo setup (sin datos).');
+  console.warn('   Configura las credenciales en .env y reinicia, o desde Admin Panel → Base de Datos.');
 }
-
-const supabase = createClient(supabaseUrl, supabaseKey);
 
 const getStoragePathFromUrl = (publicUrl) => {
   if (!publicUrl || typeof publicUrl !== 'string') return null;
@@ -820,4 +834,39 @@ const statements = {
   }
 };
 
-module.exports = { supabase, statements };
+/**
+ * Reinitializes the Supabase client with new credentials at runtime.
+ * Called when admin configures DB from the settings panel.
+ * @param {string} url - Supabase project URL
+ * @param {string} key - Supabase anon key
+ * @returns {boolean} true if connection succeeded
+ */
+const reinitializeDb = (url, key) => initSupabase(url, key);
+
+/**
+ * Proxy wrapper: every statement function checks if DB is available.
+ * If not → throws a clean error with code DB_NOT_CONFIGURED (caught by routes).
+ * If yes → runs the original function normally.
+ */
+const safeStatements = new Proxy(statements, {
+  get(target, prop) {
+    const original = target[prop];
+    if (typeof original !== 'function') return original;
+    return async (...args) => {
+      if (!supabase) {
+        const err = new Error('Base de datos no configurada. Añade SUPABASE_URL y SUPABASE_KEY en .env o desde Admin Panel.');
+        err.code = 'DB_NOT_CONFIGURED';
+        err.statusCode = 503;
+        throw err;
+      }
+      return original.apply(target, args);
+    };
+  }
+});
+
+module.exports = {
+  get supabase() { return supabase; },   // getter: always returns current client (may be null)
+  statements: safeStatements,             // proxy-wrapped: clean errors when no DB
+  dbConfigured: () => dbConfigured,       // function: returns current DB status
+  reinitializeDb                          // function: reconnect with new credentials
+};

@@ -2,7 +2,7 @@
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { JWT_SECRET } = require('../config');
-const { statements } = require('../database');
+const { statements, dbConfigured } = require('../database');
 
 // --- Token Blacklist (hybrid: in-memory cache + Supabase persistence) ---
 // In-memory cache for fast lookups (Map: tokenHash -> expiration timestamp)
@@ -27,9 +27,11 @@ setInterval(async () => {
         }
     }
     
-    // Clean Supabase (async, don't block)
+    // Clean Supabase (async, don't block — skip if DB not configured)
     try {
-        await statements.cleanupExpiredBlacklistTokens();
+        if (dbConfigured()) {
+            await statements.cleanupExpiredBlacklistTokens();
+        }
     } catch (err) {
         console.error('Error cleaning Supabase blacklist:', err.message);
     }

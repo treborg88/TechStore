@@ -143,22 +143,25 @@ router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
         // Test actual connection with a lightweight query
         let connected = false;
         let tableCount = 0;
-        try {
-            const { error } = await require('../database').supabase
-                .from('settings')
-                .select('id', { count: 'exact', head: true });
-            connected = !error;
-            // Try to count main tables
-            const tables = ['users', 'products', 'orders', 'order_items', 'cart', 'settings'];
-            let count = 0;
-            for (const t of tables) {
-                const { error: tErr } = await require('../database').supabase
-                    .from(t)
+        const dbClient = require('../database').supabase;
+        if (dbClient) {
+            try {
+                const { error } = await dbClient
+                    .from('settings')
                     .select('id', { count: 'exact', head: true });
-                if (!tErr) count++;
-            }
-            tableCount = count;
-        } catch { /* connection failed */ }
+                connected = !error;
+                // Try to count main tables
+                const tables = ['users', 'products', 'orders', 'order_items', 'cart', 'settings'];
+                let count = 0;
+                for (const t of tables) {
+                    const { error: tErr } = await dbClient
+                        .from(t)
+                        .select('id', { count: 'exact', head: true });
+                    if (!tErr) count++;
+                }
+                tableCount = count;
+            } catch { /* connection failed */ }
+        }
 
         res.json({
             provider: 'Supabase (PostgreSQL)',
