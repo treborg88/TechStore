@@ -55,6 +55,8 @@ jobs:
             npm ci
             
             echo "🏗️ Building frontend..."
+            export VITE_API_URL="${{ secrets.VITE_API_URL }}"
+            export VITE_BASE_URL="${{ secrets.VITE_BASE_URL }}"
             npm run build
             cd ..
             
