@@ -6,6 +6,7 @@ const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { singleImageUpload } = require('../middleware/upload');
 const { encryptSetting } = require('../services/encryption.service');
+const { addSiteDomain } = require('../config/cors');
 
 // Public settings that can be exposed to the frontend (no sensitive data)
 const PUBLIC_SETTINGS = [
@@ -28,6 +29,8 @@ const PUBLIC_SETTINGS = [
     'contactSupportLine', 'contactMapUrl',
     // Payment methods configuration
     'paymentMethodsConfig',
+    // Site domain (for CORS / display)
+    'siteDomain',
     // Chatbot public settings
     'chatbotEnabled', 'chatbotGreeting', 'chatbotMaxMessages',
     'chatbotPlaceholder', 'chatbotColor'
@@ -109,6 +112,13 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
         });
         
         await Promise.all(promises);
+
+        // If siteDomain changed, refresh CORS allowed origins immediately (no restart needed)
+        if (settings.siteDomain !== undefined && settings.siteDomain.trim()) {
+            addSiteDomain(settings.siteDomain);
+            console.log(`🌐 CORS: dominio actualizado desde Admin Panel → ${settings.siteDomain}`);
+        }
+
         res.json({ message: 'Ajustes actualizados correctamente' });
     } catch (error) {
         console.error('❌ Error actualizando ajustes:', error);

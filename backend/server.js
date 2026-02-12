@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser');
 
 // Config
 const { PORT, FRONTEND_URL, BASE_URL } = require('./config');
-const { corsOptions } = require('./config/cors');
+const { corsOptions, corsHeaders, addSiteDomain, getAllowedOrigins } = require('./config/cors');
 
 // Middleware
 const { authLimiter } = require('./middleware/rateLimiter');
@@ -43,21 +43,8 @@ app.use(cors(corsOptions));
 app.set('trust proxy', 1);
 app.use(cookieParser());
 
-// CORS headers middleware
-app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (corsOptions.origin.includes(origin)) {
-        res.header('Access-Control-Allow-Origin', origin);
-    }
-    res.header('Access-Control-Allow-Credentials', 'true');
-    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-CSRF-Token');
-    
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
-    next();
-});
+// CORS headers middleware (dynamic — reads from allowedOrigins set)
+app.use(corsHeaders);
 
 // --- Rate Limiting ---
 app.use('/api/auth/login', authLimiter);
@@ -183,10 +170,27 @@ app.use((err, req, res, _next) => {
 });
 
 // --- Start Server ---
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
     const db = dbConfigured();
     console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
     console.log(`📁 Estructura modular cargada`);
+
+    // Load siteDomain from DB to allow CORS for admin-configured domain
+    if (db) {
+        try {
+            const settings = await statements.getSettings();
+            const domainSetting = settings.find(s => s.id === 'siteDomain');
+            if (domainSetting?.value) {
+                addSiteDomain(domainSetting.value);
+                console.log(`🌐 CORS: dominio del sitio cargado → ${domainSetting.value}`);
+            }
+        } catch (err) {
+            console.warn('⚠️  No se pudo cargar siteDomain de la DB:', err.message);
+        }
+    }
+
+    console.log(`🔒 CORS orígenes permitidos: ${getAllowedOrigins().length} dominios`);
+
     if (!db) {
         console.log(`⚠️  Modo setup: sin base de datos. Configura SUPABASE_URL + SUPABASE_KEY en .env`);
     }

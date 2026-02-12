@@ -8,16 +8,31 @@
 - All code is intended for a production environment unless otherwise specified.
 - whenever a code change, update or fix, make sure to delete any obsolete code as resulting from the change.
 
+## Production Infrastructure (Verified Feb 2026)
+
+| Field | Value |
+|-------|-------|
+| **Server** | Oracle Cloud ARM64, Ubuntu 22.04, IP `143.47.118.165` |
+| **Domain** | `eonsclover.com` (Cloudflare proxy, SSL Flexible) |
+| **SSH user** | `ubuntu` |
+| **App path** | `/home/ubuntu/TechStore/` |
+| **Process manager** | PM2 (backend on :5001, frontend Vite preview on :5173) |
+| **Reverse proxy** | Nginx on port 80 only (Cloudflare handles HTTPS) |
+| **SSL** | Cloudflare Flexible — no Certbot on server |
+| **CI/CD** | GitHub Actions: `ci.yml` (lint+build), `deploy.yml` (auto on push to main), `rollback.yml` (manual) |
+| **DB** | Supabase (hosted Postgres + Storage) |
+| **Legacy (unused)** | `demotechstore.duckdns.org` (still resolves but not in use) |
+
 ## Architecture Overview
 **Monorepo**: Express backend (`backend/`) + Vite/React 19 frontend (`frontend/`).
 
 | Layer | Key Files | Tech Stack |
 |-------|-----------|------------|
-| API | `backend/server.js` (~120 LOC, modular) | Express, JWT, bcrypt, multer |
-| Routes | `backend/routes/*.routes.js` | auth, products, cart, orders, users, settings, verification |
+| API | `backend/server.js` (~200 LOC, modular) | Express, JWT, bcrypt, multer |
+| Routes | `backend/routes/*.routes.js` | auth, products, cart, orders, users, settings, verification, payments, chatbot |
 | Middleware | `backend/middleware/` | auth, csrf, rateLimiter, upload |
-| Services | `backend/services/` | email.service, encryption.service |
-| Config | `backend/config/` | env vars, CORS |
+| Services | `backend/services/` | email.service, encryption.service, llm/ (chatbot) |
+| Config | `backend/config/` | env vars, CORS (dynamic) |
 | DB | `backend/database.js` (statements object) | Supabase (Postgres + Storage) |
 | UI | `frontend/src/App.jsx` (state hub) | React 19, react-router-dom v7, react-hot-toast |
 | FE Services | `frontend/src/services/apiClient.js` | `apiFetch()` wraps fetch with auth/CSRF headers |
@@ -25,12 +40,12 @@
 ### Backend Structure
 ```
 backend/
-├── server.js              # Main entry (~120 lines)
+├── server.js              # Main entry (~200 lines)
 ├── database.js            # Supabase statements
 ├── sharePage.js           # OG meta for social sharing
 ├── config/
 │   ├── index.js           # ENV vars (JWT_SECRET, PORT, EMAIL_*)
-│   └── cors.js            # CORS options
+│   └── cors.js            # Dynamic CORS (env var + Admin Panel siteDomain + localhost)
 ├── middleware/
 │   ├── auth.js            # authenticateToken, requireAdmin, tokenBlacklist
 │   ├── csrf.js            # CSRF protection
@@ -43,10 +58,13 @@ backend/
 │   ├── orders.routes.js   # /api/orders/* (12 endpoints)
 │   ├── users.routes.js    # /api/users/* (3 endpoints)
 │   ├── settings.routes.js # /api/settings/* (3 endpoints)
-│   └── verification.routes.js # /api/verification/* (2 endpoints)
+│   ├── verification.routes.js # /api/verification/* (2 endpoints)
+│   ├── payments.routes.js # /api/payments/* (Stripe + PayPal)
+│   └── chatbot.routes.js  # /api/chatbot/* (LLM multi-provider)
 ├── services/
 │   ├── email.service.js   # sendOrderEmail, sendMailWithSettings
-│   └── encryption.service.js # AES-256-GCM for settings
+│   ├── encryption.service.js # AES-256-GCM for settings
+│   └── llm/               # Chatbot LLM (adapter.js, contextBuilder.js, intentDetector.js)
 └── utils/
     └── orderNumber.js     # generateOrderNumber
 ```
@@ -89,12 +107,16 @@ const res = await apiFetch(apiUrl('/products'), { method: 'GET' });
 - On login, guest cart merges to server (`syncLocalCart` in App.jsx).
 
 ### Config Switching (Important!)
-Frontend uses environment variables via `.env` files:
+Frontend uses environment variables via `.env` files with hardcoded production fallback:
 ```javascript
-// frontend/src/config.js reads from import.meta.env
-export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5001/api';
-export const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5173';
+// frontend/src/config.js — detects localhost vs production
+const isLocalhost = window.location.hostname === 'localhost';
+const DEFAULT_API_URL = isLocalhost ? 'http://localhost:5001/api' : 'https://eonsclover.com/api';
+const DEFAULT_BASE_URL = isLocalhost ? 'http://localhost:5173' : 'https://eonsclover.com';
+export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
+export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 ```
+**Production note**: Server has NO frontend `.env` files. `deploy.yml` does NOT pass VITE_ env vars to the build step. Frontend always uses the hardcoded `eonsclover.com` fallback in production.
 
 ## API Routes Summary
 | Route | Auth | Notes |
@@ -108,6 +130,9 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || 'http://localhost:5173'
 | `POST /api/orders` | Bearer | Creates order, decrements stock |
 | `POST /api/orders/guest` | Public | Requires email verification |
 | `GET /api/orders/track/:id` | Public | Track by ID or `order_number` |
+| `POST /api/payments/stripe/*` | Bearer | Stripe checkout + webhooks |
+| `POST /api/payments/paypal/*` | Bearer | PayPal create/capture |
+| `POST /api/chatbot/message` | Public | LLM chatbot (Groq/OpenAI/Google/OpenRouter via admin panel) |
 
 ## Testing
 ```bash
@@ -118,7 +143,7 @@ cd frontend && npm run test:e2e   # Playwright against localhost:5173
 - **Gotcha**: auth tests can trigger rate limits; space out runs or reset limits.
 
 ## Common Gotchas
-1. **CORS**: Add new dev origins to `corsOptions.origin` array in `config/cors.js`.
+1. **CORS**: Dynamic — set `CORS_ORIGIN` env var (comma-separated domains) or use Admin Panel → E-commerce → Dominio del Sitio. No need to edit code.
 2. **Dependencies**: Some deps live in repo-root `package.json`; if `backend/` module resolution fails, run `npm install` at root.
 3. **Errors**: All API errors return `{ message: "..." }`—read `.message` on frontend.
 4. **Images**: `product.image` may be full Supabase URL or legacy path; handle both.
@@ -127,7 +152,7 @@ cd frontend && npm run test:e2e   # Playwright against localhost:5173
 ## Adding Features Checklist
 - [ ] New endpoint: create route file in `routes/`, register in `routes/index.js`, mount in `server.js`
 - [ ] New frontend route: add to `<Routes>` in `App.jsx`, lazy-load component
-- [ ] CORS issues: add origin to `config/cors.js` `corsOptions.origin` array
+- [ ] CORS issues: set `CORS_ORIGIN` env var or use Admin Panel → E-commerce → `siteDomain`
 - [ ] New env var: add to `config/index.js` and document here
 
 ## Security Features Implemented

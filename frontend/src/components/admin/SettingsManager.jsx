@@ -96,6 +96,7 @@ function SettingsManager() {
     siteNameImage: '',
     siteNameImageSize: 32,
     maintenanceMode: false,
+    siteDomain: '',
     freeShippingThreshold: 50000,
     contactEmail: 'soporte@techstore.com',
     showPromotionBanner: true,
@@ -1638,6 +1639,19 @@ function SettingsManager() {
                   </button>
                   {openSections.ecommerce && (
                     <>
+                      <div className="form-group">
+                        <label>Dominio del Sitio</label>
+                        <input 
+                          type="text" 
+                          name="siteDomain" 
+                          value={settings.siteDomain} 
+                          onChange={handleChange} 
+                          placeholder="ejemplo.com"
+                        />
+                        <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>
+                          Dominio principal de tu tienda (sin https://). Se usa para configurar CORS automáticamente.
+                        </small>
+                      </div>
                       <div className="form-group">
                         <label>Email de Contacto</label>
                         <input type="email" name="contactEmail" value={settings.contactEmail} onChange={handleChange} />
