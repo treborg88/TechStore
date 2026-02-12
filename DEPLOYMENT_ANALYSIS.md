@@ -658,6 +658,6 @@ PASO 5: Entrega
 | ~~P11~~ | ~~`scripts/configure.sh`~~ — absorbido por `install.sh` (P10) | 2-3 hrs | 🟡 Feature | Alto | ✅ |
 | **P12** | Docker setup (Dockerfiles + docker-compose) | 4-6 hrs | 🟠 Feature | Medio | ✅ |
 | **P13** | CHANGELOG.md + release tags + versionado semántico | 1 hr | 🟠 Feature | Medio | ✅ |
-| **P14** | Ansible playbooks (gestión multi-cliente) | 6-8 hrs | 🔵 Feature | Opcional | ❌ |
+| **P14** | Ansible playbook (provision + deploy) | 2-4 hrs | 🟠 Feature | Bajo | ✅ |s (gestión multi-cliente) | 6-8 hrs | 🔵 Feature | Opcional | ❌ |
 
 > **Criterio de orden**: Fixes de producción (P1-P3) > Diagnóstico (P4) > Documentación/Seguridad (P5-P8) > Features nuevas (P9-P14)

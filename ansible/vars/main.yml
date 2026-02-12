@@ -1,0 +1,37 @@
+# =============================================================================
+# Ansible Variables — TechStore
+# =============================================================================
+# All configurable values for the playbook.
+# Override per-host in inventory.yml or via --extra-vars on CLI.
+# =============================================================================
+
+# ── Application ───────────────────────────────────────────
+app_name: TechStore
+app_path: /home/ubuntu/TechStore
+app_repo: git@github.com:treborg88/TechStore.git
+app_branch: main
+
+# ── Domain & SSL ──────────────────────────────────────────
+domain: eonsclover.com
+# SSL mode: "flexible" (CF terminates) or "full_strict" (Origin Cert on Nginx)
+ssl_mode: full_strict
+ssl_cert_path: /etc/ssl/cloudflare/{{ domain }}.pem
+ssl_key_path: /etc/ssl/cloudflare/{{ domain }}.key
+
+# ── Ports ─────────────────────────────────────────────────
+backend_port: 5001
+frontend_port: 5173
+
+# ── Node.js ───────────────────────────────────────────────
+node_major_version: 20
+
+# ── System user ───────────────────────────────────────────
+deploy_user: ubuntu
+deploy_group: ubuntu
+
+# ── PM2 ───────────────────────────────────────────────────
+pm2_ecosystem: ecosystem.config.cjs
+
+# ── Nginx ─────────────────────────────────────────────────
+nginx_config_name: techstore
+nginx_client_max_body_size: 50M

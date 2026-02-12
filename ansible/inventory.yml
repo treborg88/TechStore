@@ -1,0 +1,20 @@
+# =============================================================================
+# Ansible Inventory — TechStore
+# =============================================================================
+# Defines the target servers for the playbook.
+#
+# Usage:
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook.yml
+#
+# SSH key must be configured:
+#   ssh-add ~/.ssh/id_ed25519    (or whichever key has access)
+# =============================================================================
+
+all:
+  hosts:
+    production:
+      ansible_host: 143.47.118.165
+      ansible_user: ubuntu
+      ansible_ssh_private_key_file: ~/.ssh/id_ed25519
+      # Disable host key checking for first run (remove after)
+      # ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
