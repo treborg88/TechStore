@@ -11,13 +11,7 @@ export default defineConfig({
     host: '0.0.0.0',
     port: 5173,
     strictPort: true,
-    // Allow Cloudflare Tunnel and your domain
-    allowedHosts: [
-      '.trycloudflare.com',
-      '.eonsclover.com',
-      'eonsclover.com',
-      'www.eonsclover.com',
-      'localhost'
-    ],
+    // Allow all hosts — Nginx/Cloudflare handle domain validation
+    allowedHosts: true,
   },
 })

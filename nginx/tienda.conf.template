@@ -18,10 +18,11 @@
 #       nginx/tienda.conf.template > /etc/nginx/sites-available/tienda
 #
 # Variantes SSL:
-#   - OPCIÓN A (Cloudflare): SSL termina en Cloudflare. Nginx solo escucha :80.
-#     → Usar tal cual, eliminar/ignorar el bloque HTTPS de abajo.
-#   - OPCIÓN B (Certbot):   SSL local con Let's Encrypt.
-#     → Descomentar el bloque HTTPS y ejecutar certbot.
+#   - OPCIÓN A (Cloudflare Flexible): SSL termina en Cloudflare. Nginx solo :80.
+#   - OPCIÓN B (Cloudflare Full):     Origin Certificate de Cloudflare en Nginx :443.
+#     → Más seguro: tráfico cifrado de extremo a extremo.
+#   - OPCIÓN C (Certbot):             SSL local con Let's Encrypt (sin Cloudflare).
+#     → Descomentar el bloque HTTPS Certbot y ejecutar certbot.
 #
 # Post-instalación:
 #   sudo ln -sf /etc/nginx/sites-available/tienda /etc/nginx/sites-enabled/
@@ -123,7 +124,98 @@ server {
 
 
 # ────────────────────────────────────────────────
-# OPCIÓN B: HTTPS con Certbot / Let's Encrypt
+# OPCIÓN B: Cloudflare Full (Strict) con Origin Certificate
+# ────────────────────────────────────────────────
+# Tráfico cifrado de extremo a extremo (Cloudflare → Nginx :443).
+# Pasos:
+#   1. Cloudflare → SSL/TLS → Origin Server → Create Certificate
+#   2. Copiar cert y key al servidor:
+#        sudo mkdir -p /etc/ssl/cloudflare
+#        sudo nano /etc/ssl/cloudflare/{{DOMAIN}}.pem   (pegar Origin Certificate)
+#        sudo nano /etc/ssl/cloudflare/{{DOMAIN}}.key   (pegar Private Key)
+#        sudo chmod 600 /etc/ssl/cloudflare/{{DOMAIN}}.key
+#   3. Cambiar el bloque HTTP de arriba para que SOLO redirija:
+#        location / { return 301 https://$host$request_uri; }
+#   4. Descomentar este bloque server { ... }
+#   5. sudo nginx -t && sudo systemctl reload nginx
+#   6. En Cloudflare → SSL/TLS → cambiar modo a "Full (Strict)"
+
+# server {
+#     listen 443 ssl http2;
+#     listen [::]:443 ssl http2;
+#     server_name {{DOMAIN}} www.{{DOMAIN}};
+#     server_tokens off;
+#
+#     # --- Cloudflare Origin Certificate ---
+#     ssl_certificate     /etc/ssl/cloudflare/{{DOMAIN}}.pem;
+#     ssl_certificate_key /etc/ssl/cloudflare/{{DOMAIN}}.key;
+#
+#     # --- SSL Hardening ---
+#     ssl_protocols TLSv1.2 TLSv1.3;
+#     ssl_prefer_server_ciphers on;
+#     ssl_ciphers ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384;
+#     ssl_session_cache shared:SSL:10m;
+#     ssl_session_timeout 1d;
+#     ssl_session_tickets off;
+#
+#     # --- Security Headers ---
+#     add_header Strict-Transport-Security "max-age=31536000; includeSubDomains; preload" always;
+#     add_header X-Content-Type-Options "nosniff" always;
+#     add_header X-Frame-Options "SAMEORIGIN" always;
+#     add_header X-XSS-Protection "1; mode=block" always;
+#     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+#
+#     # --- Gzip ---
+#     gzip on;
+#     gzip_vary on;
+#     gzip_min_length 1024;
+#     gzip_proxied any;
+#     gzip_types text/plain text/css text/xml text/javascript
+#                application/javascript application/json application/xml
+#                image/svg+xml;
+#
+#     # --- API Backend ---
+#     location /api/ {
+#         proxy_pass http://127.0.0.1:{{BACKEND_PORT}};
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_connect_timeout 60s;
+#         proxy_send_timeout 60s;
+#         proxy_read_timeout 60s;
+#         client_max_body_size 50M;
+#     }
+#
+#     # --- Share Page ---
+#     location /p/ {
+#         proxy_pass http://127.0.0.1:{{BACKEND_PORT}};
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_set_header X-Forwarded-Host $host;
+#     }
+#
+#     # --- Frontend ---
+#     location / {
+#         proxy_pass http://127.0.0.1:{{FRONTEND_PORT}};
+#         proxy_http_version 1.1;
+#         proxy_set_header Upgrade $http_upgrade;
+#         proxy_set_header Connection 'upgrade';
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
+#         proxy_cache_bypass $http_upgrade;
+#     }
+# }
+
+
+# ────────────────────────────────────────────────
+# OPCIÓN C: HTTPS con Certbot / Let's Encrypt
 # ────────────────────────────────────────────────
 # Descomentar TODO este bloque si usas SSL local (no Cloudflare).
 # Primero obtén el certificado:

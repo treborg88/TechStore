@@ -1,19 +1,20 @@
 // config.js - Configuración centralizada de la aplicación
-// URLs are loaded from environment variables (see .env.example)
+// URLs loaded from env vars (see .env.example)
+// Production: Nginx proxies /api → backend:5001, so relative paths work on any domain
+// Dev: explicit localhost URLs (no Nginx)
 
-// Detectar si estamos en localhost o en producción
 const isLocalhost = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-// Valores por defecto basados en el entorno
-// En producción usa ruta relativa /api (nginx hace proxy al backend)
+// Production defaults: relative /api (Nginx proxy) + auto-detect origin
+// No hardcoded domains — works on any domain behind Nginx
 const DEFAULT_API_URL = isLocalhost 
     ? 'http://localhost:5001/api' 
-    : 'https://eonsclover.com/api';
+    : '/api';
 
 const DEFAULT_BASE_URL = isLocalhost 
     ? 'http://localhost:5173' 
-    : 'https://eonsclover.com';
+    : (typeof window !== 'undefined' ? window.location.origin : '');
 
 export const API_URL = import.meta.env.VITE_API_URL || DEFAULT_API_URL;
 export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
@@ -89,5 +90,5 @@ export const DEFAULT_PRODUCT_CARD_CONFIG = {
         buttonBorder: '',
         buttonShadow: ''
     },
-    currency: 'USD'
+    currency: 'RD$'
 };

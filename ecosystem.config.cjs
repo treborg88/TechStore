@@ -72,19 +72,21 @@ module.exports = {
 
   // ===================
   // Deployment Configuration
+  // Deploy is handled by GitHub Actions (.github/workflows/deploy.yml)
+  // This section is kept as reference for PM2 deploy alternative
   // ===================
   deploy: {
     production: {
-      user: 'deploy',
-      host: 'your-server-ip',
+      user: 'ubuntu',
+      host: '143.47.118.165',
       ref: 'origin/main',
-      repo: 'git@github.com:YOUR_USERNAME/mi-tienda-online2.git',
-      path: '/var/www/demotechstore',
+      repo: 'git@github.com:treborg88/TechStore.git',
+      path: '/home/ubuntu/TechStore',
       'pre-deploy-local': '',
       'post-deploy': 
-        'npm install && ' +
-        'cd backend && npm install && cd .. && ' +
-        'cd frontend && npm install && npm run build && cd .. && ' +
+        'npm ci --ignore-scripts && ' +
+        'cd backend && npm ci --production && cd .. && ' +
+        'cd frontend && npm ci && npm run build && cd .. && ' +
         'pm2 reload ecosystem.config.cjs --env production',
       'pre-setup': ''
     }

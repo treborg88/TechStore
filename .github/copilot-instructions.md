@@ -18,7 +18,7 @@
 | **App path** | `/home/ubuntu/TechStore/` |
 | **Process manager** | PM2 (backend on :5001, frontend Vite preview on :5173) |
 | **Reverse proxy** | Nginx on port 80 only (Cloudflare handles HTTPS) |
-| **SSL** | Cloudflare Flexible — no Certbot on server |
+| **SSL** | Cloudflare Full (Strict) — Origin Certificate on Nginx :443 |
 | **CI/CD** | GitHub Actions: `ci.yml` (lint+build), `deploy.yml` (auto on push to main), `rollback.yml` (manual) |
 | **DB** | Supabase (hosted Postgres + Storage) |
 | **Legacy (unused)** | `demotechstore.duckdns.org` (still resolves but not in use) |

@@ -55,12 +55,26 @@ const expandDomain = (domain) => {
 };
 
 /**
- * Add a domain from admin panel (siteDomain setting).
+ * Add domain(s) from admin panel (siteDomain setting).
+ * Supports comma-separated values with full URLs or bare domains.
  * Called at boot (from DB) and when admin updates the setting.
  */
-const addSiteDomain = (domain) => {
-    if (!domain || typeof domain !== 'string') return;
-    expandDomain(domain.trim());
+const addSiteDomain = (domainStr) => {
+    if (!domainStr || typeof domainStr !== 'string') return;
+
+    // Split by comma to support multiple domains in one field
+    domainStr.split(',').forEach(entry => {
+        const trimmed = entry.trim();
+        if (!trimmed) return;
+
+        if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+            // Full URL — add as-is (strip trailing slash)
+            allowedOrigins.add(trimmed.replace(/\/$/, ''));
+        } else {
+            // Bare domain — expand to http/https/www variants
+            expandDomain(trimmed);
+        }
+    });
 };
 
 /**
