@@ -12,12 +12,7 @@
     "lint": "cd frontend && npm run lint",
     "test": "cd frontend && npm run test:e2e"
   },
-  "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "dotenv": "^17.2.3",
-    "nodemailer": "^7.0.11",
-    "yet-another-react-lightbox": "^3.25.0"
-  },
+  "dependencies": {},
   "devDependencies": {
     "concurrently": "^8.2.2"
   }
