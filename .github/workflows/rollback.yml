@@ -36,7 +36,7 @@ jobs:
         run: |
           ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
             set -e
-            cd ${{ secrets.APP_PATH }}
+            cd ${{ env.APP_PATH }}
             
             echo "📋 Razón del rollback: ${{ github.event.inputs.reason }}"
             
@@ -52,7 +52,10 @@ jobs:
             echo "📦 Reinstalando dependencias..."
             npm ci --ignore-scripts
             cd backend && npm ci --production && cd ..
-            cd frontend && npm ci && npm run build && cd ..
+            cd frontend && npm ci
+            export VITE_API_URL="${{ secrets.VITE_API_URL }}"
+            export VITE_BASE_URL="${{ secrets.VITE_BASE_URL }}"
+            npm run build && cd ..
             
             echo "🔄 Reiniciando servicios..."
             pm2 reload all --update-env
