@@ -657,7 +657,7 @@ PASO 5: Entrega
 | ~~P10~~ | ~~`scripts/install.sh` — instalación en Ubuntu limpio~~ | 3-4 hrs | 🟡 Feature | Alto | ✅ |
 | ~~P11~~ | ~~`scripts/configure.sh`~~ — absorbido por `install.sh` (P10) | 2-3 hrs | 🟡 Feature | Alto | ✅ |
 | **P12** | Docker setup (Dockerfiles + docker-compose) | 4-6 hrs | 🟠 Feature | Medio | ✅ |
-| **P13** | CHANGELOG.md + release tags + versionado semántico | 1 hr | 🟠 Feature | Medio | ❌ |
+| **P13** | CHANGELOG.md + release tags + versionado semántico | 1 hr | 🟠 Feature | Medio | ✅ |
 | **P14** | Ansible playbooks (gestión multi-cliente) | 6-8 hrs | 🔵 Feature | Opcional | ❌ |
 
 > **Criterio de orden**: Fixes de producción (P1-P3) > Diagnóstico (P4) > Documentación/Seguridad (P5-P8) > Features nuevas (P9-P14)
