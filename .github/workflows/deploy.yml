@@ -55,8 +55,8 @@ jobs:
             npm ci
             
             echo "🏗️ Building frontend..."
-            export VITE_API_URL="${{ secrets.VITE_API_URL }}"
-            export VITE_BASE_URL="${{ secrets.VITE_BASE_URL }}"
+            # config.js uses smart defaults: /api (relative) + window.location.origin
+            # No VITE_ env vars needed — works on any domain behind Nginx
             npm run build
             cd ..
             
