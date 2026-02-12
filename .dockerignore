@@ -1,0 +1,49 @@
+# === OS & IDE ===
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# === Dependencies ===
+node_modules/
+.npm/
+
+# === Logs ===
+logs/
+*.log
+npm-debug.log*
+
+# === Environment ===
+.env
+.env.*
+!.env.example
+
+# === Build artifacts ===
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+frontend/tests/playwright-report/
+frontend/tests/test-results/
+
+# === Git ===
+.git/
+.gitignore
+
+# === Docker (prevent recursion) ===
+docker-compose*.yml
+Dockerfile*
+
+# === Docs (not needed in images) ===
+DEPLOYMENT.md
+DEPLOYMENT_ANALYSIS.md
+README.md
+*.md
+
+# === Scripts (not needed in images) ===
+scripts/
+
+# === Archive ===
+backend/_archive/
+
+# === Nginx template (handled by docker-compose) ===
+nginx/
