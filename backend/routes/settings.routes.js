@@ -22,7 +22,7 @@ const PUBLIC_SETTINGS = [
     'productDetailHeroBannerImage', 'productDetailHeroBannerSize', 'productDetailHeroBannerPositionX', 
     'productDetailHeroBannerPositionY', 'productDetailHeroBannerOpacity',
     'categoryFiltersConfig', 'productCardConfig',
-    'currencyCode', 'defaultCurrency', 'storePhone', 'storeAddress',
+    'storePhone', 'storeAddress',
     // Contact page settings
     'contactTitle', 'contactSubtitle', 'contactCompany', 'contactEmail', 
     'contactPhone', 'contactWhatsapp', 'contactAddress', 'contactHours',

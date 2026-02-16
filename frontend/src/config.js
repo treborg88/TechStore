@@ -90,5 +90,5 @@ export const DEFAULT_PRODUCT_CARD_CONFIG = {
         buttonBorder: '',
         buttonShadow: ''
     },
-    currency: 'RD$'
+    currency: 'DOP'
 };

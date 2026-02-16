@@ -2,6 +2,7 @@
 import { pdf } from '@react-pdf/renderer';
 import React from 'react';
 import { InvoicePDF } from '../components/common/InvoicePDF';
+import { formatQuantityWithUnit, getUnitShortLabel } from './productUnits';
 
 export const STATUS_CONFIG = {
     pending_payment: { label: 'Pendiente de Pago', icon: '⏳', color: '#f59e0b' },
@@ -139,10 +140,13 @@ export const buildInvoiceData = ({
     const itemPrice = Number(item.price) || Number(item.unit_price) || 0;
     // Get quantity
     const itemQuantity = Number(item.quantity) || 1;
+        const itemUnitType = item.unit_type || item.unitType;
     
     return {
       description: itemName,
       quantity: itemQuantity,
+            quantityLabel: formatQuantityWithUnit(itemQuantity, itemUnitType),
+            unitShortLabel: getUnitShortLabel(itemUnitType),
       unitPrice: itemPrice,
       taxPercent: '',
       taxes: '',

@@ -6,7 +6,7 @@ import Footer from '../components/common/Footer';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { formatCurrency } from '../utils/formatCurrency';
 
-function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings }) {
+function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings, promoSettings }) {
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -558,21 +558,26 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
         </div>
       </section>
       
-      {/* Promo Section */}
-      <section className="promo-section">
-        <div className="container promo-container">
-          <div className="promo-content">
-            <h2 className="promo-title">¡Oferta Especial del Mes!</h2>
-            <p className="promo-text">
-              Obtén un 20% de descuento en todos nuestros smartphones cuando compras cualquier accesorio.
-            </p>
-            <button className="promo-button">Ver Oferta</button>
+      {/* Promo Section - controlado por admin settings */}
+      {promoSettings?.showPromotionBanner && (
+        <section className="promo-section">
+          <div className="container promo-container">
+            <div className="promo-content">
+              <h2 className="promo-title">{promoSettings?.promoTitle || '¡Oferta Especial del Mes!'}</h2>
+              <p className="promo-text">
+                {promoSettings?.promoText || 'Obtén un 20% de descuento en todos nuestros smartphones cuando compras cualquier accesorio.'}
+              </p>
+              <button className="promo-button">{promoSettings?.promoButtonText || 'Ver Oferta'}</button>
+            </div>
+            {/* Imagen de promo: usa la configurada o un fallback */}
+            {promoSettings?.promoImage && (
+              <div className="promo-image">
+                <img src={promoSettings.promoImage} alt="Promoción especial" />
+              </div>
+            )}
           </div>
-          <div className="promo-image">
-            <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRXi8CxRsxpFK4ixXoVOJJQXZSo0jgKFmvayA&s" alt="Promoción especial" />
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
       
       {/* Features */}
       <section className="features-section">

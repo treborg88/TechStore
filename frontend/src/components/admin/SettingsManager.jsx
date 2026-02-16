@@ -7,6 +7,13 @@ import EmailSettingsSection from './EmailSettingsSection';
 import DatabaseSection from './DatabaseSection';
 import ChatBotAdmin from '../chatbot/ChatBotAdmin';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
+import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
+
+const PRODUCT_CURRENCY_OPTIONS = [
+  { code: 'DOP', label: 'DOP (RD$)' },
+  { code: 'USD', label: 'USD (USD$)' },
+  { code: 'EUR', label: 'EUR (€)' }
+];
 
 function SettingsManager() {
   const location = useLocation();
@@ -100,7 +107,10 @@ function SettingsManager() {
     freeShippingThreshold: 50000,
     contactEmail: 'soporte@techstore.com',
     showPromotionBanner: true,
+    promoTitle: '¡Oferta Especial del Mes!',
     promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.',
+    promoButtonText: 'Ver Oferta',
+    promoImage: '',
     mailFromName: 'TechStore',
     mailFrom: '',
     mailUser: '',
@@ -214,6 +224,7 @@ function SettingsManager() {
               }
             };
             merged.useDefault = normalizeBoolean(parsed?.useDefault ?? merged.useDefault);
+            merged.currency = normalizeCurrencyCode(parsed?.currency ?? merged.currency);
             if (merged.layout) {
               merged.layout = {
                 ...merged.layout,
@@ -327,7 +338,10 @@ function SettingsManager() {
       const payload = {
         ...settings,
         categoryFiltersConfig: JSON.stringify(settings.categoryFiltersConfig || cloneCategoryConfig()),
-        productCardConfig: JSON.stringify(settings.productCardConfig || cloneProductCardConfig()),
+        productCardConfig: JSON.stringify({
+          ...(settings.productCardConfig || cloneProductCardConfig()),
+          currency: normalizeCurrencyCode(settings.productCardConfig?.currency)
+        }),
         paymentMethodsConfig: JSON.stringify(settings.paymentMethodsConfig || clonePaymentMethodsConfig())
       };
       const response = await apiFetch(apiUrl('/settings'), {
@@ -710,10 +724,10 @@ function SettingsManager() {
                           </div>
                           <div className="inline-field">
                             <label>Moneda</label>
-                            <select value={productCardConfig.currency || 'USD'} onChange={(e) => updateProductCardConfig(prev => ({ ...prev, currency: e.target.value }))}>
-                              <option value="DOP">RD (DOP)</option>
-                              <option value="USD">USD</option>
-                              <option value="EUR">EUR</option>
+                            <select value={normalizeCurrencyCode(productCardConfig.currency)} onChange={(e) => updateProductCardConfig(prev => ({ ...prev, currency: normalizeCurrencyCode(e.target.value) }))}>
+                              {PRODUCT_CURRENCY_OPTIONS.map((currencyOption) => (
+                                <option key={currencyOption.code} value={currencyOption.code}>{currencyOption.label}</option>
+                              ))}
                             </select>
                           </div>
                         </div>
@@ -911,6 +925,23 @@ function SettingsManager() {
                   </button>
                   {openSections.product && (
                     <>
+                      {/* Configuración de moneda global para precios de productos */}
+                      <div className="form-group" style={{ marginBottom: '1rem' }}>
+                        <label>Moneda de Productos</label>
+                        <select
+                          value={normalizeCurrencyCode(productCardConfig.currency)}
+                          onChange={(e) => updateProductCardConfig(prev => ({
+                            ...prev,
+                            currency: normalizeCurrencyCode(e.target.value)
+                          }))}
+                        >
+                          {PRODUCT_CURRENCY_OPTIONS.map((currencyOption) => (
+                            <option key={currencyOption.code} value={currencyOption.code}>{currencyOption.label}</option>
+                          ))}
+                        </select>
+                        <small className="field-hint">Este ajuste se aplica a Home, detalle de producto, carrito, checkout y órdenes.</small>
+                      </div>
+
                       {/* Checkbox para usar configuración del Home */}
                       <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
                         <label>
@@ -1691,13 +1722,51 @@ function SettingsManager() {
                         </label>
                       </div>
                       <div className="form-group">
+                        <label>Título de la Promoción</label>
+                        <input 
+                          type="text" 
+                          name="promoTitle" 
+                          value={settings.promoTitle} 
+                          onChange={handleChange}
+                          placeholder="¡Oferta Especial del Mes!"
+                        />
+                      </div>
+                      <div className="form-group">
                         <label>Texto de la Promoción</label>
                         <textarea 
                           name="promoText" 
                           value={settings.promoText} 
                           onChange={handleChange}
                           rows="2"
+                          placeholder="Descripción de la oferta o promoción"
                         />
+                      </div>
+                      <div className="form-group">
+                        <label>Texto del Botón</label>
+                        <input 
+                          type="text" 
+                          name="promoButtonText" 
+                          value={settings.promoButtonText} 
+                          onChange={handleChange}
+                          placeholder="Ver Oferta"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Imagen de Promoción</label>
+                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'promoImage')} />
+                        {settings.promoImage && (
+                          <div style={{ marginTop: '8px' }}>
+                            <img src={settings.promoImage} alt="Promo" style={{ maxHeight: 120, borderRadius: 8 }} />
+                            <button 
+                              type="button" 
+                              className="remove-btn" 
+                              style={{ marginLeft: 8 }}
+                              onClick={() => setSettings(prev => ({ ...prev, promoImage: '' }))}
+                            >
+                              ✕ Quitar
+                            </button>
+                          </div>
+                        )}
                       </div>
                     </>
                   )}

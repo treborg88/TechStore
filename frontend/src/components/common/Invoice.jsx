@@ -300,10 +300,10 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                             </tr>
                         </thead>
                         <tbody>
-                            {items.map(item => (
-                                <tr key={item.id}>
+                                                        {items.map((item, index) => (
+                                                                <tr key={item.id}>
                                     <td>{item.name}</td>
-                                    <td>{item.quantity} Unidades</td>
+                                                                        <td>{invoiceData.items[index]?.quantityLabel || `${item.quantity} un.`}</td>
                                   <td>{formatCurrency(item.price, invoiceData.currency)}</td>
                                     <td></td>
                                   <td>{formatCurrency(item.price * item.quantity, invoiceData.currency)}</td>
@@ -420,10 +420,10 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                             </tr>
                         </thead>
                         <tbody>
-                            {items.map(item => (
+                            {items.map((item, index) => (
                                 <tr key={item.id}>
                                     <td>{item.name}</td>
-                                    <td>{item.quantity}</td>
+                                    <td>{invoiceData.items[index]?.quantityLabel || `${item.quantity} un.`}</td>
                                 <td>{formatCurrency(item.price, invoiceData.currency)}</td>
                                 <td>{formatCurrency(item.price * item.quantity, invoiceData.currency)}</td>
                                 </tr>

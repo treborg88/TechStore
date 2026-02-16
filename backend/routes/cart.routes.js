@@ -24,9 +24,10 @@ router.get('/', authenticateToken, async (req, res) => {
  * Add item to cart
  */
 router.post('/', authenticateToken, async (req, res) => {
-    const { productId, quantity } = req.body;
+    const productId = Number.parseInt(req.body?.productId, 10);
+    const quantity = Number.parseInt(req.body?.quantity, 10);
 
-    if (typeof productId !== 'number' || typeof quantity !== 'number' || quantity <= 0) {
+    if (!Number.isFinite(productId) || !Number.isFinite(quantity) || quantity <= 0) {
         return res.status(400).json({ message: 'ID de producto o cantidad inválida.' });
     }
 
@@ -77,9 +78,9 @@ router.post('/', authenticateToken, async (req, res) => {
  */
 router.put('/:productId', authenticateToken, async (req, res) => {
     const productId = parseInt(req.params.productId, 10);
-    const { quantity } = req.body;
+    const quantity = Number.parseInt(req.body?.quantity, 10);
 
-    if (typeof quantity !== 'number' || quantity < 0) {
+    if (!Number.isFinite(productId) || !Number.isFinite(quantity) || quantity < 0) {
         return res.status(400).json({ message: 'Cantidad inválida.' });
     }
 

@@ -2,6 +2,24 @@
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 
 /**
+ * Normaliza códigos de moneda para compatibilidad retroactiva
+ * @param {string|null|undefined} value - Código o símbolo de moneda
+ * @returns {string} Código ISO válido
+ */
+export const normalizeCurrencyCode = (value) => {
+  const code = String(value || '').trim().toUpperCase();
+
+  // Compatibilidad con valores legacy almacenados como símbolo
+  if (code === 'RD$' || code === 'RD' || code === 'DOP$') return 'DOP';
+  if (code === '$' || code === 'US$' || code === 'USD$') return 'USD';
+  if (code === '€' || code === 'EUR€') return 'EUR';
+
+  // Lista mínima de códigos soportados por la UI actual
+  const supported = ['DOP', 'USD', 'EUR'];
+  return supported.includes(code) ? code : 'USD';
+};
+
+/**
  * Clona y merge la configuración de filtros de categoría con los defaults
  * @param {Object|null} value - Configuración parcial a merge
  * @returns {Object} Configuración completa con defaults aplicados
@@ -45,6 +63,7 @@ export const cloneProductCardConfig = (value) => {
   };
 
   merged.useDefault = value.useDefault === true || value.useDefault === 'true';
+  merged.currency = normalizeCurrencyCode(merged.currency);
 
   // Convertir columnas a número si vienen como string
   if (merged.layout) {

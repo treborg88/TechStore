@@ -3,6 +3,7 @@ import { API_URL, BASE_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './OrderTrackerModal.css';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { formatQuantityWithUnit } from '../../utils/productUnits';
 
 function OrderTrackerModal({ onClose, user, currencyCode }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
@@ -353,7 +354,7 @@ function OrderTrackerModal({ onClose, user, currencyCode }) {
                                                 <div className="item-info">
                                                     <p className="item-name">{item.name}</p>
                                                     <p className="item-quantity">
-                                                        Cantidad: {item.quantity} × {formatCurrency(item.price, currencyCode)}
+                                                        Cantidad: {formatQuantityWithUnit(item.quantity, item.unit_type)} × {formatCurrency(item.price, currencyCode)}
                                                     </p>
                                                 </div>
                                                 <div className="item-total">

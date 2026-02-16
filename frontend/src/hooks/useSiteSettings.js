@@ -83,6 +83,15 @@ export function useSiteSettings() {
     JSON.parse(JSON.stringify(DEFAULT_PRODUCT_CARD_CONFIG))
   ));
 
+  // --- Estado de configuración de promo ---
+  const [promoSettings, setPromoSettings] = useState({
+    showPromotionBanner: true,
+    promoTitle: '¡Oferta Especial del Mes!',
+    promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.',
+    promoButtonText: 'Ver Oferta',
+    promoImage: ''
+  });
+
   // --- Aplica los datos del backend al estado local ---
   const applySettings = (data) => {
     if (data.siteName) {
@@ -173,6 +182,15 @@ export function useSiteSettings() {
         bannerOpacity: parseFloat(data.productDetailHeroBannerOpacity) || 100
       });
     }
+
+    // Promo settings
+    setPromoSettings({
+      showPromotionBanner: data.showPromotionBanner !== 'false' && data.showPromotionBanner !== false,
+      promoTitle: data.promoTitle || '¡Oferta Especial del Mes!',
+      promoText: data.promoText || '',
+      promoButtonText: data.promoButtonText || 'Ver Oferta',
+      promoImage: data.promoImage || ''
+    });
 
     // Category filters config
     if (data.categoryFiltersConfig) {
@@ -298,6 +316,7 @@ export function useSiteSettings() {
     productDetailHeroImage,
     productDetailHeroSettings,
     categoryFilterSettings,
-    productCardSettings
+    productCardSettings,
+    promoSettings
   };
 }

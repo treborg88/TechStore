@@ -58,7 +58,10 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
       apiFetch(apiUrl('/cart'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: item.id, quantity: item.quantity })
+        body: JSON.stringify({
+          productId: Number.parseInt(item.id, 10),
+          quantity: Number.parseInt(item.quantity, 10)
+        })
       })
     );
 
@@ -79,10 +82,16 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
 
     if (user) {
       try {
+        const productId = Number.parseInt(product.id, 10);
+        if (!Number.isFinite(productId)) {
+          toast.error('Producto inválido');
+          return false;
+        }
+
         const response = await apiFetch(apiUrl('/cart'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId: product.id, quantity: 1 })
+          body: JSON.stringify({ productId, quantity: 1 })
         });
         
         if (response.ok) {
@@ -169,6 +178,71 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
     }
   };
 
+  // Establece cantidad exacta (input directo): soporta guest y autenticado
+  const setCartQuantity = async (product, nextQuantity) => {
+    const parsedQuantity = Number.parseInt(nextQuantity, 10);
+
+    if (!Number.isFinite(parsedQuantity) || parsedQuantity < 1) {
+      toast.error('Cantidad inválida. Debe ser mayor o igual a 1.');
+      return false;
+    }
+
+    if (user) {
+      try {
+        const response = await apiFetch(apiUrl(`/cart/${product.id}`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ quantity: parsedQuantity })
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          setCartItems(formatBackendCart(data));
+          syncProductsFromCartData(data);
+          toast.success('Cantidad actualizada');
+          return true;
+        }
+
+        const errorData = await response.json();
+        toast.error(errorData.message || 'No se pudo actualizar la cantidad');
+        return false;
+      } catch (err) {
+        console.error(err);
+        toast.error('Error de conexión');
+        return false;
+      }
+    }
+
+    // Modo guest: ajustar stock por diferencia entre cantidad actual y nueva
+    const currentItem = cartItems.find((item) => item.id === product.id);
+    if (!currentItem) return false;
+
+    const stockLimit = Number.isFinite(Number(currentItem.stock)) && Number(currentItem.stock) > 0
+      ? Number(currentItem.stock)
+      : parsedQuantity;
+
+    const safeQuantity = Math.min(parsedQuantity, stockLimit);
+    if (safeQuantity !== parsedQuantity) {
+      toast.error(`Solo hay ${stockLimit} unidad(es) disponibles.`);
+    }
+
+    const delta = safeQuantity - currentItem.quantity;
+    if (delta === 0) return true;
+
+    if (delta > 0) {
+      updateProductStock(product.id, -delta);
+    } else {
+      updateProductStock(product.id, Math.abs(delta));
+    }
+
+    setCartItems((prev) => prev.map((item) => (
+      item.id === product.id ? { ...item, quantity: safeQuantity } : item
+    )));
+
+    toast.success('Cantidad actualizada');
+    return true;
+  };
+
   // Elimina un producto completo del carrito
   const clearFromCart = async (product) => {
     if (user) {
@@ -242,6 +316,7 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
     isCartLoading,
     addToCart,
     removeFromCart,
+    setCartQuantity,
     clearFromCart,
     clearAllCart,
     clearCartItems,

@@ -33,6 +33,33 @@ const getStoragePathFromUrl = (publicUrl) => {
   return path || null;
 };
 
+// Tipos de unidad soportados para productos en catálogo white-label
+const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
+
+const normalizeProductUnitType = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
+};
+
+let productUnitTypeColumnSupported = null;
+
+// Compatibilidad: algunos despliegues antiguos no tienen aún la columna unit_type
+const ensureProductUnitTypeColumnSupport = async () => {
+  if (productUnitTypeColumnSupported !== null) return productUnitTypeColumnSupported;
+  if (!supabase) {
+    productUnitTypeColumnSupported = false;
+    return false;
+  }
+
+  const { error } = await supabase
+    .from('products')
+    .select('unit_type')
+    .limit(1);
+
+  productUnitTypeColumnSupported = !error;
+  return productUnitTypeColumnSupported;
+};
+
 // Helper functions to mimic the old "statements" behavior but with Supabase (Async)
 const statements = {
   // Storage
@@ -190,19 +217,31 @@ const statements = {
     if (error) console.error('Error getProductsByCategory:', error);
     return data || [];
   },
-  createProduct: async (name, description, price, category, stock) => {
+  createProduct: async (name, description, price, category, stock, unitType = 'unidad') => {
+    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
+    const payload = { name, description, price, category, stock };
+    if (supportsUnitType) {
+      payload.unit_type = normalizeProductUnitType(unitType);
+    }
+
     const { data, error } = await supabase
       .from('products')
-      .insert([{ name, description, price, category, stock }])
+      .insert([payload])
       .select()
       .single();
     if (error) throw error;
     return { lastInsertRowid: data.id };
   },
-  updateProduct: async (name, description, price, category, stock, id) => {
+  updateProduct: async (name, description, price, category, stock, id, unitType) => {
+    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
+    const payload = { name, description, price, category, stock, updated_at: new Date().toISOString() };
+    if (supportsUnitType && unitType !== undefined) {
+      payload.unit_type = normalizeProductUnitType(unitType);
+    }
+
     const { data, error } = await supabase
       .from('products')
-      .update({ name, description, price, category, stock, updated_at: new Date().toISOString() })
+      .update(payload)
       .eq('id', id)
       .select();
     if (error) throw error;
@@ -307,13 +346,17 @@ const statements = {
 
   // Cart
   getCartByUserId: async (user_id) => {
+    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
+    const productFields = supportsUnitType
+      ? 'name, price, stock, unit_type, image, product_images (image_path)'
+      : 'name, price, stock, image, product_images (image_path)';
+
     const { data, error } = await supabase
       .from('cart')
       .select(`
         id, product_id, quantity,
         products (
-          name, price, stock, image,
-          product_images (image_path)
+          ${productFields}
         )
       `)
       .eq('user_id', user_id)
@@ -338,6 +381,7 @@ const statements = {
         name: product.name,
         price: product.price,
         stock: product.stock,
+        unit_type: normalizeProductUnitType(product.unit_type),
         image: image
       };
     });
@@ -615,14 +659,17 @@ const statements = {
     return data;
   },
   getOrderItems: async (order_id) => {
+    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
+    const orderItemProductFields = supportsUnitType
+      ? 'name, unit_type, image, product_images (image_path)'
+      : 'name, image, product_images (image_path)';
+
     const { data, error } = await supabase
       .from('order_items')
       .select(`
         *,
         products (
-          name, 
-          image,
-          product_images (image_path)
+          ${orderItemProductFields}
         )
       `)
       .eq('order_id', order_id);
@@ -643,6 +690,7 @@ const statements = {
       return {
         ...item,
         name: item.products?.name || 'Producto eliminado',
+        unit_type: normalizeProductUnitType(item.products?.unit_type),
         image: itemImage || null
       };
     });

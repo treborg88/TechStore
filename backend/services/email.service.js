@@ -97,6 +97,29 @@ const formatCurrency = (value) => {
     return num.toLocaleString('es-DO', { style: 'currency', currency: 'DOP' });
 };
 
+const PRODUCT_UNIT_LABELS = {
+    unidad: 'ud',
+    paquete: 'paq',
+    caja: 'caja',
+    docena: 'doc',
+    lb: 'lb',
+    kg: 'kg',
+    g: 'g',
+    l: 'L',
+    ml: 'ml',
+    m: 'm'
+};
+
+const normalizeUnitType = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return PRODUCT_UNIT_LABELS[normalized] ? normalized : 'unidad';
+};
+
+const formatQuantityWithUnit = (quantity, unitType) => {
+    const unitLabel = PRODUCT_UNIT_LABELS[normalizeUnitType(unitType)] || 'ud';
+    return `${quantity} ${unitLabel}`;
+};
+
 /**
  * Render a template with data placeholders
  * @param {string} template - Template string with {{key}} placeholders
@@ -189,7 +212,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         const itemRows = items.map((item) => `
             <tr>
                 <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${item.name}</td>
-                <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${item.quantity}</td>
+                <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:center;">${formatQuantityWithUnit(item.quantity, item.unit_type)}</td>
                 <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(item.price)}</td>
                 <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;text-align:right;">${formatCurrency(item.price * item.quantity)}</td>
             </tr>

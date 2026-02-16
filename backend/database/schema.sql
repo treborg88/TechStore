@@ -42,10 +42,15 @@ CREATE TABLE IF NOT EXISTS products (
     price       NUMERIC(10, 2) NOT NULL DEFAULT 0,
     category    TEXT,
     stock       INTEGER NOT NULL DEFAULT 0,
+    unit_type   TEXT NOT NULL DEFAULT 'unidad',        -- unidad, lb, kg, l, etc.
     image       TEXT,                                   -- legacy: full URL or old path
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Backward compatibility for existing databases created before unit_type existed
+ALTER TABLE products
+ADD COLUMN IF NOT EXISTS unit_type TEXT NOT NULL DEFAULT 'unidad';
 
 
 -- ---------------------------------------------------------------------------

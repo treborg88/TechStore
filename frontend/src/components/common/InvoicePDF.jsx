@@ -62,7 +62,7 @@ export const InvoicePDF = ({ invoiceData }) => (
         {invoiceData.items.map((item, index) => (
           <View key={index} style={[styles.tableRow, index % 2 === 0 ? {} : styles.tableRowEven]}>
             <Text style={styles.col1}>{item.description}</Text>
-            <Text style={styles.col2}>{item.quantity} Unidades</Text>
+            <Text style={styles.col2}>{item.quantityLabel || `${item.quantity} un.`}</Text>
             <Text style={styles.col3}>{formatCurrency(item.unitPrice, invoiceData.currency)}</Text>
             <Text style={styles.col4}></Text>
             <Text style={styles.col5}>{formatCurrency(item.amount, invoiceData.currency)}</Text>

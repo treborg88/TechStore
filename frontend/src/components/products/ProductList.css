@@ -10,11 +10,11 @@
   width: 100%;
 }
 
-/* Column widths for the 7-column product table */
+/* Column widths for the 8-column product table */
 .admin-table-container .admin-table th:nth-child(1),
 .admin-table-container .admin-table td:nth-child(1) { width: 80px; }  /* Imagen */
 .admin-table-container .admin-table th:nth-child(2),
-.admin-table-container .admin-table td:nth-child(2) { width: 20%; }   /* Nombre */
+.admin-table-container .admin-table td:nth-child(2) { width: 18%; }   /* Nombre */
 .admin-table-container .admin-table th:nth-child(3),
 .admin-table-container .admin-table td:nth-child(3) { width: 12%; }   /* Categoría */
 .admin-table-container .admin-table th:nth-child(4),
@@ -22,9 +22,11 @@
 .admin-table-container .admin-table th:nth-child(5),
 .admin-table-container .admin-table td:nth-child(5) { width: 10%; }   /* Precio */
 .admin-table-container .admin-table th:nth-child(6),
-.admin-table-container .admin-table td:nth-child(6) { width: 70px; }  /* Stock */
+.admin-table-container .admin-table td:nth-child(6) { width: 95px; }  /* Stock */
 .admin-table-container .admin-table th:nth-child(7),
-.admin-table-container .admin-table td:nth-child(7) { width: 130px; } /* Acciones */
+.admin-table-container .admin-table td:nth-child(7) { width: 120px; } /* Variante */
+.admin-table-container .admin-table th:nth-child(8),
+.admin-table-container .admin-table td:nth-child(8) { width: 130px; } /* Acciones */
 
 .admin-table-image img {
   width: 60px;

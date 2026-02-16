@@ -13,6 +13,7 @@ import PayPalPayment from './PayPalPayment';
 import '../products/ProductDetail.css';
 import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { formatQuantityWithUnit } from '../../utils/productUnits';
 
 function Checkout({ cartItems: propCartItems, total: propTotal, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();
@@ -1382,7 +1383,7 @@ return (
                                                 />
                                                 <div className="mini-item-info">
                                                     <span className="mini-item-name">{item.name}</span>
-                                                    <span className="mini-item-meta">{item.quantity} un. x {formatCurrency(item.price, currencyCode)}</span>
+                                                    <span className="mini-item-meta">{formatQuantityWithUnit(item.quantity, item.unit_type)} x {formatCurrency(item.price, currencyCode)}</span>
                                                 </div>
                                             </div>
                                             <span className="mini-item-price">{formatCurrency(item.price * item.quantity, currencyCode)}</span>

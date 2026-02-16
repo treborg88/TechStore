@@ -34,9 +34,6 @@ INSERT INTO app_settings (id, value) VALUES
     ('siteNameImage',   ''),
     ('siteNameImageSize', '120'),
     ('siteDomain',      ''),
-    -- Currency
-    ('currencyCode',    'USD'),
-    ('defaultCurrency', '$'),
     -- Hero section
     ('heroTitle',       'La Mejor Tecnología a Tu Alcance'),
     ('heroDescription', 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.'),

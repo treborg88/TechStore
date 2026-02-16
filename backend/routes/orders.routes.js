@@ -13,6 +13,13 @@ const VALID_STATUSES = [
     'return', 'refund', 'cancelled', 'pending', 'processing'
 ];
 
+const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
+
+const normalizeProductUnitType = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
+};
+
 /**
  * Helper: Rollback reserved stock on error
  */
@@ -256,7 +263,13 @@ router.post('/', authenticateToken, async (req, res) => {
             }
 
             reservedItems.push({ product_id: product.id, quantity: item.quantity });
-            itemDetails.push({ product_id: product.id, name: product.name, quantity: item.quantity, price: product.price });
+            itemDetails.push({
+                product_id: product.id,
+                name: product.name,
+                quantity: item.quantity,
+                price: product.price,
+                unit_type: normalizeProductUnitType(product.unit_type)
+            });
             total += product.price * item.quantity;
         }
 
@@ -387,7 +400,13 @@ router.post('/guest', async (req, res) => {
             }
 
             reservedItems.push({ product_id: product.id, quantity: item.quantity });
-            itemDetails.push({ product_id: product.id, name: product.name, quantity: item.quantity, price: product.price });
+            itemDetails.push({
+                product_id: product.id,
+                name: product.name,
+                quantity: item.quantity,
+                price: product.price,
+                unit_type: normalizeProductUnitType(product.unit_type)
+            });
             total += product.price * item.quantity;
         }
 

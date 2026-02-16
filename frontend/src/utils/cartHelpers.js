@@ -12,6 +12,7 @@ export const formatBackendCart = (backendCart) => {
     price: item.price,
     image: item.image,
     stock: item.stock,
+    unit_type: item.unit_type,
     quantity: item.quantity
   }));
 };

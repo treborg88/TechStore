@@ -9,6 +9,24 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ProductDetail.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 
+const PRODUCT_UNIT_LABELS = {
+  unidad: 'ud',
+  paquete: 'paq',
+  caja: 'caja',
+  docena: 'doc',
+  lb: 'lb',
+  kg: 'kg',
+  g: 'g',
+  l: 'L',
+  ml: 'ml',
+  m: 'm'
+};
+
+const normalizeUnitType = (value) => {
+  const normalized = String(value || '').trim().toLowerCase();
+  return PRODUCT_UNIT_LABELS[normalized] ? normalized : 'unidad';
+};
+
 function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSettings, onCartOpen, currencyCode, productCardSettings }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -182,6 +200,8 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
 
   const isOutOfStock = product.stock <= 0;
   const isLowStock = product.stock > 0 && product.stock < 5;
+  const unitType = normalizeUnitType(product.unit_type || product.unitType);
+  const unitLabel = PRODUCT_UNIT_LABELS[unitType];
 
   // Hero styles from settings
   const heroHeight = heroSettings?.height || 200;
@@ -305,7 +325,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
           <div className="product-price-stock">
             <div className="product-price">{formatCurrency(product.price, currencyCode)}</div>
             <div className={`stock-badge ${isOutOfStock ? 'out-of-stock' : isLowStock ? 'low-stock' : 'in-stock'}`}>
-              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${product.stock}!` : '🟢 Disponible'}
+              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${product.stock} ${unitLabel}!` : `🟢 Disponible: ${product.stock} ${unitLabel}`}
             </div>
           </div>
 

@@ -7,6 +7,13 @@ const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { productImagesUpload } = require('../middleware/upload');
 
+const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
+
+const normalizeProductUnitType = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
+};
+
 /**
  * GET /api/products
  * Get paginated products with optional filters
@@ -37,6 +44,7 @@ router.get('/', async (req, res) => {
             
             return { 
                 ...product, 
+                unit_type: normalizeProductUnitType(product.unit_type),
                 images,
                 image: images.length > 0 ? images[0].image_path : product.image
             };
@@ -75,6 +83,7 @@ router.get('/:id', async (req, res) => {
             
             res.json({ 
                 ...product, 
+                unit_type: normalizeProductUnitType(product.unit_type),
                 images,
                 image: images.length > 0 ? images[0].image_path : product.image
             });
@@ -93,7 +102,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (req, res) => {
     try {
-        const { name, description, price, category, stock } = req.body;
+        const { name, description, price, category, stock, unitType } = req.body;
 
         if (!name || !price || !category || stock === undefined) {
             return res.status(400).json({ message: 'Faltan campos requeridos (nombre, precio, categoría, stock).' });
@@ -107,7 +116,8 @@ router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (re
             description || '',
             parseFloat(price),
             category,
-            parseInt(stock, 10)
+            parseInt(stock, 10),
+            normalizeProductUnitType(unitType)
         );
 
         const productId = result.lastInsertRowid;
@@ -123,6 +133,7 @@ router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (re
 
         const productWithImage = {
             ...newProduct,
+            unit_type: normalizeProductUnitType(newProduct.unit_type),
             images,
             image: images.length > 0 ? images[0].image_path : newProduct.image
         };
@@ -162,7 +173,10 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
             updatedData.price !== undefined ? parseFloat(updatedData.price) : existingProduct.price,
             updatedData.category || existingProduct.category,
             updatedData.stock !== undefined ? parseInt(updatedData.stock, 10) : existingProduct.stock,
-            productId
+            productId,
+            updatedData.unitType !== undefined
+                ? normalizeProductUnitType(updatedData.unitType)
+                : existingProduct.unit_type
         );
 
         const updatedProduct = await statements.getProductById(productId);
@@ -170,6 +184,7 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
 
         const productWithImage = {
             ...updatedProduct,
+            unit_type: normalizeProductUnitType(updatedProduct.unit_type),
             images,
             image: images.length > 0 ? images[0].image_path : updatedProduct.image
         };

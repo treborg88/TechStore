@@ -46,13 +46,14 @@ function App() {
     siteNameImage, siteNameImageSize,
     heroSettings, headerSettings,
     productDetailHeroImage, productDetailHeroSettings,
-    categoryFilterSettings, productCardSettings
+    categoryFilterSettings, productCardSettings,
+    promoSettings
   } = useSiteSettings();
 
   // Hook de carrito: estado, CRUD, sync con backend, persistencia
   const {
     cartItems, isCartLoading,
-    addToCart, removeFromCart, clearFromCart, clearAllCart,
+    addToCart, removeFromCart, setCartQuantity, clearFromCart, clearAllCart,
     clearCartItems, syncLocalCart
   } = useCart({ user, updateProductStock, syncProductsFromCartData });
 
@@ -106,6 +107,7 @@ function App() {
           isCartLoading={isCartLoading}
           addToCart={addToCart}
           removeFromCart={removeFromCart}
+          setCartQuantity={setCartQuantity}
           clearFromCart={clearFromCart}
           clearAllCart={clearAllCart}
           handleOrderCompleted={handleOrderCompleted}
@@ -117,6 +119,7 @@ function App() {
           heroSettings={heroSettings}
           categoryFilterSettings={categoryFilterSettings}
           productCardSettings={productCardSettings}
+          promoSettings={promoSettings}
           productDetailHeroImage={productDetailHeroImage}
           productDetailHeroSettings={productDetailHeroSettings}
           siteName={siteName}

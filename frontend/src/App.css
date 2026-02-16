@@ -1627,9 +1627,18 @@ ul {
     font-size: 0.8rem;
   }
 
-  .qty-number {
-    padding: 0 10px;
-    font-size: 0.9rem;
+  .qty-input {
+    width: 44px;
+    height: 24px;
+    margin: 0 6px;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    text-align: center;
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--gray-800);
+    background: var(--white);
+    padding: 0 4px;
   }
 
   .subtotal-value {
@@ -1795,11 +1804,24 @@ ul {
   cursor: not-allowed;
 }
 
-.qty-number {
-  padding: 0 12px;
+.qty-input {
+  width: 56px;
+  height: 30px;
+  margin: 0 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  text-align: center;
   font-weight: 700;
   font-size: 0.9rem;
   color: var(--gray-800);
+  background: var(--white);
+  padding: 0 6px;
+}
+
+.qty-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
 }
 
 .item-subtotal {

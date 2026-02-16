@@ -5,6 +5,12 @@ import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
 import './ProductList.css';
 import { formatCurrency } from '../../utils/formatCurrency';
+import {
+	PRODUCT_UNIT_OPTIONS,
+	normalizeUnitType,
+	getUnitOption,
+	formatStockWithUnit
+} from '../../utils/productUnits';
 
 function blankProduct() {
 	return {
@@ -13,6 +19,7 @@ function blankProduct() {
 		price: '',
 		category: '',
 		stock: '',
+		unitType: 'unidad',
 		imageFiles: [],
 	};
 }
@@ -152,6 +159,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		formData.append('price', newProduct.price);
 		formData.append('category', categoryValue);
 		formData.append('stock', newProduct.stock);
+		formData.append('unitType', normalizeUnitType(newProduct.unitType));
 		newProduct.imageFiles.forEach((file) => {
 			formData.append('images', file);
 		});
@@ -193,6 +201,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			price: product.price,
 			category: product.category,
 			stock: product.stock,
+			unitType: normalizeUnitType(product.unit_type || product.unitType),
 			images: images,
 		});
 	};
@@ -271,6 +280,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 					price: Number(editingProduct.price),
 					category: editingProduct.category,
 					stock: Number(editingProduct.stock),
+					unitType: normalizeUnitType(editingProduct.unitType),
 				}),
 			});
 
@@ -390,6 +400,16 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 									required
 								/>
 							</label>
+							<label>Tipo de variante
+								<select
+									value={newProduct.unitType}
+									onChange={(event) => handleFieldChange('unitType', normalizeUnitType(event.target.value))}
+								>
+									{PRODUCT_UNIT_OPTIONS.map((option) => (
+										<option key={option.value} value={option.value}>{option.label}</option>
+									))}
+								</select>
+							</label>
 						</div>
 						<label>Descripción
 							<textarea
@@ -472,6 +492,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 									<th>Descripción</th>
 									<th>Precio</th>
 									<th>Stock</th>
+									<th>Variante</th>
 									<th>Acciones</th>
 								</tr>
 							</thead>
@@ -527,8 +548,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 												<td className="admin-table-price" data-label="Precio">{formatCurrency(product.price, currencyCode)}</td>
 												<td data-label="Stock">
 													<span className={`admin-stock ${product.stock > 0 ? 'in-stock' : 'out-stock'}`}>
-														{product.stock}
+														{formatStockWithUnit(product.stock, product.unit_type)}
 													</span>
+												</td>
+												<td data-label="Variante">
+													<span className="admin-chip">{getUnitOption(product.unit_type)?.label || 'Unidad (ud)'}</span>
 												</td>
 												<td className="admin-table-actions" data-label="Acciones">
 													<span className="admin-chip">Tap para editar</span>
@@ -536,7 +560,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 											</tr>
 											{isEditing && (
 												<tr key={`${product.id}-edit`} className="edit-form-row">
-													<td colSpan="7">
+													<td colSpan="8">
 														<form className="admin-edit-form" onSubmit={handleUpdate}>
 															<div className="edit-form-content">
 																<div className="form-row">
@@ -584,6 +608,17 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																			inputMode="numeric"
 																			required
 																		/>
+																	</label>
+																	<label>
+																		Tipo de variante
+																		<select
+																			value={editingProduct.unitType}
+																			onChange={(event) => handleEditField('unitType', normalizeUnitType(event.target.value))}
+																		>
+																			{PRODUCT_UNIT_OPTIONS.map((option) => (
+																				<option key={option.value} value={option.value}>{option.label}</option>
+																			))}
+																		</select>
 																	</label>
 																</div>
 																<div className="images-section">
@@ -705,8 +740,9 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 													<div className="mobile-product-subtitle">
 														<span className="mobile-product-category">{product.category}</span>
 														<span className={`mobile-product-stock ${product.stock > 0 ? 'in-stock' : 'out-stock'}`}>
-															Stock: {product.stock}
+																		Stock: {formatStockWithUnit(product.stock, product.unit_type)}
 														</span>
+																	<span className="mobile-product-category">{getUnitOption(product.unit_type)?.label || 'Unidad (ud)'}</span>
 													</div>
 												</div>
 											</div>
@@ -761,6 +797,17 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 															inputMode="numeric"
 															required
 														/>
+													</label>
+													<label>
+														Tipo de variante
+														<select
+															value={editingProduct.unitType}
+															onChange={(event) => handleEditField('unitType', normalizeUnitType(event.target.value))}
+														>
+															{PRODUCT_UNIT_OPTIONS.map((option) => (
+																<option key={option.value} value={option.value}>{option.label}</option>
+															))}
+														</select>
 													</label>
 												</div>
 												<div className="images-section">

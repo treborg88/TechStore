@@ -23,13 +23,14 @@ function AppRoutes({
   // Productos
   products, loading, error, fetchProducts, pagination,
   // Carrito
-  cartItems, isCartLoading, addToCart, removeFromCart, clearFromCart, clearAllCart, handleOrderCompleted,
+  cartItems, isCartLoading, addToCart, removeFromCart, setCartQuantity, clearFromCart, clearAllCart, handleOrderCompleted,
   // Auth
   user, setUser, handleLogout, handleLoginSuccess, handleCheckoutLoginSuccess,
   // Settings visuales
   heroSettings, categoryFilterSettings, productCardSettings,
   productDetailHeroImage, productDetailHeroSettings,
   siteName, siteIcon, headerSettings,
+  promoSettings,
   // Navegación
   navigate
 }) {
@@ -48,6 +49,7 @@ function AppRoutes({
             heroSettings={heroSettings}
             categoryFilterSettings={categoryFilterSettings}
             productCardSettings={productCardSettings}
+            promoSettings={promoSettings}
           />
         } />
 
@@ -58,6 +60,7 @@ function AppRoutes({
             isLoading={isCartLoading}
             onAdd={addToCart}
             onRemove={removeFromCart}
+            onSetQuantity={setCartQuantity}
             onClear={clearFromCart}
             onClose={() => navigate('/')}
             onClearAll={clearAllCart}
