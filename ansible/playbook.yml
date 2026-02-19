@@ -165,8 +165,6 @@
       community.general.npm:
         path: "{{ app_path }}"
         ci: true
-      args:
-        chdir: "{{ app_path }}"
 
     - name: Install backend dependencies
       tags: [deploy]
@@ -175,8 +173,6 @@
         path: "{{ app_path }}/backend"
         ci: true
         production: true
-      args:
-        chdir: "{{ app_path }}/backend"
 
     - name: Install frontend dependencies
       tags: [deploy]
@@ -184,8 +180,6 @@
       community.general.npm:
         path: "{{ app_path }}/frontend"
         ci: true
-      args:
-        chdir: "{{ app_path }}/frontend"
 
     # ── Build frontend ─────────────────────────────────────
     - name: Build frontend (Vite)
