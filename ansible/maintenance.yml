@@ -1,0 +1,583 @@
+# =============================================================================
+# Ansible Maintenance Playbook — TechStore
+# =============================================================================
+# Common maintenance tasks for day-to-day server management.
+#
+# Usage:
+#   # Restart PM2 processes
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags restart
+#
+#   # View recent logs
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags logs
+#
+#   # Health check (disk, mem, CPU, PM2, Nginx)
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags health
+#
+#   # Cleanup old logs
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags cleanup
+#
+#   # Backup .env and configs
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags backup
+#
+#   # Update npm dependencies
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags update-deps
+#
+#   # Rollback to specific commit
+#   ansible-playbook -i ansible/inventory.yml ansible/maintenance.yml --tags rollback \
+#     -e "rollback_commit=abc1234"
+#
+#   # Limit to specific environment:
+#   ... --limit production
+#   ... --limit staging
+# =============================================================================
+
+- name: TechStore Maintenance Tasks
+  hosts: all
+  become: true
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # RESTART — Reiniciar app sin redeploy
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Restart all PM2 processes
+      tags: [restart]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 restart all
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    - name: Verify PM2 processes after restart
+      tags: [restart]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 list
+      register: pm2_status
+      changed_when: false
+
+    - name: Show PM2 status
+      tags: [restart]
+      ansible.builtin.debug:
+        msg: "{{ pm2_status.stdout_lines }}"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # RESTART-BACKEND — Reiniciar solo el backend
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Restart backend only
+      tags: [restart-backend]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 restart backend
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # RESTART-FRONTEND — Reiniciar solo el frontend
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Restart frontend only
+      tags: [restart-frontend]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 restart frontend
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # LOGS — Ver logs recientes
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Show backend logs (last 100 lines)
+      tags: [logs, logs-backend]
+      ansible.builtin.command: tail -100 {{ app_path }}/logs/backend-out.log
+      register: backend_logs
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display backend logs
+      tags: [logs, logs-backend]
+      ansible.builtin.debug:
+        msg: "{{ backend_logs.stdout_lines | default(['No logs found']) }}"
+
+    - name: Show backend error logs (last 50 lines)
+      tags: [logs, logs-errors]
+      ansible.builtin.command: tail -50 {{ app_path }}/logs/backend-error.log
+      register: error_logs
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display error logs
+      tags: [logs, logs-errors]
+      ansible.builtin.debug:
+        msg: "{{ error_logs.stdout_lines | default(['No error logs found']) }}"
+
+    - name: Show frontend logs (last 50 lines)
+      tags: [logs, logs-frontend]
+      ansible.builtin.command: tail -50 {{ app_path }}/logs/frontend-out.log
+      register: frontend_logs
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display frontend logs
+      tags: [logs, logs-frontend]
+      ansible.builtin.debug:
+        msg: "{{ frontend_logs.stdout_lines | default(['No frontend logs found']) }}"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # HEALTH — Health check completo del sistema
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Check disk usage
+      tags: [health]
+      ansible.builtin.command: df -h /
+      register: disk_usage
+      changed_when: false
+
+    - name: Show disk usage
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "{{ disk_usage.stdout_lines }}"
+
+    - name: Check memory usage
+      tags: [health]
+      ansible.builtin.command: free -m
+      register: memory_usage
+      changed_when: false
+
+    - name: Show memory usage
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "{{ memory_usage.stdout_lines }}"
+
+    - name: Check CPU load
+      tags: [health]
+      ansible.builtin.command: uptime
+      register: cpu_load
+      changed_when: false
+
+    - name: Show CPU load
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "{{ cpu_load.stdout }}"
+
+    - name: Check PM2 process status
+      tags: [health]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 jlist
+      register: pm2_json
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show PM2 status
+      tags: [health]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 list
+      register: pm2_list
+      changed_when: false
+
+    - name: Display PM2 status
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "{{ pm2_list.stdout_lines }}"
+
+    - name: Check Nginx status
+      tags: [health]
+      ansible.builtin.command: systemctl is-active nginx
+      register: nginx_status
+      changed_when: false
+      ignore_errors: true
+
+    - name: Show Nginx status
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "Nginx: {{ nginx_status.stdout }}"
+
+    - name: Check backend health endpoint
+      tags: [health]
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ backend_port }}/api/products"
+        method: GET
+        status_code: 200
+        timeout: 10
+      register: api_health
+      ignore_errors: true
+
+    - name: Show API health
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "API Status: {{ 'HEALTHY ✅' if api_health.status == 200 else 'DOWN ❌' }}"
+
+    - name: Check listening ports
+      tags: [health]
+      ansible.builtin.command: ss -tlnp
+      register: ports
+      changed_when: false
+
+    - name: Show listening ports
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "{{ ports.stdout_lines }}"
+
+    - name: Show current git commit
+      tags: [health]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: git log --oneline -3
+      args:
+        chdir: "{{ app_path }}"
+      register: git_log
+      changed_when: false
+
+    - name: Display current deploy version
+      tags: [health]
+      ansible.builtin.debug:
+        msg: "{{ git_log.stdout_lines }}"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # CLEANUP — Limpiar logs y cache
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Flush PM2 logs
+      tags: [cleanup]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 flush
+      changed_when: true
+
+    - name: Remove logs older than 7 days
+      tags: [cleanup]
+      ansible.builtin.find:
+        paths: "{{ app_path }}/logs"
+        age: "7d"
+        recurse: false
+      register: old_logs
+
+    - name: Delete old log files
+      tags: [cleanup]
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_logs.files }}"
+      when: old_logs.files | length > 0
+
+    - name: Clean npm cache
+      tags: [cleanup]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: npm cache clean --force
+      changed_when: true
+
+    - name: Clean apt cache
+      tags: [cleanup]
+      ansible.builtin.apt:
+        autoclean: true
+        autoremove: true
+
+    - name: Show disk usage after cleanup
+      tags: [cleanup]
+      ansible.builtin.command: df -h /
+      register: disk_after
+      changed_when: false
+
+    - name: Display disk usage after cleanup
+      tags: [cleanup]
+      ansible.builtin.debug:
+        msg: "{{ disk_after.stdout_lines }}"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # BACKUP — Respaldar configuraciones
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Create backup directory
+      tags: [backup]
+      ansible.builtin.file:
+        path: "/home/{{ deploy_user }}/backups/{{ ansible_date_time.date }}"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    - name: Backup backend .env
+      tags: [backup]
+      ansible.builtin.copy:
+        src: "{{ app_path }}/backend/.env"
+        dest: "/home/{{ deploy_user }}/backups/{{ ansible_date_time.date }}/backend.env"
+        remote_src: true
+        owner: "{{ deploy_user }}"
+        mode: "0600"
+      ignore_errors: true
+
+    - name: Backup PM2 ecosystem config
+      tags: [backup]
+      ansible.builtin.copy:
+        src: "{{ app_path }}/ecosystem.config.cjs"
+        dest: "/home/{{ deploy_user }}/backups/{{ ansible_date_time.date }}/ecosystem.config.cjs"
+        remote_src: true
+        owner: "{{ deploy_user }}"
+        mode: "0644"
+      ignore_errors: true
+
+    - name: Backup Nginx config
+      tags: [backup]
+      ansible.builtin.copy:
+        src: "/etc/nginx/sites-available/{{ nginx_config_name }}"
+        dest: "/home/{{ deploy_user }}/backups/{{ ansible_date_time.date }}/nginx.conf"
+        remote_src: true
+        mode: "0644"
+      ignore_errors: true
+
+    - name: Save PM2 process dump
+      tags: [backup]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 save
+      changed_when: true
+
+    - name: List backups
+      tags: [backup]
+      ansible.builtin.find:
+        paths: "/home/{{ deploy_user }}/backups"
+        file_type: directory
+      register: backups
+
+    - name: Show backup locations
+      tags: [backup]
+      ansible.builtin.debug:
+        msg: >
+          Backup saved to: /home/{{ deploy_user }}/backups/{{ ansible_date_time.date }}/
+          Total backup directories: {{ backups.files | length }}
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # UPDATE-DEPS — Actualizar dependencias npm
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Update backend dependencies
+      tags: [update-deps]
+      become_user: "{{ deploy_user }}"
+      community.general.npm:
+        path: "{{ app_path }}/backend"
+        state: latest
+      args:
+        chdir: "{{ app_path }}/backend"
+
+    - name: Update frontend dependencies
+      tags: [update-deps]
+      become_user: "{{ deploy_user }}"
+      community.general.npm:
+        path: "{{ app_path }}/frontend"
+        state: latest
+      args:
+        chdir: "{{ app_path }}/frontend"
+
+    - name: Rebuild frontend after dependency update
+      tags: [update-deps]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: npm run build
+      args:
+        chdir: "{{ app_path }}/frontend"
+      changed_when: true
+
+    - name: Restart PM2 after updates
+      tags: [update-deps]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 restart all
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # ROLLBACK — Volver a un commit anterior
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Validate rollback_commit is provided
+      tags: [rollback]
+      ansible.builtin.fail:
+        msg: >
+          Debes especificar el commit: -e "rollback_commit=abc1234"
+          Usa 'git log --oneline -10' para ver commits recientes.
+      when: rollback_commit is not defined
+
+    - name: Show current commit before rollback
+      tags: [rollback]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: git log --oneline -1
+      args:
+        chdir: "{{ app_path }}"
+      register: current_commit
+      changed_when: false
+
+    - name: Display current commit
+      tags: [rollback]
+      ansible.builtin.debug:
+        msg: "Current: {{ current_commit.stdout }}"
+
+    - name: Checkout rollback commit
+      tags: [rollback]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: "git checkout {{ rollback_commit }}"
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    - name: Install dependencies after rollback
+      tags: [rollback]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: npm ci
+      args:
+        chdir: "{{ item }}"
+      loop:
+        - "{{ app_path }}"
+        - "{{ app_path }}/backend"
+        - "{{ app_path }}/frontend"
+      changed_when: true
+
+    - name: Build frontend after rollback
+      tags: [rollback]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: npm run build
+      args:
+        chdir: "{{ app_path }}/frontend"
+      changed_when: true
+
+    - name: Restart PM2 after rollback
+      tags: [rollback]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 restart all
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    - name: Verify after rollback
+      tags: [rollback]
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ backend_port }}/api/products"
+        method: GET
+        status_code: 200
+      register: rollback_check
+      retries: 5
+      delay: 3
+      until: rollback_check.status == 200
+
+    - name: Show rollback result
+      tags: [rollback]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: git log --oneline -1
+      args:
+        chdir: "{{ app_path }}"
+      register: new_commit
+      changed_when: false
+
+    - name: Display rollback result
+      tags: [rollback]
+      ansible.builtin.debug:
+        msg: "Rollback exitoso ✅ — Ahora en: {{ new_commit.stdout }}"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # STATUS — Estado rápido de PM2 + Nginx
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Show PM2 process status
+      tags: [status]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 list
+      register: pm2_out
+      changed_when: false
+
+    - name: Display PM2
+      tags: [status]
+      ansible.builtin.debug:
+        msg: "{{ pm2_out.stdout_lines }}"
+
+    - name: Show Nginx status
+      tags: [status]
+      ansible.builtin.command: systemctl status nginx --no-pager -l
+      register: nginx_out
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display Nginx
+      tags: [status]
+      ansible.builtin.debug:
+        msg: "{{ nginx_out.stdout_lines }}"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # NGINX-RELOAD — Recargar Nginx
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Validate Nginx config
+      tags: [nginx-reload]
+      ansible.builtin.command: nginx -t
+      changed_when: false
+
+    - name: Reload Nginx
+      tags: [nginx-reload]
+      ansible.builtin.service:
+        name: nginx
+        state: reloaded
+
+    - name: Confirm Nginx reload
+      tags: [nginx-reload]
+      ansible.builtin.debug:
+        msg: "Nginx recargado ✅"
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # SYSTEM-UPDATE — Actualizar paquetes del OS
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Update apt cache
+      tags: [system-update]
+      ansible.builtin.apt:
+        update_cache: true
+
+    - name: Upgrade all packages (security)
+      tags: [system-update]
+      ansible.builtin.apt:
+        upgrade: safe
+
+    - name: Check if reboot is required
+      tags: [system-update]
+      ansible.builtin.stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+
+    - name: Notify if reboot needed
+      tags: [system-update]
+      ansible.builtin.debug:
+        msg: "⚠️  REBOOT REQUIRED — run: ansible ... --tags reboot"
+      when: reboot_required.stat.exists
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # REBOOT — Reiniciar servidor (con cuidado)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Reboot server
+      tags: [reboot]
+      ansible.builtin.reboot:
+        msg: "Rebooting for maintenance (Ansible)"
+        pre_reboot_delay: 5
+        post_reboot_delay: 30
+        reboot_timeout: 300
+
+    - name: Wait for PM2 to come back
+      tags: [reboot]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: pm2 list
+      register: pm2_after_reboot
+      retries: 10
+      delay: 5
+      until: pm2_after_reboot.rc == 0
+      changed_when: false
+
+    - name: Verify backend after reboot
+      tags: [reboot]
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ backend_port }}/api/products"
+        method: GET
+        status_code: 200
+      retries: 10
+      delay: 5
+
+    - name: Confirm reboot success
+      tags: [reboot]
+      ansible.builtin.debug:
+        msg: "Servidor reiniciado y app funcionando ✅"

@@ -28,13 +28,13 @@ jobs:
       - name: Configurar SSH
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/oracle_key
+          chmod 600 ~/.ssh/oracle_key
           ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
 
       - name: Ejecutar rollback
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
+          ssh -i ~/.ssh/oracle_key -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
             set -e
             cd ${{ env.APP_PATH }}
             

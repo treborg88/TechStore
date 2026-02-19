@@ -8,7 +8,7 @@
 # ── Application ───────────────────────────────────────────
 app_name: TechStore
 app_path: /home/ubuntu/TechStore
-app_repo: git@github.com:treborg88/TechStore.git
+app_repo: https://github.com/treborg88/TechStore.git
 app_branch: main
 
 # ── Domain & SSL ──────────────────────────────────────────

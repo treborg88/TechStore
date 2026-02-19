@@ -1,20 +1,65 @@
 # =============================================================================
-# Ansible Inventory — TechStore
+# Ansible Inventory — TechStore (Multi-Instance)
 # =============================================================================
-# Defines the target servers for the playbook.
+# Define all target servers grouped by environment.
 #
 # Usage:
-#   ansible-playbook -i ansible/inventory.yml ansible/playbook.yml
+#   # Deploy all environments
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --tags deploy
+#
+#   # Deploy only production
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --tags deploy --limit production
+#
+#   # Deploy only staging
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --tags deploy --limit staging
+#
+#   # Ping all servers
+#   ansible all -i ansible/inventory.yml -m ping
 #
 # SSH key must be configured:
-#   ssh-add ~/.ssh/id_ed25519    (or whichever key has access)
+#   cp /mnt/c/Users/Robert/Downloads/ssh-key-2025-10-23.key ~/.ssh/oracle_key
+#   chmod 600 ~/.ssh/oracle_key
 # =============================================================================
 
 all:
-  hosts:
+  # ── Variables globales (aplican a todos los hosts) ──────
+  vars:
+    ansible_ssh_private_key_file: ~/.ssh/oracle_key
+    ansible_python_interpreter: /usr/bin/python3
+
+  children:
+    # ── PRODUCCIÓN ────────────────────────────────────────
     production:
-      ansible_host: 143.47.118.165
-      ansible_user: ubuntu
-      ansible_ssh_private_key_file: ~/.ssh/id_ed25519
-      # Disable host key checking for first run (remove after)
-      # ansible_ssh_common_args: '-o StrictHostKeyChecking=no'
+      hosts:
+        prod-1:
+          ansible_host: 143.47.118.165
+          ansible_user: ubuntu
+          domain: eonsclover.com
+          ssl_mode: full_strict
+          app_branch: main
+          # Descomenta para agregar más servidores de producción:
+          # prod-2:
+          #   ansible_host: 10.0.0.51
+          #   ansible_user: ubuntu
+          #   domain: eonsclover.com
+
+    # ── STAGING (descomenta cuando tengas un server de staging) ─
+    # staging:
+    #   hosts:
+    #     staging-1:
+    #       ansible_host: 10.0.0.50
+    #       ansible_user: ubuntu
+    #       domain: staging.eonsclover.com
+    #       ssl_mode: flexible        # Sin SSL propio en staging
+    #       app_branch: develop       # Branch de desarrollo
+
+    # ── DESARROLLO LOCAL (VM o contenedor) ─────────────────
+    # dev:
+    #   hosts:
+    #     dev-local:
+    #       ansible_host: 192.168.1.100
+    #       ansible_user: ubuntu
+    #       domain: localhost
+    #       ssl_mode: flexible
+    #       app_branch: develop
+    #       ansible_ssh_common_args: '-o StrictHostKeyChecking=no'

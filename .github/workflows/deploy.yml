@@ -1,5 +1,5 @@
-# CD - Despliegue Continuo
-# Se ejecuta automáticamente al hacer push a main
+# CD - Despliegue Continuo con Ansible
+# Producción actual: 1 VM (grupo production en inventory)
 
 name: Deploy to Production
 
@@ -7,78 +7,69 @@ on:
   push:
     branches: [main]
   workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
+    inputs:
+      target_limit:
+        description: 'Grupo/host de Ansible (ej: production, prod-1, production-2)'
+        required: false
+        default: 'production'
+      deploy_tags:
+        description: 'Tags de Ansible a ejecutar'
+        required: false
+        default: 'deploy,verify'
 
 env:
-  SERVER_IP: 143.47.118.165
-  SERVER_USER: ${{ secrets.SERVER_USER }}
-  APP_PATH: ${{ secrets.APP_PATH }}
+  ANSIBLE_HOST_KEY_CHECKING: "False"
+  DEPLOY_LIMIT: ${{ github.event.inputs.target_limit || 'production' }}
+  DEPLOY_TAGS: ${{ github.event.inputs.deploy_tags || 'deploy,verify' }}
 
 jobs:
   deploy:
-    name: 🚀 Deploy
+    name: 🚀 Deploy (Ansible)
     runs-on: ubuntu-latest
-    # Solo ejecutar si CI pasó (en el mismo push)
-    
+
     steps:
       - name: Checkout código
         uses: actions/checkout@v4
 
-      - name: Configurar SSH
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar Ansible y colección community.general
+        run: |
+          python -m pip install --upgrade pip
+          pip install ansible
+          ansible-galaxy collection install community.general
+
+      - name: Configurar SSH para Ansible
         run: |
           mkdir -p ~/.ssh
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H ${{ env.SERVER_IP }} >> ~/.ssh/known_hosts
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/oracle_key
+          chmod 600 ~/.ssh/oracle_key
+          HOSTS=$(ansible-inventory -i ansible/inventory.yml --list | python -c "import sys,json; d=json.load(sys.stdin); hv=d.get('_meta',{}).get('hostvars',{}); print(' '.join(sorted({v.get('ansible_host',k) for k,v in hv.items()})))")
+          for host in $HOSTS; do
+            ssh-keyscan -H "$host" >> ~/.ssh/known_hosts
+          done
 
-      - name: Deploy al servidor
+      - name: Validar inventario y sintaxis
         run: |
-          ssh -o StrictHostKeyChecking=no ${{ env.SERVER_USER }}@${{ env.SERVER_IP }} << 'ENDSSH'
-            set -e
-            
-            echo "📂 Navegando al directorio de la app..."
-            cd ${{ env.APP_PATH }}
-            
-            echo "📥 Actualizando código desde GitHub..."
-            git fetch origin main
-            git reset --hard origin/main
-            
-            echo "📦 Instalando dependencias del root..."
-            npm ci --ignore-scripts
-            
-            echo "📦 Instalando dependencias del backend..."
-            cd backend
-            npm ci --production
-            cd ..
-            
-            echo "📦 Instalando dependencias del frontend..."
-            cd frontend
-            npm ci
-            
-            echo "🏗️ Building frontend..."
-            # config.js uses smart defaults: /api (relative) + window.location.origin
-            # No VITE_ env vars needed — works on any domain behind Nginx
-            npm run build
-            cd ..
-            
-            echo "🔄 Reiniciando servicios con PM2..."
-            pm2 reload all --update-env
-            
-            echo "✅ Deploy completado exitosamente!"
-            pm2 status
-          ENDSSH
+          ansible-inventory -i ansible/inventory.yml --list
+          ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --syntax-check
 
-      - name: Verificar deploy
+      - name: Deploy con Ansible
         run: |
-          echo "🔍 Verificando que el servidor responde..."
-          sleep 5
-          curl -f -s -o /dev/null -w "%{http_code}" http://${{ env.SERVER_IP }}:5173 || echo "⚠️ Frontend no responde aún"
-          curl -f -s -o /dev/null -w "%{http_code}" http://${{ env.SERVER_IP }}:5001/api/products || echo "⚠️ API no responde aún"
+          ansible-playbook \
+            -i ansible/inventory.yml \
+            ansible/playbook.yml \
+            --limit "${{ env.DEPLOY_LIMIT }}" \
+            --tags "${{ env.DEPLOY_TAGS }}"
 
       - name: Notificar resultado
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deploy exitoso a http://${{ env.SERVER_IP }}:5173"
+            echo "✅ Deploy exitoso con Ansible en production"
           else
-            echo "❌ Deploy falló - revisar logs"
+            echo "❌ Deploy falló - revisar logs de Ansible"
           fi
