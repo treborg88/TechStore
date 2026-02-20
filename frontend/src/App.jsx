@@ -63,6 +63,8 @@ function App() {
     handleLogout, handleLoginSuccess, handleCheckoutLoginSuccess, handleAdminNav
   } = useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItems });
 
+  // ── Early returns AFTER all hooks (React Rules of Hooks) ──
+
   return (
     <>
       <Toaster position="top-right" />

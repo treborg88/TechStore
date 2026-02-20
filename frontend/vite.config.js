@@ -13,5 +13,16 @@ export default defineConfig({
     strictPort: true,
     // Allow all hosts — Nginx/Cloudflare handle domain validation
     allowedHosts: true,
+    // Proxy /api → backend so LAN/non-localhost access works in dev
+    proxy: {
+      '/api': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+      '/p': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
+    },
   },
 })

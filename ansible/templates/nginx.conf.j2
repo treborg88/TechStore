@@ -7,18 +7,18 @@
 {% if ssl_mode == 'full_strict' %}
 # ── HTTP → HTTPS redirect ────────────────────────────────
 server {
-    listen 80;
-    listen [::]:80;
-    server_name {{ domain }} www.{{ domain }};
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name {{ domain }} www.{{ domain }} *.{{ domain }} _;
     server_tokens off;
     return 301 https://$host$request_uri;
 }
 
 # ── HTTPS (Cloudflare Full Strict + Origin Certificate) ──
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name {{ domain }} www.{{ domain }};
+    listen 443 ssl http2 default_server;
+    listen [::]:443 ssl http2 default_server;
+    server_name {{ domain }} www.{{ domain }} *.{{ domain }} _;
     server_tokens off;
 
     # --- Cloudflare Origin Certificate ---
@@ -30,9 +30,9 @@ server {
 {% else %}
 # ── HTTP only (Cloudflare Flexible — SSL terminates at CF) ─
 server {
-    listen 80;
-    listen [::]:80;
-    server_name {{ domain }} www.{{ domain }};
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name {{ domain }} www.{{ domain }} *.{{ domain }} _;
     server_tokens off;
 {% endif %}
 

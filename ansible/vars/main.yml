@@ -12,9 +12,8 @@ app_repo: https://github.com/treborg88/TechStore.git
 app_branch: main
 
 # ── Domain & SSL ──────────────────────────────────────────
-domain: eonsclover.com
-# SSL mode: "flexible" (CF terminates) or "full_strict" (Origin Cert on Nginx)
-ssl_mode: full_strict
+# domain y ssl_mode se definen POR HOST en inventory.yml
+# (cada servidor puede tener dominio y modo SSL distintos)
 ssl_cert_path: /etc/ssl/cloudflare/{{ domain }}.pem
 ssl_key_path: /etc/ssl/cloudflare/{{ domain }}.key
 

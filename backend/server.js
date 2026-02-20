@@ -7,7 +7,7 @@ const cookieParser = require('cookie-parser');
 
 // Config
 const { PORT, FRONTEND_URL, BASE_URL } = require('./config');
-const { corsOptions, corsHeaders, addSiteDomain, getAllowedOrigins } = require('./config/cors');
+const { corsOptions, corsHeaders, addSiteDomain, getAllowedOrigins, getWildcardDomains } = require('./config/cors');
 
 // Middleware
 const { authLimiter } = require('./middleware/rateLimiter');
@@ -189,7 +189,7 @@ app.listen(PORT, '0.0.0.0', async () => {
         }
     }
 
-    console.log(`🔒 CORS orígenes permitidos: ${getAllowedOrigins().length} dominios`);
+    console.log(`🔒 CORS orígenes permitidos: ${getAllowedOrigins().length} exactos, ${getWildcardDomains().length} wildcard`);
 
     if (!db) {
         console.log(`⚠️  Modo setup: sin base de datos. Configura SUPABASE_URL + SUPABASE_KEY en .env`);

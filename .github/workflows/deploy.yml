@@ -1,5 +1,5 @@
 # CD - Despliegue Continuo con Ansible
-# Producción actual: 1 VM (grupo production en inventory)
+# Producción objetivo: SOLO host prod-1
 
 name: Deploy to Production
 
@@ -8,10 +8,6 @@ on:
     branches: [main]
   workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
     inputs:
-      target_limit:
-        description: 'Grupo/host de Ansible (ej: production, prod-1, production-2)'
-        required: false
-        default: 'production'
       deploy_tags:
         description: 'Tags de Ansible a ejecutar'
         required: false
@@ -19,7 +15,7 @@ on:
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: "False"
-  DEPLOY_LIMIT: ${{ github.event.inputs.target_limit || 'production' }}
+  DEPLOY_LIMIT: prod-1
   DEPLOY_TAGS: ${{ github.event.inputs.deploy_tags || 'deploy,verify' }}
 
 jobs:
@@ -69,7 +65,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deploy exitoso con Ansible en production"
+            echo "✅ Deploy exitoso con Ansible en prod-1"
           else
             echo "❌ Deploy falló - revisar logs de Ansible"
           fi

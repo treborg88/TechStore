@@ -9,6 +9,9 @@ const LOCALHOST_ORIGINS = [
     'http://localhost:3000'
 ];
 
+// --- Wildcard subdomain allow-list (e.g. *.example.com) ---
+const wildcardDomains = new Set();
+
 // --- Build the dynamic allowed-origins set ---
 const allowedOrigins = new Set(LOCALHOST_ORIGINS);
 
@@ -24,6 +27,15 @@ const parseEnvOrigins = () => {
     raw.split(',').forEach(entry => {
         const trimmed = entry.trim();
         if (!trimmed) return;
+
+        // Wildcard domain pattern support:
+        //   *.example.com
+        //   https://*.example.com
+        //   http://*.example.com
+        if (trimmed.includes('*')) {
+            addWildcardDomain(trimmed);
+            return;
+        }
 
         if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
             // Full URL provided — add as-is
@@ -55,6 +67,46 @@ const expandDomain = (domain) => {
 };
 
 /**
+ * Store wildcard domain suffix for dynamic origin matching.
+ * Examples accepted:
+ *   *.example.com
+ *   https://*.example.com
+ *   http://*.example.com
+ */
+const addWildcardDomain = (pattern) => {
+    const clean = pattern
+        .replace(/^https?:\/\//, '')
+        .replace(/^\*\./, '')
+        .replace(/\/$/, '')
+        .toLowerCase();
+
+    if (!clean) return;
+    wildcardDomains.add(clean);
+};
+
+/**
+ * Validate if request origin is allowed by wildcard suffix.
+ */
+const isWildcardOriginAllowed = (requestOrigin) => {
+    try {
+        const parsed = new URL(requestOrigin);
+        const hostname = (parsed.hostname || '').toLowerCase();
+        if (!hostname) return false;
+
+        for (const domain of wildcardDomains) {
+            // Require real subdomain: foo.example.com matches, example.com does not
+            if (hostname.endsWith(`.${domain}`)) {
+                return true;
+            }
+        }
+
+        return false;
+    } catch {
+        return false;
+    }
+};
+
+/**
  * Add domain(s) from admin panel (siteDomain setting).
  * Supports comma-separated values with full URLs or bare domains.
  * Called at boot (from DB) and when admin updates the setting.
@@ -66,6 +118,11 @@ const addSiteDomain = (domainStr) => {
     domainStr.split(',').forEach(entry => {
         const trimmed = entry.trim();
         if (!trimmed) return;
+
+        if (trimmed.includes('*')) {
+            addWildcardDomain(trimmed);
+            return;
+        }
 
         if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
             // Full URL — add as-is (strip trailing slash)
@@ -82,6 +139,11 @@ const addSiteDomain = (domainStr) => {
  */
 const getAllowedOrigins = () => [...allowedOrigins];
 
+/**
+ * Get wildcard domain patterns currently allowed.
+ */
+const getWildcardDomains = () => [...wildcardDomains];
+
 // Initialize from env var on module load
 parseEnvOrigins();
 
@@ -96,6 +158,7 @@ const corsOptions = {
         // Allow requests with no origin (server-to-server, curl, mobile apps)
         if (!requestOrigin) return callback(null, true);
         if (allowedOrigins.has(requestOrigin)) return callback(null, true);
+        if (isWildcardOriginAllowed(requestOrigin)) return callback(null, true);
         // Reject unknown origins
         callback(null, false);
     },
@@ -107,7 +170,7 @@ const corsOptions = {
 // --- Manual CORS headers middleware (backup for edge-case proxies) ---
 const corsHeaders = (req, res, next) => {
     const origin = req.headers.origin;
-    if (origin && allowedOrigins.has(origin)) {
+    if (origin && (allowedOrigins.has(origin) || isWildcardOriginAllowed(origin))) {
         res.header('Access-Control-Allow-Origin', origin);
     }
     res.header('Access-Control-Allow-Credentials', 'true');
@@ -125,5 +188,6 @@ module.exports = {
     corsHeaders,
     corsOptions,
     addSiteDomain,
-    getAllowedOrigins
+    getAllowedOrigins,
+    getWildcardDomains
 };
