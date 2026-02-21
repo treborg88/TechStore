@@ -38,12 +38,13 @@ all:
           domain: eonsclover.com
           ssl_mode: full_strict
           app_branch: main
+        # ── GCP — leds.eonsclover.com ────────────────────────
         prod-2:
           ansible_host: 35.192.57.192
           ansible_user: ubuntu
           ansible_ssh_private_key_file: ~/.ssh/gcp_prod2
           domain: leds.eonsclover.com
-          ssl_mode: flexible
+          ssl_mode: full_strict
           app_branch: main
 
     # ── STAGING (descomenta cuando tengas un server de staging) ─

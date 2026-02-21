@@ -1,13 +1,22 @@
 # CD - Despliegue Continuo con Ansible
-# Producción objetivo: SOLO host prod-1
+# Soporta prod-1 (Oracle) y prod-2 (GCP)
 
 name: Deploy to Production
 
 on:
   push:
     branches: [main]
-  workflow_dispatch:  # Permite ejecutar manualmente desde GitHub
+  workflow_dispatch:
     inputs:
+      deploy_target:
+        description: 'Servidor destino'
+        required: true
+        default: 'prod-1'
+        type: choice
+        options:
+          - prod-1
+          - prod-2
+          - all
       deploy_tags:
         description: 'Tags de Ansible a ejecutar'
         required: false
@@ -15,7 +24,8 @@ on:
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: "False"
-  DEPLOY_LIMIT: prod-1
+  # push a main → prod-1 solamente; manual → selección del usuario
+  DEPLOY_LIMIT: ${{ github.event.inputs.deploy_target || 'prod-1' }}
   DEPLOY_TAGS: ${{ github.event.inputs.deploy_tags || 'deploy,verify' }}
 
 jobs:
@@ -41,8 +51,16 @@ jobs:
       - name: Configurar SSH para Ansible
         run: |
           mkdir -p ~/.ssh
+
+          # prod-1 (Oracle) SSH key
           echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/oracle_key
           chmod 600 ~/.ssh/oracle_key
+
+          # prod-2 (GCP) SSH key
+          echo "${{ secrets.GCP_SSH_PRIVATE_KEY }}" > ~/.ssh/gcp_prod2
+          chmod 600 ~/.ssh/gcp_prod2
+
+          # Escanear hosts conocidos
           HOSTS=$(ansible-inventory -i ansible/inventory.yml --list | python -c "import sys,json; d=json.load(sys.stdin); hv=d.get('_meta',{}).get('hostvars',{}); print(' '.join(sorted({v.get('ansible_host',k) for k,v in hv.items()})))")
           for host in $HOSTS; do
             ssh-keyscan -H "$host" >> ~/.ssh/known_hosts
@@ -55,17 +73,23 @@ jobs:
 
       - name: Deploy con Ansible
         run: |
+          # Si target es "all", no aplicar --limit (deploy a todos)
+          LIMIT_ARG=""
+          if [ "${{ env.DEPLOY_LIMIT }}" != "all" ]; then
+            LIMIT_ARG="--limit ${{ env.DEPLOY_LIMIT }}"
+          fi
+
           ansible-playbook \
             -i ansible/inventory.yml \
             ansible/playbook.yml \
-            --limit "${{ env.DEPLOY_LIMIT }}" \
+            $LIMIT_ARG \
             --tags "${{ env.DEPLOY_TAGS }}"
 
       - name: Notificar resultado
         if: always()
         run: |
           if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Deploy exitoso con Ansible en prod-1"
+            echo "✅ Deploy exitoso — target: ${{ env.DEPLOY_LIMIT }}"
           else
-            echo "❌ Deploy falló - revisar logs de Ansible"
+            echo "❌ Deploy falló — target: ${{ env.DEPLOY_LIMIT }}"
           fi
