@@ -49,6 +49,56 @@ router.get('/status', (req, res) => {
 });
 
 /**
+ * GET /api/setup/schema
+ * Returns the combined SQL (schema + seed) for manual execution in Supabase SQL Editor
+ */
+router.get('/schema', (req, res) => {
+  try {
+    const schemaPath = path.join(__dirname, '..', 'database', 'schema.sql');
+    const seedPath = path.join(__dirname, '..', 'database', 'seed.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    const seed = fs.readFileSync(seedPath, 'utf8');
+    res.json({ 
+      sql: schema + '\n\n' + seed,
+      schemaLines: schema.split('\n').length,
+      seedLines: seed.split('\n').length
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error leyendo archivos SQL: ' + err.message });
+  }
+});
+
+/**
+ * POST /api/setup/check-schema
+ * Verify that essential tables exist in the connected database
+ */
+router.post('/check-schema', async (req, res) => {
+  const { url, key } = req.body;
+  if (!url || !key) {
+    return res.status(400).json({ message: 'URL y Key son requeridos' });
+  }
+
+  try {
+    const { createClient } = require('@supabase/supabase-js');
+    const client = createClient(url, key);
+
+    // Check essential tables
+    const tables = ['users', 'products', 'orders', 'app_settings'];
+    const results = {};
+
+    for (const table of tables) {
+      const { error } = await client.from(table).select('id', { count: 'exact', head: true });
+      results[table] = !error || (error.code !== '42P01' && !error.message?.includes('does not exist'));
+    }
+
+    const allReady = Object.values(results).every(Boolean);
+    res.json({ schemaReady: allReady, tables: results });
+  } catch (err) {
+    res.status(400).json({ message: 'Error verificando schema: ' + err.message });
+  }
+});
+
+/**
  * POST /api/setup/test-connection
  * Test database credentials without saving them
  */
@@ -124,7 +174,7 @@ router.post('/configure', async (req, res) => {
     return res.status(400).json({ message: 'URL y Key son requeridos' });
   }
 
-  // 1. Test connection first
+  // 1. Test connection and verify schema exists
   try {
     const { createClient } = require('@supabase/supabase-js');
     const testClient = createClient(url, key);
@@ -132,7 +182,14 @@ router.post('/configure', async (req, res) => {
       .from('app_settings')
       .select('id', { count: 'exact', head: true });
 
-    if (error && error.code !== '42P01') {
+    if (error) {
+      // Table doesn't exist → schema not initialized
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return res.status(400).json({ 
+          message: 'Las tablas no existen. Ejecuta el schema SQL en Supabase antes de configurar.',
+          code: 'SCHEMA_MISSING'
+        });
+      }
       return res.status(400).json({ 
         message: `No se pudo conectar: ${error.message}` 
       });
