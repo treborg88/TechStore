@@ -299,19 +299,23 @@
     - name: Wait for backend to be healthy
       tags: [deploy, verify]
       ansible.builtin.uri:
-        url: "http://127.0.0.1:{{ backend_port }}/api/products"
+        url: "http://127.0.0.1:{{ backend_port }}/api/health"
         method: GET
-        status_code: 200
+        status_code: [200, 503]   # 200 = normal, 503 = setup mode (no DB yet)
       register: health_check
       retries: 5
       delay: 3
-      until: health_check.status == 200
+      until: health_check.status in [200, 503]
 
     - name: Display deployment result
       tags: [deploy, verify]
       ansible.builtin.debug:
         msg: >
+          {% if health_check.json.status | default('') == 'setup' %}
+          ⚠️ {{ app_name }} deployed in SETUP MODE — visit https://{{ domain }} to configure the database.
+          {% else %}
           ✅ {{ app_name }} deployed successfully!
+          {% endif %}
           Backend: http://127.0.0.1:{{ backend_port }}
           Frontend: http://127.0.0.1:{{ frontend_port }}
           Public: https://{{ domain }}
