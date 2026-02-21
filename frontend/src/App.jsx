@@ -1,9 +1,10 @@
-import { Suspense, lazy, useState } from 'react';
+import { Suspense, lazy, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './App.css';
 import './components/auth/LoginPage.css';
 import { getCurrentUser, logout, isSessionExpired } from './services/authService';
 import { Toaster } from 'react-hot-toast';
+import { API_URL } from './config';
 
 // Common components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -21,9 +22,21 @@ import AppRoutes from './routes/AppRoutes';
 // Lazy loading - componentes globales
 const Footer = lazy(() => import('./components/common/Footer'));
 const ChatBot = lazy(() => import('./components/chatbot/ChatBot'));
+const SetupWizard = lazy(() => import('./components/setup/SetupWizard'));
 
 function App() {
   const navigate = useNavigate();
+
+  // Setup mode: null = checking, true = needs setup, false = ready
+  const [setupMode, setSetupMode] = useState(null);
+
+  // Check backend health on mount to detect setup mode
+  useEffect(() => {
+    fetch(`${API_URL}/health`)
+      .then(r => r.json())
+      .then(data => setSetupMode(data.status === 'setup'))
+      .catch(() => setSetupMode(false)); // if backend unreachable, show normal app
+  }, []);
 
   // Estado de usuario en App para romper dependencia circular entre useAuth y useCart
   const [user, setUser] = useState(() => {
@@ -64,6 +77,20 @@ function App() {
   } = useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItems });
 
   // ── Early returns AFTER all hooks (React Rules of Hooks) ──
+
+  // Show spinner while checking backend health
+  if (setupMode === null) {
+    return <LoadingSpinner fullPage message="Verificando estado del servidor..." />;
+  }
+
+  // Show setup wizard when backend has no DB configured
+  if (setupMode) {
+    return (
+      <Suspense fallback={<LoadingSpinner fullPage message="Cargando configuración..." />}>
+        <SetupWizard onSetupComplete={() => window.location.reload()} />
+      </Suspense>
+    );
+  }
 
   return (
     <>

@@ -23,7 +23,8 @@ const {
     settingsRoutes, 
     verificationRoutes,
     paymentsRoutes,
-    chatbotRoutes
+    chatbotRoutes,
+    setupRoutes
 } = require('./routes');
 
 // Share page utilities
@@ -73,6 +74,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // --- API Routes ---
+app.use('/api/setup', setupRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/cart', cartRoutes);

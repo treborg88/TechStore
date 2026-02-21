@@ -4,8 +4,7 @@
 name: Deploy to Production
 
 on:
-  push:
-    branches: [main]
+  # Solo ejecución manual desde la pestaña Actions de GitHub
   workflow_dispatch:
     inputs:
       deploy_target:
@@ -24,7 +23,6 @@ on:
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: "False"
-  # push a main → prod-1 solamente; manual → selección del usuario
   DEPLOY_LIMIT: ${{ github.event.inputs.deploy_target || 'prod-1' }}
   DEPLOY_TAGS: ${{ github.event.inputs.deploy_tags || 'deploy,verify' }}
 

@@ -1,0 +1,370 @@
+/* SetupWizard.css - Setup wizard styles */
+
+.setup-wizard {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+  padding: 2rem 1rem;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.setup-card {
+  background: #1e293b;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.4);
+  max-width: 520px;
+  width: 100%;
+  padding: 2.5rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Header */
+.setup-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.setup-logo {
+  font-size: 3rem;
+  margin-bottom: 0.5rem;
+}
+
+.setup-header h1 {
+  color: #f1f5f9;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+}
+
+.setup-header p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Steps indicator */
+.setup-steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2rem;
+}
+
+.setup-step {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.step-dot.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.step-dot.completed {
+  background: #22c55e;
+  color: white;
+}
+
+.step-dot.pending {
+  background: #334155;
+  color: #64748b;
+}
+
+.step-label {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
+.step-connector {
+  width: 40px;
+  height: 2px;
+  background: #334155;
+}
+
+.step-connector.completed {
+  background: #22c55e;
+}
+
+/* Provider selection */
+.setup-providers {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
+}
+
+.provider-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 2px solid #334155;
+  background: #0f172a;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.provider-card:hover {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.05);
+}
+
+.provider-card.selected {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.provider-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.provider-icon {
+  font-size: 1.8rem;
+  width: 40px;
+  text-align: center;
+}
+
+.provider-info h3 {
+  color: #f1f5f9;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin: 0 0 0.2rem 0;
+}
+
+.provider-info p {
+  color: #64748b;
+  font-size: 0.8rem;
+  margin: 0;
+}
+
+.provider-badge {
+  margin-left: auto;
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  background: #1e3a5f;
+  color: #60a5fa;
+  font-weight: 500;
+}
+
+.provider-badge.soon {
+  background: #334155;
+  color: #64748b;
+}
+
+/* Form */
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.setup-field label {
+  display: block;
+  color: #cbd5e1;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 0.4rem;
+}
+
+.setup-field input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: #0f172a;
+  color: #f1f5f9;
+  font-size: 0.9rem;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.setup-field input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15);
+}
+
+.setup-field input::placeholder {
+  color: #475569;
+}
+
+/* Status messages */
+.setup-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.setup-status.success {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #4ade80;
+}
+
+.setup-status.error {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #f87171;
+}
+
+.setup-status.info {
+  background: rgba(59, 130, 246, 0.1);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  color: #60a5fa;
+}
+
+.setup-status.warning {
+  background: rgba(234, 179, 8, 0.1);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  color: #facc15;
+}
+
+/* Buttons */
+.setup-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.setup-btn {
+  flex: 1;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.setup-btn.primary {
+  background: #3b82f6;
+  color: white;
+}
+
+.setup-btn.primary:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.setup-btn.secondary {
+  background: #334155;
+  color: #cbd5e1;
+}
+
+.setup-btn.secondary:hover:not(:disabled) {
+  background: #475569;
+}
+
+.setup-btn.success {
+  background: #22c55e;
+  color: white;
+}
+
+.setup-btn.success:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.setup-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Spinner */
+.setup-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: setup-spin 0.6s linear infinite;
+}
+
+@keyframes setup-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Success screen */
+.setup-success {
+  text-align: center;
+  padding: 1rem 0;
+}
+
+.setup-success-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.setup-success h2 {
+  color: #f1f5f9;
+  font-size: 1.3rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.setup-success p {
+  color: #94a3b8;
+  font-size: 0.9rem;
+  margin: 0 0 1.5rem 0;
+}
+
+/* Help link */
+.setup-help {
+  text-align: center;
+  margin-top: 1.5rem;
+}
+
+.setup-help a {
+  color: #60a5fa;
+  font-size: 0.8rem;
+  text-decoration: none;
+}
+
+.setup-help a:hover {
+  text-decoration: underline;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .setup-card {
+    padding: 1.5rem;
+  }
+
+  .setup-header h1 {
+    font-size: 1.25rem;
+  }
+
+  .step-label {
+    display: none;
+  }
+
+  .step-connector {
+    width: 24px;
+  }
+}
