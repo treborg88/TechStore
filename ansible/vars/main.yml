@@ -14,8 +14,14 @@ app_branch: main
 # ── Domain & SSL ──────────────────────────────────────────
 # domain y ssl_mode se definen POR HOST en inventory.yml
 # (cada servidor puede tener dominio y modo SSL distintos)
-ssl_cert_path: /etc/ssl/cloudflare/{{ domain }}.pem
-ssl_key_path: /etc/ssl/cloudflare/{{ domain }}.key
+#
+# Wildcard Origin Certificate (*.eonsclover.com + eonsclover.com)
+# Shared across all servers — deployed from GitHub Secrets:
+#   CF_ORIGIN_CERT  → certificate PEM
+#   CF_ORIGIN_KEY   → private key PEM
+ssl_cert_dir: /etc/ssl/cloudflare
+ssl_cert_path: "{{ ssl_cert_dir }}/eonsclover.com.pem"
+ssl_key_path: "{{ ssl_cert_dir }}/eonsclover.com.key"
 
 # ── Ports ─────────────────────────────────────────────────
 backend_port: 5001
@@ -34,3 +40,8 @@ pm2_ecosystem: ecosystem.config.cjs
 # ── Nginx ─────────────────────────────────────────────────
 nginx_config_name: techstore
 nginx_client_max_body_size: 50M
+
+# ── Swap (para servidores con poca RAM) ───────────────────
+# Vite build necesita ~1.5GB; servidores con <2GB RAM requieren swap
+swap_size: 2G
+swap_path: /swapfile

@@ -72,7 +72,16 @@ jobs:
           ansible-playbook -i ansible/inventory.yml ansible/playbook.yml --syntax-check
 
       - name: Deploy con Ansible
+        env:
+          CF_ORIGIN_CERT: ${{ secrets.CF_ORIGIN_CERT }}
+          CF_ORIGIN_KEY: ${{ secrets.CF_ORIGIN_KEY }}
         run: |
+          # Escribir cert/key a archivos temporales (evita problemas con multiline en CLI)
+          CERT_FILE=$(mktemp)
+          KEY_FILE=$(mktemp)
+          echo "$CF_ORIGIN_CERT" > "$CERT_FILE"
+          echo "$CF_ORIGIN_KEY" > "$KEY_FILE"
+
           # Si target es "all", no aplicar --limit (deploy a todos)
           LIMIT_ARG=""
           if [ "${{ env.DEPLOY_LIMIT }}" != "all" ]; then
@@ -83,7 +92,12 @@ jobs:
             -i ansible/inventory.yml \
             ansible/playbook.yml \
             $LIMIT_ARG \
-            --tags "${{ env.DEPLOY_TAGS }}"
+            --tags "${{ env.DEPLOY_TAGS }}" \
+            -e "cf_origin_cert_file=$CERT_FILE" \
+            -e "cf_origin_key_file=$KEY_FILE"
+
+          # Limpiar archivos temporales
+          rm -f "$CERT_FILE" "$KEY_FILE"
 
       - name: Notificar resultado
         if: always()
