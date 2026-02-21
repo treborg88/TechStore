@@ -190,6 +190,34 @@ router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
 });
 
 /**
+ * POST /api/settings/db-disconnect
+ * Disconnect database — puts app back into setup mode for migration.
+ * Deletes .env.local credentials so setup wizard can reconfigure.
+ */
+router.post('/db-disconnect', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const { disconnectDb } = require('../database');
+        const fs = require('fs');
+        const path = require('path');
+
+        // Remove .env.local (setup wizard credentials file)
+        const envLocalPath = path.join(__dirname, '..', '.env.local');
+        if (fs.existsSync(envLocalPath)) {
+            fs.unlinkSync(envLocalPath);
+        }
+
+        // Disconnect the in-memory client
+        disconnectDb();
+
+        console.log(`✅ DB desconectada por admin: ${req.user.email}`);
+        res.json({ message: 'Base de datos desconectada. La app está en modo setup.' });
+    } catch (error) {
+        console.error('Error desconectando DB:', error);
+        res.status(500).json({ message: 'Error al desconectar la base de datos' });
+    }
+});
+
+/**
  * POST /api/settings/upload
  * Upload settings image (admin only)
  */

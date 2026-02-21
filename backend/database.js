@@ -1,4 +1,7 @@
 require('dotenv').config();
+// Load .env.local (written by Setup Wizard) — overrides .env values
+require('dotenv').config({ path: require('path').join(__dirname, '.env.local'), override: true });
+
 const { createClient } = require('@supabase/supabase-js');
 
 // --- Supabase client (nullable — app runs in "setup mode" without credentials) ---
@@ -892,6 +895,19 @@ const statements = {
 const reinitializeDb = (url, key) => initSupabase(url, key);
 
 /**
+ * Disconnects the Supabase client — puts the app back into setup mode.
+ * Used for database migration: admin disconnects, then reconfigures via Setup Wizard.
+ */
+const disconnectDb = () => {
+  supabase = null;
+  dbConfigured = false;
+  delete process.env.SUPABASE_URL;
+  delete process.env.SUPABASE_KEY;
+  console.log('⚠️  Base de datos desconectada — app en modo setup.');
+  return true;
+};
+
+/**
  * Proxy wrapper: every statement function checks if DB is available.
  * If not → throws a clean error with code DB_NOT_CONFIGURED (caught by routes).
  * If yes → runs the original function normally.
@@ -916,5 +932,6 @@ module.exports = {
   get supabase() { return supabase; },   // getter: always returns current client (may be null)
   statements: safeStatements,             // proxy-wrapped: clean errors when no DB
   dbConfigured: () => dbConfigured,       // function: returns current DB status
-  reinitializeDb                          // function: reconnect with new credentials
+  reinitializeDb,                         // function: reconnect with new credentials
+  disconnectDb                            // function: disconnect DB → enter setup mode
 };

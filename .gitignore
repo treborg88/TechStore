@@ -40,6 +40,11 @@ USABILITY_REPORT.md
 *.swo
 *~
 *.md
+!DATABASE_SETUP.md
+!CHANGELOG.md
+!DEPLOYMENT.md
+!DEPLOYMENT_ANALYSIS.md
+!README.md
 
 # IDE
 .vscode/

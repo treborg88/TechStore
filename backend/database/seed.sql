@@ -10,13 +10,13 @@
 -- ---------------------------------------------------------------------------
 -- 1. ADMIN USER
 -- ---------------------------------------------------------------------------
--- Password: Admin123! (bcrypt 10 rounds — change immediately after first login)
+-- Password: admin (bcrypt 10 rounds — change immediately after first login)
 -- Generate a new hash: node -e "require('bcrypt').hash('YourPass123!',10).then(console.log)"
 INSERT INTO users (name, email, password, role)
 VALUES (
     'Admin',
-    'admin@techstore.com',
-    '$2b$10$8KzQzx5Gg6q5PKmWzUqOYuJXJZV6R0j6x6YpJp0bXN0nM5GDXK5Hy',
+    'admin@admin.com',
+    '$2b$10$UfTXnNZhqQMiC3dqb0eH0OrGYVkzUvRx8Q21DNMExrxNxEIWC6OAO',
     'admin'
 )
 ON CONFLICT (email) DO NOTHING;
@@ -40,18 +40,18 @@ INSERT INTO app_settings (id, value) VALUES
     ('heroPrimaryBtn',  'Ver Productos'),
     ('heroSecondaryBtn','Ofertas Especiales'),
     ('heroImage',       ''),
-    ('heroTitleSize',   '36'),
-    ('heroDescriptionSize', '18'),
-    ('heroPositionX',   '50'),
-    ('heroPositionY',   '50'),
+    ('heroTitleSize',   '2.1'),
+    ('heroDescriptionSize', '1.05'),
+    ('heroPositionX',   'left'),
+    ('heroPositionY',   'center'),
     ('heroImageWidth',  '100'),
     ('heroOverlayOpacity', '40'),
-    ('heroHeight',      '500'),
+    ('heroHeight',      '360'),
     ('heroTextColor',   '#ffffff'),
     ('heroBannerImage', ''),
-    ('heroBannerSize',  '200'),
-    ('heroBannerPositionX', '50'),
-    ('heroBannerPositionY', '50'),
+    ('heroBannerSize',  '150'),
+    ('heroBannerPositionX', 'right'),
+    ('heroBannerPositionY', 'center'),
     ('heroBannerOpacity', '100'),
     -- Header
     ('headerBgColor',       '#2563eb'),
@@ -68,12 +68,12 @@ INSERT INTO app_settings (id, value) VALUES
     -- Product detail hero
     ('productDetailHeroImage',          ''),
     ('productDetailUseHomeHero',        'false'),
-    ('productDetailHeroHeight',         '300'),
+    ('productDetailHeroHeight',         '200'),
     ('productDetailHeroOverlayOpacity', '40'),
     ('productDetailHeroBannerImage',    ''),
-    ('productDetailHeroBannerSize',     '200'),
-    ('productDetailHeroBannerPositionX','50'),
-    ('productDetailHeroBannerPositionY','50'),
+    ('productDetailHeroBannerSize',     '120'),
+    ('productDetailHeroBannerPositionX','right'),
+    ('productDetailHeroBannerPositionY','center'),
     ('productDetailHeroBannerOpacity',  '100'),
     -- Category filters (JSON string)
     ('categoryFiltersConfig', '{"useDefault":true,"categories":[]}'),

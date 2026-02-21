@@ -210,14 +210,24 @@ $$;
 
 
 -- ===========================================================================
--- SUPABASE STORAGE — Create bucket for product images (run once)
+-- SUPABASE STORAGE — Bucket for product images
 -- ===========================================================================
--- This must be done via Supabase Dashboard or API, not SQL:
---   1. Go to Storage → New Bucket → Name: "products" → Public: ON
---   2. Add policy: Allow public SELECT (for reading images)
---   3. Add policy: Allow authenticated INSERT/DELETE (for admin uploads)
---
--- Alternatively via SQL (may require service_role key):
--- INSERT INTO storage.buckets (id, name, public)
--- VALUES ('products', 'products', true)
--- ON CONFLICT (id) DO NOTHING;
+-- Creates the "products" bucket (public read) via direct SQL.
+-- Executed automatically by the Setup Wizard via pg connection.
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('products', 'products', true)
+ON CONFLICT (id) DO NOTHING;
+
+-- Policy: anyone can view product images (public read)
+CREATE POLICY IF NOT EXISTS "Public read products" ON storage.objects
+  FOR SELECT USING (bucket_id = 'products');
+
+-- Policies: allow all operations on products bucket (backend handles auth via its own JWT middleware)
+CREATE POLICY IF NOT EXISTS "Anon upload products" ON storage.objects
+  FOR INSERT WITH CHECK (bucket_id = 'products');
+
+CREATE POLICY IF NOT EXISTS "Anon update products" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'products');
+
+CREATE POLICY IF NOT EXISTS "Anon delete products" ON storage.objects
+  FOR DELETE USING (bucket_id = 'products');

@@ -10,6 +10,8 @@ function DatabaseSection({ settings, onChange, setSettings }) {
   const [dbStatus, setDbStatus] = useState(null);
   const [testing, setTesting] = useState(false);
   const [testError, setTestError] = useState(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const hasSynced = useRef(false);
 
   // Fetch live DB status on mount
@@ -191,6 +193,100 @@ function DatabaseSection({ settings, onChange, setSettings }) {
           </p>
         </>
       )}
+
+      {/* Disconnect / Migration section */}
+      <div style={{
+        marginTop: '24px',
+        padding: '16px',
+        borderRadius: '8px',
+        border: '1px solid #fca5a5',
+        background: '#fef2f2'
+      }}>
+        <h4 style={{ margin: '0 0 8px', fontSize: '14px', color: '#991b1b' }}>
+          ⚠️ Zona de Riesgo
+        </h4>
+        <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#7f1d1d', lineHeight: '1.5' }}>
+          Desconectar la base de datos pondrá la app en <strong>modo setup</strong>.
+          La tienda dejará de funcionar hasta que se configure una nueva base de datos.
+          Útil para migración o cambio de proyecto Supabase.
+        </p>
+
+        {!showDisconnectConfirm ? (
+          <button
+            type="button"
+            onClick={() => setShowDisconnectConfirm(true)}
+            style={{
+              padding: '8px 16px',
+              borderRadius: '6px',
+              border: '1px solid #ef4444',
+              background: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              color: '#ef4444',
+              cursor: 'pointer'
+            }}
+          >
+            🔌 Desconectar Base de Datos
+          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '13px', color: '#991b1b', fontWeight: 600 }}>
+              ¿Estás seguro?
+            </span>
+            <button
+              type="button"
+              disabled={disconnecting}
+              onClick={async () => {
+                setDisconnecting(true);
+                try {
+                  const res = await apiFetch(apiUrl('/settings/db-disconnect'), { method: 'POST' });
+                  if (res.ok) {
+                    // Reload the page — App.jsx will detect setup mode
+                    window.location.reload();
+                  } else {
+                    const data = await res.json();
+                    setTestError(data.message || 'Error al desconectar');
+                    setShowDisconnectConfirm(false);
+                  }
+                } catch (err) {
+                  setTestError(err.message);
+                  setShowDisconnectConfirm(false);
+                } finally {
+                  setDisconnecting(false);
+                }
+              }}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: 'none',
+                background: '#ef4444',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: '#ffffff',
+                cursor: disconnecting ? 'wait' : 'pointer'
+              }}
+            >
+              {disconnecting ? 'Desconectando...' : '✅ Sí, Desconectar'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowDisconnectConfirm(false)}
+              style={{
+                padding: '8px 16px',
+                borderRadius: '6px',
+                border: '1px solid #d1d5db',
+                background: '#ffffff',
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#374151',
+                cursor: 'pointer'
+              }}
+            >
+              Cancelar
+            </button>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

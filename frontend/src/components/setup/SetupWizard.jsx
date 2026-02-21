@@ -5,26 +5,25 @@ import './SetupWizard.css';
 
 /**
  * Setup Wizard — shown when the backend has no database configured.
- * 4-step flow: Provider → Credentials → Schema → Success
- * On success, the backend hot-reconnects (no server restart needed).
+ * 3-step flow: Provider → Credentials → Success
+ * Schema creation is automatic via direct PostgreSQL connection (no manual SQL copy).
  */
 function SetupWizard({ onSetupComplete }) {
-  // Steps: 1 = provider, 2 = credentials, 3 = schema init, 4 = success
+  // Steps: 1 = provider, 2 = credentials, 3 = success
   const [step, setStep] = useState(1);
   const [provider, setProvider] = useState('supabase');
 
   // Credential fields
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
+  const [connString, setConnString] = useState('');
 
-  // Schema state
-  const [schemaSql, setSchemaSql] = useState('');
+  // Connection state
+  const [connected, setConnected] = useState(false);
   const [schemaReady, setSchemaReady] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   // UI state
   const [testing, setTesting] = useState(false);
-  const [verifying, setVerifying] = useState(false);
   const [saving, setSaving] = useState(false);
   const [status, setStatus] = useState(null);
 
@@ -35,11 +34,11 @@ function SetupWizard({ onSetupComplete }) {
   ];
 
   /**
-   * Test the connection — if connected, check schema and route accordingly
+   * Test the connection — reports whether schema tables exist
    */
   const handleTestConnection = useCallback(async () => {
     if (!url.trim() || !key.trim()) {
-      setStatus({ type: 'error', message: 'Completa ambos campos' });
+      setStatus({ type: 'error', message: 'Completa URL y Key' });
       return;
     }
 
@@ -56,16 +55,17 @@ function SetupWizard({ onSetupComplete }) {
       const data = await res.json();
 
       if (res.ok && data.connected) {
-        if (data.schemaReady) {
-          // Connection + schema OK → can configure directly
-          setSchemaReady(true);
-          setStatus({ type: 'success', message: data.message });
-        } else {
-          // Connected but no tables → need schema step
-          setSchemaReady(false);
-          setStatus({ type: 'warning', message: data.message });
-        }
+        setConnected(true);
+        setSchemaReady(data.schemaReady);
+        setStatus({
+          type: data.schemaReady ? 'success' : 'warning',
+          message: data.schemaReady
+            ? 'Conexión exitosa — base de datos lista'
+            : 'Conectado, pero las tablas no existen. Pega el Connection String para crearlas automáticamente.'
+        });
       } else {
+        setConnected(false);
+        setSchemaReady(false);
         setStatus({ type: 'error', message: data.message || 'Error de conexión' });
       }
     } catch (err) {
@@ -76,82 +76,17 @@ function SetupWizard({ onSetupComplete }) {
   }, [url, key, provider]);
 
   /**
-   * Proceed from step 2 — if schema ready go to configure, else go to schema step
-   */
-  const handleNextFromCredentials = useCallback(async () => {
-    if (schemaReady) {
-      // Schema exists, skip to configure directly
-      handleConfigure();
-    } else {
-      // Need to initialize schema first — fetch SQL and go to step 3
-      try {
-        const res = await apiFetch(apiUrl('/setup/schema'));
-        const data = await res.json();
-        if (res.ok) {
-          setSchemaSql(data.sql);
-        }
-      } catch {
-        // Non-blocking: user can still copy from repo
-      }
-      setStep(3);
-      setStatus(null);
-    }
-  }, [schemaReady]);
-
-  /**
-   * Verify schema tables exist after user runs SQL manually
-   */
-  const handleVerifySchema = useCallback(async () => {
-    setVerifying(true);
-    setStatus(null);
-
-    try {
-      const res = await apiFetch(apiUrl('/setup/check-schema'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), key: key.trim() })
-      });
-
-      const data = await res.json();
-
-      if (res.ok && data.schemaReady) {
-        setSchemaReady(true);
-        setStatus({ type: 'success', message: 'Todas las tablas verificadas correctamente' });
-      } else if (res.ok) {
-        // Show which tables are missing
-        const missing = Object.entries(data.tables || {})
-          .filter(([, ok]) => !ok)
-          .map(([name]) => name);
-        setStatus({ 
-          type: 'error', 
-          message: `Tablas faltantes: ${missing.join(', ')}. Ejecuta el SQL completo.` 
-        });
-      } else {
-        setStatus({ type: 'error', message: data.message || 'Error verificando' });
-      }
-    } catch (err) {
-      setStatus({ type: 'error', message: `Error: ${err.message}` });
-    } finally {
-      setVerifying(false);
-    }
-  }, [url, key]);
-
-  /**
-   * Copy SQL to clipboard
-   */
-  const handleCopySql = useCallback(() => {
-    navigator.clipboard.writeText(schemaSql).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 3000);
-    });
-  }, [schemaSql]);
-
-  /**
-   * Save credentials and activate the app
+   * Save credentials and activate the app.
+   * If schema is missing, auto-creates tables first via direct PostgreSQL connection.
    */
   const handleConfigure = useCallback(async () => {
     if (!url.trim() || !key.trim()) {
-      setStatus({ type: 'error', message: 'Completa ambos campos' });
+      setStatus({ type: 'error', message: 'Completa URL y Key' });
+      return;
+    }
+    // Connection string required only when tables don't exist
+    if (!schemaReady && !connString.trim()) {
+      setStatus({ type: 'error', message: 'Pega el Connection String de Supabase para crear las tablas' });
       return;
     }
 
@@ -159,6 +94,26 @@ function SetupWizard({ onSetupComplete }) {
     setStatus(null);
 
     try {
+      // 1. If schema not ready → auto-create tables via pg
+      if (!schemaReady) {
+        setStatus({ type: 'info', message: 'Creando tablas y datos iniciales...' });
+
+        const initRes = await apiFetch(apiUrl('/setup/initialize-schema'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ connectionString: connString.trim() })
+        });
+        const initData = await initRes.json();
+
+        if (!initRes.ok) {
+          setStatus({ type: 'error', message: initData.message || 'Error creando tablas' });
+          return;
+        }
+      }
+
+      // 2. Save credentials and activate (configure endpoint retries schema check internally)
+      setStatus({ type: 'info', message: 'Guardando configuración...' });
+
       const res = await apiFetch(apiUrl('/setup/configure'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,39 +123,20 @@ function SetupWizard({ onSetupComplete }) {
       const data = await res.json();
 
       if (res.ok) {
-        setStep(4);
+        setStep(3); // success
       } else {
-        // If schema missing, redirect to schema step
-        if (data.code === 'SCHEMA_MISSING') {
-          try {
-            const sqlRes = await apiFetch(apiUrl('/setup/schema'));
-            const sqlData = await sqlRes.json();
-            if (sqlRes.ok) setSchemaSql(sqlData.sql);
-          } catch { /* non-blocking */ }
-          setStep(3);
-          setStatus({ type: 'warning', message: data.message });
-        } else {
-          setStatus({ type: 'error', message: data.message || 'Error al configurar' });
-        }
+        setStatus({ type: 'error', message: data.message || 'Error al configurar' });
       }
     } catch (err) {
-      setStatus({ type: 'error', message: `Error de red: ${err.message}` });
+      setStatus({ type: 'error', message: `Error: ${err.message}` });
     } finally {
       setSaving(false);
     }
-  }, [url, key, provider]);
+  }, [url, key, connString, provider, schemaReady]);
 
-  /**
-   * Build Supabase SQL Editor URL from project URL
-   */
-  const getSupabaseSqlEditorUrl = useCallback(() => {
-    try {
-      const projectRef = new URL(url).hostname.split('.')[0];
-      return `https://supabase.com/dashboard/project/${projectRef}/sql/new`;
-    } catch {
-      return 'https://supabase.com/dashboard';
-    }
-  }, [url]);
+  // Reset connection state when credentials change
+  const handleUrlChange = (e) => { setUrl(e.target.value); setConnected(false); setSchemaReady(false); };
+  const handleKeyChange = (e) => { setKey(e.target.value); setConnected(false); setSchemaReady(false); };
 
   // Step indicator helper
   const getStepClass = (s) => {
@@ -219,13 +155,12 @@ function SetupWizard({ onSetupComplete }) {
           <p>Configura la base de datos para comenzar a usar tu tienda</p>
         </div>
 
-        {/* Steps indicator (4 steps) */}
+        {/* Steps indicator (3 steps) */}
         <div className="setup-steps">
           {[
             { num: 1, label: 'Proveedor' },
             { num: 2, label: 'Credenciales' },
-            { num: 3, label: 'Schema' },
-            { num: 4, label: 'Listo' }
+            { num: 3, label: 'Listo' }
           ].map((s, i) => (
             <div key={s.num} style={{ display: 'contents' }}>
               {i > 0 && <div className={`step-connector ${step > s.num - 1 ? 'completed' : ''}`} />}
@@ -268,7 +203,7 @@ function SetupWizard({ onSetupComplete }) {
           </>
         )}
 
-        {/* Step 2: Credentials */}
+        {/* Step 2: Credentials + automatic schema creation */}
         {step === 2 && (
           <>
             <div className="setup-form">
@@ -279,7 +214,7 @@ function SetupWizard({ onSetupComplete }) {
                   type="url"
                   placeholder="https://xxxxx.supabase.co"
                   value={url}
-                  onChange={e => setUrl(e.target.value)}
+                  onChange={handleUrlChange}
                   autoFocus
                 />
               </div>
@@ -290,9 +225,32 @@ function SetupWizard({ onSetupComplete }) {
                   type="password"
                   placeholder="eyJhbGciOi..."
                   value={key}
-                  onChange={e => setKey(e.target.value)}
+                  onChange={handleKeyChange}
                 />
               </div>
+
+              {/* Connection String — only shown when connected but schema missing */}
+              {connected && !schemaReady && (
+                <div className="setup-field setup-field-highlight">
+                  <label htmlFor="setup-connstr">
+                    Connection String (Session mode)
+                    <span className="setup-field-hint">
+                      Supabase Dashboard → Connect → Session mode (puerto 5432, NO 6543)
+                    </span>
+                  </label>
+                  <input
+                    id="setup-connstr"
+                    type="password"
+                    placeholder="postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-...pooler.supabase.com:5432/postgres"
+                    value={connString}
+                    onChange={e => setConnString(e.target.value)}
+                    autoFocus
+                  />
+                  <small className="setup-field-help">
+                    ⚠️ Usa <strong>Session mode</strong> (puerto 5432). Transaction mode (6543) no soporta creación de tablas.
+                  </small>
+                </div>
+              )}
             </div>
 
             {status && (
@@ -300,6 +258,7 @@ function SetupWizard({ onSetupComplete }) {
                 {status.type === 'success' && '✅ '}
                 {status.type === 'error' && '❌ '}
                 {status.type === 'warning' && '⚠️ '}
+                {status.type === 'info' && '⏳ '}
                 {status.message}
               </div>
             )}
@@ -321,11 +280,14 @@ function SetupWizard({ onSetupComplete }) {
               </button>
               <button
                 className="setup-btn primary"
-                onClick={handleNextFromCredentials}
-                disabled={saving || !url.trim() || !key.trim() || status?.type === 'error'}
+                onClick={handleConfigure}
+                disabled={saving || !connected || (!schemaReady && !connString.trim())}
               >
                 {saving ? <span className="setup-spinner" /> : null}
-                {schemaReady ? '💾 Configurar' : 'Siguiente →'}
+                {saving
+                  ? (schemaReady ? 'Configurando...' : 'Creando tablas...')
+                  : (schemaReady ? '💾 Configurar' : '🚀 Crear Tablas y Configurar')
+                }
               </button>
             </div>
 
@@ -337,95 +299,8 @@ function SetupWizard({ onSetupComplete }) {
           </>
         )}
 
-        {/* Step 3: Schema Initialization */}
+        {/* Step 3: Success */}
         {step === 3 && (
-          <>
-            <div className="setup-schema">
-              <div className="setup-schema-intro">
-                <h3>📋 Inicializar Base de Datos</h3>
-                <p>
-                  La base de datos está conectada pero no tiene tablas.
-                  Copia el SQL y ejecútalo en el <strong>SQL Editor</strong> de Supabase.
-                </p>
-              </div>
-
-              {/* Instructions */}
-              <div className="setup-schema-steps">
-                <div className="schema-instruction">
-                  <span className="schema-step-num">1</span>
-                  <span>Copia el SQL con el botón de abajo</span>
-                </div>
-                <div className="schema-instruction">
-                  <span className="schema-step-num">2</span>
-                  <span>
-                    Abre el{' '}
-                    <a href={getSupabaseSqlEditorUrl()} target="_blank" rel="noopener noreferrer">
-                      SQL Editor de Supabase ↗
-                    </a>
-                  </span>
-                </div>
-                <div className="schema-instruction">
-                  <span className="schema-step-num">3</span>
-                  <span>Pega el SQL y haz clic en <strong>Run</strong></span>
-                </div>
-                <div className="schema-instruction">
-                  <span className="schema-step-num">4</span>
-                  <span>Vuelve aquí y haz clic en <strong>Verificar</strong></span>
-                </div>
-              </div>
-
-              {/* SQL preview */}
-              {schemaSql && (
-                <div className="setup-sql-container">
-                  <pre className="setup-sql-preview">{schemaSql.slice(0, 500)}...</pre>
-                  <button
-                    className={`setup-btn ${copied ? 'success' : 'secondary'} setup-copy-btn`}
-                    onClick={handleCopySql}
-                  >
-                    {copied ? '✅ Copiado' : '📋 Copiar SQL Completo'}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {status && (
-              <div className={`setup-status ${status.type}`}>
-                {status.type === 'success' && '✅ '}
-                {status.type === 'error' && '❌ '}
-                {status.type === 'warning' && '⚠️ '}
-                {status.message}
-              </div>
-            )}
-
-            <div className="setup-actions">
-              <button
-                className="setup-btn secondary"
-                onClick={() => { setStep(2); setStatus(null); }}
-              >
-                ← Atrás
-              </button>
-              <button
-                className="setup-btn secondary"
-                onClick={handleVerifySchema}
-                disabled={verifying}
-              >
-                {verifying ? <span className="setup-spinner" /> : '🔍'}
-                {verifying ? 'Verificando...' : 'Verificar Tablas'}
-              </button>
-              <button
-                className="setup-btn primary"
-                onClick={handleConfigure}
-                disabled={!schemaReady || saving}
-              >
-                {saving ? <span className="setup-spinner" /> : '💾'}
-                {saving ? 'Guardando...' : 'Configurar'}
-              </button>
-            </div>
-          </>
-        )}
-
-        {/* Step 4: Success */}
-        {step === 4 && (
           <div className="setup-success">
             <div className="setup-success-icon">🎉</div>
             <h2>¡Configuración Completada!</h2>
