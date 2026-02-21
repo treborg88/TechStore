@@ -293,6 +293,14 @@
       ansible.builtin.command: "env PATH=$PATH:/usr/bin pm2 startup systemd -u {{ deploy_user }} --hp /home/{{ deploy_user }}"
       changed_when: true
 
+    # ── Ensure Nginx is running after deploy ───────────────
+    - name: Ensure Nginx is running after deploy
+      tags: [deploy, verify]
+      ansible.builtin.service:
+        name: nginx
+        state: started
+        enabled: true
+
     # ═════════════════════════════════════════════════════════════════════════
     # VERIFY — Health check after deploy
     # ═════════════════════════════════════════════════════════════════════════
