@@ -29,7 +29,7 @@ const {
 
 // Share page utilities
 const { statements, dbConfigured } = require('./database');
-const { buildShareHtml, extractProductIdFromSlug, ensureAbsoluteUrl } = require('./sharePage');
+const { buildShareHtml, extractProductIdFromSlug } = require('./sharePage');
 const pkg = require('../package.json');
 
 const app = express();
@@ -86,6 +86,55 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 
 // --- Share Page (OG meta tags for social sharing) ---
+
+// Cache for share page settings (siteName, currency) — 10 min TTL
+let _shareSettingsCache = null;
+let _shareSettingsCacheTime = 0;
+const SHARE_SETTINGS_TTL = 10 * 60 * 1000;
+
+/**
+ * Fetch siteName and currency from DB settings with caching
+ */
+const getShareSettings = async () => {
+    const now = Date.now();
+    if (_shareSettingsCache && now - _shareSettingsCacheTime < SHARE_SETTINGS_TTL) {
+        return _shareSettingsCache;
+    }
+    try {
+        const allSettings = await statements.getSettings();
+        const settingsMap = {};
+        for (const s of allSettings) settingsMap[s.id] = s.value;
+        _shareSettingsCache = {
+            siteName: settingsMap.siteName || 'TechStore',
+            currency: settingsMap.currencyCode || 'DOP'
+        };
+        _shareSettingsCacheTime = now;
+    } catch (_err) {
+        // Fallback if DB unavailable
+        _shareSettingsCache = { siteName: 'TechStore', currency: 'DOP' };
+    }
+    return _shareSettingsCache;
+};
+
+/**
+ * Convert Supabase Storage URL to proxied /storage/ path (for Cloudflare cache).
+ * External crawlers use the full absolute proxied URL so images go through CDN.
+ * In dev (no Nginx), returns the original Supabase URL.
+ */
+const resolveShareImageUrl = (imageUrl, baseUrl) => {
+    if (!imageUrl) return '';
+    const marker = '/storage/v1/object/public/';
+    const idx = imageUrl.indexOf(marker);
+    if (idx !== -1 && baseUrl) {
+        // Convert to proxied URL: https://domain.com/storage/<path>
+        return `${baseUrl}/storage/${imageUrl.slice(idx + marker.length)}`;
+    }
+    // Non-Supabase or already absolute → return as-is
+    if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
+    // Relative path → make absolute
+    return baseUrl ? `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}` : imageUrl;
+};
+
 app.get('/p/:slug', async (req, res) => {
     const slug = req.params.slug || '';
     const productId = extractProductIdFromSlug(slug);
@@ -114,19 +163,21 @@ app.get('/p/:slug', async (req, res) => {
         const detectedHost = req.get('x-forwarded-host') || req.get('host');
         const requestOriginUrl = `${detectedProtocol}://${detectedHost}`;
         
-        // Backend URL for image assets - use BASE_URL if set, otherwise detect from request
-        const backendUrl = (BASE_URL || requestOriginUrl).replace(/\/$/, '');
-        // Frontend URL for product redirect - use FRONTEND_URL if set, otherwise derive from backend
-        // Note: Replace port 5001 with 5173 for frontend if using default ports
+        // Site base URL (for images and redirects)
+        const siteUrl = (BASE_URL || requestOriginUrl).replace(/\/$/, '');
+        // Frontend URL for product redirect (in dev, replace backend port with frontend port)
         const defaultFrontendUrl = requestOriginUrl.replace(':5001', ':5173');
         const frontendUrl = (FRONTEND_URL || defaultFrontendUrl).replace(/\/$/, '');
         
-        // Build absolute image URL
+        // Build absolute image URL — proxied through Nginx/Cloudflare in production
         const primaryImage = images.length > 0 ? images[0].image_path : '';
-        const imageUrl = ensureAbsoluteUrl(primaryImage, backendUrl);
+        const imageUrl = resolveShareImageUrl(primaryImage, siteUrl);
         
         // Redirect URL points to frontend product page
         const productPageUrl = `${frontendUrl}/product/${productId}`;
+
+        // Fetch dynamic site settings (siteName, currency) with caching
+        const shareSettings = await getShareSettings();
 
         console.log('Share page generated:', { 
             productId, 
@@ -143,9 +194,9 @@ app.get('/p/:slug', async (req, res) => {
             description: product.description,
             imageUrl,
             url: productPageUrl,
-            siteName: 'TechStore',
+            siteName: shareSettings.siteName,
             price: product.price,
-            currency: 'DOP'
+            currency: shareSettings.currency
         });
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');

@@ -130,16 +130,18 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
     return idPart ? `${normalized}-${idPart}` : normalized;
   };
 
-  // Backend URL for share page (serves OG meta tags)
+  // Backend URL for share page (in dev: backend port, in prod: same origin via Nginx)
   const backendBaseUrl = (API_URL?.replace(/\/api\/?$/, '') || '').replace(/\/$/, '');
+  // Share base: backend URL in dev, or current origin in prod (Nginx proxies /p/ to backend)
+  const shareBaseUrl = backendBaseUrl || (BASE_URL || window.location.origin).replace(/\/$/, '');
   // Frontend URL for direct product link
   const frontendBaseUrl = (BASE_URL || window.location.origin).replace(/\/$/, '');
   
   const productId = product?.id || id;
   const shareSlug = createProductShareSlug(product?.name, productId);
   
-  // Share URL points to backend /p/ route (for OG meta tags)
-  const shareUrl = backendBaseUrl ? `${backendBaseUrl}/p/${shareSlug}` : `${frontendBaseUrl}/product/${productId}`;
+  // Share URL always uses /p/ route for OG meta tags (social preview)
+  const shareUrl = `${shareBaseUrl}/p/${shareSlug}`;
   const shareText = `¡Mira este producto! ${product?.name || ''}`.trim();
 
   const handleShare = async () => {
