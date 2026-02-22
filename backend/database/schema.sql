@@ -218,16 +218,20 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('products', 'products', true)
 ON CONFLICT (id) DO NOTHING;
 
--- Policy: anyone can view product images (public read)
-CREATE POLICY IF NOT EXISTS "Public read products" ON storage.objects
+-- Policies: public read + full CRUD on products bucket
+-- Uses DROP IF EXISTS + CREATE (compatible with PG 14; IF NOT EXISTS requires PG 15+)
+DROP POLICY IF EXISTS "Public read products" ON storage.objects;
+CREATE POLICY "Public read products" ON storage.objects
   FOR SELECT USING (bucket_id = 'products');
 
--- Policies: allow all operations on products bucket (backend handles auth via its own JWT middleware)
-CREATE POLICY IF NOT EXISTS "Anon upload products" ON storage.objects
+DROP POLICY IF EXISTS "Anon upload products" ON storage.objects;
+CREATE POLICY "Anon upload products" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'products');
 
-CREATE POLICY IF NOT EXISTS "Anon update products" ON storage.objects
+DROP POLICY IF EXISTS "Anon update products" ON storage.objects;
+CREATE POLICY "Anon update products" ON storage.objects
   FOR UPDATE USING (bucket_id = 'products');
 
-CREATE POLICY IF NOT EXISTS "Anon delete products" ON storage.objects
+DROP POLICY IF EXISTS "Anon delete products" ON storage.objects;
+CREATE POLICY "Anon delete products" ON storage.objects
   FOR DELETE USING (bucket_id = 'products');
