@@ -52,25 +52,16 @@ server {
                image/svg+xml;
 
     # --- Supabase Storage Proxy (reduce egress → Cloudflare caches) ---
-    # Conditional: only proxy when supabase_ref is configured.
-    # On fresh deploys (before Setup Wizard), returns 404 cleanly.
-{% if supabase_ref is defined and supabase_ref %}
+    # Proxied through backend so images work immediately after Setup Wizard.
+    # Backend reads SUPABASE_URL from .env.local — no Nginx reconfiguration needed.
     location /storage/ {
-        proxy_pass https://{{ supabase_ref }}.supabase.co/storage/v1/object/public/;
-        proxy_set_header Host {{ supabase_ref }}.supabase.co;
-        proxy_ssl_server_name on;
-        proxy_hide_header Cache-Control;
-        add_header Cache-Control "public, max-age=2592000, immutable";
-        add_header X-Cache-Proxy "storage-proxy";
-        proxy_set_header Cookie "";
-        proxy_set_header Authorization "";
+        proxy_pass http://127.0.0.1:{{ backend_port }}/storage/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
-{% else %}
-    # No supabase_ref configured yet — return 404 to prevent fallthrough to SPA
-    location /storage/ {
-        return 404;
-    }
-{% endif %}
 
     # --- API Backend (Express :{{ backend_port }}) ---
     location /api/ {

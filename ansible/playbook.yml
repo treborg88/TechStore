@@ -114,35 +114,6 @@
         global: true
         state: present
 
-    # ── Auto-detect supabase_ref from server .env.local ────
-    # Runs BEFORE Nginx template so /storage/ proxy is configured correctly.
-    # After Setup Wizard runs, .env.local contains SUPABASE_URL.
-    # Extract the project ref so Nginx can proxy /storage/ → Supabase.
-    # Inventory supabase_ref takes priority (explicit override).
-    - name: Check for existing .env.local on server
-      tags: [deploy, nginx]
-      ansible.builtin.stat:
-        path: "{{ app_path }}/backend/.env.local"
-      register: env_local_file
-
-    - name: Read SUPABASE_URL from .env.local
-      tags: [deploy, nginx]
-      ansible.builtin.shell: |
-        grep -oP 'SUPABASE_URL=https://\K[^.]+' {{ app_path }}/backend/.env.local
-      register: detected_ref
-      changed_when: false
-      failed_when: false
-      when: env_local_file.stat.exists
-
-    - name: Set supabase_ref from .env.local (if not in inventory)
-      tags: [deploy, nginx]
-      ansible.builtin.set_fact:
-        supabase_ref: "{{ detected_ref.stdout | trim }}"
-      when: >
-        (supabase_ref is not defined or supabase_ref == '')
-        and env_local_file.stat.exists
-        and detected_ref.stdout | default('') | trim != ''
-
     # ── SSL (Cloudflare Origin Certificate — wildcard) ─────
     # SSL certs MUST be deployed BEFORE Nginx config, because nginx -t
     # will fail if the config references cert files that don't exist.
@@ -352,14 +323,14 @@
         msg: >
           {% if health_check.json.status | default('') == 'setup' %}
           ⚠️ {{ app_name }} deployed in SETUP MODE — visit https://{{ domain }} to configure the database.
-          After setup, re-run with --tags nginx to enable the Supabase Storage proxy.
+          Images will work automatically after Setup Wizard configures Supabase.
           {% else %}
           ✅ {{ app_name }} deployed successfully!
           {% endif %}
           Backend: http://127.0.0.1:{{ backend_port }}
           Frontend: http://127.0.0.1:{{ frontend_port }}
           Public: https://{{ domain }}
-          Storage proxy: {{ 'enabled (' + supabase_ref + ')' if supabase_ref | default('') else 'disabled (no supabase_ref)' }}
+          Storage proxy: backend (dynamic — reads SUPABASE_URL at runtime)
 
   # ═══════════════════════════════════════════════════════════════════════════
   # HANDLERS

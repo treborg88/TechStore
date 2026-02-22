@@ -9,6 +9,7 @@ const verificationRoutes = require('./verification.routes');
 const paymentsRoutes = require('./payments.routes');
 const chatbotRoutes = require('./chatbot.routes');
 const setupRoutes = require('./setup.routes');
+const storageRoutes = require('./storage.routes');
 
 module.exports = {
     authRoutes,
@@ -20,5 +21,6 @@ module.exports = {
     verificationRoutes,
     paymentsRoutes,
     chatbotRoutes,
-    setupRoutes
+    setupRoutes,
+    storageRoutes
 };

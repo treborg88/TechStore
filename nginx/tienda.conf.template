@@ -9,14 +9,12 @@
 #   {{BACKEND_PORT}}    — puerto del backend Express (default: 5001)
 #   {{FRONTEND_PORT}}   — puerto del frontend Vite preview (default: 5173)
 #   {{APP_PATH}}        — ruta absoluta de la app (ej: /home/ubuntu/TechStore)
-#   {{SUPABASE_REF}}    — project ref de Supabase (ej: azbrnpxgpgmtnmofhmaf)
 #
 # Uso rápido con sed:
 #   sed -e 's/{{DOMAIN}}/mitienda.com/g' \
 #       -e 's/{{BACKEND_PORT}}/5001/g' \
 #       -e 's/{{FRONTEND_PORT}}/5173/g' \
 #       -e 's|{{APP_PATH}}|/home/ubuntu/TechStore|g' \
-#       -e 's/{{SUPABASE_REF}}/azbrnpxgpgmtnmofhmaf/g' \
 #       nginx/tienda.conf.template > /etc/nginx/sites-available/tienda
 #
 # Variantes SSL:
@@ -64,21 +62,15 @@ server {
                image/svg+xml;
 
     # --- Supabase Storage Proxy (reduce egress → Cloudflare caches) ---
-    # Convierte /storage/products/file.webp → Supabase Storage URL
-    # Cloudflare CDN cachea las imágenes, Supabase solo las sirve 1 vez.
+    # Proxied through backend: reads SUPABASE_URL from .env.local at runtime.
+    # No SUPABASE_REF needed in Nginx — works immediately after Setup Wizard.
     location /storage/ {
-        proxy_pass https://{{SUPABASE_REF}}.supabase.co/storage/v1/object/public/;
-        proxy_set_header Host {{SUPABASE_REF}}.supabase.co;
-        proxy_ssl_server_name on;
-
-        # Cache headers para Cloudflare (30 días)
-        proxy_hide_header Cache-Control;
-        add_header Cache-Control "public, max-age=2592000, immutable";
-        add_header X-Cache-Proxy "storage-proxy";
-
-        # No pasar cookies ni headers de auth a Supabase Storage
-        proxy_set_header Cookie "";
-        proxy_set_header Authorization "";
+        proxy_pass http://127.0.0.1:{{BACKEND_PORT}}/storage/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 
     # --- API Backend (Express :{{BACKEND_PORT}}) ---
@@ -209,13 +201,12 @@ server {
 #
 #     # --- Supabase Storage Proxy ---
 #     location /storage/ {
-#         proxy_pass https://{{SUPABASE_REF}}.supabase.co/storage/v1/object/public/;
-#         proxy_set_header Host {{SUPABASE_REF}}.supabase.co;
-#         proxy_ssl_server_name on;
-#         proxy_hide_header Cache-Control;
-#         add_header Cache-Control "public, max-age=2592000, immutable";
-#         proxy_set_header Cookie "";
-#         proxy_set_header Authorization "";
+#         proxy_pass http://127.0.0.1:{{BACKEND_PORT}}/storage/;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
 #     }
 #
 #     # --- API Backend ---
@@ -316,13 +307,12 @@ server {
 #
 #     # --- Supabase Storage Proxy ---
 #     location /storage/ {
-#         proxy_pass https://{{SUPABASE_REF}}.supabase.co/storage/v1/object/public/;
-#         proxy_set_header Host {{SUPABASE_REF}}.supabase.co;
-#         proxy_ssl_server_name on;
-#         proxy_hide_header Cache-Control;
-#         add_header Cache-Control "public, max-age=2592000, immutable";
-#         proxy_set_header Cookie "";
-#         proxy_set_header Authorization "";
+#         proxy_pass http://127.0.0.1:{{BACKEND_PORT}}/storage/;
+#         proxy_http_version 1.1;
+#         proxy_set_header Host $host;
+#         proxy_set_header X-Real-IP $remote_addr;
+#         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+#         proxy_set_header X-Forwarded-Proto $scheme;
 #     }
 #
 #     # --- API Backend ---

@@ -24,7 +24,8 @@ const {
     verificationRoutes,
     paymentsRoutes,
     chatbotRoutes,
-    setupRoutes
+    setupRoutes,
+    storageRoutes
 } = require('./routes');
 
 // Share page utilities
@@ -84,6 +85,11 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+
+// --- Storage Proxy (Supabase images → Cloudflare CDN) ---
+// Served by backend so it works immediately after Setup Wizard.
+// Nginx forwards /storage/ here; no need for supabase_ref in Nginx config.
+app.use('/storage', storageRoutes);
 
 // --- Share Page (OG meta tags for social sharing) ---
 

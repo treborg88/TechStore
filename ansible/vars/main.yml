@@ -42,10 +42,8 @@ nginx_config_name: techstore
 nginx_client_max_body_size: 50M
 
 # ── Supabase ──────────────────────────────────────────────
-# Project ref para el proxy de Storage (reduce egress vía Cloudflare cache)
-# No definir aquí — se configura per-host en inventory.yml
-# o se auto-detecta desde .env.local del servidor al hacer deploy.
-# supabase_ref: (set in inventory.yml or auto-detected)
+# Storage proxy is handled by the backend at runtime.
+# No supabase_ref needed in Ansible/Nginx — backend reads SUPABASE_URL from .env.local.
 
 # ── Swap (para servidores con poca RAM) ───────────────────
 # Vite build necesita ~1.5GB; servidores con <2GB RAM requieren swap
