@@ -17,14 +17,14 @@ on:
           - prod-2
           - all
       deploy_tags:
-        description: 'Tags de Ansible a ejecutar'
+        description: 'Tags de Ansible a ejecutar (setup incluido para fresh VMs)'
         required: false
-        default: 'deploy,verify'
+        default: 'setup,deploy,verify'
 
 env:
   ANSIBLE_HOST_KEY_CHECKING: "False"
   DEPLOY_LIMIT: ${{ github.event.inputs.deploy_target || 'prod-1' }}
-  DEPLOY_TAGS: ${{ github.event.inputs.deploy_tags || 'deploy,verify' }}
+  DEPLOY_TAGS: ${{ github.event.inputs.deploy_tags || 'setup,deploy,verify' }}
 
 jobs:
   deploy:
