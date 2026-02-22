@@ -171,6 +171,7 @@ function AppRoutes({
                   currencyCode={productCardSettings.currency}
                   siteName={siteName}
                   siteIcon={siteIcon}
+                  categoryFilterSettings={categoryFilterSettings}
                 />
               </div>
             </main>

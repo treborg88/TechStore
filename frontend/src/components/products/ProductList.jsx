@@ -5,6 +5,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import './ProductList.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
+import { DEFAULT_CATEGORY_FILTERS_CONFIG } from '../../config';
 import {
 	PRODUCT_UNIT_OPTIONS,
 	normalizeUnitType,
@@ -24,7 +25,7 @@ function blankProduct() {
 	};
 }
 
-export default function ProductList({ products, onRefresh, isLoading, pagination, currencyCode, onForceRefresh }) {
+export default function ProductList({ products, onRefresh, isLoading, pagination, currencyCode, onForceRefresh, categoryFilterSettings }) {
 	const [newProduct, setNewProduct] = useState(blankProduct());
 	const [customCategory, setCustomCategory] = useState('');
 	const [editingProduct, setEditingProduct] = useState(null);
@@ -103,9 +104,20 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	}, [products]);
 
 	const categoryOptions = useMemo(() => {
-		const usable = categories.filter((value) => value && value !== 'all');
-		return [...usable].sort((a, b) => a.localeCompare(b));
-	}, [categories]);
+		// Merge categories from settings (admin-configured) with existing product categories
+		const config = categoryFilterSettings?.useDefault === false
+			? categoryFilterSettings
+			: DEFAULT_CATEGORY_FILTERS_CONFIG;
+		// Settings categories: use slug (matches product.category in DB), exclude 'todos'
+		const settingsSlugs = (config.categories || [])
+			.map((c) => c.slug || c.name)
+			.filter((s) => s && s.toLowerCase() !== 'todos');
+		// Existing product categories from DB
+		const productCats = categories.filter((v) => v && v !== 'all');
+		// Combine, deduplicate, sort
+		const merged = new Set([...settingsSlugs, ...productCats]);
+		return [...merged].sort((a, b) => a.localeCompare(b));
+	}, [categories, categoryFilterSettings]);
 
 	const filteredProducts = useMemo(() => {
 		const searchTerm = filters.search.trim().toLowerCase();
@@ -563,12 +575,21 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																	</label>
 																	<label>
 																		Categoría
-																		<input
-																			type="text"
-																			value={editingProduct.category}
-																			onChange={(event) => handleEditField('category', event.target.value)}
-																			required
-																		/>
+																		<select
+																			value={categoryOptions.includes(editingProduct.category) ? editingProduct.category : '__custom__'}
+																			onChange={(event) => {
+																				if (event.target.value !== '__custom__') handleEditField('category', event.target.value);
+																			}}
+																			required={!editingProduct.category}
+																		>
+																			<option value="">Selecciona una categoría</option>
+																			{categoryOptions.map((option) => (
+																				<option key={option} value={option}>{option}</option>
+																			))}
+																			{editingProduct.category && !categoryOptions.includes(editingProduct.category) && (
+																				<option value="__custom__">{editingProduct.category} (personalizada)</option>
+																			)}
+																		</select>
 																	</label>
 																</div>
 																<div className="form-row">
@@ -744,12 +765,21 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 													</label>
 													<label>
 														Categoría
-														<input
-															type="text"
-															value={editingProduct.category}
-															onChange={(event) => handleEditField('category', event.target.value)}
-															required
-														/>
+														<select
+															value={categoryOptions.includes(editingProduct.category) ? editingProduct.category : '__custom__'}
+															onChange={(event) => {
+																if (event.target.value !== '__custom__') handleEditField('category', event.target.value);
+															}}
+															required={!editingProduct.category}
+														>
+															<option value="">Selecciona una categoría</option>
+															{categoryOptions.map((option) => (
+																<option key={option} value={option}>{option}</option>
+															))}
+															{editingProduct.category && !categoryOptions.includes(editingProduct.category) && (
+																<option value="__custom__">{editingProduct.category} (personalizada)</option>
+															)}
+														</select>
 													</label>
 												</div>
 												<div className="form-row">

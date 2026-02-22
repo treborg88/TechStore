@@ -10,7 +10,7 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { playNotificationSound } from '../../utils/notificationSound';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
-export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️' }) {
+export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️', categoryFilterSettings }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
@@ -645,6 +645,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					pagination={pagination} 
 					currencyCode={currencyCode}
 					onForceRefresh={() => onRefresh('todos', 1, { force: true })}
+					categoryFilterSettings={categoryFilterSettings}
 				/>)}
 
 
