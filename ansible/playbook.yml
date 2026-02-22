@@ -160,7 +160,7 @@
 
     # ── SSL (Cloudflare Origin Certificate — wildcard) ─────
     - name: Create SSL directory
-      tags: [setup, nginx, ssl]
+      tags: [setup, deploy, nginx, ssl]
       ansible.builtin.file:
         path: "{{ ssl_cert_dir }}"
         state: directory
@@ -170,7 +170,7 @@
       when: ssl_mode == 'full_strict'
 
     - name: Deploy Origin Certificate (wildcard *.eonsclover.com)
-      tags: [setup, nginx, ssl]
+      tags: [setup, deploy, nginx, ssl]
       ansible.builtin.copy:
         src: "{{ cf_origin_cert_file }}"
         dest: "{{ ssl_cert_path }}"
@@ -181,7 +181,7 @@
       notify: Reload Nginx
 
     - name: Deploy Origin Certificate Key
-      tags: [setup, nginx, ssl]
+      tags: [setup, deploy, nginx, ssl]
       ansible.builtin.copy:
         src: "{{ cf_origin_key_file }}"
         dest: "{{ ssl_key_path }}"
@@ -192,7 +192,7 @@
       notify: Reload Nginx
 
     - name: Validate SSL certificate
-      tags: [setup, nginx, ssl]
+      tags: [setup, deploy, nginx, ssl]
       ansible.builtin.command: openssl x509 -in {{ ssl_cert_path }} -noout -subject
       changed_when: false
       when: ssl_mode == 'full_strict'
