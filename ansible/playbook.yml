@@ -114,6 +114,47 @@
         global: true
         state: present
 
+    # ── SSL (Cloudflare Origin Certificate — wildcard) ─────
+    # SSL certs MUST be deployed BEFORE Nginx config, because nginx -t
+    # will fail if the config references cert files that don't exist.
+    - name: Create SSL directory
+      tags: [setup, deploy, nginx, ssl]
+      ansible.builtin.file:
+        path: "{{ ssl_cert_dir }}"
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"
+      when: ssl_mode == 'full_strict'
+
+    - name: Deploy Origin Certificate (wildcard *.eonsclover.com)
+      tags: [setup, deploy, nginx, ssl]
+      ansible.builtin.copy:
+        src: "{{ cf_origin_cert_file }}"
+        dest: "{{ ssl_cert_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+      when: ssl_mode == 'full_strict' and cf_origin_cert_file is defined
+      notify: Reload Nginx
+
+    - name: Deploy Origin Certificate Key
+      tags: [setup, deploy, nginx, ssl]
+      ansible.builtin.copy:
+        src: "{{ cf_origin_key_file }}"
+        dest: "{{ ssl_key_path }}"
+        owner: root
+        group: root
+        mode: "0600"
+      when: ssl_mode == 'full_strict' and cf_origin_key_file is defined
+      notify: Reload Nginx
+
+    - name: Validate SSL certificate
+      tags: [setup, deploy, nginx, ssl]
+      ansible.builtin.command: openssl x509 -in {{ ssl_cert_path }} -noout -subject
+      changed_when: false
+      when: ssl_mode == 'full_strict'
+
     # ── Nginx ──────────────────────────────────────────────
     - name: Install Nginx
       tags: [setup, nginx]
@@ -157,45 +198,6 @@
         name: nginx
         state: started
         enabled: true
-
-    # ── SSL (Cloudflare Origin Certificate — wildcard) ─────
-    - name: Create SSL directory
-      tags: [setup, deploy, nginx, ssl]
-      ansible.builtin.file:
-        path: "{{ ssl_cert_dir }}"
-        state: directory
-        owner: root
-        group: root
-        mode: "0700"
-      when: ssl_mode == 'full_strict'
-
-    - name: Deploy Origin Certificate (wildcard *.eonsclover.com)
-      tags: [setup, deploy, nginx, ssl]
-      ansible.builtin.copy:
-        src: "{{ cf_origin_cert_file }}"
-        dest: "{{ ssl_cert_path }}"
-        owner: root
-        group: root
-        mode: "0600"
-      when: ssl_mode == 'full_strict' and cf_origin_cert_file is defined
-      notify: Reload Nginx
-
-    - name: Deploy Origin Certificate Key
-      tags: [setup, deploy, nginx, ssl]
-      ansible.builtin.copy:
-        src: "{{ cf_origin_key_file }}"
-        dest: "{{ ssl_key_path }}"
-        owner: root
-        group: root
-        mode: "0600"
-      when: ssl_mode == 'full_strict' and cf_origin_key_file is defined
-      notify: Reload Nginx
-
-    - name: Validate SSL certificate
-      tags: [setup, deploy, nginx, ssl]
-      ansible.builtin.command: openssl x509 -in {{ ssl_cert_path }} -noout -subject
-      changed_when: false
-      when: ssl_mode == 'full_strict'
 
     # ═════════════════════════════════════════════════════════════════════════
     # DEPLOY — Clone, install, build, restart
