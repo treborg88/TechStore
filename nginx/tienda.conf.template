@@ -132,7 +132,8 @@ server {
 
     # SPA fallback handler — serves index.html for unknown routes
     location @spa_fallback {
-        proxy_pass http://127.0.0.1:{{FRONTEND_PORT}}/index.html;
+        rewrite ^ /index.html break;
+        proxy_pass http://127.0.0.1:{{FRONTEND_PORT}};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
     }
@@ -261,7 +262,8 @@ server {
 #
 #     # SPA fallback handler
 #     location @spa_fallback {
-#         proxy_pass http://127.0.0.1:{{FRONTEND_PORT}}/index.html;
+#         rewrite ^ /index.html break;
+#         proxy_pass http://127.0.0.1:{{FRONTEND_PORT}};
 #         proxy_http_version 1.1;
 #         proxy_set_header Host $host;
 #     }
@@ -367,7 +369,8 @@ server {
 #
 #     # SPA fallback handler
 #     location @spa_fallback {
-#         proxy_pass http://127.0.0.1:{{FRONTEND_PORT}}/index.html;
+#         rewrite ^ /index.html break;
+#         proxy_pass http://127.0.0.1:{{FRONTEND_PORT}};
 #         proxy_http_version 1.1;
 #         proxy_set_header Host $host;
 #     }
