@@ -196,9 +196,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
                                                 <div className="cart-item-body">
                                                     <div className="item-price-info">
                                                         <span className="item-price-label">Precio:</span>
-                                                        <span className="item-price-value">{formatCurrency(item.price, currencyCode)}</span>
-                                                        <span className="item-price-label" style={{ marginLeft: '8px' }}>Unidad:</span>
-                                                        <span className="item-price-value">{getUnitShortLabel(item.unit_type)}</span>
+                                                        <span className="item-price-value">{formatCurrency(item.price, currencyCode)} {getUnitShortLabel(item.unit_type)}</span>
                                                     </div>
                                                     <div className="cart-item-actions">
                                                         <div className="quantity-selector">

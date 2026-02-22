@@ -202,7 +202,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   if (!product) return null;
 
   const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock < 5;
+  const isLowStock = product.stock > 0 && product.stock <= 10;
   const unitType = normalizeUnitType(product.unit_type || product.unitType);
   const unitLabel = PRODUCT_UNIT_LABELS[unitType];
 
@@ -328,7 +328,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
           <div className="product-price-stock">
             <div className="product-price">{formatCurrency(product.price, currencyCode)}</div>
             <div className={`stock-badge ${isOutOfStock ? 'out-of-stock' : isLowStock ? 'low-stock' : 'in-stock'}`}>
-              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${product.stock} ${unitLabel}!` : `🟢 Disponible: ${product.stock} ${unitLabel}`}
+              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${product.stock} ${unitLabel}!` : '🟢 Disponible'}
             </div>
           </div>
 
