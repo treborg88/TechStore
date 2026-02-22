@@ -1,10 +1,10 @@
 import { useState, useMemo, useEffect, Fragment } from 'react';
-import { BASE_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
 import './ProductList.css';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import {
 	PRODUCT_UNIT_OPTIONS,
 	normalizeUnitType,
@@ -509,13 +509,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 													{(product.images || []).length > 0 ? (
 														<div className="image-gallery">
 															<img
-																src={product.images[0].image_path ? (
-																	product.images[0].image_path.startsWith('http') 
-																		? product.images[0].image_path 
-																		: (product.images[0].image_path.startsWith('/images/') 
-																			? `${BASE_URL}${product.images[0].image_path}` 
-																			: `${BASE_URL}/images/${product.images[0].image_path}`)
-																) : '/images/sin imagen.jpeg'}
+																src={resolveImageUrl(product.images[0].image_path)}
 																alt={product.name}
 																onError={(event) => {
 																	event.currentTarget.src = '/images/sin imagen.jpeg';
@@ -527,13 +521,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 														</div>
 													) : (
 														<img
-															src={product.image ? (
-																product.image.startsWith('http') 
-																	? product.image 
-																	: (product.image.startsWith('/images/') 
-																		? `${BASE_URL}${product.image}` 
-																		: `${BASE_URL}/images/${product.image}`)
-															) : '/images/sin imagen.jpeg'}
+															src={resolveImageUrl(product.image)}
 															alt={product.name}
 														/>
 													)}
@@ -627,7 +615,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																		{(editingProduct.images || []).map((img) => (
 																			<div key={img.id} className="image-item">
 																				<img
-																					src={img.image_path.startsWith('http') ? img.image_path : `${BASE_URL}${img.image_path}`}
+																					src={resolveImageUrl(img.image_path)}
 																					alt="Producto"
 																					onError={(event) => {
 																						event.currentTarget.src = '/images/sin imagen.jpeg';
@@ -711,16 +699,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 								const isExpanded = isEditing;
 							const mainImage = (() => {
 								const firstImage = (product.images || [])[0];
-								if (firstImage?.image_path) {
-									if (firstImage.image_path.startsWith('http')) return firstImage.image_path;
-									if (firstImage.image_path.startsWith('/images/')) return `${BASE_URL}${firstImage.image_path}`;
-									return `${BASE_URL}/images/${firstImage.image_path}`;
-								}
-								if (product.image) {
-									if (product.image.startsWith('http')) return product.image;
-									if (product.image.startsWith('/images/')) return `${BASE_URL}${product.image}`;
-									return `${BASE_URL}/images/${product.image}`;
-								}
+								if (firstImage?.image_path) return resolveImageUrl(firstImage.image_path);
+								if (product.image) return resolveImageUrl(product.image);
 								return '/images/sin imagen.jpeg';
 							})();
 
@@ -816,7 +796,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 														{(editingProduct.images || []).map((img) => (
 															<div key={img.id} className="image-item">
 																<img
-																	src={img.image_path.startsWith('http') ? img.image_path : `${BASE_URL}${img.image_path}`}
+																	src={resolveImageUrl(img.image_path)}
 																	alt="Producto"
 																	onError={(event) => {
 																		event.currentTarget.src = '/images/sin imagen.jpeg';

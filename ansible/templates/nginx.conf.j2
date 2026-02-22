@@ -51,6 +51,18 @@ server {
                application/javascript application/json application/xml
                image/svg+xml;
 
+    # --- Supabase Storage Proxy (reduce egress → Cloudflare caches) ---
+    location /storage/ {
+        proxy_pass https://{{ supabase_ref }}.supabase.co/storage/v1/object/public/;
+        proxy_set_header Host {{ supabase_ref }}.supabase.co;
+        proxy_ssl_server_name on;
+        proxy_hide_header Cache-Control;
+        add_header Cache-Control "public, max-age=2592000, immutable";
+        add_header X-Cache-Proxy "storage-proxy";
+        proxy_set_header Cookie "";
+        proxy_set_header Authorization "";
+    }
+
     # --- API Backend (Express :{{ backend_port }}) ---
     location /api/ {
         proxy_pass http://127.0.0.1:{{ backend_port }};

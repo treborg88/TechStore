@@ -88,9 +88,10 @@
     }
     };
 
-    export const logout = () => {
+    export const logout = async () => {
+    // Invalidate token on server before clearing local state
     try {
-        apiFetch(apiUrl('/auth/logout'), { method: 'POST' });
+        await apiFetch(apiUrl('/auth/logout'), { method: 'POST' });
     } catch (error) {
         console.error('Error en logout:', error);
     }
@@ -99,7 +100,7 @@
     localStorage.removeItem('sessionId');
     localStorage.removeItem('sessionStartTime');
     
-    // Limpiar carritos guardados (opcional)
+    // Limpiar carritos guardados
     const keys = Object.keys(localStorage);
     keys.forEach(key => {
         if (key.startsWith('cart_')) {

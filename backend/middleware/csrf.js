@@ -94,11 +94,13 @@ const csrfProtection = (req, res, next) => {
     }
 
     // Skip auth endpoints that don't need CSRF protection
+    // Logout is exempt: only blacklists the JWT, no sensitive data modification
     const csrfExemptPaths = [
         '/api/auth/login',
         '/api/auth/register',
         '/api/auth/forgot-password',
-        '/api/auth/reset-password'
+        '/api/auth/reset-password',
+        '/api/auth/logout'
     ];
     if (csrfExemptPaths.some(path => req.path.startsWith(path))) {
         return next();

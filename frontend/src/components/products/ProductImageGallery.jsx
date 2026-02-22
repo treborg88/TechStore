@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { BASE_URL } from '../../config';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import './ProductImageGallery.css';
 
 function ProductImageGallery({ images, productName, className = '', onImageClick }) {
@@ -362,13 +362,7 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
             {infiniteImages.map((image, index) => (
               <div key={`${image.id}-${index}`} className="carousel-slide">
                 <img
-                  src={image.image_path ? (
-                    image.image_path.startsWith('http') 
-                      ? image.image_path 
-                      : (image.image_path.startsWith('/images/') 
-                          ? `${BASE_URL}${image.image_path}` 
-                          : `${BASE_URL}/images/${image.image_path}`)
-                  ) : '/images/sin imagen.jpeg'}
+                  src={resolveImageUrl(image.image_path)}
                   alt={`${productName} - Imagen`}
                   className="main-product-image"
                   draggable={false}
@@ -442,13 +436,7 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
                 {infiniteImages.map((image, index) => (
                   <div key={`modal-${image.id}-${index}`} className="modal-carousel-slide">
                     <img
-                      src={image.image_path ? (
-                        image.image_path.startsWith('http')
-                          ? image.image_path
-                          : (image.image_path.startsWith('/images/')
-                              ? `${BASE_URL}${image.image_path}`
-                              : `${BASE_URL}/images/${image.image_path}`)
-                      ) : '/images/sin imagen.jpeg'}
+                      src={resolveImageUrl(image.image_path)}
                       alt={`${productName} - Imagen`}
                       className="modal-image"
                       style={index === internalIndex ? { transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})` } : undefined}

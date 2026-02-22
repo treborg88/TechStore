@@ -54,7 +54,7 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
   // Verificar expiración de sesión al cargar/refresh
   useEffect(() => {
     if (user && isSessionExpired()) {
-      logout();
+      logout(); // Fire-and-forget OK for expired sessions
       setUser(null);
       clearCartItems();
       localStorage.removeItem('checkout_progress');
@@ -67,7 +67,7 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await new Promise(resolve => setTimeout(resolve, 800));
-    logout();
+    await logout();
     setUser(null);
     clearCartItems();
     localStorage.removeItem('checkout_progress');

@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { BASE_URL } from '../../config';
 import '../products/ProductDetail.css';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import { getUnitShortLabel } from '../../utils/productUnits';
 
 function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, onClear, onClose, onClearAll, currencyCode }) {
@@ -167,13 +167,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
                                                     aria-label={`Ver ${item.name}`}
                                                 >
                                                     <img 
-                                                        src={item.image ? (
-                                                            item.image.startsWith('http') 
-                                                                ? item.image 
-                                                                : (item.image.startsWith('/images/') 
-                                                                    ? `${BASE_URL}${item.image}` 
-                                                                    : `${BASE_URL}/images/${item.image}`)
-                                                        ) : '/images/sin imagen.jpeg'} 
+                                                        src={resolveImageUrl(item.image)} 
                                                         alt={item.name} 
                                                         className="cart-item-img" 
                                                         onError={(e) => {

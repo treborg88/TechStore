@@ -41,6 +41,10 @@ pm2_ecosystem: ecosystem.config.cjs
 nginx_config_name: techstore
 nginx_client_max_body_size: 50M
 
+# ── Supabase ──────────────────────────────────────────────
+# Project ref para el proxy de Storage (reduce egress vía Cloudflare cache)
+supabase_ref: azbrnpxgpgmtnmofhmaf
+
 # ── Swap (para servidores con poca RAM) ───────────────────
 # Vite build necesita ~1.5GB; servidores con <2GB RAM requieren swap
 swap_size: 2G

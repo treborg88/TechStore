@@ -7,16 +7,8 @@ import ProductList from '../products/ProductList';
 import UserList from './UserList';
 import SettingsManager from './SettingsManager';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { BASE_URL } from '../../config';
 import { playNotificationSound } from '../../utils/notificationSound';
-
-// Resolve product image URL (handles full URLs and /images/ paths)
-const resolveImageUrl = (img) => {
-	if (!img) return null;
-	if (img.startsWith('http')) return img;
-	// Bare filenames (legacy data) can't be served — skip them
-	return null;
-};
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
 export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️' }) {
 	// Tab state

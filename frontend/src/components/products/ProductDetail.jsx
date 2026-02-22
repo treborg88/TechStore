@@ -8,6 +8,7 @@ import { API_URL, BASE_URL, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ProductDetail.css';
 import { formatCurrency } from '../../utils/formatCurrency';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
 const PRODUCT_UNIT_LABELS = {
   unidad: 'ud',
@@ -402,11 +403,11 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
                 onClick={() => navigate(`/product/${similar.id}`)}
               >
                 <img 
-                  src={
+                  src={resolveImageUrl(
                     (Array.isArray(similar.images) && similar.images.length > 0) 
                       ? similar.images[0].image_path 
-                      : (similar.image || '/images/sin imagen.jpeg')
-                  } 
+                      : similar.image
+                  )} 
                   alt={similar.name} 
                   className="similar-product-image"
                 />

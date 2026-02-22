@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { API_URL, BASE_URL } from '../../config';
+import { API_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './OrderTrackerModal.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatQuantityWithUnit } from '../../utils/productUnits';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
 function OrderTrackerModal({ onClose, user, currencyCode }) {
     const [searchType, setSearchType] = useState('id'); // 'id' o 'email'
@@ -338,13 +339,7 @@ function OrderTrackerModal({ onClose, user, currencyCode }) {
                                         {selectedOrder.items.map((item) => (
                                             <div key={item.id} className="order-item-row">
                                                 <img 
-                                                    src={item.image ? (
-                                                        item.image.startsWith('http') 
-                                                            ? item.image 
-                                                            : (item.image.startsWith('/images/') 
-                                                                ? `${BASE_URL}${item.image}` 
-                                                                : `${BASE_URL}/images/${item.image}`)
-                                                    ) : 'https://placehold.co/100x100?text=No+imagen'} 
+                                                    src={resolveImageUrl(item.image, 'https://placehold.co/100x100?text=No+imagen')} 
                                                     alt={item.name}
                                                     className="item-image"
                                                     onError={(e) => {

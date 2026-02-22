@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { API_URL, BASE_URL } from '../../config';
+import { API_URL } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { getCurrentUser } from '../../services/authService';
 import Invoice from '../common/Invoice';
@@ -14,6 +14,7 @@ import '../products/ProductDetail.css';
 import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatQuantityWithUnit } from '../../utils/productUnits';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
 function Checkout({ cartItems: propCartItems, total: propTotal, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();
@@ -1370,13 +1371,7 @@ return (
                                         <div key={item.id} className="mini-item">
                                             <div className="mini-item-main">
                                                 <img 
-                                                    src={item.image ? (
-                                                        item.image.startsWith('http') 
-                                                            ? item.image 
-                                                            : (item.image.startsWith('/images/') 
-                                                                ? `${BASE_URL}${item.image}` 
-                                                                : `${BASE_URL}/images/${item.image}`)
-                                                    ) : '/images/sin imagen.jpeg'} 
+                                                    src={resolveImageUrl(item.image)} 
                                                     alt={item.name}
                                                     className="mini-item-img"
                                                     onError={(e) => { e.target.src = '/images/sin imagen.jpeg'; }}
