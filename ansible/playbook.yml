@@ -122,7 +122,7 @@
         state: present
 
     - name: Deploy Nginx config from template
-      tags: [setup, nginx]
+      tags: [setup, deploy, nginx]
       ansible.builtin.template:
         src: templates/nginx.conf.j2
         dest: /etc/nginx/sites-available/{{ nginx_config_name }}
@@ -132,7 +132,7 @@
       notify: Reload Nginx
 
     - name: Enable Nginx site (symlink)
-      tags: [setup, nginx]
+      tags: [setup, deploy, nginx]
       ansible.builtin.file:
         src: /etc/nginx/sites-available/{{ nginx_config_name }}
         dest: /etc/nginx/sites-enabled/{{ nginx_config_name }}
@@ -140,19 +140,19 @@
       notify: Reload Nginx
 
     - name: Remove default Nginx site
-      tags: [setup, nginx]
+      tags: [setup, deploy, nginx]
       ansible.builtin.file:
         path: /etc/nginx/sites-enabled/default
         state: absent
       notify: Reload Nginx
 
     - name: Validate Nginx configuration
-      tags: [setup, nginx]
+      tags: [setup, deploy, nginx]
       ansible.builtin.command: nginx -t
       changed_when: false
 
     - name: Ensure Nginx is running
-      tags: [setup, nginx]
+      tags: [setup, deploy, nginx]
       ansible.builtin.service:
         name: nginx
         state: started
@@ -200,6 +200,34 @@
     # ═════════════════════════════════════════════════════════════════════════
     # DEPLOY — Clone, install, build, restart
     # ═════════════════════════════════════════════════════════════════════════
+
+    # ── Auto-detect supabase_ref from server .env.local ────
+    # After Setup Wizard runs, .env.local contains SUPABASE_URL.
+    # Extract the project ref so Nginx can proxy /storage/ → Supabase.
+    # Inventory supabase_ref takes priority (explicit override).
+    - name: Check for existing .env.local on server
+      tags: [deploy, nginx]
+      ansible.builtin.stat:
+        path: "{{ app_path }}/backend/.env.local"
+      register: env_local_file
+
+    - name: Read SUPABASE_URL from .env.local
+      tags: [deploy, nginx]
+      ansible.builtin.shell: |
+        grep -oP 'SUPABASE_URL=https://\K[^.]+' {{ app_path }}/backend/.env.local
+      register: detected_ref
+      changed_when: false
+      failed_when: false
+      when: env_local_file.stat.exists
+
+    - name: Set supabase_ref from .env.local (if not in inventory)
+      tags: [deploy, nginx]
+      ansible.builtin.set_fact:
+        supabase_ref: "{{ detected_ref.stdout | trim }}"
+      when: >
+        (supabase_ref is not defined or supabase_ref == '')
+        and env_local_file.stat.exists
+        and detected_ref.stdout | default('') | trim != ''
 
     # ── Clone / pull repository ────────────────────────────
     - name: Clone or update repository
@@ -321,12 +349,14 @@
         msg: >
           {% if health_check.json.status | default('') == 'setup' %}
           ⚠️ {{ app_name }} deployed in SETUP MODE — visit https://{{ domain }} to configure the database.
+          After setup, re-run with --tags nginx to enable the Supabase Storage proxy.
           {% else %}
           ✅ {{ app_name }} deployed successfully!
           {% endif %}
           Backend: http://127.0.0.1:{{ backend_port }}
           Frontend: http://127.0.0.1:{{ frontend_port }}
           Public: https://{{ domain }}
+          Storage proxy: {{ 'enabled (' + supabase_ref + ')' if supabase_ref | default('') else 'disabled (no supabase_ref)' }}
 
   # ═══════════════════════════════════════════════════════════════════════════
   # HANDLERS

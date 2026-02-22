@@ -38,6 +38,7 @@ all:
           domain: eonsclover.com
           ssl_mode: full_strict
           app_branch: main
+          supabase_ref: azbrnpxgpgmtnmofhmaf
         # ── GCP — leds.eonsclover.com ────────────────────────
         prod-2:
           ansible_host: 35.192.57.192
@@ -46,6 +47,7 @@ all:
           domain: leds.eonsclover.com
           ssl_mode: full_strict
           app_branch: main
+          supabase_ref: oaenbidrkvbcpukcswej
 
     # ── STAGING (descomenta cuando tengas un server de staging) ─
     # staging:

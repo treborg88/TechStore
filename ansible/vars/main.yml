@@ -43,7 +43,9 @@ nginx_client_max_body_size: 50M
 
 # ── Supabase ──────────────────────────────────────────────
 # Project ref para el proxy de Storage (reduce egress vía Cloudflare cache)
-supabase_ref: azbrnpxgpgmtnmofhmaf
+# Dejar vacío para auto-detectar desde .env.local del servidor.
+# Override per-host en inventory.yml para servidores con Supabase conocido.
+supabase_ref: ""
 
 # ── Swap (para servidores con poca RAM) ───────────────────
 # Vite build necesita ~1.5GB; servidores con <2GB RAM requieren swap
