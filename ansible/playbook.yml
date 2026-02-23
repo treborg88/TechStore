@@ -270,10 +270,10 @@
     - name: Stop existing PM2 processes
       tags: [deploy]
       become_user: "{{ deploy_user }}"
-      ansible.builtin.command: pm2 delete all
+      # Only delete if PM2 has running processes (avoids error on fresh installs)
+      ansible.builtin.shell: pm2 jlist 2>/dev/null | grep -q '"pid"' && pm2 delete all || true
       args:
         chdir: "{{ app_path }}"
-      ignore_errors: true
       changed_when: true
 
     - name: Start PM2 with ecosystem config
