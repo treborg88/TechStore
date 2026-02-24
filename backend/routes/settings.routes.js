@@ -132,9 +132,47 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
 /**
  * GET /api/settings/db-status
  * Get database connection info (admin only, sensitive data masked)
+ * Provider-agnostic: returns info for whichever adapter is active.
  */
 router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
     try {
+        const db = require('../database');
+        const currentProvider = db.provider;
+
+        // Common: test actual connection
+        let connected = false;
+        let tableCount = 0;
+
+        if (currentProvider === 'postgres') {
+            // ── PostgreSQL (native) ────────────────────────────
+            const dbUrl = process.env.DATABASE_URL || '';
+            // Mask credentials in connection string for display
+            const maskedUrl = dbUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:****@');
+
+            try {
+                const result = await db.testConnection();
+                connected = result.success;
+                if (connected && db.pool) {
+                    const { rows } = await db.pool.query(
+                        `SELECT COUNT(*) AS c FROM information_schema.tables
+                         WHERE table_schema = 'public'
+                           AND table_name = ANY($1)`,
+                        [['users', 'products', 'orders', 'order_items', 'cart', 'app_settings']]
+                    );
+                    tableCount = parseInt(rows[0].c, 10);
+                }
+            } catch { /* connection failed */ }
+
+            return res.json({
+                provider: 'PostgreSQL (native)',
+                url: maskedUrl,
+                connected,
+                tableCount,
+                dashboardUrl: ''
+            });
+        }
+
+        // ── Supabase (default) ──────────────────────────────
         const supabaseUrl = process.env.SUPABASE_URL || '';
         const supabaseKey = process.env.SUPABASE_KEY || '';
 
@@ -150,18 +188,16 @@ router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
             ? `${supabaseKey.slice(0, 8)}...${supabaseKey.slice(-4)}`
             : supabaseKey ? '••••••••' : '';
 
-        // Test actual connection with a lightweight query
-        let connected = false;
-        let tableCount = 0;
-        const dbClient = require('../database').supabase;
+        // Test connection via Supabase client
+        const dbClient = db.supabase;
         if (dbClient) {
             try {
                 const { error } = await dbClient
-                    .from('settings')
+                    .from('app_settings')
                     .select('id', { count: 'exact', head: true });
                 connected = !error;
-                // Try to count main tables
-                const tables = ['users', 'products', 'orders', 'order_items', 'cart', 'settings'];
+                // Count main tables
+                const tables = ['users', 'products', 'orders', 'order_items', 'cart', 'app_settings'];
                 let count = 0;
                 for (const t of tables) {
                     const { error: tErr } = await dbClient
@@ -196,9 +232,11 @@ router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
  */
 router.post('/db-disconnect', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const { disconnectDb } = require('../database');
+        const db = require('../database');
         const fs = require('fs');
         const path = require('path');
+
+        const currentProvider = db.provider;
 
         // Remove .env.local (setup wizard credentials file)
         const envLocalPath = path.join(__dirname, '..', '.env.local');
@@ -207,9 +245,9 @@ router.post('/db-disconnect', authenticateToken, requireAdmin, async (req, res) 
         }
 
         // Disconnect the in-memory client
-        disconnectDb();
+        db.disconnectDb();
 
-        console.log(`✅ DB desconectada por admin: ${req.user.email}`);
+        console.log(`✅ DB desconectada (${currentProvider}) por admin: ${req.user.email}`);
         res.json({ message: 'Base de datos desconectada. La app está en modo setup.' });
     } catch (error) {
         console.error('Error desconectando DB:', error);

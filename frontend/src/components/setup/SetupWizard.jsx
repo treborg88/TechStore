@@ -29,27 +29,40 @@ function SetupWizard({ onSetupComplete }) {
 
   // Available providers
   const providers = [
-    { id: 'supabase', name: 'Supabase', icon: '⚡', description: 'PostgreSQL gestionado en la nube', enabled: true, badge: 'Recomendado' },
-    { id: 'docker', name: 'Docker PostgreSQL', icon: '🐳', description: 'Base de datos local en contenedor', enabled: false, badge: 'Próximamente' },
+    { id: 'supabase', name: 'Supabase', icon: '⚡', description: 'PostgreSQL gestionado en la nube', enabled: true, badge: 'Cloud' },
+    { id: 'postgres', name: 'PostgreSQL', icon: '🐘', description: 'PostgreSQL nativo (Docker, VPS, cualquier host)', enabled: true, badge: 'Self-hosted' },
   ];
 
   /**
    * Test the connection — reports whether schema tables exist
    */
   const handleTestConnection = useCallback(async () => {
-    if (!url.trim() || !key.trim()) {
-      setStatus({ type: 'error', message: 'Completa URL y Key' });
-      return;
+    // Validate required fields per provider
+    if (provider === 'postgres') {
+      if (!connString.trim()) {
+        setStatus({ type: 'error', message: 'Completa el Connection String' });
+        return;
+      }
+    } else {
+      if (!url.trim() || !key.trim()) {
+        setStatus({ type: 'error', message: 'Completa URL y Key' });
+        return;
+      }
     }
 
     setTesting(true);
     setStatus(null);
 
     try {
+      // Build payload based on provider
+      const payload = provider === 'postgres'
+        ? { provider, connectionString: connString.trim() }
+        : { provider, url: url.trim(), key: key.trim() };
+
       const res = await apiFetch(apiUrl('/setup/test-connection'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, url: url.trim(), key: key.trim() })
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
@@ -61,7 +74,7 @@ function SetupWizard({ onSetupComplete }) {
           type: data.schemaReady ? 'success' : 'warning',
           message: data.schemaReady
             ? 'Conexión exitosa — base de datos lista'
-            : 'Conectado, pero las tablas no existen. Pega el Connection String para crearlas automáticamente.'
+            : 'Conectado, pero las tablas no existen. Se crearán automáticamente al configurar.'
         });
       } else {
         setConnected(false);
@@ -73,21 +86,30 @@ function SetupWizard({ onSetupComplete }) {
     } finally {
       setTesting(false);
     }
-  }, [url, key, provider]);
+  }, [url, key, connString, provider]);
 
   /**
    * Save credentials and activate the app.
    * If schema is missing, auto-creates tables first via direct PostgreSQL connection.
    */
   const handleConfigure = useCallback(async () => {
-    if (!url.trim() || !key.trim()) {
-      setStatus({ type: 'error', message: 'Completa URL y Key' });
-      return;
-    }
-    // Connection string required only when tables don't exist
-    if (!schemaReady && !connString.trim()) {
-      setStatus({ type: 'error', message: 'Pega el Connection String de Supabase para crear las tablas' });
-      return;
+    // Validate required fields per provider
+    const isPostgres = provider === 'postgres';
+    if (isPostgres) {
+      if (!connString.trim()) {
+        setStatus({ type: 'error', message: 'Completa el Connection String' });
+        return;
+      }
+    } else {
+      if (!url.trim() || !key.trim()) {
+        setStatus({ type: 'error', message: 'Completa URL y Key' });
+        return;
+      }
+      // Supabase: connection string only required when tables don't exist
+      if (!schemaReady && !connString.trim()) {
+        setStatus({ type: 'error', message: 'Pega el Connection String de Supabase para crear las tablas' });
+        return;
+      }
     }
 
     setSaving(true);
@@ -98,10 +120,13 @@ function SetupWizard({ onSetupComplete }) {
       if (!schemaReady) {
         setStatus({ type: 'info', message: 'Creando tablas y datos iniciales...' });
 
+        // For postgres, use the same connString; for Supabase, it's the Session mode string
+        const schemaConnString = isPostgres ? connString.trim() : connString.trim();
+
         const initRes = await apiFetch(apiUrl('/setup/initialize-schema'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ connectionString: connString.trim() })
+          body: JSON.stringify({ connectionString: schemaConnString, provider })
         });
         const initData = await initRes.json();
 
@@ -111,13 +136,17 @@ function SetupWizard({ onSetupComplete }) {
         }
       }
 
-      // 2. Save credentials and activate (configure endpoint retries schema check internally)
+      // 2. Save credentials and activate
       setStatus({ type: 'info', message: 'Guardando configuración...' });
+
+      const configPayload = isPostgres
+        ? { provider, connectionString: connString.trim() }
+        : { provider, url: url.trim(), key: key.trim() };
 
       const res = await apiFetch(apiUrl('/setup/configure'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider, url: url.trim(), key: key.trim() })
+        body: JSON.stringify(configPayload)
       });
 
       const data = await res.json();
@@ -137,6 +166,15 @@ function SetupWizard({ onSetupComplete }) {
   // Reset connection state when credentials change
   const handleUrlChange = (e) => { setUrl(e.target.value); setConnected(false); setSchemaReady(false); };
   const handleKeyChange = (e) => { setKey(e.target.value); setConnected(false); setSchemaReady(false); };
+  const handleConnStringChange = (e) => { setConnString(e.target.value); setConnected(false); setSchemaReady(false); };
+
+  // Helper: are the required fields filled?
+  const credentialsFilled = provider === 'postgres'
+    ? connString.trim().length > 0
+    : url.trim().length > 0 && key.trim().length > 0;
+
+  // Helper: is the configure button enabled?
+  const configureEnabled = connected && (schemaReady || connString.trim().length > 0);
 
   // Step indicator helper
   const getStepClass = (s) => {
@@ -207,30 +245,53 @@ function SetupWizard({ onSetupComplete }) {
         {step === 2 && (
           <>
             <div className="setup-form">
-              <div className="setup-field">
-                <label htmlFor="setup-url">Supabase URL</label>
-                <input
-                  id="setup-url"
-                  type="url"
-                  placeholder="https://xxxxx.supabase.co"
-                  value={url}
-                  onChange={handleUrlChange}
-                  autoFocus
-                />
-              </div>
-              <div className="setup-field">
-                <label htmlFor="setup-key">Supabase Anon Key</label>
-                <input
-                  id="setup-key"
-                  type="password"
-                  placeholder="eyJhbGciOi..."
-                  value={key}
-                  onChange={handleKeyChange}
-                />
-              </div>
+              {/* Supabase fields: URL + Key */}
+              {provider === 'supabase' && (
+                <>
+                  <div className="setup-field">
+                    <label htmlFor="setup-url">Supabase URL</label>
+                    <input
+                      id="setup-url"
+                      type="url"
+                      placeholder="https://xxxxx.supabase.co"
+                      value={url}
+                      onChange={handleUrlChange}
+                      autoFocus
+                    />
+                  </div>
+                  <div className="setup-field">
+                    <label htmlFor="setup-key">Supabase Anon Key</label>
+                    <input
+                      id="setup-key"
+                      type="password"
+                      placeholder="eyJhbGciOi..."
+                      value={key}
+                      onChange={handleKeyChange}
+                    />
+                  </div>
+                </>
+              )}
 
-              {/* Connection String — only shown when connected but schema missing */}
-              {connected && !schemaReady && (
+              {/* PostgreSQL field: Connection String */}
+              {provider === 'postgres' && (
+                <div className="setup-field">
+                  <label htmlFor="setup-connstr-pg">Connection String</label>
+                  <input
+                    id="setup-connstr-pg"
+                    type="password"
+                    placeholder="postgresql://user:password@host:5432/dbname"
+                    value={connString}
+                    onChange={handleConnStringChange}
+                    autoFocus
+                  />
+                  <small className="setup-field-help">
+                    Formato: <code>postgresql://usuario:contraseña@host:5432/basedatos</code>
+                  </small>
+                </div>
+              )}
+
+              {/* Supabase: Connection String for schema creation (only when connected but schema missing) */}
+              {provider === 'supabase' && connected && !schemaReady && (
                 <div className="setup-field setup-field-highlight">
                   <label htmlFor="setup-connstr">
                     Connection String (Session mode)
@@ -243,7 +304,7 @@ function SetupWizard({ onSetupComplete }) {
                     type="password"
                     placeholder="postgresql://postgres.xxxx:[YOUR-PASSWORD]@aws-0-...pooler.supabase.com:5432/postgres"
                     value={connString}
-                    onChange={e => setConnString(e.target.value)}
+                    onChange={handleConnStringChange}
                     autoFocus
                   />
                   <small className="setup-field-help">
@@ -266,14 +327,14 @@ function SetupWizard({ onSetupComplete }) {
             <div className="setup-actions">
               <button
                 className="setup-btn secondary"
-                onClick={() => { setStep(1); setStatus(null); }}
+                onClick={() => { setStep(1); setStatus(null); setConnected(false); setSchemaReady(false); }}
               >
                 ← Atrás
               </button>
               <button
                 className="setup-btn secondary"
                 onClick={handleTestConnection}
-                disabled={testing || !url.trim() || !key.trim()}
+                disabled={testing || !credentialsFilled}
               >
                 {testing ? <span className="setup-spinner" /> : '🔌'}
                 {testing ? 'Probando...' : 'Probar Conexión'}
@@ -281,7 +342,7 @@ function SetupWizard({ onSetupComplete }) {
               <button
                 className="setup-btn primary"
                 onClick={handleConfigure}
-                disabled={saving || !connected || (!schemaReady && !connString.trim())}
+                disabled={saving || !configureEnabled}
               >
                 {saving ? <span className="setup-spinner" /> : null}
                 {saving
@@ -292,9 +353,15 @@ function SetupWizard({ onSetupComplete }) {
             </div>
 
             <div className="setup-help">
-              <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">
-                ¿No tienes cuenta? Crea un proyecto en Supabase →
-              </a>
+              {provider === 'supabase' ? (
+                <a href="https://supabase.com/dashboard" target="_blank" rel="noopener noreferrer">
+                  ¿No tienes cuenta? Crea un proyecto en Supabase →
+                </a>
+              ) : (
+                <a href="https://hub.docker.com/_/postgres" target="_blank" rel="noopener noreferrer">
+                  ¿Necesitas PostgreSQL? Usa Docker: docker run -e POSTGRES_PASSWORD=secret -p 5432:5432 postgres →
+                </a>
+              )}
             </div>
           </>
         )}

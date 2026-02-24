@@ -42,8 +42,9 @@ COPY backend/ ./backend/
 # Copy root package.json (needed for module resolution)
 COPY package.json ./
 
-# Create logs directory
-RUN mkdir -p /app/backend/logs && chown -R app:app /app
+# Create logs + uploads directories (uploads for postgres filesystem storage)
+RUN mkdir -p /app/backend/logs /app/backend/uploads/products \
+    && chown -R app:app /app
 
 # Switch to non-root user
 USER app

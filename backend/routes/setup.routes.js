@@ -4,7 +4,7 @@ const fs = require('fs');
 const path = require('path');
 const router = express.Router();
 
-const { dbConfigured, reinitializeDb } = require('../database');
+const { dbConfigured, reinitializeDb, switchProvider } = require('../database');
 const { JWT_SECRET } = require('../config');
 
 /**
@@ -42,6 +42,15 @@ router.get('/status', (req, res) => {
           { key: 'url', label: 'Supabase URL', placeholder: 'https://xxxxx.supabase.co', type: 'url', required: true },
           { key: 'key', label: 'Supabase Anon Key', placeholder: 'eyJhbGciOi...', type: 'password', required: true }
         ]
+      },
+      {
+        id: 'postgres',
+        name: 'PostgreSQL',
+        description: 'PostgreSQL nativo (Docker, auto-hospedado o cualquier proveedor)',
+        enabled: true,
+        fields: [
+          { key: 'connectionString', label: 'Connection String', placeholder: 'postgresql://user:pass@host:5432/dbname', type: 'url', required: true }
+        ]
       }
     ]
   });
@@ -52,8 +61,35 @@ router.get('/status', (req, res) => {
  * Test database credentials without saving them
  */
 router.post('/test-connection', async (req, res) => {
-  const { provider, url, key } = req.body;
+  const { provider, url, key, connectionString } = req.body;
 
+  // ── PostgreSQL native ──
+  if (provider === 'postgres') {
+    if (!connectionString) {
+      return res.status(400).json({ message: 'Connection string es requerido' });
+    }
+    const { Client } = require('pg');
+    const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+    try {
+      await client.connect();
+      // Test if schema exists
+      const { rows } = await client.query(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'app_settings') AS exists"
+      );
+      const schemaReady = rows[0]?.exists === true;
+      await client.end().catch(() => {});
+      return res.json({
+        connected: true,
+        schemaReady,
+        message: schemaReady ? 'Conexión exitosa — base de datos lista' : 'Conexión exitosa, pero las tablas no existen.'
+      });
+    } catch (err) {
+      await client.end().catch(() => {});
+      return res.status(400).json({ connected: false, message: `Error de conexión: ${err.message}` });
+    }
+  }
+
+  // ── Supabase ──
   if (provider !== 'supabase') {
     return res.status(400).json({ message: 'Proveedor no soportado' });
   }
@@ -70,14 +106,12 @@ router.post('/test-connection', async (req, res) => {
     const { createClient } = require('@supabase/supabase-js');
     const testClient = createClient(url, key);
     
-    // Use regular SELECT (not head:true) — HEAD requests may return 200 for missing tables
     const { data, error } = await testClient
       .from('app_settings')
       .select('id')
       .limit(1);
 
     if (error) {
-      // Table doesn't exist → connection works but schema missing
       const msg = (error.message || '').toLowerCase();
       const code = error.code || '';
       if (code === '42P01' || code.startsWith('PGRST') || msg.includes('does not exist') || msg.includes('relation') || msg.includes('not find')) {
@@ -90,7 +124,6 @@ router.post('/test-connection', async (req, res) => {
       return res.status(400).json({ connected: false, message: `Error de conexión: ${error.message}` });
     }
 
-    // data is an array (possibly empty) — table exists
     res.json({ connected: true, schemaReady: true, message: 'Conexión exitosa — base de datos lista' });
   } catch (err) {
     res.status(400).json({ connected: false, message: `Error de conexión: ${err.message}` });
@@ -104,7 +137,7 @@ router.post('/test-connection', async (req, res) => {
  * Uses IF NOT EXISTS / ON CONFLICT DO NOTHING — safe to re-run.
  */
 router.post('/initialize-schema', async (req, res) => {
-  const { connectionString } = req.body;
+  const { connectionString, provider: reqProvider } = req.body;
 
   if (!connectionString) {
     return res.status(400).json({ message: 'Connection string es requerido' });
@@ -112,28 +145,30 @@ router.post('/initialize-schema', async (req, res) => {
 
   // Validate it looks like a postgres URI
   if (!connectionString.startsWith('postgresql://') && !connectionString.startsWith('postgres://')) {
-    return res.status(400).json({ message: 'Formato inválido. Usa el URI de conexión de Supabase (postgresql://...)' });
+    return res.status(400).json({ message: 'Formato inválido. Usa un URI PostgreSQL (postgresql://...)' });
   }
 
-  // Parse and validate the connection string before attempting connection
+  // Supabase-specific validations (skip for native postgres)
   let finalConnectionString = connectionString;
+  const isSupabaseProvider = reqProvider !== 'postgres';
   try {
     const parsed = new URL(connectionString);
 
-    // Block Transaction mode (port 6543) — DDL requires Session mode (port 5432)
-    if (parsed.port === '6543') {
-      return res.status(400).json({
-        message: 'Puerto 6543 es Transaction mode — no soporta CREATE TABLE. Usa Session mode (puerto 5432). En Supabase Dashboard → Connect → Session mode.'
-      });
-    }
+    if (isSupabaseProvider) {
+      // Block Transaction mode (port 6543) — DDL requires Session mode (port 5432)
+      if (parsed.port === '6543') {
+        return res.status(400).json({
+          message: 'Puerto 6543 es Transaction mode — no soporta CREATE TABLE. Usa Session mode (puerto 5432). En Supabase Dashboard → Connect → Session mode.'
+        });
+      }
 
-    // Auto-fix deprecated db.<ref>.supabase.co → reject with clear instructions
-    // Cannot auto-convert because the pooler region (us-east-1, us-west-2, etc.) is unknown
-    const dbHostMatch = parsed.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/);
-    if (dbHostMatch) {
-      return res.status(400).json({
-        message: 'El host db.<ref>.supabase.co ya no funciona (IPv6 only). Usa Session pooler desde Supabase Dashboard → Connect → Method: Session pooler. El URI correcto tiene este formato: postgresql://postgres.<ref>:[PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres'
-      });
+      // Reject deprecated db.<ref>.supabase.co hosts
+      const dbHostMatch = parsed.hostname.match(/^db\.([a-z0-9]+)\.supabase\.co$/);
+      if (dbHostMatch) {
+        return res.status(400).json({
+          message: 'El host db.<ref>.supabase.co ya no funciona (IPv6 only). Usa Session pooler desde Supabase Dashboard → Connect → Method: Session pooler.'
+        });
+      }
     }
   } catch { /* URL parse failed — pg will handle it */ }
 
@@ -165,8 +200,8 @@ router.post('/initialize-schema', async (req, res) => {
     // Execute seed (admin user, default settings) — ON CONFLICT DO NOTHING is idempotent
     await client.query(seedSql);
 
-    // Notify PostgREST to reload schema cache so Supabase REST API sees new tables
-    await client.query("NOTIFY pgrst, 'reload schema'");
+    // Notify PostgREST to reload schema cache (Supabase only — harmless elsewhere)
+    try { await client.query("NOTIFY pgrst, 'reload schema'"); } catch { /* not Supabase */ }
 
     console.log('✅ Schema + seed ejecutados correctamente via pg');
     res.json({ success: true, message: 'Tablas y datos iniciales creados correctamente' });
@@ -201,8 +236,63 @@ router.post('/initialize-schema', async (req, res) => {
  * Retries schema check to allow PostgREST schema cache to refresh after initialize-schema.
  */
 router.post('/configure', async (req, res) => {
-  const { provider, url, key } = req.body;
+  const { provider, url, key, connectionString } = req.body;
 
+  // ── PostgreSQL native ──
+  if (provider === 'postgres') {
+    if (!connectionString) {
+      return res.status(400).json({ message: 'Connection string es requerido' });
+    }
+
+    // 1. Verify connection + schema
+    const { Client } = require('pg');
+    const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+    try {
+      await client.connect();
+      const { rows } = await client.query(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'app_settings') AS exists"
+      );
+      await client.end().catch(() => {});
+      if (!rows[0]?.exists) {
+        return res.status(400).json({ message: 'Las tablas no existen. Inicializa el schema primero.', code: 'SCHEMA_MISSING' });
+      }
+    } catch (err) {
+      await client.end().catch(() => {});
+      return res.status(400).json({ message: `Error de conexión: ${err.message}` });
+    }
+
+    // 2. Write credentials to .env.local
+    const envLocalPath = path.join(__dirname, '..', '.env.local');
+    const envLines = [
+      '# Auto-generated by Setup Wizard',
+      `# Created: ${new Date().toISOString()}`,
+      'DB_PROVIDER=postgres',
+      `DATABASE_URL=${connectionString}`,
+      `JWT_SECRET=${JWT_SECRET}`
+    ];
+    try {
+      fs.writeFileSync(envLocalPath, envLines.join('\n') + '\n', 'utf8');
+    } catch (err) {
+      console.error('❌ Error writing .env.local:', err.message);
+      return res.status(500).json({ message: 'Error guardando credenciales en el servidor' });
+    }
+
+    // 3. Set env vars in current process
+    process.env.DB_PROVIDER = 'postgres';
+    process.env.DATABASE_URL = connectionString;
+
+    // 4. Hot-swap to postgres adapter and reinitialize
+    switchProvider('postgres');
+    const success = reinitializeDb(connectionString);
+    if (!success) {
+      return res.status(500).json({ message: 'Credenciales guardadas pero la reconexión falló. Reinicia el servidor.' });
+    }
+
+    console.log('✅ Setup completado: PostgreSQL configurado via Setup Wizard');
+    return res.json({ message: 'Configuración completada exitosamente', database: true, restart: false });
+  }
+
+  // ── Supabase ──
   if (provider !== 'supabase') {
     return res.status(400).json({ message: 'Proveedor no soportado' });
   }
@@ -215,7 +305,6 @@ router.post('/configure', async (req, res) => {
     const { createClient } = require('@supabase/supabase-js');
     const testClient = createClient(url, key);
 
-    // Use regular SELECT (not head:true) — HEAD requests may bypass error detection
     let schemaFound = false;
     for (let attempt = 0; attempt < 3; attempt++) {
       const { data, error } = await testClient
@@ -227,14 +316,12 @@ router.post('/configure', async (req, res) => {
         schemaFound = true;
         break;
       }
-      // Non-schema error → fail immediately
       const msg = (error.message || '').toLowerCase();
       const code = error.code || '';
       const isSchemaError = code === '42P01' || code.startsWith('PGRST') || msg.includes('does not exist') || msg.includes('relation') || msg.includes('not find');
       if (!isSchemaError) {
         return res.status(400).json({ message: `No se pudo conectar: ${error.message}` });
       }
-      // Schema not visible yet — wait before retry
       if (attempt < 2) await new Promise(r => setTimeout(r, 1500));
     }
 
@@ -248,11 +335,12 @@ router.post('/configure', async (req, res) => {
     return res.status(400).json({ message: `Error de conexión: ${err.message}` });
   }
 
-  // 2. Write credentials to .env.local (persists across deploys/restarts)
+  // 2. Write credentials to .env.local
   const envLocalPath = path.join(__dirname, '..', '.env.local');
   const envLines = [
     '# Auto-generated by Setup Wizard',
     `# Created: ${new Date().toISOString()}`,
+    'DB_PROVIDER=supabase',
     `SUPABASE_URL=${url}`,
     `SUPABASE_KEY=${key}`,
     `JWT_SECRET=${JWT_SECRET}`
@@ -266,6 +354,7 @@ router.post('/configure', async (req, res) => {
   }
 
   // 3. Set env vars in current process
+  process.env.DB_PROVIDER = 'supabase';
   process.env.SUPABASE_URL = url;
   process.env.SUPABASE_KEY = key;
 
@@ -275,7 +364,7 @@ router.post('/configure', async (req, res) => {
     return res.status(500).json({ message: 'Credenciales guardadas pero la reconexión falló. Reinicia el servidor.' });
   }
 
-  console.log('✅ Setup completado: DB configurada via Setup Wizard');
+  console.log('✅ Setup completado: Supabase configurado via Setup Wizard');
   console.log(`   .env.local creado en: ${envLocalPath}`);
 
   res.json({ 

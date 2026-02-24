@@ -74,6 +74,8 @@ USABILITY_REPORT.md
 # Images uploads (keep the folder structure)
 backend/images/*
 !backend/images/.gitkeep
+backend/uploads/**/*
+!backend/uploads/**/.gitkeep
 
 # JSON data files (keep structure, ignore data)
 backend/data/*.json

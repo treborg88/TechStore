@@ -1,51 +1,62 @@
-// routes/storage.routes.js - Proxy for Supabase Storage images
-// Serves /storage/* by fetching from Supabase Storage.
-// This makes images work immediately after Setup Wizard (no Nginx reconfiguration needed).
+// routes/storage.routes.js - Unified image storage proxy
+// Supabase mode: proxies to Supabase Storage (remote fetch)
+// Postgres mode: serves from local filesystem (uploads/)
 // Cloudflare caches responses at the edge via long Cache-Control headers.
 
 const express = require('express');
+const path = require('path');
+const fs = require('fs');
 const router = express.Router();
+
+// Resolve uploads directory (same default as postgres adapter)
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 
 /**
  * GET /storage/*
- * Proxies to Supabase Storage: {SUPABASE_URL}/storage/v1/object/public/{path}
- * Returns the image with cache-friendly headers for Cloudflare CDN.
+ * Routes to local filesystem (postgres) or Supabase Storage (supabase).
  */
 router.get('/*', async (req, res) => {
-  // Extract the path after /storage/ (e.g., "products/products/image.png")
   const storagePath = req.params[0];
   if (!storagePath) {
     return res.status(400).json({ message: 'Storage path required' });
   }
 
-  // Read SUPABASE_URL at request time (may change after Setup Wizard)
+  // Common cache headers (Cloudflare CDN caches these)
+  res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
+  res.setHeader('X-Cache-Proxy', 'backend-storage-proxy');
+  res.removeHeader('Set-Cookie');
+
+  const provider = (process.env.DB_PROVIDER || 'supabase').toLowerCase();
+
+  // ── Postgres: serve from local filesystem ──
+  if (provider === 'postgres') {
+    const filePath = path.join(UPLOADS_DIR, storagePath);
+    // Prevent directory traversal
+    if (!filePath.startsWith(UPLOADS_DIR)) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).end();
+    }
+    return res.sendFile(filePath);
+  }
+
+  // ── Supabase: proxy to remote storage ──
   const supabaseUrl = process.env.SUPABASE_URL;
   if (!supabaseUrl) {
     return res.status(503).json({ message: 'Database not configured yet' });
   }
 
-  // Build the full Supabase Storage URL
   const targetUrl = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${storagePath}`;
 
   try {
     const response = await fetch(targetUrl);
-
-    if (!response.ok) {
-      return res.status(response.status).end();
-    }
+    if (!response.ok) return res.status(response.status).end();
 
     // Forward content-type from Supabase
     const contentType = response.headers.get('content-type');
     if (contentType) res.setHeader('Content-Type', contentType);
 
-    // Cache headers: 30 days (Cloudflare CDN will cache this)
-    res.setHeader('Cache-Control', 'public, max-age=2592000, immutable');
-    res.setHeader('X-Cache-Proxy', 'backend-storage-proxy');
-
-    // Strip cookies/auth from response (public images only)
-    res.removeHeader('Set-Cookie');
-
-    // Pipe the image body to the client
     const arrayBuffer = await response.arrayBuffer();
     res.send(Buffer.from(arrayBuffer));
   } catch (err) {

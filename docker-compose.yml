@@ -1,8 +1,8 @@
 # =============================================================================
-# TechStore — Docker Compose
+# TechStore — Docker Compose (Full Stack with PostgreSQL)
 # =============================================================================
-# Runs the full stack: backend (Express) + frontend (Nginx serving Vite build)
-# behind an Nginx reverse proxy that unifies everything on port 80/443.
+# Runs the full stack: PostgreSQL + backend (Express) + frontend (Nginx/Vite)
+# behind an Nginx reverse proxy on port 80.
 #
 # Usage:
 #   docker compose up --build          # Build and start
@@ -11,11 +11,40 @@
 #   docker compose logs -f backend     # Follow backend logs
 #
 # Environment:
-#   Copy backend/.env.example to backend/.env and fill in credentials.
-#   The backend container reads it automatically via env_file.
+#   Copy .env.example to .env and fill in credentials,
+#   or use the Setup Wizard at first boot (no .env needed).
+#
+# Two modes (set DB_PROVIDER in .env):
+#   DB_PROVIDER=postgres  → uses the local docker PostgreSQL (default)
+#   DB_PROVIDER=supabase  → uses remote Supabase (DATABASE_URL not needed)
 # =============================================================================
 
 services:
+  # ─────────────────────────────────────────────
+  # Database: PostgreSQL 14 (only used when DB_PROVIDER=postgres)
+  # ─────────────────────────────────────────────
+  database:
+    image: postgres:14-alpine
+    container_name: techstore-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-techstore}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techstore}
+      POSTGRES_DB: ${POSTGRES_DB:-techstore}
+    volumes:
+      # Persist data between rebuilds
+      - pgdata:/var/lib/postgresql/data
+      # Auto-run schema + seed on first boot
+      - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-techstore}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - techstore
+
   # ─────────────────────────────────────────────
   # Backend: Express API on port 5001
   # ─────────────────────────────────────────────
@@ -27,10 +56,19 @@ services:
     restart: unless-stopped
     env_file:
       - ./backend/.env
+    environment:
+      # Docker-internal defaults (overridden by .env if set)
+      DB_PROVIDER: ${DB_PROVIDER:-postgres}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}}
+    depends_on:
+      database:
+        condition: service_healthy
     ports:
       - "5001:5001"
     volumes:
-      # Persist logs outside the container
+      # Persist uploaded images (postgres mode)
+      - uploads:/app/backend/uploads
+      # Persist logs
       - ./logs:/app/backend/logs
     networks:
       - techstore
@@ -54,9 +92,10 @@ services:
   # Proxy: Nginx reverse proxy (entry point)
   # ─────────────────────────────────────────────
   # Unifies frontend + backend on a single port.
-  # - /api/*  → backend:5001
-  # - /p/*    → backend:5001  (social sharing OG meta)
-  # - /*      → frontend:80   (SPA)
+  # - /api/*      → backend:5001
+  # - /storage/*  → backend:5001  (images proxy)
+  # - /p/*        → backend:5001  (social sharing OG meta)
+  # - /*          → frontend:80   (SPA)
   proxy:
     image: nginx:alpine
     container_name: techstore-proxy
@@ -70,6 +109,10 @@ services:
       - frontend
     networks:
       - techstore
+
+volumes:
+  pgdata:
+  uploads:
 
 networks:
   techstore:
