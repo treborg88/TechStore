@@ -210,28 +210,34 @@ $$;
 
 
 -- ===========================================================================
--- SUPABASE STORAGE — Bucket for product images
+-- SUPABASE STORAGE — Bucket for product images (Supabase-only)
 -- ===========================================================================
--- Creates the "products" bucket (public read) via direct SQL.
--- Executed automatically by the Setup Wizard via pg connection.
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('products', 'products', true)
-ON CONFLICT (id) DO NOTHING;
+-- Only runs when the 'storage' schema exists (Supabase environment).
+-- On plain PostgreSQL (Docker), images are stored on the filesystem.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.schemata WHERE schema_name = 'storage') THEN
+    -- Create "products" bucket (public read)
+    INSERT INTO storage.buckets (id, name, public)
+    VALUES ('products', 'products', true)
+    ON CONFLICT (id) DO NOTHING;
 
--- Policies: public read + full CRUD on products bucket
--- Uses DROP IF EXISTS + CREATE (compatible with PG 14; IF NOT EXISTS requires PG 15+)
-DROP POLICY IF EXISTS "Public read products" ON storage.objects;
-CREATE POLICY "Public read products" ON storage.objects
-  FOR SELECT USING (bucket_id = 'products');
+    -- Policies: public read + full CRUD on products bucket
+    EXECUTE 'DROP POLICY IF EXISTS "Public read products" ON storage.objects';
+    EXECUTE 'CREATE POLICY "Public read products" ON storage.objects FOR SELECT USING (bucket_id = ''products'')';
 
-DROP POLICY IF EXISTS "Anon upload products" ON storage.objects;
-CREATE POLICY "Anon upload products" ON storage.objects
-  FOR INSERT WITH CHECK (bucket_id = 'products');
+    EXECUTE 'DROP POLICY IF EXISTS "Anon upload products" ON storage.objects';
+    EXECUTE 'CREATE POLICY "Anon upload products" ON storage.objects FOR INSERT WITH CHECK (bucket_id = ''products'')';
 
-DROP POLICY IF EXISTS "Anon update products" ON storage.objects;
-CREATE POLICY "Anon update products" ON storage.objects
-  FOR UPDATE USING (bucket_id = 'products');
+    EXECUTE 'DROP POLICY IF EXISTS "Anon update products" ON storage.objects';
+    EXECUTE 'CREATE POLICY "Anon update products" ON storage.objects FOR UPDATE USING (bucket_id = ''products'')';
 
-DROP POLICY IF EXISTS "Anon delete products" ON storage.objects;
-CREATE POLICY "Anon delete products" ON storage.objects
-  FOR DELETE USING (bucket_id = 'products');
+    EXECUTE 'DROP POLICY IF EXISTS "Anon delete products" ON storage.objects';
+    EXECUTE 'CREATE POLICY "Anon delete products" ON storage.objects FOR DELETE USING (bucket_id = ''products'')';
+
+    RAISE NOTICE 'Supabase storage bucket + policies created';
+  ELSE
+    RAISE NOTICE 'Supabase storage schema not found — skipping (filesystem storage mode)';
+  END IF;
+END;
+$$;
