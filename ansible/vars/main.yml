@@ -45,6 +45,14 @@ nginx_client_max_body_size: 50M
 # Storage proxy is handled by the backend at runtime.
 # No supabase_ref needed in Ansible/Nginx — backend reads SUPABASE_URL from .env.local.
 
+# ── Docker Compose (used by playbook-docker.yml) ─────────
+# Defaults for Docker PostgreSQL — override per host in inventory.yml
+docker_db_provider: postgres
+docker_pg_user: techstore
+docker_pg_password: techstore
+docker_pg_db: techstore
+docker_pg_host: database
+
 # ── Swap (para servidores con poca RAM) ───────────────────
 # Vite build necesita ~1.5GB; servidores con <2GB RAM requieren swap
 swap_size: 2G

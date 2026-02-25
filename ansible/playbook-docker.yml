@@ -1,0 +1,263 @@
+# =============================================================================
+# Ansible Playbook — TechStore (Docker Compose Mode)
+# =============================================================================
+# Provisions a fresh Ubuntu VM and deploys the full stack with Docker Compose:
+#   PostgreSQL + Express backend + Vite/React frontend + Nginx proxy
+#
+# Usage:
+#   # Full setup + deploy (fresh VM)
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook-docker.yml --limit test
+#
+#   # Redeploy only (Docker already installed)
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook-docker.yml --tags deploy --limit test
+#
+#   # Update & rebuild specific service
+#   ansible-playbook -i ansible/inventory.yml ansible/playbook-docker.yml --tags update --limit test
+#
+# Prerequisites:
+#   pip install ansible    (local machine)
+#   SSH key access to the target server
+# =============================================================================
+
+- name: Deploy TechStore (Docker Compose)
+  hosts: docker
+  become: true
+  vars_files:
+    - vars/main.yml
+
+  tasks:
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # SETUP — Install Docker Engine + Compose plugin
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # ── Wait for cloud-init to finish (fresh VMs) ─────────
+    - name: Wait for cloud-init to finish
+      tags: [setup]
+      ansible.builtin.command: cloud-init status --wait
+      changed_when: false
+      failed_when: false
+      timeout: 300
+
+    # ── System packages ───────────────────────────────────
+    - name: Update apt cache
+      tags: [setup]
+      ansible.builtin.apt:
+        update_cache: true
+        cache_valid_time: 3600
+
+    - name: Install base packages
+      tags: [setup]
+      ansible.builtin.apt:
+        name:
+          - git
+          - curl
+          - ca-certificates
+          - gnupg
+        state: present
+
+    # ── Docker Engine (official script) ────────────────────
+    - name: Check if Docker is installed
+      tags: [setup, docker]
+      ansible.builtin.command: docker --version
+      register: docker_check
+      changed_when: false
+      failed_when: false
+
+    - name: Install Docker Engine
+      tags: [setup, docker]
+      ansible.builtin.shell: curl -fsSL https://get.docker.com | sh
+      when: docker_check.rc != 0
+
+    - name: Add deploy user to docker group
+      tags: [setup, docker]
+      ansible.builtin.user:
+        name: "{{ deploy_user }}"
+        groups: docker
+        append: true
+
+    - name: Ensure Docker service is running
+      tags: [setup, docker]
+      ansible.builtin.service:
+        name: docker
+        state: started
+        enabled: true
+
+    # ── Verify Docker Compose plugin ──────────────────────
+    - name: Verify Docker Compose plugin
+      tags: [setup, docker]
+      ansible.builtin.command: docker compose version
+      changed_when: false
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # DEPLOY — Clone repo, generate .env, docker compose up
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # ── Clone / pull repository ───────────────────────────
+    - name: Clone or update repository
+      tags: [deploy, update]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.git:
+        repo: "{{ app_repo }}"
+        dest: "{{ app_path }}"
+        version: "{{ app_branch }}"
+        force: true
+        accept_hostkey: true
+
+    # ── Create logs directory ─────────────────────────────
+    - name: Ensure logs directory exists
+      tags: [deploy]
+      ansible.builtin.file:
+        path: "{{ app_path }}/logs"
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0755"
+
+    # ── Generate JWT_SECRET if not exists ──────────────────
+    - name: Check if backend .env exists
+      tags: [deploy]
+      ansible.builtin.stat:
+        path: "{{ app_path }}/backend/.env"
+      register: env_file
+
+    - name: Generate JWT_SECRET
+      tags: [deploy]
+      ansible.builtin.command: openssl rand -hex 32
+      register: jwt_secret_result
+      when: not env_file.stat.exists
+      changed_when: false
+
+    - name: Set jwt_secret fact (new or existing)
+      tags: [deploy]
+      ansible.builtin.set_fact:
+        jwt_secret: "{{ jwt_secret_result.stdout | default(omit) }}"
+      when: not env_file.stat.exists
+
+    # ── Deploy backend .env from template ─────────────────
+    - name: Deploy backend .env
+      tags: [deploy]
+      ansible.builtin.template:
+        src: templates/backend.env.j2
+        dest: "{{ app_path }}/backend/.env"
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_group }}"
+        mode: "0600"
+        # Don't overwrite if file already exists (preserve existing JWT_SECRET)
+        force: "{{ not env_file.stat.exists }}"
+
+    # ── Build & start containers ──────────────────────────
+    - name: Build and start Docker Compose stack
+      tags: [deploy, update]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose up --build -d
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # VERIFY — Wait for all services to be healthy
+    # ═══════════════════════════════════════════════════════════════════════
+
+    - name: Wait for containers to start
+      tags: [deploy, update, verify]
+      ansible.builtin.pause:
+        seconds: 15
+
+    - name: Check Docker container status
+      tags: [deploy, update, verify]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose ps --format json
+      args:
+        chdir: "{{ app_path }}"
+      register: compose_status
+      changed_when: false
+
+    - name: Display container status
+      tags: [deploy, update, verify]
+      ansible.builtin.debug:
+        msg: "{{ compose_status.stdout }}"
+
+    # ── Health check: backend API responding ──────────────
+    - name: Wait for backend API to respond
+      tags: [deploy, update, verify]
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:{{ backend_port }}/api/products"
+        method: GET
+        status_code: [200]
+      register: api_check
+      retries: 10
+      delay: 5
+      until: api_check.status == 200
+
+    # ── Health check: frontend serving SPA ────────────────
+    - name: Wait for frontend to respond
+      tags: [deploy, update, verify]
+      ansible.builtin.uri:
+        url: "http://127.0.0.1:80/"
+        method: GET
+        status_code: [200]
+      register: frontend_check
+      retries: 5
+      delay: 3
+      until: frontend_check.status == 200
+
+    # ── Display result ────────────────────────────────────
+    - name: Deployment summary
+      tags: [deploy, update, verify]
+      ansible.builtin.debug:
+        msg: |
+          ✅ {{ app_name }} deployed successfully (Docker mode)!
+
+          App:        http://{{ ansible_host }}
+          API:        http://{{ ansible_host }}/api/products
+          Containers: 4 (database, backend, frontend, proxy)
+
+          Useful commands (SSH into server):
+            docker compose ps
+            docker compose logs -f backend
+            docker compose restart backend
+            docker compose down && docker compose up --build -d
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # MAINTENANCE TAGS — Granular operations
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # ── Stop all containers ───────────────────────────────
+    - name: Stop Docker Compose stack
+      tags: [never, stop]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose down
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
+    # ── View logs ─────────────────────────────────────────
+    - name: Show recent backend logs
+      tags: [never, logs]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose logs --tail 50 backend
+      args:
+        chdir: "{{ app_path }}"
+      register: backend_logs
+      changed_when: false
+
+    - name: Display backend logs
+      tags: [never, logs]
+      ansible.builtin.debug:
+        msg: "{{ backend_logs.stdout_lines }}"
+
+    # ── Cleanup: prune unused Docker resources ────────────
+    - name: Prune unused Docker images and volumes
+      tags: [never, cleanup]
+      ansible.builtin.command: docker system prune -af --volumes
+      changed_when: true
+
+    # ── Full destroy: containers + volumes + data ─────────
+    - name: Destroy stack (containers + volumes)
+      tags: [never, destroy]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose down -v
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
