@@ -49,7 +49,7 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
 
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [user, navigate, clearCartItems]);
+  }, [user, navigate, clearCartItems, setUser]);
 
   // Verificar expiración de sesión al cargar/refresh
   useEffect(() => {
@@ -61,7 +61,7 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
       toast.error("Tu sesión ha expirado. Por favor inicia sesión nuevamente.");
       navigate('/');
     }
-  }, [navigate, user, clearCartItems]);
+  }, [navigate, user, clearCartItems, setUser]);
 
   // Cerrar sesión con feedback visual
   const handleLogout = async () => {

@@ -48,6 +48,28 @@ if ! docker compose version &>/dev/null; then
 fi
 echo "✅ Docker Compose: $(docker compose version)"
 
+# ── 1b. Open firewall ports (Ubuntu iptables) ───────────
+echo ""
+echo "🔥 Configuring firewall (iptables)..."
+# Insert HTTP/HTTPS rules before the REJECT rule (position 5 and 6)
+# Check if rule already exists to avoid duplicates
+if ! sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null; then
+  sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT -m comment --comment "TechStore HTTP"
+  echo "   ✅ Port 80 (HTTP) opened"
+else
+  echo "   ✅ Port 80 already open"
+fi
+if ! sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null; then
+  sudo iptables -I INPUT 6 -p tcp --dport 443 -j ACCEPT -m comment --comment "TechStore HTTPS"
+  echo "   ✅ Port 443 (HTTPS) opened"
+else
+  echo "   ✅ Port 443 already open"
+fi
+# Persist rules across reboots
+sudo DEBIAN_FRONTEND=noninteractive apt-get install -y iptables-persistent >/dev/null 2>&1 || true
+sudo netfilter-persistent save >/dev/null 2>&1 || true
+echo "   ✅ Firewall rules saved"
+
 # ── 2. Clone repository ──────────────────────────────────
 echo ""
 echo "📂 Cloning repository..."

@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 
 /**
- * Editable database settings section
- * Allows admin to configure Supabase URL & Key, and shows live connection status
+ * Database settings section — provider-agnostic
+ * Detects active provider (PostgreSQL / Supabase) from backend
+ * and renders the appropriate fields and status details.
  */
 function DatabaseSection({ settings, onChange, setSettings }) {
   const [showKey, setShowKey] = useState(false);
@@ -13,6 +14,11 @@ function DatabaseSection({ settings, onChange, setSettings }) {
   const [disconnecting, setDisconnecting] = useState(false);
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
   const hasSynced = useRef(false);
+
+  // Derive provider type from backend response
+  const isPostgres = dbStatus?.provider?.toLowerCase().includes('native')
+                  || dbStatus?.provider?.toLowerCase().includes('postgresql (native)');
+  const isSupabase = dbStatus ? !isPostgres : true; // default to supabase when unknown
 
   // Fetch live DB status on mount
   useEffect(() => {
@@ -25,17 +31,18 @@ function DatabaseSection({ settings, onChange, setSettings }) {
       hasSynced.current = true;
       setSettings(prev => {
         const updates = {};
-        // Only fill if the field is empty (no saved value yet)
-        if (!prev.dbSupabaseUrl && dbStatus.url) {
-          updates.dbSupabaseUrl = dbStatus.url;
-        }
-        if (!prev.dbSupabaseKey && dbStatus.maskedKey) {
-          updates.dbSupabaseKey = dbStatus.maskedKey;
+        if (isSupabase) {
+          // Supabase: populate URL & masked key
+          if (!prev.dbSupabaseUrl && dbStatus.url) updates.dbSupabaseUrl = dbStatus.url;
+          if (!prev.dbSupabaseKey && dbStatus.maskedKey) updates.dbSupabaseKey = dbStatus.maskedKey;
+        } else {
+          // PostgreSQL: populate masked connection URL
+          if (!prev.dbConnectionUrl && dbStatus.url) updates.dbConnectionUrl = dbStatus.url;
         }
         return Object.keys(updates).length ? { ...prev, ...updates } : prev;
       });
     }
-  }, [dbStatus, setSettings]);
+  }, [dbStatus, setSettings, isSupabase]);
 
   // Fetches connection status from the backend
   const fetchDbStatus = async () => {
@@ -53,15 +60,19 @@ function DatabaseSection({ settings, onChange, setSettings }) {
     }
   };
 
+  // Provider icon and label for display
+  const providerIcon = isPostgres ? '🐘' : '⚡';
+  const providerLabel = dbStatus?.provider || 'Detectando...';
+
   return (
     <section className="settings-section">
       <h3>🗄️ Base de Datos</h3>
       <p className="section-description">
-        Configura las credenciales de conexión a Supabase y verifica el estado.
+        Configuración y estado de la conexión a la base de datos.
       </p>
 
-      {/* Connection status badge */}
-      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+      {/* Connection status badge + test button */}
+      <div style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
         {dbStatus && (
           <span style={{
             display: 'inline-flex',
@@ -107,42 +118,72 @@ function DatabaseSection({ settings, onChange, setSettings }) {
         <p style={{ color: '#ef4444', padding: '0 0 12px' }}>❌ {testError}</p>
       )}
 
-      {/* Editable credentials */}
+      {/* Provider info */}
       <div className="settings-grid">
         <div className="form-group">
           <label>Proveedor</label>
-          <input type="text" value="Supabase (PostgreSQL)" disabled />
-        </div>
-        <div className="form-group">
-          <label>URL del Proyecto (SUPABASE_URL)</label>
-          <input
-            type="text"
-            name="dbSupabaseUrl"
-            value={settings.dbSupabaseUrl || ''}
-            onChange={onChange}
-            placeholder="https://xxxxx.supabase.co"
-          />
-        </div>
-        <div className="form-group">
-          <label>API Key (SUPABASE_KEY)</label>
-          <div className="password-field">
-            <input
-              type={showKey ? 'text' : 'password'}
-              name="dbSupabaseKey"
-              value={settings.dbSupabaseKey || ''}
-              onChange={onChange}
-              placeholder="eyJhbGciOiJI..."
-            />
-            <button
-              type="button"
-              className="toggle-password-btn"
-              onClick={() => setShowKey(prev => !prev)}
-            >
-              {showKey ? 'Ocultar' : 'Mostrar'}
-            </button>
-          </div>
+          <input type="text" value={`${providerIcon} ${providerLabel}`} disabled />
         </div>
       </div>
+
+      {/* ── PostgreSQL credentials (read-only, come from env) ── */}
+      {isPostgres && (
+        <div className="settings-grid" style={{ marginTop: '12px' }}>
+          <div className="form-group" style={{ gridColumn: '1 / -1' }}>
+            <label>URL de Conexión (DATABASE_URL)</label>
+            <div className="password-field">
+              <input
+                type={showKey ? 'text' : 'password'}
+                value={dbStatus?.url || settings.dbConnectionUrl || ''}
+                disabled
+                placeholder="postgresql://user:****@host:5432/dbname"
+              />
+              <button
+                type="button"
+                className="toggle-password-btn"
+                onClick={() => setShowKey(prev => !prev)}
+              >
+                {showKey ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Supabase credentials (editable as reference) ── */}
+      {isSupabase && (
+        <div className="settings-grid" style={{ marginTop: '12px' }}>
+          <div className="form-group">
+            <label>URL del Proyecto (SUPABASE_URL)</label>
+            <input
+              type="text"
+              name="dbSupabaseUrl"
+              value={settings.dbSupabaseUrl || ''}
+              onChange={onChange}
+              placeholder="https://xxxxx.supabase.co"
+            />
+          </div>
+          <div className="form-group">
+            <label>API Key (SUPABASE_KEY)</label>
+            <div className="password-field">
+              <input
+                type={showKey ? 'text' : 'password'}
+                name="dbSupabaseKey"
+                value={settings.dbSupabaseKey || ''}
+                onChange={onChange}
+                placeholder="eyJhbGciOiJI..."
+              />
+              <button
+                type="button"
+                className="toggle-password-btn"
+                onClick={() => setShowKey(prev => !prev)}
+              >
+                {showKey ? 'Ocultar' : 'Mostrar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Live status details (read-only) */}
       {dbStatus && (
@@ -151,10 +192,14 @@ function DatabaseSection({ settings, onChange, setSettings }) {
             Estado Actual del Servidor
           </h4>
           <div className="settings-grid">
-            <div className="form-group">
-              <label>Referencia del Proyecto</label>
-              <input type="text" value={dbStatus.projectRef || 'N/A'} disabled />
-            </div>
+            {/* Supabase-only: project reference */}
+            {isSupabase && (
+              <div className="form-group">
+                <label>Referencia del Proyecto</label>
+                <input type="text" value={dbStatus.projectRef || 'N/A'} disabled />
+              </div>
+            )}
+            {/* Common: table count */}
             <div className="form-group">
               <label>Tablas detectadas</label>
               <input
@@ -163,7 +208,22 @@ function DatabaseSection({ settings, onChange, setSettings }) {
                 disabled
               />
             </div>
-            {dbStatus.dashboardUrl && (
+            {/* PostgreSQL: storage mode */}
+            {isPostgres && (
+              <div className="form-group">
+                <label>Almacenamiento de imágenes</label>
+                <input type="text" value="Sistema de archivos (uploads/)" disabled />
+              </div>
+            )}
+            {/* Supabase: storage mode */}
+            {isSupabase && (
+              <div className="form-group">
+                <label>Almacenamiento de imágenes</label>
+                <input type="text" value="Supabase Storage (bucket products)" disabled />
+              </div>
+            )}
+            {/* Supabase-only: dashboard link */}
+            {isSupabase && dbStatus.dashboardUrl && (
               <div className="form-group">
                 <label>Panel de Supabase</label>
                 <a
@@ -187,9 +247,19 @@ function DatabaseSection({ settings, onChange, setSettings }) {
             )}
           </div>
 
+          {/* Provider-specific hint about how to change credentials */}
           <p className="field-hint" style={{ marginTop: '16px' }}>
-            ⚠️ Los valores editables se guardan como referencia. Para aplicar cambios reales en la conexión,
-            actualiza <strong>SUPABASE_URL</strong> y <strong>SUPABASE_KEY</strong> en el archivo <code>.env</code> del backend y reinicia el servidor.
+            {isPostgres ? (
+              <>
+                ⚠️ La conexión PostgreSQL se configura desde el archivo <code>.env</code> del backend
+                (variable <strong>DATABASE_URL</strong>). Reinicia el servidor tras modificar.
+              </>
+            ) : (
+              <>
+                ⚠️ Los valores editables se guardan como referencia. Para aplicar cambios reales en la conexión,
+                actualiza <strong>SUPABASE_URL</strong> y <strong>SUPABASE_KEY</strong> en el archivo <code>.env</code> del backend y reinicia el servidor.
+              </>
+            )}
           </p>
         </>
       )}
@@ -208,7 +278,9 @@ function DatabaseSection({ settings, onChange, setSettings }) {
         <p style={{ margin: '0 0 12px', fontSize: '13px', color: '#7f1d1d', lineHeight: '1.5' }}>
           Desconectar la base de datos pondrá la app en <strong>modo setup</strong>.
           La tienda dejará de funcionar hasta que se configure una nueva base de datos.
-          Útil para migración o cambio de proyecto Supabase.
+          {isPostgres
+            ? ' Útil para migración o cambio de servidor PostgreSQL.'
+            : ' Útil para migración o cambio de proyecto Supabase.'}
         </p>
 
         {!showDisconnectConfirm ? (

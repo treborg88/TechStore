@@ -134,8 +134,6 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   const backendBaseUrl = (API_URL?.replace(/\/api\/?$/, '') || '').replace(/\/$/, '');
   // Share base: backend URL in dev, or current origin in prod (Nginx proxies /p/ to backend)
   const shareBaseUrl = backendBaseUrl || (BASE_URL || window.location.origin).replace(/\/$/, '');
-  // Frontend URL for direct product link
-  const frontendBaseUrl = (BASE_URL || window.location.origin).replace(/\/$/, '');
   
   const productId = product?.id || id;
   const shareSlug = createProductShareSlug(product?.name, productId);
