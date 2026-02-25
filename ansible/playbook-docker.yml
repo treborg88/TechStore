@@ -114,28 +114,21 @@
         group: "{{ deploy_group }}"
         mode: "0755"
 
-    # ── Generate JWT_SECRET if not exists ──────────────────
+    # ── Generate .env (only on first deploy) ─────────────────
     - name: Check if backend .env exists
       tags: [deploy]
       ansible.builtin.stat:
         path: "{{ app_path }}/backend/.env"
       register: env_file
 
-    - name: Generate JWT_SECRET
+    - name: Generate JWT_SECRET for new deployment
       tags: [deploy]
       ansible.builtin.command: openssl rand -hex 32
-      register: jwt_secret_result
+      register: jwt_secret_generated
       when: not env_file.stat.exists
       changed_when: false
 
-    - name: Set jwt_secret fact (new or existing)
-      tags: [deploy]
-      ansible.builtin.set_fact:
-        jwt_secret: "{{ jwt_secret_result.stdout | default(omit) }}"
-      when: not env_file.stat.exists
-
-    # ── Deploy backend .env from template ─────────────────
-    - name: Deploy backend .env
+    - name: Deploy backend .env (first deploy only)
       tags: [deploy]
       ansible.builtin.template:
         src: templates/backend.env.j2
@@ -143,8 +136,9 @@
         owner: "{{ deploy_user }}"
         group: "{{ deploy_group }}"
         mode: "0600"
-        # Don't overwrite if file already exists (preserve existing JWT_SECRET)
-        force: "{{ not env_file.stat.exists }}"
+      vars:
+        jwt_secret: "{{ jwt_secret_generated.stdout }}"
+      when: not env_file.stat.exists
 
     # ── Build & start containers ──────────────────────────
     - name: Build and start Docker Compose stack
