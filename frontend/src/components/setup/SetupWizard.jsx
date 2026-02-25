@@ -340,92 +340,66 @@ function SetupWizard({ onSetupComplete }) {
                 </>
               )}
 
-              {/* PostgreSQL: auto-detected fields + password input */}
+              {/* PostgreSQL: detected → only password; not detected → all fields */}
               {provider === 'postgres' && (
                 detecting ? (
                   <div className="setup-detecting">
                     <span className="setup-spinner" />
                     <span>Detectando base de datos...</span>
                   </div>
-                ) : (
+                ) : detected?.detected ? (
                   <>
-                    {/* Detected DB info banner */}
-                    {detected?.detected && (
-                      <div className="setup-detected-info">
-                        <div className="detected-icon">🐘</div>
-                        <div className="detected-details">
-                          <strong>{detected.database}</strong>
-                          <span className="detected-host">{detected.user}@{detected.host}:{detected.port}</span>
-                        </div>
-                        <span className={`detected-badge ${detected.reachable ? 'online' : 'offline'}`}>
-                          {detected.reachable ? '● Activa' : '● Sin conexión'}
-                        </span>
+                    {/* Detected DB banner */}
+                    <div className="setup-detected-info">
+                      <div className="detected-icon">🐘</div>
+                      <div className="detected-details">
+                        <strong>{detected.database}</strong>
+                        <span className="detected-host">{detected.user}@{detected.host}:{detected.port}</span>
                       </div>
-                    )}
-
-                    {/* Host + Port row */}
-                    <div className="setup-field-row">
-                      <div className="setup-field" style={{ flex: 2 }}>
-                        <label htmlFor="setup-pg-host">Host</label>
-                        <input
-                          id="setup-pg-host"
-                          type="text"
-                          placeholder="localhost o database"
-                          value={pgHost}
-                          onChange={handlePgFieldChange(setPgHost)}
-                          readOnly={!!detected?.detected}
-                        />
-                      </div>
-                      <div className="setup-field" style={{ flex: 1 }}>
-                        <label htmlFor="setup-pg-port">Puerto</label>
-                        <input
-                          id="setup-pg-port"
-                          type="text"
-                          placeholder="5432"
-                          value={pgPort}
-                          onChange={handlePgFieldChange(setPgPort)}
-                          readOnly={!!detected?.detected}
-                        />
-                      </div>
+                      <span className={`detected-badge ${detected.reachable ? 'online' : 'offline'}`}>
+                        {detected.reachable ? '● Activa' : '● Sin conexión'}
+                      </span>
                     </div>
 
-                    {/* Database + User row */}
-                    <div className="setup-field-row">
-                      <div className="setup-field">
-                        <label htmlFor="setup-pg-db">Base de datos</label>
-                        <input
-                          id="setup-pg-db"
-                          type="text"
-                          placeholder="techstore"
-                          value={pgDatabase}
-                          onChange={handlePgFieldChange(setPgDatabase)}
-                          readOnly={!!detected?.detected}
-                        />
-                      </div>
-                      <div className="setup-field">
-                        <label htmlFor="setup-pg-user">Usuario</label>
-                        <input
-                          id="setup-pg-user"
-                          type="text"
-                          placeholder="techstore"
-                          value={pgUser}
-                          onChange={handlePgFieldChange(setPgUser)}
-                          readOnly={!!detected?.detected}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Password — always editable, the only required input */}
-                    <div className="setup-field setup-field-highlight">
+                    {/* Only password */}
+                    <div className="setup-field">
                       <label htmlFor="setup-pg-pass">Contraseña</label>
                       <input
                         id="setup-pg-pass"
                         type="password"
-                        placeholder="Ingresa la contraseña de la base de datos"
+                        placeholder="Contraseña de la base de datos"
                         value={pgPassword}
                         onChange={handlePgFieldChange(setPgPassword)}
                         autoFocus
                       />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* No DB detected — manual entry */}
+                    <div className="setup-field">
+                      <label htmlFor="setup-pg-host">Host</label>
+                      <input id="setup-pg-host" type="text" placeholder="localhost" value={pgHost} onChange={handlePgFieldChange(setPgHost)} autoFocus />
+                    </div>
+                    <div className="setup-field-row">
+                      <div className="setup-field">
+                        <label htmlFor="setup-pg-port">Puerto</label>
+                        <input id="setup-pg-port" type="text" placeholder="5432" value={pgPort} onChange={handlePgFieldChange(setPgPort)} />
+                      </div>
+                      <div className="setup-field">
+                        <label htmlFor="setup-pg-db">Base de datos</label>
+                        <input id="setup-pg-db" type="text" placeholder="techstore" value={pgDatabase} onChange={handlePgFieldChange(setPgDatabase)} />
+                      </div>
+                    </div>
+                    <div className="setup-field-row">
+                      <div className="setup-field">
+                        <label htmlFor="setup-pg-user">Usuario</label>
+                        <input id="setup-pg-user" type="text" placeholder="techstore" value={pgUser} onChange={handlePgFieldChange(setPgUser)} />
+                      </div>
+                      <div className="setup-field">
+                        <label htmlFor="setup-pg-pass">Contraseña</label>
+                        <input id="setup-pg-pass" type="password" placeholder="Contraseña" value={pgPassword} onChange={handlePgFieldChange(setPgPassword)} />
+                      </div>
                     </div>
                   </>
                 )
