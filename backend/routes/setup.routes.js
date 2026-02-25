@@ -8,6 +8,30 @@ const { dbConfigured, reinitializeDb, switchProvider } = require('../database');
 const { JWT_SECRET } = require('../config');
 
 /**
+ * Create a pg Client and connect with SSL auto-fallback.
+ * Tries ssl: { rejectUnauthorized: false } first; if the server
+ * doesn't support SSL (e.g. Docker PostgreSQL), retries with ssl: false.
+ */
+async function connectPg(connectionString, timeoutMs = 10000) {
+  const { Client } = require('pg');
+  // 1st attempt: with SSL
+  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: timeoutMs });
+  try {
+    await client.connect();
+    return client;
+  } catch (err) {
+    await client.end().catch(() => {});
+    // If server doesn't support SSL, retry without it
+    if (err.message && err.message.includes('does not support SSL')) {
+      const plainClient = new Client({ connectionString, ssl: false, connectionTimeoutMillis: timeoutMs });
+      await plainClient.connect();
+      return plainClient;
+    }
+    throw err;
+  }
+}
+
+/**
  * Middleware: only allow setup routes when DB is NOT configured.
  * Once the app is fully set up, these endpoints return 403.
  */
@@ -68,10 +92,9 @@ router.post('/test-connection', async (req, res) => {
     if (!connectionString) {
       return res.status(400).json({ message: 'Connection string es requerido' });
     }
-    const { Client } = require('pg');
-    const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+    let client;
     try {
-      await client.connect();
+      client = await connectPg(connectionString);
       // Test if schema exists
       const { rows } = await client.query(
         "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'app_settings') AS exists"
@@ -84,7 +107,7 @@ router.post('/test-connection', async (req, res) => {
         message: schemaReady ? 'Conexión exitosa — base de datos lista' : 'Conexión exitosa, pero las tablas no existen.'
       });
     } catch (err) {
-      await client.end().catch(() => {});
+      if (client) await client.end().catch(() => {});
       return res.status(400).json({ connected: false, message: `Error de conexión: ${err.message}` });
     }
   }
@@ -183,16 +206,10 @@ router.post('/initialize-schema', async (req, res) => {
     return res.status(500).json({ message: 'Error leyendo archivos SQL: ' + err.message });
   }
 
-  // Connect directly to PostgreSQL via pg using the (possibly rewritten) connection string
-  const { Client } = require('pg');
-  const client = new Client({
-    connectionString: finalConnectionString,
-    ssl: { rejectUnauthorized: false },
-    connectionTimeoutMillis: 15000,
-  });
-
+  // Connect directly to PostgreSQL via pg (auto SSL fallback for Docker/local)
+  let client;
   try {
-    await client.connect();
+    client = await connectPg(finalConnectionString, 15000);
 
     // Execute schema (tables, indexes, RPC functions) — IF NOT EXISTS is idempotent
     await client.query(schemaSql);
@@ -244,11 +261,10 @@ router.post('/configure', async (req, res) => {
       return res.status(400).json({ message: 'Connection string es requerido' });
     }
 
-    // 1. Verify connection + schema
-    const { Client } = require('pg');
-    const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 10000 });
+    // 1. Verify connection + schema (auto SSL fallback for Docker)
+    let client;
     try {
-      await client.connect();
+      client = await connectPg(connectionString);
       const { rows } = await client.query(
         "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'app_settings') AS exists"
       );
@@ -257,7 +273,7 @@ router.post('/configure', async (req, res) => {
         return res.status(400).json({ message: 'Las tablas no existen. Inicializa el schema primero.', code: 'SCHEMA_MISSING' });
       }
     } catch (err) {
-      await client.end().catch(() => {});
+      if (client) await client.end().catch(() => {});
       return res.status(400).json({ message: `Error de conexión: ${err.message}` });
     }
 

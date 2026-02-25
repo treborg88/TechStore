@@ -14,12 +14,51 @@ let dbConfigured = false;
 // Base uploads directory for filesystem storage (images, etc.)
 const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 
+/**
+ * Detect if the PostgreSQL server supports SSL.
+ * Returns the appropriate ssl config for the Pool.
+ */
+const detectSslConfig = async (connectionString) => {
+  const { Client } = require('pg');
+  // Try with SSL first
+  const client = new Client({ connectionString, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 5000 });
+  try {
+    await client.connect();
+    await client.end().catch(() => {});
+    return { rejectUnauthorized: false }; // SSL works
+  } catch (err) {
+    await client.end().catch(() => {});
+    if (err.message && err.message.includes('does not support SSL')) {
+      return false; // No SSL
+    }
+    // Other error — default to no SSL to avoid blocking startup
+    return false;
+  }
+};
+
 const initPool = (connectionString) => {
   if (!connectionString) return false;
   try {
-    pool = new Pool({ connectionString, max: 20 });
+    // Start pool without SSL by default; async detection upgrades if available
+    pool = new Pool({ connectionString, max: 20, ssl: false });
     pool.on('error', (err) => console.error('PG Pool error:', err.message));
     dbConfigured = true;
+
+    // Async: detect SSL support and recreate pool if needed
+    detectSslConfig(connectionString).then(sslConfig => {
+      if (sslConfig !== false) {
+        const oldPool = pool;
+        pool = new Pool({ connectionString, max: 20, ssl: sslConfig });
+        pool.on('error', (err) => console.error('PG Pool error:', err.message));
+        oldPool.end().catch(() => {});
+        console.log('🔒 PostgreSQL SSL enabled');
+      } else {
+        console.log('🔓 PostgreSQL SSL not available — using plain connection');
+      }
+    }).catch(() => {
+      // Detection failed — keep the non-SSL pool
+    });
+
     return true;
   } catch (err) {
     console.error('❌ Error initializing PostgreSQL pool:', err.message);
