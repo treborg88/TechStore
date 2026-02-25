@@ -1,22 +1,33 @@
 // SetupWizard.jsx - Initial setup wizard for database configuration
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './SetupWizard.css';
 
 /**
  * Setup Wizard — shown when the backend has no database configured.
  * 3-step flow: Provider → Credentials → Success
- * Schema creation is automatic via direct PostgreSQL connection (no manual SQL copy).
+ * For PostgreSQL: auto-detects local DB from env, user only enters password.
  */
 function SetupWizard({ onSetupComplete }) {
   // Steps: 1 = provider, 2 = credentials, 3 = success
   const [step, setStep] = useState(1);
   const [provider, setProvider] = useState('supabase');
 
-  // Credential fields
+  // Credential fields (Supabase)
   const [url, setUrl] = useState('');
   const [key, setKey] = useState('');
   const [connString, setConnString] = useState('');
+
+  // PostgreSQL individual fields
+  const [pgHost, setPgHost] = useState('');
+  const [pgPort, setPgPort] = useState('5432');
+  const [pgDatabase, setPgDatabase] = useState('');
+  const [pgUser, setPgUser] = useState('');
+  const [pgPassword, setPgPassword] = useState('');
+
+  // Auto-detection state
+  const [detected, setDetected] = useState(null);   // null = not checked, object = result
+  const [detecting, setDetecting] = useState(false);
 
   // Connection state
   const [connected, setConnected] = useState(false);
@@ -34,13 +45,65 @@ function SetupWizard({ onSetupComplete }) {
   ];
 
   /**
+   * Auto-detect local PostgreSQL when entering step 2 with postgres provider.
+   * Reads DATABASE_URL from the backend env and pre-fills fields.
+   */
+  useEffect(() => {
+    if (step !== 2 || provider !== 'postgres' || detected !== null) return;
+
+    let cancelled = false;
+    const detect = async () => {
+      setDetecting(true);
+      try {
+        const res = await apiFetch(apiUrl('/setup/detect'));
+        const data = await res.json();
+        if (cancelled) return;
+        setDetected(data);
+        // Pre-fill fields from detected config
+        if (data.detected) {
+          setPgHost(data.host || '');
+          setPgPort(data.port || '5432');
+          setPgDatabase(data.database || '');
+          setPgUser(data.user || '');
+          // If already reachable + schema ready, mark as connected
+          if (data.reachable && data.schemaReady) {
+            setConnected(true);
+            setSchemaReady(true);
+            setStatus({ type: 'success', message: '✅ Base de datos detectada y lista — solo ingresa la contraseña para confirmar' });
+          } else if (data.reachable) {
+            setStatus({ type: 'warning', message: 'Base de datos detectada pero las tablas no existen. Se crearán automáticamente.' });
+          }
+        }
+      } catch {
+        if (!cancelled) setDetected({ detected: false });
+      } finally {
+        if (!cancelled) setDetecting(false);
+      }
+    };
+    detect();
+    return () => { cancelled = true; };
+  }, [step, provider, detected]);
+
+  /**
+   * Build PostgreSQL payload from individual fields
+   */
+  const buildPgPayload = useCallback(() => ({
+    provider: 'postgres',
+    host: pgHost.trim(),
+    port: pgPort.trim() || '5432',
+    database: pgDatabase.trim(),
+    user: pgUser.trim(),
+    password: pgPassword,
+  }), [pgHost, pgPort, pgDatabase, pgUser, pgPassword]);
+
+  /**
    * Test the connection — reports whether schema tables exist
    */
   const handleTestConnection = useCallback(async () => {
     // Validate required fields per provider
     if (provider === 'postgres') {
-      if (!connString.trim()) {
-        setStatus({ type: 'error', message: 'Completa el Connection String' });
+      if (!pgHost.trim() || !pgUser.trim() || !pgPassword) {
+        setStatus({ type: 'error', message: 'Completa host, usuario y contraseña' });
         return;
       }
     } else {
@@ -56,7 +119,7 @@ function SetupWizard({ onSetupComplete }) {
     try {
       // Build payload based on provider
       const payload = provider === 'postgres'
-        ? { provider, connectionString: connString.trim() }
+        ? buildPgPayload()
         : { provider, url: url.trim(), key: key.trim() };
 
       const res = await apiFetch(apiUrl('/setup/test-connection'), {
@@ -86,18 +149,17 @@ function SetupWizard({ onSetupComplete }) {
     } finally {
       setTesting(false);
     }
-  }, [url, key, connString, provider]);
+  }, [url, key, provider, buildPgPayload, pgHost, pgUser, pgPassword]);
 
   /**
    * Save credentials and activate the app.
    * If schema is missing, auto-creates tables first via direct PostgreSQL connection.
    */
   const handleConfigure = useCallback(async () => {
-    // Validate required fields per provider
     const isPostgres = provider === 'postgres';
     if (isPostgres) {
-      if (!connString.trim()) {
-        setStatus({ type: 'error', message: 'Completa el Connection String' });
+      if (!pgHost.trim() || !pgUser.trim() || !pgPassword) {
+        setStatus({ type: 'error', message: 'Completa host, usuario y contraseña' });
         return;
       }
     } else {
@@ -116,12 +178,17 @@ function SetupWizard({ onSetupComplete }) {
     setStatus(null);
 
     try {
+      // Build the connection string for schema init (PostgreSQL uses individual fields)
+      const pgPayload = isPostgres ? buildPgPayload() : null;
+      const pgConnStr = isPostgres
+        ? `postgresql://${encodeURIComponent(pgUser)}:${encodeURIComponent(pgPassword)}@${pgHost.trim()}:${pgPort.trim() || '5432'}/${pgDatabase.trim() || 'postgres'}`
+        : null;
+
       // 1. If schema not ready → auto-create tables via pg
       if (!schemaReady) {
         setStatus({ type: 'info', message: 'Creando tablas y datos iniciales...' });
 
-        // For postgres, use the same connString; for Supabase, it's the Session mode string
-        const schemaConnString = isPostgres ? connString.trim() : connString.trim();
+        const schemaConnString = isPostgres ? pgConnStr : connString.trim();
 
         const initRes = await apiFetch(apiUrl('/setup/initialize-schema'), {
           method: 'POST',
@@ -140,7 +207,7 @@ function SetupWizard({ onSetupComplete }) {
       setStatus({ type: 'info', message: 'Guardando configuración...' });
 
       const configPayload = isPostgres
-        ? { provider, connectionString: connString.trim() }
+        ? pgPayload
         : { provider, url: url.trim(), key: key.trim() };
 
       const res = await apiFetch(apiUrl('/setup/configure'), {
@@ -161,20 +228,21 @@ function SetupWizard({ onSetupComplete }) {
     } finally {
       setSaving(false);
     }
-  }, [url, key, connString, provider, schemaReady]);
+  }, [url, key, connString, provider, schemaReady, buildPgPayload, pgUser, pgPassword, pgHost, pgPort, pgDatabase]);
 
   // Reset connection state when credentials change
   const handleUrlChange = (e) => { setUrl(e.target.value); setConnected(false); setSchemaReady(false); };
   const handleKeyChange = (e) => { setKey(e.target.value); setConnected(false); setSchemaReady(false); };
   const handleConnStringChange = (e) => { setConnString(e.target.value); setConnected(false); setSchemaReady(false); };
+  const handlePgFieldChange = (setter) => (e) => { setter(e.target.value); setConnected(false); setSchemaReady(false); setStatus(null); };
 
   // Helper: are the required fields filled?
   const credentialsFilled = provider === 'postgres'
-    ? connString.trim().length > 0
+    ? pgHost.trim().length > 0 && pgUser.trim().length > 0 && pgPassword.length > 0
     : url.trim().length > 0 && key.trim().length > 0;
 
   // Helper: is the configure button enabled?
-  const configureEnabled = connected && (schemaReady || connString.trim().length > 0);
+  const configureEnabled = connected && (schemaReady || (provider === 'postgres' ? pgPassword.length > 0 : connString.trim().length > 0));
 
   // Step indicator helper
   const getStepClass = (s) => {
@@ -272,22 +340,95 @@ function SetupWizard({ onSetupComplete }) {
                 </>
               )}
 
-              {/* PostgreSQL field: Connection String */}
+              {/* PostgreSQL: auto-detected fields + password input */}
               {provider === 'postgres' && (
-                <div className="setup-field">
-                  <label htmlFor="setup-connstr-pg">Connection String</label>
-                  <input
-                    id="setup-connstr-pg"
-                    type="password"
-                    placeholder="postgresql://user:password@host:5432/dbname"
-                    value={connString}
-                    onChange={handleConnStringChange}
-                    autoFocus
-                  />
-                  <small className="setup-field-help">
-                    Formato: <code>postgresql://usuario:contraseña@host:5432/basedatos</code>
-                  </small>
-                </div>
+                detecting ? (
+                  <div className="setup-detecting">
+                    <span className="setup-spinner" />
+                    <span>Detectando base de datos...</span>
+                  </div>
+                ) : (
+                  <>
+                    {/* Detected DB info banner */}
+                    {detected?.detected && (
+                      <div className="setup-detected-info">
+                        <div className="detected-icon">🐘</div>
+                        <div className="detected-details">
+                          <strong>{detected.database}</strong>
+                          <span className="detected-host">{detected.user}@{detected.host}:{detected.port}</span>
+                        </div>
+                        <span className={`detected-badge ${detected.reachable ? 'online' : 'offline'}`}>
+                          {detected.reachable ? '● Activa' : '● Sin conexión'}
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Host + Port row */}
+                    <div className="setup-field-row">
+                      <div className="setup-field" style={{ flex: 2 }}>
+                        <label htmlFor="setup-pg-host">Host</label>
+                        <input
+                          id="setup-pg-host"
+                          type="text"
+                          placeholder="localhost o database"
+                          value={pgHost}
+                          onChange={handlePgFieldChange(setPgHost)}
+                          readOnly={!!detected?.detected}
+                        />
+                      </div>
+                      <div className="setup-field" style={{ flex: 1 }}>
+                        <label htmlFor="setup-pg-port">Puerto</label>
+                        <input
+                          id="setup-pg-port"
+                          type="text"
+                          placeholder="5432"
+                          value={pgPort}
+                          onChange={handlePgFieldChange(setPgPort)}
+                          readOnly={!!detected?.detected}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Database + User row */}
+                    <div className="setup-field-row">
+                      <div className="setup-field">
+                        <label htmlFor="setup-pg-db">Base de datos</label>
+                        <input
+                          id="setup-pg-db"
+                          type="text"
+                          placeholder="techstore"
+                          value={pgDatabase}
+                          onChange={handlePgFieldChange(setPgDatabase)}
+                          readOnly={!!detected?.detected}
+                        />
+                      </div>
+                      <div className="setup-field">
+                        <label htmlFor="setup-pg-user">Usuario</label>
+                        <input
+                          id="setup-pg-user"
+                          type="text"
+                          placeholder="techstore"
+                          value={pgUser}
+                          onChange={handlePgFieldChange(setPgUser)}
+                          readOnly={!!detected?.detected}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password — always editable, the only required input */}
+                    <div className="setup-field setup-field-highlight">
+                      <label htmlFor="setup-pg-pass">Contraseña</label>
+                      <input
+                        id="setup-pg-pass"
+                        type="password"
+                        placeholder="Ingresa la contraseña de la base de datos"
+                        value={pgPassword}
+                        onChange={handlePgFieldChange(setPgPassword)}
+                        autoFocus
+                      />
+                    </div>
+                  </>
+                )
               )}
 
               {/* Supabase: Connection String for schema creation (only when connected but schema missing) */}
@@ -327,7 +468,7 @@ function SetupWizard({ onSetupComplete }) {
             <div className="setup-actions">
               <button
                 className="setup-btn secondary"
-                onClick={() => { setStep(1); setStatus(null); setConnected(false); setSchemaReady(false); }}
+                onClick={() => { setStep(1); setStatus(null); setConnected(false); setSchemaReady(false); setDetected(null); }}
               >
                 ← Atrás
               </button>

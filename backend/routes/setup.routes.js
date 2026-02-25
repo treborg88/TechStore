@@ -81,16 +81,67 @@ router.get('/status', (req, res) => {
 });
 
 /**
+ * GET /api/setup/detect
+ * Auto-detect a local PostgreSQL database from DATABASE_URL env var.
+ * Returns host/port/database/user (never the password) + connection status.
+ */
+router.get('/detect', async (req, res) => {
+  const dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl) {
+    return res.json({ detected: false, message: 'No se detectó DATABASE_URL en el entorno' });
+  }
+
+  // Parse the connection string to extract components (mask password)
+  try {
+    const parsed = new URL(dbUrl);
+    const info = {
+      detected: true,
+      host: parsed.hostname,
+      port: parsed.port || '5432',
+      database: parsed.pathname.replace('/', ''),
+      user: decodeURIComponent(parsed.username),
+    };
+
+    // Try connecting to verify it's reachable
+    let client;
+    try {
+      client = await connectPg(dbUrl, 5000);
+      const { rows } = await client.query(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'app_settings') AS exists"
+      );
+      info.reachable = true;
+      info.schemaReady = rows[0]?.exists === true;
+      await client.end().catch(() => {});
+    } catch {
+      if (client) await client.end().catch(() => {});
+      info.reachable = false;
+      info.schemaReady = false;
+    }
+
+    return res.json(info);
+  } catch {
+    return res.json({ detected: false, message: 'DATABASE_URL tiene formato inválido' });
+  }
+});
+
+/**
  * POST /api/setup/test-connection
- * Test database credentials without saving them
+ * Test database credentials without saving them.
+ * Accepts either { connectionString } or { host, port, database, user, password }.
  */
 router.post('/test-connection', async (req, res) => {
-  const { provider, url, key, connectionString } = req.body;
+  let { provider, url, key, connectionString, host, port, database, user, password } = req.body;
 
   // ── PostgreSQL native ──
   if (provider === 'postgres') {
+    // Build connection string from individual fields if not provided directly
+    if (!connectionString && host && user && password) {
+      const dbName = database || 'postgres';
+      const dbPort = port || '5432';
+      connectionString = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${dbPort}/${dbName}`;
+    }
     if (!connectionString) {
-      return res.status(400).json({ message: 'Connection string es requerido' });
+      return res.status(400).json({ message: 'Credenciales incompletas' });
     }
     let client;
     try {
@@ -253,12 +304,18 @@ router.post('/initialize-schema', async (req, res) => {
  * Retries schema check to allow PostgREST schema cache to refresh after initialize-schema.
  */
 router.post('/configure', async (req, res) => {
-  const { provider, url, key, connectionString } = req.body;
+  let { provider, url, key, connectionString, host, port, database, user, password } = req.body;
 
   // ── PostgreSQL native ──
   if (provider === 'postgres') {
+    // Build connection string from individual fields if not provided directly
+    if (!connectionString && host && user && password) {
+      const dbName = database || 'postgres';
+      const dbPort = port || '5432';
+      connectionString = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${dbPort}/${dbName}`;
+    }
     if (!connectionString) {
-      return res.status(400).json({ message: 'Connection string es requerido' });
+      return res.status(400).json({ message: 'Credenciales incompletas' });
     }
 
     // 1. Verify connection + schema (auto SSL fallback for Docker)
