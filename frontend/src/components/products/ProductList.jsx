@@ -524,7 +524,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																src={resolveImageUrl(product.images[0].image_path)}
 																alt={product.name}
 																onError={(event) => {
-																	event.currentTarget.src = '/images/sin imagen.jpeg';
+																	event.currentTarget.src = '/images/placeholder.svg';
 																}}
 															/>
 															{(product.images || []).length > 1 && (
@@ -639,7 +639,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																					src={resolveImageUrl(img.image_path)}
 																					alt="Producto"
 																					onError={(event) => {
-																						event.currentTarget.src = '/images/sin imagen.jpeg';
+																						event.currentTarget.src = '/images/placeholder.svg';
 																					}}
 																				/>
 																				{img.id !== 'legacy' && (
@@ -722,7 +722,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 								const firstImage = (product.images || [])[0];
 								if (firstImage?.image_path) return resolveImageUrl(firstImage.image_path);
 								if (product.image) return resolveImageUrl(product.image);
-								return '/images/sin imagen.jpeg';
+								return '/images/placeholder.svg';
 							})();
 
 								return (
@@ -735,7 +735,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 									>
 										<div className="mobile-product-header">
 											<div className="mobile-product-main">
-												<img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.src = '/images/sin imagen.jpeg'; }} />
+												<img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.src = '/images/placeholder.svg'; }} />
 												<div className="mobile-product-info">
 													<div className="mobile-product-title">{product.name}</div>
 													<div className="mobile-product-subtitle">
@@ -829,7 +829,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																	src={resolveImageUrl(img.image_path)}
 																	alt="Producto"
 																	onError={(event) => {
-																		event.currentTarget.src = '/images/sin imagen.jpeg';
+																		event.currentTarget.src = '/images/placeholder.svg';
 																	}}
 																/>
 																{img.id !== 'legacy' && (

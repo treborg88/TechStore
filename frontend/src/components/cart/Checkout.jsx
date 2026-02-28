@@ -1374,7 +1374,7 @@ return (
                                                     src={resolveImageUrl(item.image)} 
                                                     alt={item.name}
                                                     className="mini-item-img"
-                                                    onError={(e) => { e.target.src = '/images/sin imagen.jpeg'; }}
+                                                    onError={(e) => { e.target.src = '/images/placeholder.svg'; }}
                                                 />
                                                 <div className="mini-item-info">
                                                     <span className="mini-item-name">{item.name}</span>

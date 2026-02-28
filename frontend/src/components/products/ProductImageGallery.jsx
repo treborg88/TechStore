@@ -39,7 +39,7 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
     : [];
 
   // Si no hay imágenes, mostrar imagen por defecto
-  const displayImages = imageList.length > 0 ? imageList : [{ id: 'default', image_path: '/images/sin imagen.jpeg' }];
+  const displayImages = imageList.length > 0 ? imageList : [{ id: 'default', image_path: '/images/placeholder.svg' }];
 
   // Create infinite carousel by duplicating images
   const infiniteImages = [
@@ -368,7 +368,7 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
                   draggable={false}
                   onError={(e) => {
                     e.target.onerror = null;
-                    e.target.src = '/images/sin imagen.jpeg';
+                    e.target.src = '/images/placeholder.svg';
                   }}
                 />
               </div>
@@ -443,7 +443,7 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
                       draggable={false}
                       onError={(e) => {
                         e.target.onerror = null;
-                        e.target.src = '/images/sin imagen.jpeg';
+                        e.target.src = '/images/placeholder.svg';
                       }}
                     />
                   </div>

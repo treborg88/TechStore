@@ -171,7 +171,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
                                                         alt={item.name} 
                                                         className="cart-item-img" 
                                                         onError={(e) => {
-                                                            e.target.src = '/images/sin imagen.jpeg';
+                                                            e.target.src = '/images/placeholder.svg';
                                                         }}
                                                     />
                                                 </button>

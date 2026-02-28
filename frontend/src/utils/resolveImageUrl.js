@@ -11,7 +11,7 @@ const isDev = typeof window !== 'undefined' && (/^(localhost|127\.0\.0\.1|10\.\d
 const SUPABASE_STORAGE_MARKER = '/storage/v1/object/public/';
 
 // Imagen por defecto cuando no hay imagen disponible
-const DEFAULT_IMAGE = '/images/sin imagen.jpeg';
+const DEFAULT_IMAGE = '/images/placeholder.svg';
 
 /**
  * Resuelve una URL de imagen a su forma óptima:

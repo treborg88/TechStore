@@ -86,6 +86,9 @@ backend/data/*.json
 *.orig
 
 # Terraform — state y credenciales (NUNCA subir)
+# Deploy orchestrator (separate project, not part of this repo)
+deploy-orchestrator/
+
 terraform/**/.terraform/
 terraform/**/.terraform.lock.hcl
 terraform/**/terraform.tfstate
