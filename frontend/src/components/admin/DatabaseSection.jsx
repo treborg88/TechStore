@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
+import DatabaseManager from './DatabaseManager';
 
 /**
  * Database settings section — provider-agnostic
@@ -263,6 +264,9 @@ function DatabaseSection({ settings, onChange, setSettings }) {
           </p>
         </>
       )}
+
+      {/* Backup/Restore manager */}
+      <DatabaseManager />
 
       {/* Disconnect / Migration section */}
       <div style={{

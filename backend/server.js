@@ -25,7 +25,8 @@ const {
     paymentsRoutes,
     chatbotRoutes,
     setupRoutes,
-    storageRoutes
+    storageRoutes,
+    databaseRoutes
 } = require('./routes');
 
 // Share page utilities
@@ -85,6 +86,7 @@ app.use('/api/settings', settingsRoutes);
 app.use('/api/verification', verificationRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
+app.use('/api/database', databaseRoutes);
 
 // --- Storage Proxy (Supabase images → Cloudflare CDN) ---
 // Served by backend so it works immediately after Setup Wizard.

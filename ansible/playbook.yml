@@ -114,6 +114,65 @@
         global: true
         state: present
 
+    # ═══════════════════════════════════════════════════════════════════════
+    # CLEANUP — Reclaim disk space (saves ~5GB on fresh OCI VMs)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # — Trim systemd journal to 100MB (default keeps ALL logs forever)
+    - name: Limit systemd journal to 100MB
+      tags: [setup, cleanup]
+      ansible.builtin.command: journalctl --vacuum-size=100M
+      changed_when: true
+
+    # — Remove unused snap packages (LXD ~730MB, unused)
+    - name: List installed snaps
+      tags: [setup, cleanup]
+      ansible.builtin.command: snap list --all
+      register: snap_list
+      changed_when: false
+      failed_when: false
+
+    - name: Remove LXD snap (unused, ~730MB)
+      tags: [setup, cleanup]
+      ansible.builtin.command: snap remove --purge lxd
+      when: "'lxd' in snap_list.stdout"
+      failed_when: false
+      changed_when: true
+
+    - name: Remove core18 snap (legacy, ~314MB)
+      tags: [setup, cleanup]
+      ansible.builtin.command: snap remove --purge core18
+      when: "'core18' in snap_list.stdout"
+      failed_when: false
+      changed_when: true
+
+    # — Clear apt cache (~280MB)
+    - name: Clean apt cache
+      tags: [setup, cleanup]
+      ansible.builtin.apt:
+        autoclean: true
+
+    - name: Remove unused apt packages
+      tags: [setup, cleanup]
+      ansible.builtin.apt:
+        autoremove: true
+        purge: true
+
+    # — Clear failed login logs (brute-force attempts, ~130MB)
+    - name: Truncate btmp logs (failed SSH login attempts)
+      tags: [setup, cleanup]
+      ansible.builtin.shell: "truncate -s 0 /var/log/btmp /var/log/btmp.1 2>/dev/null || true"
+      changed_when: true
+
+    # — Configure journal size limit permanently (prevent regrowth)
+    - name: Set permanent journal size limit (100MB)
+      tags: [setup, cleanup]
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^#?SystemMaxUse='
+        line: 'SystemMaxUse=100M'
+      notify: restart journald
+
     # ── SSL (Cloudflare Origin Certificate — wildcard) ─────
     # SSL certs MUST be deployed BEFORE Nginx config, because nginx -t
     # will fail if the config references cert files that don't exist.
@@ -340,3 +399,8 @@
       ansible.builtin.service:
         name: nginx
         state: reloaded
+
+    - name: restart journald
+      ansible.builtin.service:
+        name: systemd-journald
+        state: restarted

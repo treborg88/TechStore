@@ -113,6 +113,15 @@
   color: #111827;
   margin: 0;
   line-height: 1.2;
+  /* Sobreescribir limitación global de line-clamp del product card */
+  display: block;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  -webkit-box-orient: unset;
+  overflow: visible;
+  height: auto;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 .product-detail-container .product-price {

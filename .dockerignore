@@ -4,9 +4,12 @@ Thumbs.db
 .vscode/
 .idea/
 
-# === Dependencies ===
-node_modules/
+# === Dependencies (** matches at all levels, not just root) ===
+**/node_modules/
 .npm/
+
+# === Database backups (not needed in images) ===
+backend/backups/
 
 # === Logs ===
 logs/

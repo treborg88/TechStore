@@ -71,6 +71,9 @@ playwright-report/
 .cache/
 USABILITY_REPORT.md
 
+# Database backups (managed via admin panel)
+backend/backups/
+
 # Images uploads (keep the folder structure)
 backend/images/*
 !backend/images/.gitkeep

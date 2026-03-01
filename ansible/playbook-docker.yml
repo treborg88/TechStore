@@ -126,6 +126,65 @@
       changed_when: true
 
     # ═══════════════════════════════════════════════════════════════════════
+    # CLEANUP — Reclaim disk space (saves ~5GB on fresh OCI VMs)
+    # ═══════════════════════════════════════════════════════════════════════
+
+    # — Trim systemd journal to 100MB (default keeps ALL logs forever)
+    - name: Limit systemd journal to 100MB
+      tags: [setup, cleanup]
+      ansible.builtin.command: journalctl --vacuum-size=100M
+      changed_when: true
+
+    # — Remove unused snap packages (LXD ~730MB, unused on Docker deploys)
+    - name: List installed snaps
+      tags: [setup, cleanup]
+      ansible.builtin.command: snap list --all
+      register: snap_list
+      changed_when: false
+      failed_when: false
+
+    - name: Remove LXD snap (unused, ~730MB)
+      tags: [setup, cleanup]
+      ansible.builtin.command: snap remove --purge lxd
+      when: "'lxd' in snap_list.stdout"
+      failed_when: false
+      changed_when: true
+
+    - name: Remove core18 snap (legacy, ~314MB)
+      tags: [setup, cleanup]
+      ansible.builtin.command: snap remove --purge core18
+      when: "'core18' in snap_list.stdout"
+      failed_when: false
+      changed_when: true
+
+    # — Clear apt cache (~280MB)
+    - name: Clean apt cache
+      tags: [setup, cleanup]
+      ansible.builtin.apt:
+        autoclean: true
+
+    - name: Remove unused apt packages
+      tags: [setup, cleanup]
+      ansible.builtin.apt:
+        autoremove: true
+        purge: true
+
+    # — Clear failed login logs (brute-force attempts, ~130MB)
+    - name: Truncate btmp logs (failed SSH login attempts)
+      tags: [setup, cleanup]
+      ansible.builtin.shell: "truncate -s 0 /var/log/btmp /var/log/btmp.1 2>/dev/null || true"
+      changed_when: true
+
+    # — Configure journal size limit permanently (prevent regrowth)
+    - name: Set permanent journal size limit (100MB)
+      tags: [setup, cleanup]
+      ansible.builtin.lineinfile:
+        path: /etc/systemd/journald.conf
+        regexp: '^#?SystemMaxUse='
+        line: 'SystemMaxUse=100M'
+      notify: restart journald
+
+    # ═══════════════════════════════════════════════════════════════════════
     # SSL — Cloudflare Origin Certificate (when ssl_mode == 'full_strict')
     # ═══════════════════════════════════════════════════════════════════════
 
@@ -171,6 +230,18 @@
       ansible.builtin.command: openssl x509 -in {{ ssl_cert_path }} -noout -subject
       changed_when: false
       when: ssl_mode | default('flexible') == 'full_strict' and (ssl_cert_exists.stat.exists | default(false))
+
+    # — Fail early if SSL is required but no certs found
+    - name: Abort if SSL certs missing for full_strict mode
+      tags: [deploy, ssl]
+      ansible.builtin.fail:
+        msg: |
+          SSL mode is 'full_strict' but no certificate found at {{ ssl_cert_path }}.
+          Either provide cert files via the orchestrator wizard (SSL Cert File / SSL Key File),
+          or manually copy them to the server:
+            scp cert.pem ubuntu@{{ ansible_host }}:{{ ssl_cert_path }}
+            scp cert.key ubuntu@{{ ansible_host }}:{{ ssl_key_path }}
+      when: ssl_mode | default('flexible') == 'full_strict' and not (ssl_cert_exists.stat.exists | default(false))
 
     # ═══════════════════════════════════════════════════════════════════════
     # DEPLOY — Clone repo, generate .env, docker compose up
@@ -299,17 +370,42 @@
       delay: 5
       until: api_check.status == 200
 
-    # ── Health check: frontend serving SPA ────────────────
-    - name: Wait for frontend to respond (HTTP)
+    # ── Health check: frontend/proxy responding ───────────
+    - name: Wait for proxy to respond (HTTP)
       tags: [deploy, update, verify]
       ansible.builtin.uri:
         url: "http://127.0.0.1:80/"
         method: GET
         status_code: [200, 301]
+        follow_redirects: none
       register: frontend_check
-      retries: 5
-      delay: 3
-      until: frontend_check.status in [200, 301]
+      retries: 10
+      delay: 5
+      until: frontend_check.status | default(-1) in [200, 301]
+      ignore_errors: true
+
+    # — Show proxy logs if health check failed (for debugging)
+    - name: Show proxy container logs (debug)
+      tags: [deploy, update, verify]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose logs --tail 30 proxy
+      args:
+        chdir: "{{ app_path }}"
+      register: proxy_logs
+      changed_when: false
+      when: frontend_check is failed
+
+    - name: Display proxy logs
+      tags: [deploy, update, verify]
+      ansible.builtin.debug:
+        msg: "{{ proxy_logs.stdout_lines | default([]) }}"
+      when: frontend_check is failed
+
+    - name: Fail if proxy not responding
+      tags: [deploy, update, verify]
+      ansible.builtin.fail:
+        msg: "Proxy container not responding on port 80. Check logs above."
+      when: frontend_check is failed
 
     - name: Wait for HTTPS to respond
       tags: [deploy, update, verify]
@@ -319,8 +415,8 @@
         status_code: [200]
         validate_certs: false
       register: https_check
-      retries: 5
-      delay: 3
+      retries: 10
+      delay: 5
       until: https_check.status == 200
       when: ssl_mode | default('flexible') == 'full_strict'
 
@@ -384,3 +480,12 @@
       args:
         chdir: "{{ app_path }}"
       changed_when: true
+
+  # ═══════════════════════════════════════════════════════════════════════
+  # HANDLERS
+  # ═══════════════════════════════════════════════════════════════════════
+  handlers:
+    - name: restart journald
+      ansible.builtin.service:
+        name: systemd-journald
+        state: restarted

@@ -32,19 +32,19 @@ RUN addgroup -S app && adduser -S app -G app
 
 WORKDIR /app
 
-# Copy root node_modules (shared deps like nodemailer)
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/backend/node_modules ./backend/node_modules
-
-# Copy backend source code
+# Copy backend source code first (before deps, so deps layer wins)
 COPY backend/ ./backend/
 
 # Copy root package.json (needed for module resolution)
 COPY package.json ./
 
-# Create logs + uploads directories (uploads for postgres filesystem storage)
-RUN mkdir -p /app/backend/logs /app/backend/uploads/products \
-    && chown -R app:app /app
+# Copy node_modules ON TOP of source (Linux-compiled native binaries)
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=deps /app/backend/node_modules ./backend/node_modules
+
+# Create writable directories — only chown what needs write access (avoids slow recursive chown on node_modules)
+RUN mkdir -p /app/backend/logs /app/backend/uploads/products /app/backend/backups \
+    && chown -R app:app /app/backend/logs /app/backend/uploads /app/backend/backups
 
 # Switch to non-root user
 USER app
