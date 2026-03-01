@@ -27,6 +27,9 @@ RUN npm ci --production
 # --- Stage 2: Production image ---
 FROM node:20-alpine AS production
 
+# Install PostgreSQL client tools (pg_dump, psql) for backup/restore
+RUN apk add --no-cache postgresql-client
+
 # Security: run as non-root user
 RUN addgroup -S app && adduser -S app -G app
 

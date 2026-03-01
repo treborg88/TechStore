@@ -733,8 +733,11 @@ const statements = {
 // Reinitialize / Disconnect — hot-swap credentials at runtime
 // ---------------------------------------------------------------------------
 const reinitializeDb = (connectionString) => {
-  // Close old pool gracefully
-  if (pool) pool.end().catch(() => {});
+  // Close old pool gracefully — set to null first to prevent concurrent usage
+  const oldPool = pool;
+  pool = null;
+  dbConfigured = false;
+  if (oldPool) oldPool.end().catch(() => {});
   productUnitTypeColumnSupported = null;
   return initPool(connectionString);
 };

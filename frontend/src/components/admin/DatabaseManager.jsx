@@ -3,7 +3,8 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 
 /**
  * DatabaseManager — Backup/Restore sub-panel inside DatabaseSection.
- * Allows admins to: create backups, list them, restore, upload, download, delete.
+ * Supports paired backups: SQL (database) + tar.gz (product images).
+ * Allows admins to: create, list, restore, upload, download, delete.
  */
 function DatabaseManager() {
   const [backups, setBackups] = useState([]);
@@ -65,7 +66,8 @@ function DatabaseManager() {
       const res = await apiFetch(apiUrl('/database/backup'), { method: 'POST' });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(`Backup creado: ${data.filename}`);
+        const imgMsg = data.imagesFile ? ` + ${data.imageCount} imágenes` : '';
+        setSuccess(`Backup creado: ${data.filename}${imgMsg}`);
         fetchBackups();
         if (data.tableStats) setStats(data.tableStats);
       } else {
@@ -88,7 +90,8 @@ function DatabaseManager() {
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(`Restaurado: ${filename}. Backup de seguridad: ${data.safetyBackup}`);
+        const imgMsg = data.imagesRestored ? ` + ${data.imageCount} imágenes restauradas` : '';
+        setSuccess(`Restaurado: ${filename}${imgMsg}. Safety backup: ${data.safetyBackup}`);
         setRestoring(null);
         setConfirmText('');
         fetchBackups();
@@ -102,7 +105,7 @@ function DatabaseManager() {
   };
 
   const deleteBackup = async (filename) => {
-    if (!window.confirm(`¿Eliminar backup "${filename}"?`)) return;
+    if (!window.confirm(`¿Eliminar backup "${filename}" y sus archivos asociados?`)) return;
     try {
       const res = await apiFetch(apiUrl(`/database/backups/${encodeURIComponent(filename)}`), { method: 'DELETE' });
       if (res.ok) {
@@ -118,16 +121,17 @@ function DatabaseManager() {
   };
 
   const downloadBackup = (filename) => {
-    // Trigger download via hidden link (auth cookie handles auth)
     window.open(apiUrl(`/database/backups/${encodeURIComponent(filename)}/download`), '_blank');
   };
 
   const uploadBackup = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
 
-    if (!file.name.endsWith('.sql')) {
-      setError('Solo se permiten archivos .sql');
+    // Validate extensions
+    const invalid = files.filter(f => !f.name.endsWith('.sql') && !f.name.endsWith('.tar.gz'));
+    if (invalid.length) {
+      setError('Solo se permiten archivos .sql o .tar.gz');
       return;
     }
 
@@ -135,14 +139,15 @@ function DatabaseManager() {
       setUploading(true);
       setError(null);
       const formData = new FormData();
-      formData.append('backupFile', file);
+      files.forEach(f => formData.append('backupFile', f));
       const res = await apiFetch(apiUrl('/database/backups/upload'), {
         method: 'POST',
         body: formData
       });
       const data = await res.json();
       if (res.ok) {
-        setSuccess(`Backup subido: ${data.filename}`);
+        const names = data.files?.map(f => f.filename).join(', ') || data.filename;
+        setSuccess(`Subido: ${names}`);
         fetchBackups();
       } else {
         setError(data.message || 'Error al subir');
@@ -151,7 +156,6 @@ function DatabaseManager() {
       setError(err.message);
     } finally {
       setUploading(false);
-      // Reset file input
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
@@ -159,6 +163,7 @@ function DatabaseManager() {
   // ── Helpers ───────────────────────────────────────────────
 
   const formatSize = (bytes) => {
+    if (!bytes) return '0 B';
     if (bytes < 1024) return `${bytes} B`;
     if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
@@ -294,6 +299,30 @@ function DatabaseManager() {
       fontSize: '12px',
       color: '#6b7280'
     },
+    imagesBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '3px',
+      padding: '2px 8px',
+      borderRadius: '10px',
+      background: '#dbeafe',
+      color: '#1e40af',
+      fontSize: '11px',
+      fontWeight: 600,
+      marginLeft: '6px'
+    },
+    noImagesBadge: {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '3px',
+      padding: '2px 8px',
+      borderRadius: '10px',
+      background: '#f3f4f6',
+      color: '#9ca3af',
+      fontSize: '11px',
+      fontWeight: 500,
+      marginLeft: '6px'
+    },
     backupActions: {
       display: 'flex',
       gap: '6px',
@@ -392,11 +421,12 @@ function DatabaseManager() {
             >
               🔄 Refrescar
             </button>
-            {/* Hidden file input */}
+            {/* Hidden file input — accepts .sql and .tar.gz, multiple files */}
             <input
               ref={fileInputRef}
               type="file"
-              accept=".sql"
+              accept=".sql,.tar.gz"
+              multiple
               style={{ display: 'none' }}
               onChange={uploadBackup}
             />
@@ -420,9 +450,17 @@ function DatabaseManager() {
               <div key={b.filename}>
                 <div style={styles.backupItem}>
                   <div style={styles.backupInfo}>
-                    <span style={styles.backupName}>📄 {b.filename}</span>
+                    <span style={styles.backupName}>
+                      📄 {b.filename}
+                      {b.imagesFile ? (
+                        <span style={styles.imagesBadge}>🖼️ + imágenes ({formatSize(b.imagesSize)})</span>
+                      ) : (
+                        <span style={styles.noImagesBadge}>sin imágenes</span>
+                      )}
+                    </span>
                     <span style={styles.backupMeta}>
                       {formatSize(b.size)} · {formatDate(b.date)}
+                      {b.imagesFile && ` · Total: ${formatSize(b.size + b.imagesSize)}`}
                     </span>
                   </div>
                   <div style={styles.backupActions}>
@@ -437,9 +475,20 @@ function DatabaseManager() {
                       type="button"
                       onClick={() => downloadBackup(b.filename)}
                       style={styles.smBtn('#e0e7ff', '#3730a3')}
+                      title="Descargar SQL"
                     >
-                      ⬇️ Descargar
+                      ⬇️ SQL
                     </button>
+                    {b.imagesFile && (
+                      <button
+                        type="button"
+                        onClick={() => downloadBackup(b.imagesFile)}
+                        style={styles.smBtn('#dbeafe', '#1e40af')}
+                        title="Descargar imágenes"
+                      >
+                        ⬇️ 🖼️
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => deleteBackup(b.filename)}
@@ -457,6 +506,11 @@ function DatabaseManager() {
                       ⚠️ <strong>Esto reemplazará TODOS los datos actuales</strong> con el contenido de este backup.
                       Se creará un backup de seguridad automático antes de restaurar.
                     </p>
+                    {b.imagesFile && (
+                      <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#1e40af', fontWeight: 500 }}>
+                        🖼️ También se restaurarán las imágenes de productos asociadas.
+                      </p>
+                    )}
                     <div style={styles.inputRow}>
                       <input
                         type="text"
