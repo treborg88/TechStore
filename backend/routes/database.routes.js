@@ -7,7 +7,6 @@ const router = express.Router();
 const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const os = require('os');
 const multer = require('multer');
 
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
@@ -95,9 +94,9 @@ const countProductImages = () => {
   } catch { return 0; }
 };
 
-/** Create a temp directory; caller must clean up. */
+/** Create a temp directory inside BACKUPS_DIR (known writable); caller must clean up. */
 const makeTempDir = () => {
-  const base = path.join(os.tmpdir(), 'techstore-bk');
+  const base = path.join(BACKUPS_DIR, '.tmp');
   if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
   return fs.mkdtempSync(path.join(base, 'bk-'));
 };
@@ -148,7 +147,8 @@ router.get('/stats', authenticateToken, requireAdmin, async (_req, res) => {
 // Same name overwrites previous backup — no accumulation by default.
 // =============================================================================
 router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
-  let tempDir = null;
+  // Dump SQL directly into BACKUPS_DIR (avoids temp dir issues)
+  const sqlPath = path.join(BACKUPS_DIR, 'database.sql');
   try {
     const { name, version } = req.body || {};
 
@@ -165,29 +165,24 @@ router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
     const parsed = parseDbUrl(dbUrl);
     if (!parsed) return res.status(400).json({ message: 'DATABASE_URL inválida' });
 
-    // Stage in temp dir
-    tempDir = makeTempDir();
-    const sqlPath = path.join(tempDir, 'database.sql');
-
-    // Step 1: pg_dump → temp/database.sql
+    // Step 1: pg_dump → BACKUPS_DIR/database.sql
     await pgExec('pg_dump', [
       '-h', parsed.host, '-p', parsed.port, '-U', parsed.user,
-      '--file', sqlPath, parsed.dbname
+      '-f', sqlPath, parsed.dbname
     ], parsed);
 
     if (!fs.existsSync(sqlPath) || fs.statSync(sqlPath).size === 0) {
       return res.status(500).json({ message: 'pg_dump generó un archivo vacío' });
     }
 
-    // Step 2: Build tar.gz with database.sql + products/ images
+    // Step 2: Build tar.gz — database.sql + products/ images
     const imgCount = countProductImages();
-    // tar -czf <out> -C <tempDir> database.sql [-C <uploadsDir> products]
-    const tarArgs = ['-czf', archivePath, '-C', tempDir, 'database.sql'];
+    const tarArgs = ['-czf', archivePath, '-C', BACKUPS_DIR, 'database.sql'];
     if (imgCount > 0 && fs.existsSync(PRODUCTS_DIR)) {
       tarArgs.push('-C', UPLOADS_DIR, 'products');
     }
 
-    // Remove old if replacing
+    // Remove old archive if replacing
     if (replacing) fs.unlinkSync(archivePath);
     await tarExec(tarArgs, { timeout: 300000 });
 
@@ -204,7 +199,8 @@ router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
     console.error('Error creating backup:', err);
     res.status(500).json({ message: `Error al crear backup: ${err.message}` });
   } finally {
-    if (tempDir) rmDir(tempDir);
+    // Always clean up the temp SQL file
+    try { if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath); } catch { /* ok */ }
   }
 });
 
