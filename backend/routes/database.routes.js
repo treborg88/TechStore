@@ -1,12 +1,13 @@
 // routes/database.routes.js — Database backup/restore management (admin only)
-// Provides endpoints to create, list, download, upload, restore, and delete
-// paired SQL + images backups. Uses pg_dump/psql/tar CLI tools (apk).
+// Creates unified .tar.gz backups containing database.sql + product images.
+// Uses pg_dump/psql/tar CLI tools (installed via apk in container).
 
 const express = require('express');
 const router = express.Router();
 const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const multer = require('multer');
 
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
@@ -15,124 +16,78 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const BACKUPS_DIR = path.join(__dirname, '..', 'backups');
 const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 const PRODUCTS_DIR = path.join(UPLOADS_DIR, 'products');
-const MAX_UPLOAD_SIZE = 500 * 1024 * 1024; // 500 MB (images can be large)
+const MAX_UPLOAD_SIZE = 500 * 1024 * 1024; // 500 MB
 const MAIN_TABLES = ['users', 'products', 'product_images', 'orders', 'order_items', 'cart', 'app_settings', 'verification_codes'];
+const DEFAULT_NAME = 'techstore'; // fallback store name
 
 // Ensure directories exist on load
 if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });
 if (!fs.existsSync(PRODUCTS_DIR)) fs.mkdirSync(PRODUCTS_DIR, { recursive: true });
 
-// ── Multer config for .sql / .tar.gz uploads ────────────────────────────────
+// ── Multer — overwrites same-name files by design (no accumulation) ─────────
 const backupUpload = multer({
   storage: multer.diskStorage({
     destination: (_req, _file, cb) => cb(null, BACKUPS_DIR),
     filename: (_req, file, cb) => {
-      // Preserve original name (sanitized) so orchestrator pairs stay intact
-      const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-      // Avoid overwrites — append timestamp suffix if file exists
-      let final = safe;
-      if (fs.existsSync(path.join(BACKUPS_DIR, final))) {
-        const ts = Date.now();
-        // Handle .tar.gz (double ext) and .sql (single ext)
-        if (final.endsWith('.tar.gz')) {
-          final = final.replace(/\.tar\.gz$/, `-${ts}.tar.gz`);
-        } else {
-          final = final.replace(/(\.[^.]+)$/, `-${ts}$1`);
-        }
-      }
-      cb(null, final);
+      // Sanitize but keep original name so same-name overwrites work
+      cb(null, file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_'));
     }
   }),
   limits: { fileSize: MAX_UPLOAD_SIZE },
   fileFilter: (_req, file, cb) => {
-    const name = file.originalname.toLowerCase();
-    if (name.endsWith('.sql') || name.endsWith('.tar.gz')) cb(null, true);
-    else cb(new Error('Solo se permiten archivos .sql o .tar.gz'), false);
+    const n = file.originalname.toLowerCase();
+    if (n.endsWith('.tar.gz') || n.endsWith('.sql')) cb(null, true);
+    else cb(new Error('Solo se permiten archivos .tar.gz o .sql'), false);
   }
-}).array('backupFile', 2); // accept up to 2 files (sql + images)
+}).single('backupFile');
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Parse DATABASE_URL into components for pg_dump/psql commands.
- * Returns { host, port, user, password, dbname } or null.
- */
+/** Parse DATABASE_URL → { host, port, user, password, dbname } */
 const parseDbUrl = (url) => {
   try {
-    const match = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
-    if (!match) return null;
-    return { user: match[1], password: match[2], host: match[3], port: match[4], dbname: match[5] };
+    const m = url.match(/postgresql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)/);
+    return m ? { user: m[1], password: m[2], host: m[3], port: m[4], dbname: m[5] } : null;
   } catch { return null; }
 };
 
-/**
- * Run pg_dump or psql via execFile (no shell — safer, no redirection issues).
- * PGPASSWORD is injected via env to avoid shell escaping problems.
- */
+/** Run pg_dump/psql via execFile (no shell). PGPASSWORD injected via env. */
 const pgExec = (bin, args, parsed, opts = {}) => new Promise((resolve, reject) => {
-  const timeout = opts.timeout || 120000;
   const env = { ...process.env, PGPASSWORD: parsed.password };
-  execFile(bin, args, { timeout, maxBuffer: 50 * 1024 * 1024, env }, (err, stdout, stderr) => {
-    if (err) reject(new Error(stderr || err.message));
-    else resolve({ stdout, stderr });
-  });
+  execFile(bin, args, { timeout: opts.timeout || 120000, maxBuffer: 50 * 1024 * 1024, env },
+    (err, stdout, stderr) => err ? reject(new Error(stderr || err.message)) : resolve({ stdout, stderr }));
 });
 
-/**
- * Run tar via execFile (no shell). Returns promise.
- */
+/** Run tar via execFile (no shell). */
 const tarExec = (args, opts = {}) => new Promise((resolve, reject) => {
-  const timeout = opts.timeout || 120000;
-  execFile('tar', args, { timeout, maxBuffer: 50 * 1024 * 1024 }, (err, stdout, stderr) => {
-    if (err) reject(new Error(stderr || err.message));
-    else resolve({ stdout, stderr });
-  });
+  execFile('tar', args, { timeout: opts.timeout || 300000, maxBuffer: 50 * 1024 * 1024 },
+    (err, stdout, stderr) => err ? reject(new Error(stderr || err.message)) : resolve({ stdout, stderr }));
 });
 
-/**
- * Get row counts for all main tables using a fresh one-off query.
- */
+/** Row counts for main tables. */
 const getTableStats = async () => {
   const db = require('../database');
   if (!db.pool) return {};
   const stats = {};
-  for (const table of MAIN_TABLES) {
+  for (const t of MAIN_TABLES) {
     try {
-      const { rows } = await db.pool.query(`SELECT COUNT(*) AS count FROM ${table}`);
-      stats[table] = parseInt(rows[0].count, 10);
-    } catch {
-      stats[table] = -1; // table doesn't exist or pool re-connecting
-    }
+      const { rows } = await db.pool.query(`SELECT COUNT(*) AS count FROM ${t}`);
+      stats[t] = parseInt(rows[0].count, 10);
+    } catch { stats[t] = -1; }
   }
   return stats;
 };
 
-/**
- * Validate filename parameter — prevent path traversal.
- * Accepts .sql and .tar.gz extensions.
- */
+/** Validate filename — prevent path traversal. Accepts .sql and .tar.gz. */
 const sanitizeFilename = (name) => {
   if (!name || typeof name !== 'string') return null;
   const base = path.basename(name);
-  const valid = base.endsWith('.sql') || base.endsWith('.tar.gz');
-  if (!valid) return null;
+  if (!base.endsWith('.sql') && !base.endsWith('.tar.gz')) return null;
   if (base.includes('..') || base.includes('/') || base.includes('\\')) return null;
   return base;
 };
 
-/**
- * Derive the images archive filename from a SQL backup filename.
- * Pattern: replace first 'backup' → 'images' and '.sql' → '.tar.gz'
- * Works for both local names and orchestrator names (with IP).
- */
-const getImagesPairName = (sqlFilename) => {
-  if (!sqlFilename.includes('backup')) return null;
-  return sqlFilename.replace('backup', 'images').replace(/\.sql$/, '.tar.gz');
-};
-
-/**
- * Count files in uploads/products/ directory.
- */
+/** Count files in uploads/products/. */
 const countProductImages = () => {
   try {
     if (!fs.existsSync(PRODUCTS_DIR)) return 0;
@@ -140,13 +95,47 @@ const countProductImages = () => {
   } catch { return 0; }
 };
 
+/** Create a temp directory; caller must clean up. */
+const makeTempDir = () => {
+  const base = path.join(os.tmpdir(), 'techstore-bk');
+  if (!fs.existsSync(base)) fs.mkdirSync(base, { recursive: true });
+  return fs.mkdtempSync(path.join(base, 'bk-'));
+};
+
+/** Remove directory recursively (best-effort). */
+const rmDir = (dir) => { try { fs.rmSync(dir, { recursive: true, force: true }); } catch { /* ok */ } };
+
+/** Get store name from app_settings for default backup name. */
+const getStoreName = async () => {
+  try {
+    const db = require('../database');
+    if (!db.pool) return DEFAULT_NAME;
+    const { rows } = await db.pool.query("SELECT value FROM app_settings WHERE key = 'siteName'");
+    if (rows.length && rows[0].value) {
+      return rows[0].value.replace(/[^a-zA-Z0-9_-]/g, '').toLowerCase() || DEFAULT_NAME;
+    }
+  } catch { /* fallback */ }
+  return DEFAULT_NAME;
+};
+
+/** Inspect a .tar.gz to check contents (has database.sql? has products/?). */
+const inspectArchive = async (archivePath) => {
+  try {
+    const { stdout } = await tarExec(['-tzf', archivePath]);
+    const files = stdout.split('\n').filter(Boolean);
+    const hasSql = files.some(f => f === 'database.sql' || f.endsWith('/database.sql'));
+    const imgFiles = files.filter(f => f.startsWith('products/') && f !== 'products/');
+    return { hasSql, imageCount: imgFiles.length };
+  } catch { return { hasSql: false, imageCount: 0 }; }
+};
+
 // =============================================================================
-// GET /api/database/stats — Live table row counts
+// GET /api/database/stats — Live table row counts + image count
 // =============================================================================
 router.get('/stats', authenticateToken, requireAdmin, async (_req, res) => {
   try {
     const stats = await getTableStats();
-    res.json({ stats });
+    res.json({ stats, imageCount: countProductImages() });
   } catch (err) {
     console.error('Error getting DB stats:', err);
     res.status(500).json({ message: 'Error al obtener estadísticas' });
@@ -154,102 +143,104 @@ router.get('/stats', authenticateToken, requireAdmin, async (_req, res) => {
 });
 
 // =============================================================================
-// POST /api/database/backup — Create paired SQL + images tar.gz backup
+// POST /api/database/backup — Create unified .tar.gz (database.sql + products/)
+// Body: { name?: string, version?: string }
+// Same name overwrites previous backup — no accumulation by default.
 // =============================================================================
-router.post('/backup', authenticateToken, requireAdmin, async (_req, res) => {
+router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
+  let tempDir = null;
   try {
-    const now = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const sqlFilename = `techstore-backup-${now}.sql`;
-    const imgFilename = `techstore-images-${now}.tar.gz`;
-    const sqlPath = path.join(BACKUPS_DIR, sqlFilename);
-    const imgPath = path.join(BACKUPS_DIR, imgFilename);
+    const { name, version } = req.body || {};
 
-    // Parse DATABASE_URL for connection
+    // Build filename: {name}[-{version}].tar.gz
+    const storeName = (name || await getStoreName()).replace(/[^a-zA-Z0-9_-]/g, '') || DEFAULT_NAME;
+    const vSuffix = version ? `-${version.replace(/[^a-zA-Z0-9._-]/g, '')}` : '';
+    const filename = `${storeName}${vSuffix}.tar.gz`;
+    const archivePath = path.join(BACKUPS_DIR, filename);
+    const replacing = fs.existsSync(archivePath);
+
+    // Parse DATABASE_URL
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) return res.status(400).json({ message: 'DATABASE_URL no configurada' });
     const parsed = parseDbUrl(dbUrl);
     if (!parsed) return res.status(400).json({ message: 'DATABASE_URL inválida' });
 
-    // Step 1: pg_dump with --file flag
+    // Stage in temp dir
+    tempDir = makeTempDir();
+    const sqlPath = path.join(tempDir, 'database.sql');
+
+    // Step 1: pg_dump → temp/database.sql
     await pgExec('pg_dump', [
       '-h', parsed.host, '-p', parsed.port, '-U', parsed.user,
-      '--file', sqlPath,
-      parsed.dbname
+      '--file', sqlPath, parsed.dbname
     ], parsed);
 
-    // Verify SQL file
     if (!fs.existsSync(sqlPath) || fs.statSync(sqlPath).size === 0) {
-      if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath);
       return res.status(500).json({ message: 'pg_dump generó un archivo vacío' });
     }
 
-    // Step 2: tar.gz the product images (from uploads/ dir, preserving 'products/' subfolder)
-    let imagesIncluded = false;
+    // Step 2: Build tar.gz with database.sql + products/ images
     const imgCount = countProductImages();
-    if (imgCount > 0) {
-      try {
-        // tar from uploads/ dir, include 'products/' subfolder so extraction restores the structure
-        await tarExec(['-czf', imgPath, '-C', UPLOADS_DIR, 'products']);
-        if (fs.existsSync(imgPath) && fs.statSync(imgPath).size > 0) {
-          imagesIncluded = true;
-          console.log(`🖼️ Images backup: ${imgFilename} (${imgCount} files)`);
-        }
-      } catch (tarErr) {
-        console.warn('⚠️ Images tar failed (SQL backup still OK):', tarErr.message);
-        if (fs.existsSync(imgPath)) fs.unlinkSync(imgPath);
-      }
+    // tar -czf <out> -C <tempDir> database.sql [-C <uploadsDir> products]
+    const tarArgs = ['-czf', archivePath, '-C', tempDir, 'database.sql'];
+    if (imgCount > 0 && fs.existsSync(PRODUCTS_DIR)) {
+      tarArgs.push('-C', UPLOADS_DIR, 'products');
     }
 
-    const sqlStat = fs.statSync(sqlPath);
-    const imgStat = imagesIncluded ? fs.statSync(imgPath) : null;
+    // Remove old if replacing
+    if (replacing) fs.unlinkSync(archivePath);
+    await tarExec(tarArgs, { timeout: 300000 });
+
+    const archiveStat = fs.statSync(archivePath);
     const tableStats = await getTableStats();
 
-    console.log(`💾 Backup creado: ${sqlFilename} (${(sqlStat.size / 1024).toFixed(1)} KB)`);
+    console.log(`💾 Backup: ${filename} (${(archiveStat.size / 1024 / 1024).toFixed(1)} MB, ${imgCount} imgs${replacing ? ', reemplazado' : ''})`);
     res.json({
-      success: true,
-      filename: sqlFilename,
-      size: sqlStat.size,
-      date: sqlStat.mtime,
-      imagesFile: imagesIncluded ? imgFilename : null,
-      imagesSize: imgStat?.size || 0,
-      imageCount: imgCount,
-      tableStats
+      success: true, filename,
+      size: archiveStat.size, date: archiveStat.mtime,
+      imageCount: imgCount, replaced: replacing, tableStats
     });
   } catch (err) {
     console.error('Error creating backup:', err);
     res.status(500).json({ message: `Error al crear backup: ${err.message}` });
+  } finally {
+    if (tempDir) rmDir(tempDir);
   }
 });
 
 // =============================================================================
-// GET /api/database/backups — List all available backup files (with image pair info)
+// GET /api/database/backups — List all backups with content info + store name
 // =============================================================================
 router.get('/backups', authenticateToken, requireAdmin, async (_req, res) => {
   try {
-    if (!fs.existsSync(BACKUPS_DIR)) return res.json([]);
+    if (!fs.existsSync(BACKUPS_DIR)) return res.json({ backups: [], storeName: DEFAULT_NAME });
 
+    const storeName = await getStoreName();
     const allFiles = fs.readdirSync(BACKUPS_DIR);
-    // Build a set of tar.gz files for quick pair lookup
-    const tarFiles = new Set(allFiles.filter(f => f.endsWith('.tar.gz')));
+    const backups = [];
 
-    const files = allFiles
-      .filter(f => f.endsWith('.sql'))
-      .map(f => {
-        const st = fs.statSync(path.join(BACKUPS_DIR, f));
-        // Check if a paired images archive exists
-        const pairName = getImagesPairName(f);
-        const hasPair = pairName && tarFiles.has(pairName);
-        const pairStat = hasPair ? fs.statSync(path.join(BACKUPS_DIR, pairName)) : null;
-        return {
-          filename: f,
-          size: st.size,
-          date: st.mtime,
-          imagesFile: hasPair ? pairName : null,
-          imagesSize: pairStat?.size || 0
-        };
-      })
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-    res.json(files);
+    for (const f of allFiles) {
+      if (!f.endsWith('.tar.gz') && !f.endsWith('.sql')) continue;
+      const fp = path.join(BACKUPS_DIR, f);
+      const st = fs.statSync(fp);
+
+      // Inspect archive contents (fast — reads tar index only)
+      let info = { hasSql: false, imageCount: 0 };
+      if (f.endsWith('.tar.gz')) {
+        info = await inspectArchive(fp);
+      } else {
+        info = { hasSql: true, imageCount: 0 };
+      }
+
+      backups.push({
+        filename: f, size: st.size, date: st.mtime,
+        isArchive: f.endsWith('.tar.gz'),
+        hasSql: info.hasSql, imageCount: info.imageCount
+      });
+    }
+
+    backups.sort((a, b) => new Date(b.date) - new Date(a.date));
+    res.json({ backups, storeName });
   } catch (err) {
     console.error('Error listing backups:', err);
     res.status(500).json({ message: 'Error al listar backups' });
@@ -257,13 +248,12 @@ router.get('/backups', authenticateToken, requireAdmin, async (_req, res) => {
 });
 
 // =============================================================================
-// POST /api/database/restore — Restore SQL + images from a paired backup
+// POST /api/database/restore — Restore from unified .tar.gz or legacy .sql
 // =============================================================================
 router.post('/restore', authenticateToken, requireAdmin, async (req, res) => {
+  let tempDir = null;
   try {
     const { filename, confirmText } = req.body;
-
-    // Double-confirm: user must type "RESTAURAR"
     if (confirmText !== 'RESTAURAR') {
       return res.status(400).json({ message: 'Escribe RESTAURAR para confirmar' });
     }
@@ -276,129 +266,108 @@ router.post('/restore', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Archivo de backup no encontrado' });
     }
 
-    // Parse DATABASE_URL for connection
     const dbUrl = process.env.DATABASE_URL;
     if (!dbUrl) return res.status(400).json({ message: 'DATABASE_URL no configurada' });
     const parsed = parseDbUrl(dbUrl);
     if (!parsed) return res.status(400).json({ message: 'DATABASE_URL inválida' });
     const db = require('../database');
 
-    // Step 1: Disconnect pool BEFORE any destructive SQL — prevents "pool ended" errors
-    console.log('🔄 Restaurando BD: desconectando pool...');
-    if (db.pool) {
-      try { await db.pool.end(); } catch { /* already ended */ }
+    // Determine SQL and images paths (archive vs plain .sql)
+    let sqlPath, imagesDir;
+    if (safe.endsWith('.tar.gz')) {
+      tempDir = makeTempDir();
+      await tarExec(['-xzf', filePath, '-C', tempDir], { timeout: 300000 });
+      sqlPath = path.join(tempDir, 'database.sql');
+      imagesDir = path.join(tempDir, 'products');
+      if (!fs.existsSync(sqlPath)) {
+        return res.status(400).json({ message: 'El archivo no contiene database.sql' });
+      }
+    } else {
+      // Legacy .sql file support
+      sqlPath = filePath;
+      imagesDir = null;
     }
 
-    // Step 2: Safety backup (pool is closed, use pg_dump CLI directly)
+    // Step 1: Disconnect pool BEFORE destructive SQL
+    console.log('🔄 Restaurando: desconectando pool...');
+    if (db.pool) { try { await db.pool.end(); } catch { /* ok */ } }
+
+    // Step 2: Safety backup (quick pg_dump via CLI)
     const safetyName = `pre-restore-${Date.now()}.sql`;
     const safetyPath = path.join(BACKUPS_DIR, safetyName);
     try {
-      await pgExec('pg_dump', [
-        '-h', parsed.host, '-p', parsed.port, '-U', parsed.user,
-        '--file', safetyPath, parsed.dbname
-      ], parsed);
+      await pgExec('pg_dump', ['-h', parsed.host, '-p', parsed.port, '-U', parsed.user, '--file', safetyPath, parsed.dbname], parsed);
       console.log(`🛡️ Safety backup: ${safetyName}`);
-    } catch (safetyErr) {
-      console.warn('⚠️ Safety backup falló (continuando):', safetyErr.message);
-    }
+    } catch (e) { console.warn('⚠️ Safety backup falló:', e.message); }
 
-    // Step 3: Drop schema + recreate clean
+    // Step 3: Drop + recreate schema
     await pgExec('psql', [
       '-h', parsed.host, '-p', parsed.port, '-U', parsed.user, '-d', parsed.dbname,
       '-c', `DROP SCHEMA public CASCADE; CREATE SCHEMA public; GRANT ALL ON SCHEMA public TO ${parsed.user}; GRANT ALL ON SCHEMA public TO public;`
     ], parsed);
 
-    // Step 4: Restore SQL from backup file
+    // Step 4: Restore SQL
     await pgExec('psql', [
       '-h', parsed.host, '-p', parsed.port, '-U', parsed.user, '-d', parsed.dbname,
-      '-f', filePath
+      '-f', sqlPath
     ], parsed, { timeout: 300000 });
 
-    // Step 5: Restore images if paired tar.gz exists
+    // Step 5: Restore images if present in archive
     let imagesRestored = false;
-    const pairName = getImagesPairName(safe);
-    const pairPath = pairName ? path.join(BACKUPS_DIR, pairName) : null;
-    if (pairPath && fs.existsSync(pairPath)) {
+    if (imagesDir && fs.existsSync(imagesDir)) {
       try {
-        console.log(`🖼️ Restaurando imágenes desde ${pairName}...`);
-        // Clear current product images before extracting
+        // Clear current product images
         if (fs.existsSync(PRODUCTS_DIR)) {
-          const existing = fs.readdirSync(PRODUCTS_DIR);
-          for (const f of existing) {
+          for (const f of fs.readdirSync(PRODUCTS_DIR)) {
             try { fs.unlinkSync(path.join(PRODUCTS_DIR, f)); } catch { /* skip */ }
           }
         }
-        // Extract tar.gz into uploads/ — archive contains 'products/' subfolder
-        await tarExec(['-xzf', pairPath, '-C', UPLOADS_DIR], { timeout: 300000 });
-        const restored = countProductImages();
+        // Copy extracted images
+        for (const img of fs.readdirSync(imagesDir)) {
+          fs.copyFileSync(path.join(imagesDir, img), path.join(PRODUCTS_DIR, img));
+        }
         imagesRestored = true;
-        console.log(`🖼️ Imágenes restauradas: ${restored} archivos`);
+        console.log(`🖼️ Imágenes restauradas: ${fs.readdirSync(imagesDir).length} archivos`);
       } catch (imgErr) {
-        console.warn('⚠️ Image restore failed (SQL restored OK):', imgErr.message);
+        console.warn('⚠️ Image restore failed:', imgErr.message);
       }
     }
 
-    // Step 6: Reinitialize pool with fresh connection
-    console.log('🔄 Reconectando pool de base de datos...');
+    // Step 6: Reconnect pool
+    console.log('🔄 Reconectando pool...');
     db.reinitializeDb(process.env.DATABASE_URL);
-
-    // Brief delay for pool to stabilize before querying stats
     await new Promise(r => setTimeout(r, 1000));
 
     const tableStats = await getTableStats();
     const imgCount = countProductImages();
-    console.log(`♻️ Backup restaurado: ${safe}${imagesRestored ? ' + imágenes' : ''}`);
+    console.log(`♻️ Restaurado: ${safe}${imagesRestored ? ' + imágenes' : ''}`);
     res.json({
       success: true,
-      message: imagesRestored
-        ? 'Base de datos e imágenes restauradas correctamente'
-        : 'Base de datos restaurada correctamente',
-      safetyBackup: safetyName,
-      imagesRestored,
-      imageCount: imgCount,
-      tableStats
+      message: imagesRestored ? 'Base de datos e imágenes restauradas' : 'Base de datos restaurada',
+      safetyBackup: safetyName, imagesRestored, imageCount: imgCount, tableStats
     });
   } catch (err) {
     console.error('Error restoring backup:', err);
-    // Always try to reconnect pool on error so the app doesn't stay dead
-    try {
-      const db = require('../database');
-      db.reinitializeDb(process.env.DATABASE_URL);
-      console.log('🔄 Pool reconectado tras error de restauración');
-    } catch { /* last resort */ }
+    try { const db = require('../database'); db.reinitializeDb(process.env.DATABASE_URL); } catch { /* last resort */ }
     res.status(500).json({ message: `Error al restaurar: ${err.message}` });
+  } finally {
+    if (tempDir) rmDir(tempDir);
   }
 });
 
 // =============================================================================
-// DELETE /api/database/backups/:filename — Delete a backup + its paired images archive
+// DELETE /api/database/backups/:filename — Delete a backup file
 // =============================================================================
 router.delete('/backups/:filename', authenticateToken, requireAdmin, (req, res) => {
   try {
     const safe = sanitizeFilename(req.params.filename);
     if (!safe) return res.status(400).json({ message: 'Nombre de archivo inválido' });
 
-    const filePath = path.join(BACKUPS_DIR, safe);
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).json({ message: 'Archivo no encontrado' });
-    }
+    const fp = path.join(BACKUPS_DIR, safe);
+    if (!fs.existsSync(fp)) return res.status(404).json({ message: 'Archivo no encontrado' });
 
-    fs.unlinkSync(filePath);
-
-    // Also delete paired images archive if this is a .sql file
-    if (safe.endsWith('.sql')) {
-      const pairName = getImagesPairName(safe);
-      const pairPath = pairName ? path.join(BACKUPS_DIR, pairName) : null;
-      if (pairPath && fs.existsSync(pairPath)) {
-        fs.unlinkSync(pairPath);
-        console.log(`🗑️ Backup eliminado: ${safe} + ${pairName}`);
-      } else {
-        console.log(`🗑️ Backup eliminado: ${safe}`);
-      }
-    } else {
-      console.log(`🗑️ Archivo eliminado: ${safe}`);
-    }
-
+    fs.unlinkSync(fp);
+    console.log(`🗑️ Backup eliminado: ${safe}`);
     res.json({ success: true, message: 'Backup eliminado' });
   } catch (err) {
     console.error('Error deleting backup:', err);
@@ -407,50 +376,72 @@ router.delete('/backups/:filename', authenticateToken, requireAdmin, (req, res) 
 });
 
 // =============================================================================
-// GET /api/database/backups/:filename/download — Download a backup or images file
+// GET /api/database/backups/:filename/download?type=data|sql|images
+// Downloads full archive, only SQL, or only images.
 // =============================================================================
-router.get('/backups/:filename/download', authenticateToken, requireAdmin, (req, res) => {
+router.get('/backups/:filename/download', authenticateToken, requireAdmin, async (req, res) => {
   const safe = sanitizeFilename(req.params.filename);
   if (!safe) return res.status(400).json({ message: 'Nombre de archivo inválido' });
 
   const filePath = path.join(BACKUPS_DIR, safe);
-  if (!fs.existsSync(filePath)) {
-    return res.status(404).json({ message: 'Archivo no encontrado' });
+  if (!fs.existsSync(filePath)) return res.status(404).json({ message: 'Archivo no encontrado' });
+
+  const type = req.query.type || 'data';
+  const baseName = safe.replace(/\.(tar\.gz|sql)$/, '');
+
+  // Plain .sql or full data download — serve directly
+  if (safe.endsWith('.sql') || type === 'data') {
+    return res.download(filePath, safe);
   }
 
-  res.download(filePath, safe);
+  // Extract specific content from .tar.gz archive
+  const tempDir = makeTempDir();
+  try {
+    if (type === 'sql') {
+      // Extract only database.sql from archive
+      await tarExec(['-xzf', filePath, '-C', tempDir, 'database.sql']);
+      const sqlFile = path.join(tempDir, 'database.sql');
+      if (!fs.existsSync(sqlFile)) { rmDir(tempDir); return res.status(404).json({ message: 'No contiene database.sql' }); }
+      return res.download(sqlFile, `${baseName}.sql`, () => rmDir(tempDir));
+    }
+
+    if (type === 'images') {
+      // Extract products/ from archive, re-tar just those
+      await tarExec(['-xzf', filePath, '-C', tempDir, 'products']);
+      const prodDir = path.join(tempDir, 'products');
+      if (!fs.existsSync(prodDir) || fs.readdirSync(prodDir).length === 0) {
+        rmDir(tempDir);
+        return res.status(404).json({ message: 'No contiene imágenes' });
+      }
+      const imgTar = path.join(tempDir, `${baseName}-images.tar.gz`);
+      await tarExec(['-czf', imgTar, '-C', tempDir, 'products']);
+      return res.download(imgTar, `${baseName}-images.tar.gz`, () => rmDir(tempDir));
+    }
+
+    rmDir(tempDir);
+    return res.status(400).json({ message: 'Tipo inválido: data, sql, images' });
+  } catch (err) {
+    rmDir(tempDir);
+    console.error('Error downloading backup:', err);
+    res.status(500).json({ message: `Error: ${err.message}` });
+  }
 });
 
 // =============================================================================
-// POST /api/database/backups/upload — Upload external .sql and/or .tar.gz files
+// POST /api/database/backups/upload — Upload a .tar.gz or legacy .sql file
+// Same-name overwrites by design (no accumulation).
 // =============================================================================
 router.post('/backups/upload', authenticateToken, requireAdmin, (req, res) => {
   backupUpload(req, res, (err) => {
     if (err) {
-      if (err instanceof multer.MulterError) {
-        return res.status(400).json({ message: `Error de subida: ${err.message}` });
-      }
+      if (err instanceof multer.MulterError) return res.status(400).json({ message: `Error: ${err.message}` });
       return res.status(400).json({ message: err.message });
     }
-    if (!req.files || req.files.length === 0) {
-      return res.status(400).json({ message: 'No se subió ningún archivo' });
-    }
+    if (!req.file) return res.status(400).json({ message: 'No se subió ningún archivo' });
 
-    // Report all uploaded files
-    const uploaded = req.files.map(f => {
-      const st = fs.statSync(f.path);
-      return { filename: f.filename, size: st.size, date: st.mtime };
-    });
-
-    const names = uploaded.map(u => u.filename).join(', ');
-    console.log(`📤 Backup subido: ${names}`);
-    res.json({
-      success: true,
-      files: uploaded,
-      filename: uploaded[0]?.filename, // backward compat
-      size: uploaded[0]?.size,
-      date: uploaded[0]?.date
-    });
+    const st = fs.statSync(req.file.path);
+    console.log(`📤 Backup subido: ${req.file.filename} (${(st.size / 1024).toFixed(1)} KB)`);
+    res.json({ success: true, filename: req.file.filename, size: st.size, date: st.mtime });
   });
 });
 
