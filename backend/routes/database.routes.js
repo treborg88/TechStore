@@ -145,10 +145,11 @@ router.get('/stats', authenticateToken, requireAdmin, async (_req, res) => {
 // POST /api/database/backup — Create unified .tar.gz (database.sql + products/)
 // Body: { name?: string, version?: string }
 // Same name overwrites previous backup — no accumulation by default.
+// NOTE: BusyBox tar (Alpine) doesn't support multiple -C flags, so we stage
+//       all files into a single temp dir and tar from there with one -C.
 // =============================================================================
 router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
-  // Dump SQL directly into BACKUPS_DIR (avoids temp dir issues)
-  const sqlPath = path.join(BACKUPS_DIR, 'database.sql');
+  let stageDir = null;
   try {
     const { name, version } = req.body || {};
 
@@ -165,7 +166,11 @@ router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
     const parsed = parseDbUrl(dbUrl);
     if (!parsed) return res.status(400).json({ message: 'DATABASE_URL inválida' });
 
-    // Step 1: pg_dump → BACKUPS_DIR/database.sql
+    // Stage everything in one temp dir (BusyBox tar needs single -C)
+    stageDir = makeTempDir();
+    const sqlPath = path.join(stageDir, 'database.sql');
+
+    // Step 1: pg_dump → stageDir/database.sql
     await pgExec('pg_dump', [
       '-h', parsed.host, '-p', parsed.port, '-U', parsed.user,
       '-f', sqlPath, parsed.dbname
@@ -175,16 +180,17 @@ router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(500).json({ message: 'pg_dump generó un archivo vacío' });
     }
 
-    // Step 2: Build tar.gz — database.sql + products/ images
+    // Step 2: Symlink products/ into staging dir (avoids copying large image files)
     const imgCount = countProductImages();
-    const tarArgs = ['-czf', archivePath, '-C', BACKUPS_DIR, 'database.sql'];
+    const tarEntries = ['database.sql'];
     if (imgCount > 0 && fs.existsSync(PRODUCTS_DIR)) {
-      tarArgs.push('-C', UPLOADS_DIR, 'products');
+      fs.symlinkSync(PRODUCTS_DIR, path.join(stageDir, 'products'));
+      tarEntries.push('products');
     }
 
-    // Remove old archive if replacing
+    // Step 3: Build tar.gz from staging dir (single -C, -h follows symlinks)
     if (replacing) fs.unlinkSync(archivePath);
-    await tarExec(tarArgs, { timeout: 300000 });
+    await tarExec(['-chzf', archivePath, '-C', stageDir, ...tarEntries], { timeout: 300000 });
 
     const archiveStat = fs.statSync(archivePath);
     const tableStats = await getTableStats();
@@ -199,8 +205,8 @@ router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
     console.error('Error creating backup:', err);
     res.status(500).json({ message: `Error al crear backup: ${err.message}` });
   } finally {
-    // Always clean up the temp SQL file
-    try { if (fs.existsSync(sqlPath)) fs.unlinkSync(sqlPath); } catch { /* ok */ }
+    // Always clean up staging dir
+    if (stageDir) rmDir(stageDir);
   }
 });
 
