@@ -101,6 +101,22 @@ export function useSiteSettings() {
   // Landing page config (enabled/disabled + route)
   const [landingPageConfig, setLandingPageConfig] = useState(() => cloneLandingPageConfig(null));
 
+  const parseJsonSetting = (rawValue, settingName) => {
+    if (rawValue === undefined || rawValue === null) return null;
+    if (typeof rawValue !== 'string') return rawValue;
+
+    const normalized = rawValue.trim();
+    // Legacy/broken values may be serialized as plain object string.
+    if (!normalized || normalized === '[object Object]') return null;
+
+    try {
+      return JSON.parse(normalized);
+    } catch (err) {
+      console.error(`Error parsing ${settingName}:`, err);
+      return null;
+    }
+  };
+
   // --- Aplica los datos del backend al estado local ---
   const applySettings = (data) => {
     if (data.siteName) {
@@ -203,41 +219,19 @@ export function useSiteSettings() {
 
     // Category filters config
     if (data.categoryFiltersConfig) {
-      try {
-        const parsed = typeof data.categoryFiltersConfig === 'string'
-          ? JSON.parse(data.categoryFiltersConfig)
-          : data.categoryFiltersConfig;
-        setCategoryFilterSettings(cloneCategoryConfig(parsed));
-      } catch (err) {
-        console.error('Error parsing categoryFiltersConfig:', err);
-        setCategoryFilterSettings(cloneCategoryConfig(null));
-      }
+      const parsed = parseJsonSetting(data.categoryFiltersConfig, 'categoryFiltersConfig');
+      setCategoryFilterSettings(cloneCategoryConfig(parsed));
     }
 
     // Product card config
     if (data.productCardConfig) {
-      try {
-        const parsed = typeof data.productCardConfig === 'string'
-          ? JSON.parse(data.productCardConfig)
-          : data.productCardConfig;
-        setProductCardSettings(cloneProductCardConfig(parsed));
-      } catch (err) {
-        console.error('Error parsing productCardConfig:', err);
-        setProductCardSettings(cloneProductCardConfig(null));
-      }
+      const parsed = parseJsonSetting(data.productCardConfig, 'productCardConfig');
+      setProductCardSettings(cloneProductCardConfig(parsed));
     }
 
     // Landing page config (con fallback explícito para restauraciones antiguas)
-    try {
-      const rawLanding = data.landingPageConfig;
-      const parsed = rawLanding
-        ? (typeof rawLanding === 'string' ? JSON.parse(rawLanding) : rawLanding)
-        : null;
-      setLandingPageConfig(cloneLandingPageConfig(parsed));
-    } catch (err) {
-      console.error('Error parsing landingPageConfig:', err);
-      setLandingPageConfig(cloneLandingPageConfig(null));
-    }
+    const parsedLanding = parseJsonSetting(data.landingPageConfig, 'landingPageConfig');
+    setLandingPageConfig(cloneLandingPageConfig(parsedLanding));
   };
 
   // --- Efecto: fetch de settings con caché ---

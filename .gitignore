@@ -71,6 +71,9 @@ playwright-report/
 .cache/
 USABILITY_REPORT.md
 
+# Local helper scripts
+scripts/dev-local-simple.bat
+
 # Database backups (managed via admin panel)
 backend/backups/
 

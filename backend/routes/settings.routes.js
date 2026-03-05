@@ -111,7 +111,13 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
  */
 router.put('/', authenticateToken, requireAdmin, async (req, res) => {
     try {
-        const settings = req.body;
+        const settings = { ...(req.body || {}) };
+
+        // Compatibilidad defensiva: aceptar typo legado del frontend y mapearlo.
+        if (settings.cdlandingPageConfig !== undefined && settings.landingPageConfig === undefined) {
+            settings.landingPageConfig = settings.cdlandingPageConfig;
+        }
+        delete settings.cdlandingPageConfig;
         
         // Sensitive fields that should be encrypted and filtered if empty
         const sensitiveFields = ['mailPassword', 'stripeSecretKey', 'paypalClientSecret', 'dbSupabaseKey'];
@@ -123,19 +129,24 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
         });
         
         const promises = entries.map(([key, value]) => {
+            // Evita guardar "[object Object]" cuando llega JSON como objeto.
+            const normalizedValue = (value && typeof value === 'object')
+                ? JSON.stringify(value)
+                : value;
+
             // Encrypt sensitive fields
             if (sensitiveFields.includes(key)) {
-                const encrypted = encryptSetting(value);
+                const encrypted = encryptSetting(normalizedValue);
                 return statements.updateSetting(key, encrypted);
             }
-            return statements.updateSetting(key, value);
+            return statements.updateSetting(key, normalizedValue);
         });
         
         await Promise.all(promises);
 
         // If siteDomain changed, refresh CORS allowed origins immediately (no restart needed)
-        if (settings.siteDomain !== undefined && settings.siteDomain.trim()) {
-            addSiteDomain(settings.siteDomain);
+        if (settings.siteDomain !== undefined && String(settings.siteDomain).trim()) {
+            addSiteDomain(String(settings.siteDomain));
             console.log(`🌐 CORS: dominio actualizado desde Admin Panel → ${settings.siteDomain}`);
         }
 

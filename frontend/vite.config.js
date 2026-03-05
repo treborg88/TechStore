@@ -19,6 +19,10 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
       },
+      '/storage': {
+        target: 'http://localhost:5001',
+        changeOrigin: true,
+      },
       '/p': {
         target: 'http://localhost:5001',
         changeOrigin: true,

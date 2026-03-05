@@ -171,31 +171,63 @@ const StylesEditor = ({ styles, onStyleChange }) => {
 };
 
 /** Editor para Hero */
-const HeroEditor = ({ data, onDataChange, onImageUpload, isImageUploading }) => (
-  <>
-    <div className="settings-grid">
-      <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-      <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
-      <TextInput label="Texto del botón CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
-      <TextInput label="Enlace del CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} placeholder="/" />
-      <ImageInput
-        label="Imagen"
-        value={data.image}
-        onChange={(v) => onDataChange('image', v)}
-        onUpload={(file) => onImageUpload && onImageUpload('image', file)}
-        isUploading={isImageUploading ? isImageUploading('image') : false}
-      />
-      <TextInput label="Texto del badge" value={data.badgeText} onChange={(v) => onDataChange('badgeText', v)} />
-      <div className="form-group">
-        <label>Layout</label>
-        <select value={data.layout || 'text-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="form-control">
-          <option value="text-left">Texto izquierda</option>
-          <option value="text-right">Texto derecha</option>
-        </select>
+const HeroEditor = ({ data, onDataChange, onImageUpload, isImageUploading, availableProducts = [], productsLoading = false }) => {
+  const handleSelectHeroProduct = (productId) => {
+    const selected = availableProducts.find((p) => String(p.id) === String(productId));
+    if (!selected) {
+      onDataChange('productId', null);
+      return;
+    }
+
+    const mapped = mapCatalogProductToLanding(selected);
+    onDataChange('productId', mapped.productId);
+    onDataChange('title', mapped.productName || mapped.name || data.title);
+    onDataChange('subtitle', mapped.description || data.subtitle);
+    onDataChange('image', mapped.image || data.image);
+    onDataChange('ctaLink', mapped.ctaLink || data.ctaLink);
+    onDataChange('ctaText', data.ctaText || mapped.ctaText || 'Ver Producto');
+  };
+
+  return (
+    <>
+      <div className="settings-grid">
+        <div className="form-group">
+          <label>Seleccionar producto del catálogo (opcional)</label>
+          <select
+            value={data.productId ?? ''}
+            onChange={(e) => handleSelectHeroProduct(e.target.value)}
+            className="form-control"
+            disabled={productsLoading}
+          >
+            <option value="">{productsLoading ? 'Cargando productos...' : 'Ninguno (manual)'}</option>
+            {availableProducts.map((product) => (
+              <option key={product.id} value={product.id}>{product.name}</option>
+            ))}
+          </select>
+        </div>
+        <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
+        <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
+        <TextInput label="Texto del botón CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
+        <TextInput label="Enlace del CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} placeholder="/" />
+        <ImageInput
+          label="Imagen"
+          value={data.image}
+          onChange={(v) => onDataChange('image', v)}
+          onUpload={(file) => onImageUpload && onImageUpload('image', file)}
+          isUploading={isImageUploading ? isImageUploading('image') : false}
+        />
+        <TextInput label="Texto del badge" value={data.badgeText} onChange={(v) => onDataChange('badgeText', v)} />
+        <div className="form-group">
+          <label>Layout</label>
+          <select value={data.layout || 'text-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="form-control">
+            <option value="text-left">Texto izquierda</option>
+            <option value="text-right">Texto derecha</option>
+          </select>
+        </div>
       </div>
-    </div>
-  </>
-);
+    </>
+  );
+};
 
 /** Editor para Value Proposition */
 const ValuePropositionEditor = ({ data, onDataChange, onArrayChange }) => (
@@ -227,29 +259,62 @@ const ValuePropositionEditor = ({ data, onDataChange, onArrayChange }) => (
 );
 
 /** Editor para Product Highlight */
-const ProductHighlightEditor = ({ data, onDataChange, onImageUpload, isImageUploading }) => (
-  <div className="settings-grid">
-    <TextInput label="Label" value={data.label} onChange={(v) => onDataChange('label', v)} />
-    <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-    <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
-    <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
-    <TextInput label="Enlace CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} />
-    <ImageInput
-      label="Imagen"
-      value={data.image}
-      onChange={(v) => onDataChange('image', v)}
-      onUpload={(file) => onImageUpload && onImageUpload('image', file)}
-      isUploading={isImageUploading ? isImageUploading('image') : false}
-    />
-    <div className="form-group">
-      <label>Layout</label>
-      <select value={data.layout || 'image-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="form-control">
-        <option value="image-left">Imagen izquierda</option>
-        <option value="image-right">Imagen derecha</option>
-      </select>
+const ProductHighlightEditor = ({ data, onDataChange, onImageUpload, isImageUploading, availableProducts = [], productsLoading = false }) => {
+  const handleSelectHighlightProduct = (productId) => {
+    const selected = availableProducts.find((p) => String(p.id) === String(productId));
+    if (!selected) {
+      onDataChange('productId', null);
+      return;
+    }
+
+    const mapped = mapCatalogProductToLanding(selected);
+    onDataChange('productId', mapped.productId);
+    onDataChange('label', mapped.category || data.label);
+    onDataChange('title', mapped.productName || mapped.name || data.title);
+    onDataChange('description', mapped.description || data.description);
+    onDataChange('image', mapped.image || data.image);
+    onDataChange('ctaLink', mapped.ctaLink || data.ctaLink);
+    onDataChange('ctaText', data.ctaText || mapped.ctaText || 'Ver Producto');
+  };
+
+  return (
+    <div className="settings-grid">
+      <div className="form-group">
+        <label>Seleccionar producto del catálogo (opcional)</label>
+        <select
+          value={data.productId ?? ''}
+          onChange={(e) => handleSelectHighlightProduct(e.target.value)}
+          className="form-control"
+          disabled={productsLoading}
+        >
+          <option value="">{productsLoading ? 'Cargando productos...' : 'Ninguno (manual)'}</option>
+          {availableProducts.map((product) => (
+            <option key={product.id} value={product.id}>{product.name}</option>
+          ))}
+        </select>
+      </div>
+      <TextInput label="Label" value={data.label} onChange={(v) => onDataChange('label', v)} />
+      <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
+      <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
+      <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
+      <TextInput label="Enlace CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} />
+      <ImageInput
+        label="Imagen"
+        value={data.image}
+        onChange={(v) => onDataChange('image', v)}
+        onUpload={(file) => onImageUpload && onImageUpload('image', file)}
+        isUploading={isImageUploading ? isImageUploading('image') : false}
+      />
+      <div className="form-group">
+        <label>Layout</label>
+        <select value={data.layout || 'image-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="form-control">
+          <option value="image-left">Imagen izquierda</option>
+          <option value="image-right">Imagen derecha</option>
+        </select>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 /** Editor para Trust Banner */
 const TrustBannerEditor = ({ data, onDataChange }) => (
@@ -261,6 +326,12 @@ const TrustBannerEditor = ({ data, onDataChange }) => (
 
 /** Editor para Featured Product */
 const FeaturedProductEditor = ({ data, onDataChange, onArrayChange, availableProducts = [], productsLoading = false, onImageUpload, isImageUploading }) => {
+  const patchFeaturedProduct = (patch) => {
+    Object.entries(patch).forEach(([key, value]) => {
+      onDataChange(key, value);
+    });
+  };
+
   const handleSelectFeaturedProduct = (productId) => {
     const selected = availableProducts.find((p) => String(p.id) === String(productId));
     if (!selected) {
@@ -269,13 +340,16 @@ const FeaturedProductEditor = ({ data, onDataChange, onArrayChange, availablePro
     }
 
     const mapped = mapCatalogProductToLanding(selected);
-    onDataChange('productId', mapped.productId);
-    onDataChange('productName', mapped.productName);
-    onDataChange('description', mapped.description);
-    onDataChange('image', mapped.image);
-    onDataChange('originalPrice', mapped.originalPrice);
-    onDataChange('salePrice', mapped.salePrice);
-    onDataChange('ctaLink', mapped.ctaLink);
+    patchFeaturedProduct({
+      productId: mapped.productId,
+      productName: mapped.productName,
+      description: mapped.description,
+      image: mapped.image,
+      originalPrice: mapped.originalPrice,
+      salePrice: mapped.salePrice,
+      ctaText: data.ctaText || mapped.ctaText || 'Ver Producto',
+      ctaLink: mapped.ctaLink
+    });
   };
 
   return (
@@ -365,6 +439,13 @@ const ProductShowcaseEditor = ({ data, onDataChange, availableProducts = [], pro
     onDataChange('products', next);
   };
 
+  // Aplica varios cambios del producto en una sola actualización para evitar pisar estado en lote.
+  const patchProduct = (index, patch) => {
+    const next = [...(data.products || [])];
+    next[index] = { ...next[index], ...patch };
+    onDataChange('products', next);
+  };
+
   // Handler para actualizar features de un producto
   const updateProductFeature = (prodIdx, featIdx, value) => {
     const next = [...(data.products || [])];
@@ -382,15 +463,18 @@ const ProductShowcaseEditor = ({ data, onDataChange, availableProducts = [], pro
     }
 
     const mapped = mapCatalogProductToLanding(selected);
-    updateProduct(index, 'productId', mapped.productId);
-    updateProduct(index, 'name', mapped.name);
-    updateProduct(index, 'category', mapped.category);
-    updateProduct(index, 'description', mapped.description);
-    updateProduct(index, 'image', mapped.image);
-    updateProduct(index, 'originalPrice', mapped.originalPrice);
-    updateProduct(index, 'salePrice', mapped.salePrice);
-    updateProduct(index, 'ctaLink', mapped.ctaLink);
-    updateProduct(index, 'features', mapped.features);
+    patchProduct(index, {
+      productId: mapped.productId,
+      name: mapped.name,
+      category: mapped.category,
+      description: mapped.description,
+      image: mapped.image,
+      originalPrice: mapped.originalPrice,
+      salePrice: mapped.salePrice,
+      ctaText: mapped.ctaText,
+      ctaLink: mapped.ctaLink,
+      features: mapped.features
+    });
   };
 
   return (
