@@ -60,6 +60,17 @@ router.get('/public', async (req, res) => {
                 settingsObj[id] = value;
             }
         }
+
+        // Compatibilidad con backups antiguos: asegurar que landingPageConfig exista
+        // para que el frontend siempre tenga una base válida al recargar.
+        if (settingsObj.landingPageConfig === undefined) {
+            settingsObj.landingPageConfig = '{"enabled":false}';
+            try {
+                await statements.updateSetting('landingPageConfig', settingsObj.landingPageConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear landingPageConfig:', healError.message);
+            }
+        }
         
         res.json(settingsObj);
     } catch (error) {

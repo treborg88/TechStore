@@ -227,16 +227,16 @@ export function useSiteSettings() {
       }
     }
 
-    // Landing page config
-    if (data.landingPageConfig) {
-      try {
-        const parsed = typeof data.landingPageConfig === 'string'
-          ? JSON.parse(data.landingPageConfig)
-          : data.landingPageConfig;
-        setLandingPageConfig(cloneLandingPageConfig(parsed));
-      } catch (err) {
-        console.error('Error parsing landingPageConfig:', err);
-      }
+    // Landing page config (con fallback explícito para restauraciones antiguas)
+    try {
+      const rawLanding = data.landingPageConfig;
+      const parsed = rawLanding
+        ? (typeof rawLanding === 'string' ? JSON.parse(rawLanding) : rawLanding)
+        : null;
+      setLandingPageConfig(cloneLandingPageConfig(parsed));
+    } catch (err) {
+      console.error('Error parsing landingPageConfig:', err);
+      setLandingPageConfig(cloneLandingPageConfig(null));
     }
   };
 

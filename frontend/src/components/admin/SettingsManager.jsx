@@ -353,7 +353,7 @@ function SettingsManager() {
           currency: normalizeCurrencyCode(settings.productCardConfig?.currency)
         }),
         paymentMethodsConfig: JSON.stringify(settings.paymentMethodsConfig || clonePaymentMethodsConfig()),
-        landingPageConfig: JSON.stringify(settings.landingPageConfig || cloneLandingPageConfig(null))
+        cdlandingPageConfig: JSON.stringify(settings.landingPageConfig || cloneLandingPageConfig(null))
       };
       const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',

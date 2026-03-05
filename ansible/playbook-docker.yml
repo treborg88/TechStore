@@ -335,6 +335,14 @@
         chdir: "{{ app_path }}"
       changed_when: true
 
+    - name: Restart proxy container to refresh upstream resolution
+      tags: [deploy, update]
+      become_user: "{{ deploy_user }}"
+      ansible.builtin.command: docker compose restart proxy
+      args:
+        chdir: "{{ app_path }}"
+      changed_when: true
+
     # ═══════════════════════════════════════════════════════════════════════
     # VERIFY — Wait for all services to be healthy
     # ═══════════════════════════════════════════════════════════════════════
