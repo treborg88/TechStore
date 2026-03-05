@@ -3,6 +3,12 @@ import { useState, useEffect } from 'react';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { cloneCategoryConfig, cloneProductCardConfig } from '../utils/settingsHelpers';
+import { cloneLandingPageConfig } from '../utils/landingPageDefaults';
+import { CACHE_KEYS, getCacheItem, setCacheItem, removeCacheItem } from '../utils/cacheStorage';
+
+const SETTINGS_CACHE_FRESH_MS = 2 * 60 * 1000;
+const SETTINGS_CACHE_MAX_STALE_MS = 24 * 60 * 60 * 1000;
+const SETTINGS_REVALIDATE_COOLDOWN_MS = 30 * 1000;
 
 /**
  * Hook que encapsula toda la configuración visual del sitio:
@@ -91,6 +97,9 @@ export function useSiteSettings() {
     promoButtonText: 'Ver Oferta',
     promoImage: ''
   });
+
+  // Landing page config (enabled/disabled + route)
+  const [landingPageConfig, setLandingPageConfig] = useState(() => cloneLandingPageConfig(null));
 
   // --- Aplica los datos del backend al estado local ---
   const applySettings = (data) => {
@@ -217,25 +226,44 @@ export function useSiteSettings() {
         setProductCardSettings(cloneProductCardConfig(null));
       }
     }
+
+    // Landing page config
+    if (data.landingPageConfig) {
+      try {
+        const parsed = typeof data.landingPageConfig === 'string'
+          ? JSON.parse(data.landingPageConfig)
+          : data.landingPageConfig;
+        setLandingPageConfig(cloneLandingPageConfig(parsed));
+      } catch (err) {
+        console.error('Error parsing landingPageConfig:', err);
+      }
+    }
   };
 
   // --- Efecto: fetch de settings con caché ---
   useEffect(() => {
-    const fetchSettings = async () => {
-      const cacheKey = 'settings_cache_v1';
-      const cached = localStorage.getItem(cacheKey);
+    const fetchSettings = async (options = {}) => {
+      const { force = false } = options;
+      const cached = getCacheItem(CACHE_KEYS.settings);
       const now = new Date().getTime();
-      const parsedCache = cached ? JSON.parse(cached) : null;
-      const hasCached = !!parsedCache?.data;
-      const isCacheFresh = hasCached && (now - parsedCache.timestamp < 10 * 60 * 1000);
+      const hasCached = !!cached?.data;
+      const cacheAge = hasCached ? (now - (cached.timestamp || 0)) : Number.POSITIVE_INFINITY;
+      const isCacheFresh = hasCached && cacheAge < SETTINGS_CACHE_FRESH_MS;
+      const isCacheTooOld = hasCached && cacheAge > SETTINGS_CACHE_MAX_STALE_MS;
+      const lastValidatedAt = Number(cached?.lastValidatedAt || 0);
+      const shouldThrottleRevalidate = (now - lastValidatedAt) < SETTINGS_REVALIDATE_COOLDOWN_MS;
 
-      // Aplicar caché inmediatamente si existe
-      if (hasCached) {
-        applySettings(parsedCache.data);
+      if (isCacheTooOld) {
+        removeCacheItem(CACHE_KEYS.settings);
       }
 
-      // No refetch si el caché está fresco
-      if (isCacheFresh) {
+      // Aplicar caché inmediatamente si existe
+      if (hasCached && !isCacheTooOld) {
+        applySettings(cached.data);
+      }
+
+      // Política balanceada: siempre permitir revalidación, pero con throttle
+      if (!force && hasCached && isCacheFresh && shouldThrottleRevalidate) {
         return;
       }
 
@@ -244,10 +272,11 @@ export function useSiteSettings() {
         if (response.ok) {
           const data = await response.json();
           applySettings(data);
-          localStorage.setItem(cacheKey, JSON.stringify({
+          setCacheItem(CACHE_KEYS.settings, {
             timestamp: new Date().getTime(),
+            lastValidatedAt: new Date().getTime(),
             data
-          }));
+          });
         }
       } catch (err) {
         console.error('Error fetching settings:', err);
@@ -255,6 +284,21 @@ export function useSiteSettings() {
     };
 
     fetchSettings();
+
+    const revalidateOnFocus = () => fetchSettings({ force: false });
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        revalidateOnFocus();
+      }
+    };
+
+    window.addEventListener('focus', revalidateOnFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', revalidateOnFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // --- Efecto: actualizar título de la página y favicon dinámicamente ---
@@ -317,6 +361,7 @@ export function useSiteSettings() {
     productDetailHeroSettings,
     categoryFilterSettings,
     productCardSettings,
-    promoSettings
+    promoSettings,
+    landingPageConfig
   };
 }

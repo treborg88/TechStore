@@ -14,6 +14,7 @@ const Contact = lazy(() => import('../pages/Contact'));
 const LoginPage = lazy(() => import('../components/auth/LoginPage'));
 const AdminDashboard = lazy(() => import('../components/admin/AdminDashboard'));
 const SettingsManager = lazy(() => import('../components/admin/SettingsManager'));
+const LandingPage = lazy(() => import('../pages/LandingPage'));
 
 /**
  * Componente de rutas de la aplicación.
@@ -31,14 +32,51 @@ function AppRoutes({
   productDetailHeroImage, productDetailHeroSettings,
   siteName, siteIcon, headerSettings,
   promoSettings,
+  landingPageConfig,
   // Navegación
   navigate
 }) {
+  const productsRoute = '/products';
+  const storeRoute = '/tienda';
+
+  const normalizeLandingRoute = (route) => {
+    const rawRoute = typeof route === 'string' ? route.trim() : '';
+    if (!rawRoute || rawRoute === '/') return '/landing';
+    const normalized = rawRoute.startsWith('/') ? rawRoute : `/${rawRoute}`;
+    if (normalized === productsRoute || normalized === '/product' || normalized === '/productos') {
+      return '/landing';
+    }
+    return normalized;
+  };
+
+  const configuredLandingRoute = normalizeLandingRoute(landingPageConfig?.route);
+  const isLandingEnabled = Boolean(landingPageConfig?.enabled);
+
   return (
     <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
       <Routes>
-        {/* Home */}
+        {/* Home (Landing o tienda según configuración) */}
         <Route path="/" element={
+          isLandingEnabled ? (
+            <LandingPage />
+          ) : (
+            <Home 
+              products={products} 
+              loading={loading} 
+              error={error} 
+              addToCart={addToCart} 
+              fetchProducts={fetchProducts}
+              pagination={pagination}
+              heroSettings={heroSettings}
+              categoryFilterSettings={categoryFilterSettings}
+              productCardSettings={productCardSettings}
+              promoSettings={promoSettings}
+            />
+          )
+        } />
+
+        {/* Tienda */}
+        <Route path={storeRoute} element={
           <Home 
             products={products} 
             loading={loading} 
@@ -52,6 +90,8 @@ function AppRoutes({
             promoSettings={promoSettings}
           />
         } />
+        <Route path={productsRoute} element={<Navigate to={storeRoute} replace />} />
+        <Route path="/productos" element={<Navigate to={storeRoute} replace />} />
 
         {/* Carrito */}
         <Route path="/cart" element={
@@ -192,6 +232,12 @@ function AppRoutes({
             <Navigate to={user ? "/" : "/login"} />
           )
         } />
+
+        {/* Landing Page — autónoma, se auto-desactiva si no está habilitada */}
+        {configuredLandingRoute !== '/' && <Route path={configuredLandingRoute} element={<LandingPage />} />}
+        {configuredLandingRoute !== '/landing' && configuredLandingRoute !== '/' && (
+          <Route path="/landing" element={<Navigate to={configuredLandingRoute} replace />} />
+        )}
 
         {/* Fallback: redirigir a home */}
         <Route path="*" element={<Navigate to="/" />} />

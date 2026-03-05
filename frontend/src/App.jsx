@@ -60,7 +60,8 @@ function App() {
     heroSettings, headerSettings,
     productDetailHeroImage, productDetailHeroSettings,
     categoryFilterSettings, productCardSettings,
-    promoSettings
+    promoSettings,
+    landingPageConfig
   } = useSiteSettings();
 
   // Hook de carrito: estado, CRUD, sync con backend, persistencia
@@ -154,6 +155,7 @@ function App() {
           siteName={siteName}
           siteIcon={siteIcon}
           headerSettings={headerSettings}
+          landingPageConfig={landingPageConfig}
           navigate={navigate}
         />
 

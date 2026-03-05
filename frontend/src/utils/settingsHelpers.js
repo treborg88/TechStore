@@ -1,5 +1,6 @@
 // settingsHelpers.js - Utilidades puras para clonar/merge de configuraciones de settings
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
+export { cloneLandingPageConfig } from './landingPageDefaults';
 
 /**
  * Normaliza códigos de moneda para compatibilidad retroactiva

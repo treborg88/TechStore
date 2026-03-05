@@ -113,7 +113,9 @@ INSERT INTO app_settings (id, value) VALUES
     ('chatbotTemperature',   '0.7'),
     ('chatbotPersonality',   'helpful'),
     ('chatbotVerbosity',     'normal'),
-    ('chatbotSystemPrompt',  '')
+    ('chatbotSystemPrompt',  ''),
+    -- Landing page (disabled by default)
+    ('landingPageConfig',     '{"enabled":false}')
 ON CONFLICT (id) DO NOTHING;
 
 

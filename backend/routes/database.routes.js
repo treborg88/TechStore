@@ -54,7 +54,20 @@ const parseDbUrl = (url) => {
 const pgExec = (bin, args, parsed, opts = {}) => new Promise((resolve, reject) => {
   const env = { ...process.env, PGPASSWORD: parsed.password };
   execFile(bin, args, { timeout: opts.timeout || 120000, maxBuffer: 50 * 1024 * 1024, env },
-    (err, stdout, stderr) => err ? reject(new Error(stderr || err.message)) : resolve({ stdout, stderr }));
+    (err, stdout, stderr) => {
+      if (err) {
+        if (err.code === 'ENOENT') {
+          const inDocker = fs.existsSync('/.dockerenv');
+          const baseMessage = `No se encontró el binario '${bin}' (ENOENT).`;
+          const dockerHint = inDocker
+            ? `El contenedor backend no tiene herramientas de PostgreSQL o no se construyó con la imagen correcta. Reconstruye backend: docker compose build --no-cache backend && docker compose up -d backend.`
+            : `Este backend parece correr fuera de Docker. Instala PostgreSQL client tools y agrega su carpeta 'bin' al PATH (Windows típico: C:\\Program Files\\PostgreSQL\\<version>\\bin), o ejecuta el proyecto con Docker Compose completo.`;
+          return reject(new Error(`${baseMessage} ${dockerHint}`));
+        }
+        return reject(new Error(stderr || err.message));
+      }
+      return resolve({ stdout, stderr });
+    });
 });
 
 /** Run tar via execFile (no shell). */

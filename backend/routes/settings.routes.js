@@ -33,7 +33,9 @@ const PUBLIC_SETTINGS = [
     'siteDomain',
     // Chatbot public settings
     'chatbotEnabled', 'chatbotGreeting', 'chatbotMaxMessages',
-    'chatbotPlaceholder', 'chatbotColor'
+    'chatbotPlaceholder', 'chatbotColor',
+    // Landing page configuration
+    'landingPageConfig'
 ];
 
 /**
@@ -42,6 +44,13 @@ const PUBLIC_SETTINGS = [
  */
 router.get('/public', async (req, res) => {
     try {
+        // Evita caché de navegador/proxy para que cambios de diseño (landing/templates)
+        // se reflejen inmediatamente tras guardar.
+        res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0');
+        res.set('Pragma', 'no-cache');
+        res.set('Expires', '0');
+        res.set('Surrogate-Control', 'no-store');
+
         const settings = await statements.getSettings();
         
         // Only return public settings (filter out sensitive data)

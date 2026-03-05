@@ -1,7 +1,12 @@
 // useProducts.js - Hook para gestión de productos, paginación y stock
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_URL } from '../config';
 import { apiFetch } from '../services/apiClient';
+import { buildProductsCacheKey, getCacheItem, setCacheItem, removeCacheItem } from '../utils/cacheStorage';
+
+const PRODUCTS_CACHE_FRESH_MS = 2 * 60 * 1000;
+const PRODUCTS_CACHE_MAX_STALE_MS = 12 * 60 * 60 * 1000;
+const PRODUCTS_REVALIDATE_COOLDOWN_MS = 30 * 1000;
 
 /**
  * Hook que encapsula toda la lógica de productos:
@@ -14,6 +19,7 @@ export function useProducts() {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const lastRequestRef = useRef({ category: 'todos', page: 1 });
 
   // Modifica el stock local de un producto por delta (+/-)
   const updateProductStock = useCallback((productId, delta) => {
@@ -54,30 +60,38 @@ export function useProducts() {
   // Fetch de productos con caché en localStorage
   const fetchProducts = useCallback(async (category = 'todos', page = 1, options = {}) => {
     const { force = false } = options;
-    const cacheKey = `products_cache_${category}_${page}`;
+    lastRequestRef.current = { category, page };
+    const cacheKey = buildProductsCacheKey(category, page);
 
     try {
-      const cachedData = localStorage.getItem(cacheKey);
+      const cachedData = getCacheItem(cacheKey);
       const now = new Date().getTime();
-      const parsedCache = cachedData ? JSON.parse(cachedData) : null;
-      const hasCached = !!parsedCache?.data;
-      const isCacheFresh = hasCached && (now - parsedCache.timestamp < 10 * 60 * 1000);
+      const hasCached = !!cachedData?.data;
+      const cacheAge = hasCached ? (now - (cachedData.timestamp || 0)) : Number.POSITIVE_INFINITY;
+      const isCacheFresh = hasCached && cacheAge < PRODUCTS_CACHE_FRESH_MS;
+      const isCacheTooOld = hasCached && cacheAge > PRODUCTS_CACHE_MAX_STALE_MS;
+      const lastValidatedAt = Number(cachedData?.lastValidatedAt || 0);
+      const shouldThrottleRevalidate = (now - lastValidatedAt) < PRODUCTS_REVALIDATE_COOLDOWN_MS;
+
+      if (isCacheTooOld) {
+        removeCacheItem(cacheKey);
+      }
 
       // Cargar del caché si existe
-      if (hasCached) {
-        setProducts(parsedCache.data);
-        setPagination(parsedCache.pagination);
+      if (hasCached && !isCacheTooOld) {
+        setProducts(cachedData.data);
+        setPagination(cachedData.pagination);
         setLoading(false);
         setError(null);
       }
 
-      // Si el caché está fresco y no se fuerza, no hacer fetch
-      if (!force && isCacheFresh) {
+      // Política balanceada: revalidar en background, pero con throttle para evitar ruido
+      if (!force && hasCached && isCacheFresh && shouldThrottleRevalidate) {
         return;
       }
 
       // Sin caché: mostrar loading
-      if (!hasCached) {
+      if (!hasCached || isCacheTooOld) {
         setLoading(true);
         setError(null);
       }
@@ -110,8 +124,9 @@ export function useProducts() {
         });
 
         // Guardar en caché
-        localStorage.setItem(cacheKey, JSON.stringify({
+        setCacheItem(cacheKey, {
           timestamp: new Date().getTime(),
+          lastValidatedAt: new Date().getTime(),
           data: result.data,
           pagination: {
             page: result.page,
@@ -119,7 +134,7 @@ export function useProducts() {
             total: result.total,
             totalPages: result.totalPages
           }
-        }));
+        });
       } else {
         setProducts(Array.isArray(result) ? result : []);
       }
@@ -127,7 +142,7 @@ export function useProducts() {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching products:', err);
-      if (!localStorage.getItem(cacheKey)) {
+      if (!getCacheItem(cacheKey)) {
         setError('No se pudieron cargar los productos. Por favor, inténtalo de nuevo más tarde.');
       }
       setLoading(false);
@@ -137,6 +152,28 @@ export function useProducts() {
   // Fetch inicial de productos
   useEffect(() => {
     fetchProducts('todos');
+  }, [fetchProducts]);
+
+  // Revalidación al volver al tab/app para evitar datos visualmente desactualizados
+  useEffect(() => {
+    const revalidateOnFocus = () => {
+      const { category, page } = lastRequestRef.current;
+      fetchProducts(category, page, { force: false });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        revalidateOnFocus();
+      }
+    };
+
+    window.addEventListener('focus', revalidateOnFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', revalidateOnFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, [fetchProducts]);
 
   return {

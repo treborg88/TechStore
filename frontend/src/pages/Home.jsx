@@ -6,6 +6,9 @@ import Footer from '../components/common/Footer';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { formatCurrency } from '../utils/formatCurrency';
 
+const HERO_IMAGE_CACHE_KEY = 'hero_image_cache';
+const HERO_IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
+
 function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings, promoSettings }) {
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -28,22 +31,36 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
 
   // Efecto para pre-cargar la imagen del Hero y guardarla localmente
   useEffect(() => {
-    const cacheKey = 'hero_image_cache';
+    const isValidCachedImage = (entry, expectedUrl) => {
+      if (!entry || typeof entry !== 'object') return false;
+      if (entry.url !== expectedUrl) return false;
+      if (!entry.data || typeof entry.data !== 'string') return false;
+      if (!entry.data.startsWith('data:image/')) return false;
+      const age = Date.now() - Number(entry.timestamp || 0);
+      if (!Number.isFinite(age) || age < 0 || age > HERO_IMAGE_CACHE_TTL_MS) return false;
+      return true;
+    };
+
+    const clearHeroCache = () => {
+      try { localStorage.removeItem(HERO_IMAGE_CACHE_KEY); } catch { /* no-op */ }
+    };
     
     if (heroSettings?.image) {
       // 1. Intentar cargar desde localStorage primero
       try {
-        const cachedEntry = localStorage.getItem(cacheKey);
+        const cachedEntry = localStorage.getItem(HERO_IMAGE_CACHE_KEY);
         if (cachedEntry) {
-          const { url, data } = JSON.parse(cachedEntry);
-          if (url === heroSettings.image && data) {
-            setLocalHeroImage(data);
+          const parsedEntry = JSON.parse(cachedEntry);
+          if (isValidCachedImage(parsedEntry, heroSettings.image)) {
+            setLocalHeroImage(parsedEntry.data);
             setImageLoaded(true);
             return; // Usamos la imagen en caché y terminamos
           }
+          clearHeroCache();
         }
       } catch (e) {
         console.error("Error reading hero cache", e);
+        clearHeroCache();
       }
 
       // 2. Si no está en caché o la URL cambió, descargar y guardar
@@ -67,7 +84,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
 
             // Guardar en localStorage
             try {
-              localStorage.setItem(cacheKey, JSON.stringify({
+              localStorage.setItem(HERO_IMAGE_CACHE_KEY, JSON.stringify({
                 url: heroSettings.image,
                 data: base64data,
                 timestamp: new Date().getTime()
@@ -80,6 +97,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
           reader.readAsDataURL(blob);
         } catch (err) {
           console.error("Error fetching hero image for caching:", err);
+          clearHeroCache();
           // Fallback: usar la URL directa si falla la descarga
           setLocalHeroImage(heroSettings.image);
           setImageLoaded(true);

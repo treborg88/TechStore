@@ -6,8 +6,11 @@ import './SettingsManager.css';
 import EmailSettingsSection from './EmailSettingsSection';
 import DatabaseSection from './DatabaseSection';
 import ChatBotAdmin from '../chatbot/ChatBotAdmin';
+import LandingPageAdmin from './LandingPageAdmin';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
+import { cloneLandingPageConfig } from '../../utils/landingPageDefaults';
+import { CACHE_KEYS, getCacheItem, setCacheItem } from '../../utils/cacheStorage';
 
 const PRODUCT_CURRENCY_OPTIONS = [
   { code: 'DOP', label: 'DOP (RD$)' },
@@ -158,6 +161,8 @@ function SettingsManager() {
     // PayPal API Keys (stored separately for encryption)
     paypalClientId: '',
     paypalClientSecret: '',
+    // Landing page config
+    landingPageConfig: cloneLandingPageConfig(null),
     // Database credentials (reference copy)
     dbSupabaseUrl: '',
     dbSupabaseKey: ''
@@ -253,6 +258,13 @@ function SettingsManager() {
           } catch {
             typedData[key] = clonePaymentMethodsConfig();
           }
+        } else if (key === 'landingPageConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            typedData[key] = cloneLandingPageConfig(parsed);
+          } catch {
+            typedData[key] = cloneLandingPageConfig(null);
+          }
         } else typedData[key] = value;
       });
       return typedData;
@@ -268,23 +280,21 @@ function SettingsManager() {
 
     const fetchSettings = async () => {
       try {
-        const cached = localStorage.getItem('settings_cache_v1');
-        if (cached) {
-          const parsedCache = JSON.parse(cached);
-          if (parsedCache?.data) {
-            applySettingsData(parsedCache.data);
-            setLoading(false);
-          }
+        const cached = getCacheItem(CACHE_KEYS.settings);
+        if (cached?.data) {
+          applySettingsData(cached.data);
+          setLoading(false);
         }
 
         const response = await apiFetch(apiUrl('/settings'));
         if (response.ok) {
           const data = await response.json();
           applySettingsData(data);
-          localStorage.setItem('settings_cache_v1', JSON.stringify({
+          setCacheItem(CACHE_KEYS.settings, {
             timestamp: new Date().getTime(),
+            lastValidatedAt: new Date().getTime(),
             data
-          }));
+          });
         }
       } catch (err) {
         console.error('Error fetching settings:', err);
@@ -342,7 +352,8 @@ function SettingsManager() {
           ...(settings.productCardConfig || cloneProductCardConfig()),
           currency: normalizeCurrencyCode(settings.productCardConfig?.currency)
         }),
-        paymentMethodsConfig: JSON.stringify(settings.paymentMethodsConfig || clonePaymentMethodsConfig())
+        paymentMethodsConfig: JSON.stringify(settings.paymentMethodsConfig || clonePaymentMethodsConfig()),
+        landingPageConfig: JSON.stringify(settings.landingPageConfig || cloneLandingPageConfig(null))
       };
       const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',
@@ -354,10 +365,12 @@ function SettingsManager() {
 
       if (response.ok) {
         toast.success('Ajustes guardados correctamente');
-        localStorage.setItem('settings_cache_v1', JSON.stringify({
+        const cachePayload = {
           timestamp: new Date().getTime(),
+          lastValidatedAt: new Date().getTime(),
           data: payload
-        }));
+        };
+        setCacheItem(CACHE_KEYS.settings, cachePayload);
       } else {
         const data = await response.json();
         toast.error(data.message || 'Error al guardar');
@@ -434,10 +447,11 @@ function SettingsManager() {
         productCardConfig: nextConfig,
         categoryFiltersConfig: prev.categoryFiltersConfig
       };
-      localStorage.setItem('settings_cache_v1', JSON.stringify({
+      setCacheItem(CACHE_KEYS.settings, {
         timestamp: new Date().getTime(),
+        lastValidatedAt: new Date().getTime(),
         data: cachePayload
-      }));
+      });
       return {
         ...prev,
         productCardConfig: nextConfig
@@ -575,6 +589,13 @@ function SettingsManager() {
                 onClick={() => setSiteTab('chatbot')}
               >
                 🤖 Chatbot
+              </button>
+              <button
+                type="button"
+                className={`settings-nav-item ${siteTab === 'landing' ? 'active' : ''}`}
+                onClick={() => setSiteTab('landing')}
+              >
+                🚀 Landing Page
               </button>
             </nav>
 
@@ -2047,6 +2068,10 @@ function SettingsManager() {
 
               {siteTab === 'chatbot' && (
                 <ChatBotAdmin settings={settings} onChange={handleChange} setSettings={setSettings} />
+              )}
+
+              {siteTab === 'landing' && (
+                <LandingPageAdmin settings={settings} setSettings={setSettings} />
               )}
 
             </div>
