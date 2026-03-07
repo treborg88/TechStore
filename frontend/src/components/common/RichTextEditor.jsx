@@ -208,6 +208,16 @@ export default function RichTextEditor({
     }
   };
 
+  // Strip all external formatting/metadata on paste — only plain text allowed
+  const handlePaste = (e) => {
+    e.preventDefault();
+    const plainText = (e.clipboardData || window.clipboardData).getData('text/plain');
+    // Convert line breaks to <br> for the contentEditable, escape HTML
+    const cleanHtml = escapeHtml(plainText).replace(/\n/g, '<br>');
+    document.execCommand('insertHTML', false, cleanHtml);
+    emitChange();
+  };
+
   return (
     <div className={`rich-text-editor-root ${className}`.trim()}>
       {helpText && <p className="rte-help-text">{helpText}</p>}
@@ -235,6 +245,7 @@ export default function RichTextEditor({
         data-placeholder={placeholder}
         onInput={emitChange}
         onBlur={emitChange}
+        onPaste={handlePaste}
         style={{ minHeight: `${minHeight}px` }}
       />
     </div>

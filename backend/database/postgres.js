@@ -117,6 +117,13 @@ const statements = {
 
   // ── Storage (filesystem) ─────────────────────────────────
   uploadImage: async (file) => {
+    // Strip all metadata (EXIF, GPS, ICC profiles, etc.) for privacy/security
+    const sharp = require('sharp');
+    const cleanBuffer = await sharp(file.buffer)
+      .rotate() // Auto-rotate based on EXIF orientation before stripping
+      .withMetadata(false) // Remove all metadata
+      .toBuffer();
+
     ensureDir(path.join(UPLOADS_DIR, 'products'));
     // Sanitize filename: lowercase, remove accents, replace non-alphanum
     const originalName = file.originalname.split('.').slice(0, -1).join('.');
@@ -130,8 +137,8 @@ const statements = {
       .replace(/^-|-$/g, '');
     const fileName = `${sanitizedName}-${Date.now()}.${fileExt}`;
     const filePath = path.join(UPLOADS_DIR, 'products', fileName);
-    // Write buffer to filesystem
-    fs.writeFileSync(filePath, file.buffer);
+    // Write clean buffer to filesystem
+    fs.writeFileSync(filePath, cleanBuffer);
     // Return path the /storage/* route will serve
     return `/storage/products/${fileName}`;
   },

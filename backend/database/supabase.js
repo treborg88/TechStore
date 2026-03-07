@@ -70,6 +70,13 @@ const statements = {
 
   // ── Storage ──────────────────────────────────────────────
   uploadImage: async (file) => {
+    // Strip all metadata (EXIF, GPS, ICC profiles, etc.) for privacy/security
+    const sharp = require('sharp');
+    const cleanBuffer = await sharp(file.buffer)
+      .rotate() // Auto-rotate based on EXIF orientation before stripping
+      .withMetadata(false) // Remove all metadata
+      .toBuffer();
+
     // Sanitize filename: lowercase, remove accents, replace non-alphanum with dashes
     const originalName = file.originalname.split('.').slice(0, -1).join('.');
     const fileExt = file.originalname.split('.').pop();
@@ -85,7 +92,7 @@ const statements = {
 
     const { data, error } = await supabase.storage
       .from('products')
-      .upload(filePath, file.buffer, {
+      .upload(filePath, cleanBuffer, {
         contentType: file.mimetype,
         upsert: false
       });

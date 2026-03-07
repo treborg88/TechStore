@@ -3,6 +3,7 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
 import RichTextEditor from '../common/RichTextEditor';
+import { stripHtml } from '../../utils/stripHtml';
 import './ProductList.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
@@ -525,7 +526,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 													<span className="admin-chip">{product.category}</span>
 												</td>
 												<td className="admin-table-description" data-label="Descripción">
-													{product.description || 'Sin descripción'}
+														{stripHtml(product.description) || 'Sin descripción'}
 												</td>
 												<td className="admin-table-price" data-label="Precio">{formatCurrency(product.price, currencyCode)}</td>
 												<td data-label="Stock">

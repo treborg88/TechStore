@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/common/LoadingSpinner';
 import Footer from '../components/common/Footer';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { formatCurrency } from '../utils/formatCurrency';
+import { stripHtml } from '../utils/stripHtml';
 
 const HERO_IMAGE_CACHE_KEY = 'hero_image_cache';
 const HERO_IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -531,7 +532,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                         <Link to={`/product/${product.id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
                           <h3 className="product-title">{product.name}</h3>
                         </Link>
-                        <p className="product-description">{product.description}</p>
+                        <p className="product-description">{stripHtml(product.description)}</p>
                         <div className="product-footer">
                           <span className="product-price">{formatCurrency(product.price, productCardConfig.currency)}</span>
                           <button
