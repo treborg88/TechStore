@@ -240,8 +240,10 @@ export function useSiteSettings() {
     setLandingPageConfig(cloneLandingPageConfig(parsedLanding));
 
     const parsedNavigation = parseJsonSetting(data.navigationConfig, 'navigationConfig');
+    // Tie "Inicio" visibility to landing page enabled state
+    const landingEnabled = parsedLanding?.enabled === true;
     setNavigationConfig({
-      showHomeLink: parsedNavigation?.showHomeLink !== false,
+      showHomeLink: landingEnabled,
       showStoreLink: parsedNavigation?.showStoreLink !== false
     });
 

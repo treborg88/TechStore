@@ -68,7 +68,8 @@ export default function Header({
 
   // Header text color for nav links
   const headerTextColor = headerSettings.textColor || '#ffffff';
-  const showHomeLink = true;
+  // Show "Inicio" only when landing page is enabled (controlled via navigationConfig)
+  const showHomeLink = navigationConfig?.showHomeLink === true;
   const showStoreLink = (storeModuleConfig?.enabled !== false) && (navigationConfig?.showStoreLink !== false);
 
   return (
