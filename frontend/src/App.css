@@ -857,6 +857,11 @@ ul {
   margin: 0;
 }
 
+/* Force cover crop on card images so all cards align uniformly */
+.product-card .product-image .main-product-image {
+  object-fit: cover;
+}
+
 .product-card-horizontal {
   flex-direction: row;
 }
