@@ -702,9 +702,9 @@ function LandingPageAdmin({ settings, setSettings }) {
   };
 
   // Actualizar campo de data de una sección
-  const updateSectionData = (sectionId, field, value) => {
+  const updateSectionData = useCallback((sectionId, field, value) => {
     updateConfig(prev => updateNestedField(prev, sectionId, `data.${field}`, value));
-  };
+  }, [updateConfig]);
 
   // Actualizar campo de styles de una sección
   const updateSectionStyle = (sectionId, field, value) => {
@@ -712,7 +712,7 @@ function LandingPageAdmin({ settings, setSettings }) {
   };
 
   // Actualizar un item dentro de un array de data (points, steps, specs, items)
-  const updateSectionArrayItem = (sectionId, arrayField, index, field, value) => {
+  const updateSectionArrayItem = useCallback((sectionId, arrayField, index, field, value) => {
     updateConfig(prev => {
       const next = cloneLandingPageConfig(prev);
       const section = next.sections.find(s => s.id === sectionId);
@@ -720,7 +720,7 @@ function LandingPageAdmin({ settings, setSettings }) {
       section.data[arrayField][index] = { ...section.data[arrayField][index], [field]: value };
       return next;
     });
-  };
+  }, [updateConfig]);
 
   const uploadImageToSettingsStorage = useCallback(async (file) => {
     const formData = new FormData();

@@ -226,6 +226,7 @@ function SettingsManager() {
     if (uiMode === 'quick' && ADVANCED_ONLY_TABS.includes(siteTab)) {
       setSiteTab('general');
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uiMode, siteTab]);
 
   useEffect(() => {

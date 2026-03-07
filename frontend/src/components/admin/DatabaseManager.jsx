@@ -39,6 +39,7 @@ function DatabaseManager() {
   // Fetch data when panel opens
   useEffect(() => {
     if (!collapsed) { fetchBackups(); fetchStats(); }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [collapsed]);
 
   // ── API calls ─────────────────────────────────────────────

@@ -33,7 +33,6 @@ function AppRoutes({
   siteName, siteIcon, headerSettings,
   promoSettings,
   landingPageConfig,
-  navigationConfig,
   storeModuleConfig,
   // Navegación
   navigate

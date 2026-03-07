@@ -130,7 +130,8 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                 dashArray: '10, 10'
             }).addTo(mapInstanceRef.current);
         }
-    }, []); // Sin dependencias - usa refs
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Sin dependencias - usa refs y constantes derivadas de props
 
     // Geocode address with fallback strategy - usando fetch directo para mejor compatibilidad móvil
     const geocodeAddress = useCallback((searchQueries) => {
@@ -408,11 +409,12 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                 geocoderRef.current = null;
             }
         };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [leafletLoaded, updateDeliveryLocation]);
 
     // Geocodificar una vez al entrar al paso 2 si hay datos de dirección
     useEffect(() => {
-        // Solo ejecutar una vez cuando el mapa y geocoder estén listos
+        // Solo ejecutar una vez cuando el mapa y geocoder estén listos — las deps de WAREHOUSE_LOCATION son estables durante el ciclo de vida del mapa
         if (!leafletLoaded || !geocoderRef.current || initialGeocodeAttemptedRef.current) return;
         
         const address = addressFields?.address || '';

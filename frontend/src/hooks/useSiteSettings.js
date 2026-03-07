@@ -310,6 +310,7 @@ export function useSiteSettings() {
       window.removeEventListener('focus', revalidateOnFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // --- Efecto: actualizar título de la página y favicon dinámicamente ---
