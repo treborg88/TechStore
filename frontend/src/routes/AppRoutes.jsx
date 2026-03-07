@@ -33,6 +33,8 @@ function AppRoutes({
   siteName, siteIcon, headerSettings,
   promoSettings,
   landingPageConfig,
+  navigationConfig,
+  storeModuleConfig,
   // Navegación
   navigate
 }) {
@@ -51,6 +53,7 @@ function AppRoutes({
 
   const configuredLandingRoute = normalizeLandingRoute(landingPageConfig?.route);
   const isLandingEnabled = Boolean(landingPageConfig?.enabled);
+  const isStoreEnabled = storeModuleConfig?.enabled !== false;
 
   return (
     <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
@@ -59,7 +62,7 @@ function AppRoutes({
         <Route path="/" element={
           isLandingEnabled ? (
             <LandingPage />
-          ) : (
+          ) : isStoreEnabled ? (
             <Home 
               products={products} 
               loading={loading} 
@@ -72,26 +75,32 @@ function AppRoutes({
               productCardSettings={productCardSettings}
               promoSettings={promoSettings}
             />
+          ) : (
+            <Navigate to="/contacto" replace />
           )
         } />
 
         {/* Tienda */}
         <Route path={storeRoute} element={
-          <Home 
-            products={products} 
-            loading={loading} 
-            error={error} 
-            addToCart={addToCart} 
-            fetchProducts={fetchProducts}
-            pagination={pagination}
-            heroSettings={heroSettings}
-            categoryFilterSettings={categoryFilterSettings}
-            productCardSettings={productCardSettings}
-            promoSettings={promoSettings}
-          />
+          isStoreEnabled ? (
+            <Home 
+              products={products} 
+              loading={loading} 
+              error={error} 
+              addToCart={addToCart} 
+              fetchProducts={fetchProducts}
+              pagination={pagination}
+              heroSettings={heroSettings}
+              categoryFilterSettings={categoryFilterSettings}
+              productCardSettings={productCardSettings}
+              promoSettings={promoSettings}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
         } />
-        <Route path={productsRoute} element={<Navigate to={storeRoute} replace />} />
-        <Route path="/productos" element={<Navigate to={storeRoute} replace />} />
+        <Route path={productsRoute} element={<Navigate to={isStoreEnabled ? storeRoute : '/'} replace />} />
+        <Route path="/productos" element={<Navigate to={isStoreEnabled ? storeRoute : '/'} replace />} />
 
         {/* Carrito */}
         <Route path="/cart" element={
@@ -163,22 +172,26 @@ function AppRoutes({
 
         {/* Detalle de producto */}
         <Route path="/product/:id" element={
-          <ProductDetail 
-            products={products} 
-            addToCart={addToCart} 
-            user={user}
-            onRefresh={fetchProducts}
-            heroImage={productDetailHeroSettings.useHomeHero ? heroSettings.image : productDetailHeroImage}
-            heroSettings={productDetailHeroSettings.useHomeHero ? heroSettings : {
-              ...productDetailHeroSettings,
-              image: productDetailHeroImage,
-              height: productDetailHeroSettings.height,
-              overlayOpacity: productDetailHeroSettings.overlayOpacity
-            }}
-            currencyCode={productCardSettings.currency}
-            productCardSettings={productCardSettings}
-            onCartOpen={() => navigate('/cart')}
-          />
+          isStoreEnabled ? (
+            <ProductDetail 
+              products={products} 
+              addToCart={addToCart} 
+              user={user}
+              onRefresh={fetchProducts}
+              heroImage={productDetailHeroSettings.useHomeHero ? heroSettings.image : productDetailHeroImage}
+              heroSettings={productDetailHeroSettings.useHomeHero ? heroSettings : {
+                ...productDetailHeroSettings,
+                image: productDetailHeroImage,
+                height: productDetailHeroSettings.height,
+                overlayOpacity: productDetailHeroSettings.overlayOpacity
+              }}
+              currencyCode={productCardSettings.currency}
+              productCardSettings={productCardSettings}
+              onCartOpen={() => navigate('/cart')}
+            />
+          ) : (
+            <Navigate to="/" replace />
+          )
         } />
 
         {/* Contacto */}

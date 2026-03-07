@@ -1,23 +1,33 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { formatCurrency } from '../../utils/formatCurrency';
 
-// Shipping rates by distance (in km)
-const PRICE_RANGES = [
-    { maxDistance: 5, price: 100, label: 'Zona 1 (0-5km)' },
-    { maxDistance: 10, price: 150, label: 'Zona 2 (5-10km)' },
-    { maxDistance: 20, price: 200, label: 'Zona 3 (10-20km)' },
-    { maxDistance: 50, price: 350, label: 'Zona 4 (20-50km)' },
-    { maxDistance: Infinity, price: 600, label: 'Zona 5 (>50km)' }
+// Default shipping rates by distance (in km) — used when no config is provided
+const DEFAULT_PRICE_RANGES = [
+    { maxDistance: 5, price: 100, label: 'Zona 1' },
+    { maxDistance: 10, price: 150, label: 'Zona 2' },
+    { maxDistance: 20, price: 200, label: 'Zona 3' },
+    { maxDistance: 50, price: 350, label: 'Zona 4' },
+    { maxDistance: Infinity, price: 600, label: 'Zona 5' }
 ];
 
-// Distribution center location (Santo Domingo, Dominican Republic)
-const WAREHOUSE_LOCATION = {
+// Distribution center default location (Santo Domingo, Dominican Republic)
+const DEFAULT_WAREHOUSE = {
     lat: 18.462673,
     lng: -69.936051,
     address: 'Centro de Distribución - Santo Domingo'
 };
 
-function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCode, addressFields }) {
+function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCode, addressFields, warehouseLocation, shippingZones }) {
+    // Use provided store location or fall back to default
+    const WAREHOUSE_LOCATION = warehouseLocation && warehouseLocation.lat && warehouseLocation.lng
+        ? warehouseLocation
+        : DEFAULT_WAREHOUSE;
+
+    // Use provided shipping zones or fall back to defaults
+    // Normalize maxDistance >= 9999 to Infinity for comparison
+    const PRICE_RANGES = (Array.isArray(shippingZones) && shippingZones.length > 0 ? shippingZones : DEFAULT_PRICE_RANGES)
+        .map(z => ({ ...z, maxDistance: z.maxDistance >= 9999 ? Infinity : z.maxDistance }));
+
     const mapRef = useRef(null);
     const mapInstanceRef = useRef(null);
     const warehouseMarkerRef = useRef(null);
@@ -27,7 +37,6 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
     const [leafletLoaded, setLeafletLoaded] = useState(false);
     const [isLocating, setIsLocating] = useState(false);
     const [isGeocoding, setIsGeocoding] = useState(false);
-    const [ratesExpanded, setRatesExpanded] = useState(false);
     const geocodeTimeoutRef = useRef(null);
     const lastGeocodedRef = useRef(''); // Para evitar búsquedas repetidas
     const initialGeocodeAttemptedRef = useRef(false); // Para geocodificar al entrar al paso 2
@@ -302,7 +311,7 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
 
     // Load Leaflet scripts dynamically
     useEffect(() => {
-        if (window.L) {
+        if (window.L && window.L.Control?.Geocoder) {
             setLeafletLoaded(true);
             return;
         }
@@ -370,22 +379,23 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
             updateDeliveryLocation(e.latlng.lat, e.latlng.lng);
         });
 
-        // Guardar referencia al geocoder para uso externo
-        geocoderRef.current = L.Control.Geocoder.nominatim();
-        
-        L.Control.geocoder({
-            geocoder: geocoderRef.current,
-            defaultMarkGeocode: false,
-            placeholder: 'Buscar dirección...',
-            errorMessage: 'No se encontró la dirección'
-        }).on('markgeocode', (e) => {
-            const { center, name } = e.geocode;
-            updateDeliveryLocation(center.lat, center.lng);
-            if (onAddressSelectRef.current) {
-                onAddressSelectRef.current(name);
-            }
-            map.setView(center, 15);
-        }).addTo(map);
+        // Geocoder search control (only if plugin loaded)
+        if (L.Control?.Geocoder) {
+            geocoderRef.current = L.Control.Geocoder.nominatim();
+            L.Control.geocoder({
+                geocoder: geocoderRef.current,
+                defaultMarkGeocode: false,
+                placeholder: 'Buscar dirección...',
+                errorMessage: 'No se encontró la dirección'
+            }).on('markgeocode', (e) => {
+                const { center, name } = e.geocode;
+                updateDeliveryLocation(center.lat, center.lng);
+                if (onAddressSelectRef.current) {
+                    onAddressSelectRef.current(name);
+                }
+                map.setView(center, 15);
+            }).addTo(map);
+        }
 
         mapInstanceRef.current = map;
 
@@ -482,56 +492,6 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                     </span>
                 </div>
             )}
-
-            <div className="shipping-rates-table">
-                <div 
-                    className="rates-header-toggle"
-                    onClick={() => setRatesExpanded(!ratesExpanded)}
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                        padding: '10px 12px',
-                        backgroundColor: '#f8fafc',
-                        borderRadius: ratesExpanded ? '8px 8px 0 0' : '8px',
-                        border: '1px solid #e2e8f0',
-                        transition: 'all 0.2s ease'
-                    }}
-                >
-                    <h5 style={{ margin: 0, fontSize: '0.95rem', color: '#374151' }}>📋 Tarifas de Envío</h5>
-                    <span style={{ 
-                        transform: ratesExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
-                        transition: 'transform 0.2s ease',
-                        fontSize: '0.9rem'
-                    }}>
-                        ▼
-                    </span>
-                </div>
-                {ratesExpanded && (
-                    <div className="rates-list" style={{
-                        borderRadius: '0 0 8px 8px',
-                        border: '1px solid #e2e8f0',
-                        borderTop: 'none'
-                    }}>
-                        {PRICE_RANGES.map((range, index) => {
-                            const isActive = mapData.distance && 
-                                mapData.distance <= range.maxDistance && 
-                                (index === 0 || mapData.distance > PRICE_RANGES[index - 1].maxDistance);
-
-                            return (
-                                <div 
-                                    key={index}
-                                    className={`rate-item ${isActive ? 'active' : ''}`}
-                                >
-                                    <span className="rate-label">{range.label}</span>
-                                    <span className="rate-price">{formatCurrency(range.price, currencyCode)}</span>
-                                </div>
-                            );
-                        })}
-                    </div>
-                )}
-            </div>
         </div>
     );
 }

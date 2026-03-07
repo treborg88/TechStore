@@ -9,6 +9,8 @@ export default function Header({
   siteNameImage = '',
   siteNameImageSize = 32,
   headerSettings = { bgColor: '#2563eb', transparency: 100, textColor: '#ffffff', buttonColor: '#ffffff', buttonTextColor: '#2563eb' },
+  navigationConfig = { showHomeLink: true, showStoreLink: true },
+  storeModuleConfig = { enabled: true },
   cartItems = [],
   user = null,
   onCartOpen,
@@ -66,6 +68,8 @@ export default function Header({
 
   // Header text color for nav links
   const headerTextColor = headerSettings.textColor || '#ffffff';
+  const showHomeLink = true;
+  const showStoreLink = (storeModuleConfig?.enabled !== false) && (navigationConfig?.showStoreLink !== false);
 
   return (
     <header 
@@ -100,8 +104,8 @@ export default function Header({
         
         <div className="header-nav-actions-group">
           <nav className="main-nav">
-            <Link to="/" className="nav-link" onClick={closeMobileMenu}>Inicio</Link>
-            <Link to="/tienda" className="nav-link" onClick={closeMobileMenu}>Tienda</Link>
+            {showHomeLink && <Link to="/" className="nav-link" onClick={closeMobileMenu}>Inicio</Link>}
+            {showStoreLink && <Link to="/tienda" className="nav-link" onClick={closeMobileMenu}>Tienda</Link>}
             <Link to="/contacto" className="nav-link" onClick={closeMobileMenu}>Contacto</Link>
             <a href="#" className="nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); }}>Ordenes</a>
             {user && user.role === 'admin' && (
@@ -165,8 +169,8 @@ export default function Header({
         >
           <button className="close-mobile-nav" onClick={closeMobileMenu}>✕</button>
           
-          <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Inicio</Link>
-          <Link to="/tienda" className="mobile-nav-link" onClick={closeMobileMenu}>Tienda</Link>
+          {showHomeLink && <Link to="/" className="mobile-nav-link" onClick={closeMobileMenu}>Inicio</Link>}
+          {showStoreLink && <Link to="/tienda" className="mobile-nav-link" onClick={closeMobileMenu}>Tienda</Link>}
           <Link to="/contacto" className="mobile-nav-link" onClick={closeMobileMenu}>Contacto</Link>
           <a href="#" className="mobile-nav-link" onClick={(e) => { e.preventDefault(); onOrdersOpen && onOrdersOpen(); closeMobileMenu(); }}>Ordenes</a>
           

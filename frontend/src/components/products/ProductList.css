@@ -100,8 +100,7 @@
   font-weight: 600;
 }
 
-.edit-form-content input,
-.edit-form-content textarea {
+.edit-form-content input {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid rgba(37, 99, 235, 0.35);
@@ -110,14 +109,10 @@
   color: var(--gray-800);
 }
 
-.edit-form-content textarea {
-  resize: vertical;
-}
-
-.edit-form-content textarea,
-.admin-form textarea,
-.mobile-edit-form textarea {
-  overflow-y: hidden;
+.admin-form .rich-text-editor-root,
+.edit-form-content .rich-text-editor-root,
+.mobile-edit-form .rich-text-editor-root {
+  width: 100%;
 }
 
 .edit-form-content .admin-card-actions {
@@ -265,7 +260,7 @@
   }
 
   .edit-form-content input,
-  .edit-form-content textarea,
+  .edit-form-content .rich-text-editor-root,
   .edit-form-content .compact-input {
     width: 100%;
   }

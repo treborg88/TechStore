@@ -154,6 +154,11 @@ const [step, setStep] = useState(1);
         paypal: { enabled: false, name: 'PayPal', description: 'Paga con tu cuenta PayPal', icon: '🅿️' }
     });
 
+    // Store location for DeliveryMap warehouse marker (loaded from settings)
+    const [storeLocation, setStoreLocation] = useState(null);
+    // Shipping zones from mapConfig (loaded from settings)
+    const [shippingZones, setShippingZones] = useState(null);
+
     // Salto instantáneo al tope de la página cada vez que cambia el step
     useEffect(() => {
         window.scrollTo({ top: 0, behavior: 'instant' });
@@ -217,6 +222,18 @@ const [step, setStep] = useState(1);
                 const res = await apiFetch(apiUrl('/settings/public'));
                 if (res.ok) {
                     const data = await res.json();
+
+                    // Load map config (store location + shipping zones)
+                    try {
+                        const mc = typeof data.mapConfig === 'string' ? JSON.parse(data.mapConfig) : data.mapConfig;
+                        if (mc?.storeLocation?.lat && mc?.storeLocation?.lng) {
+                            setStoreLocation({ lat: mc.storeLocation.lat, lng: mc.storeLocation.lng, address: data.contactAddress || 'Tienda' });
+                        }
+                        if (Array.isArray(mc?.shippingZones) && mc.shippingZones.length > 0) {
+                            setShippingZones(mc.shippingZones);
+                        }
+                    } catch { /* ignore parse errors */ }
+
                     if (data.paymentMethodsConfig) {
                         const config = typeof data.paymentMethodsConfig === 'string' 
                             ? JSON.parse(data.paymentMethodsConfig) 
@@ -941,6 +958,8 @@ return (
                                         sector: formData.sector,
                                         city: formData.city
                                     }}
+                                    warehouseLocation={storeLocation}
+                                    shippingZones={shippingZones}
                                 />
                             </form>
                         )}

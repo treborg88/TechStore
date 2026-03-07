@@ -4,6 +4,7 @@ import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Footer from '../common/Footer';
+import RichTextEditor from '../common/RichTextEditor';
 import { API_URL, BASE_URL, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ProductDetail.css';
@@ -87,6 +88,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   }, [id, products, navigate]);
 
   const handleSave = async () => {
+    const descriptionHtml = editedDescription;
     setSaving(true);
     try {
       const response = await apiFetch(apiUrl(`/products/${id}`), {
@@ -96,12 +98,13 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
         },
         body: JSON.stringify({
           ...product,
-          description: editedDescription
+          description: descriptionHtml
         })
       });
 
       if (response.ok) {
-        setProduct({ ...product, description: editedDescription });
+        setProduct({ ...product, description: descriptionHtml });
+        setEditedDescription(descriptionHtml);
         setIsEditing(false);
         toast.success('Descripción actualizada');
         if (onRefresh) onRefresh();
@@ -346,13 +349,11 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
             
             {isEditing ? (
               <div className="edit-description-area">
-                <p className="edit-help-text">Puedes usar etiquetas HTML simples como &lt;b&gt;negrita&lt;/b&gt; o &lt;br/&gt;.</p>
-                <textarea
-                  className="edit-desc-input"
+                <RichTextEditor
                   value={editedDescription}
-                  onChange={(e) => setEditedDescription(e.target.value)}
+                  onChange={setEditedDescription}
                   placeholder="Escribe la descripción del producto..."
-                  rows={8}
+                  helpText="Selecciona texto y usa la barra de formato. Se guarda como HTML simple."
                 />
                 <div className="edit-actions">
                   <button className="save-desc-btn" onClick={handleSave} disabled={saving}>

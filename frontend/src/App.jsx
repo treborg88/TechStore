@@ -61,7 +61,9 @@ function App() {
     productDetailHeroImage, productDetailHeroSettings,
     categoryFilterSettings, productCardSettings,
     promoSettings,
-    landingPageConfig
+    landingPageConfig,
+    navigationConfig,
+    storeModuleConfig
   } = useSiteSettings();
 
   // Hook de carrito: estado, CRUD, sync con backend, persistencia
@@ -117,6 +119,8 @@ function App() {
           siteNameImage={siteNameImage}
           siteNameImageSize={siteNameImageSize}
           headerSettings={headerSettings}
+          navigationConfig={navigationConfig}
+          storeModuleConfig={storeModuleConfig}
           cartItems={cartItems}
           user={user}
           onCartOpen={() => navigate('/cart')}
@@ -156,6 +160,8 @@ function App() {
           siteIcon={siteIcon}
           headerSettings={headerSettings}
           landingPageConfig={landingPageConfig}
+          navigationConfig={navigationConfig}
+          storeModuleConfig={storeModuleConfig}
           navigate={navigate}
         />
 

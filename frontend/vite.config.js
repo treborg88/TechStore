@@ -23,7 +23,7 @@ export default defineConfig({
         target: 'http://localhost:5001',
         changeOrigin: true,
       },
-      '/p': {
+      '/p/': {
         target: 'http://localhost:5001',
         changeOrigin: true,
       },

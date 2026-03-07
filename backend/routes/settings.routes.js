@@ -11,8 +11,7 @@ const { addSiteDomain } = require('../config/cors');
 // Public settings that can be exposed to the frontend (no sensitive data)
 const PUBLIC_SETTINGS = [
     'siteName', 'siteIcon', 'siteLogo', 'siteLogoSize', 'siteNameImage', 'siteNameImageSize',
-    'heroTitle', 'heroDescription', 'heroPrimaryBtn', 
-    'heroSecondaryBtn', 'heroImage', 'heroTitleSize', 'heroDescriptionSize',
+    'heroTitle', 'heroDescription', 'heroImage', 'heroTitleSize', 'heroDescriptionSize',
     'heroPositionX', 'heroPositionY', 'heroImageWidth', 'heroOverlayOpacity', 'heroHeight',
     'heroTextColor', 'headerTextColor', 'headerButtonColor', 'headerButtonTextColor',
     'heroBannerImage', 'heroBannerSize', 'heroBannerPositionX', 'heroBannerPositionY', 'heroBannerOpacity',
@@ -26,7 +25,9 @@ const PUBLIC_SETTINGS = [
     // Contact page settings
     'contactTitle', 'contactSubtitle', 'contactCompany', 'contactEmail', 
     'contactPhone', 'contactWhatsapp', 'contactAddress', 'contactHours',
-    'contactSupportLine', 'contactMapUrl',
+    'contactSupportLine',
+    // Map & shipping config (store location + shipping zones)
+    'mapConfig',
     // Payment methods configuration
     'paymentMethodsConfig',
     // Site domain (for CORS / display)
@@ -35,7 +36,11 @@ const PUBLIC_SETTINGS = [
     'chatbotEnabled', 'chatbotGreeting', 'chatbotMaxMessages',
     'chatbotPlaceholder', 'chatbotColor',
     // Landing page configuration
-    'landingPageConfig'
+    'landingPageConfig',
+    // Header navigation visibility controls
+    'navigationConfig',
+    // Store module control
+    'storeModuleConfig'
 ];
 
 /**
@@ -61,7 +66,7 @@ router.get('/public', async (req, res) => {
             }
         }
 
-        // Compatibilidad con backups antiguos: asegurar que landingPageConfig exista
+        // Compatibilidad con backups antiguos: asegurar que configs clave existan
         // para que el frontend siempre tenga una base válida al recargar.
         if (settingsObj.landingPageConfig === undefined) {
             settingsObj.landingPageConfig = '{"enabled":false}';
@@ -69,6 +74,24 @@ router.get('/public', async (req, res) => {
                 await statements.updateSetting('landingPageConfig', settingsObj.landingPageConfig);
             } catch (healError) {
                 console.warn('⚠️ No se pudo auto-crear landingPageConfig:', healError.message);
+            }
+        }
+
+        if (settingsObj.storeModuleConfig === undefined) {
+            settingsObj.storeModuleConfig = '{"enabled":true}';
+            try {
+                await statements.updateSetting('storeModuleConfig', settingsObj.storeModuleConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear storeModuleConfig:', healError.message);
+            }
+        }
+
+        if (settingsObj.navigationConfig === undefined) {
+            settingsObj.navigationConfig = '{"showHomeLink":true,"showStoreLink":true}';
+            try {
+                await statements.updateSetting('navigationConfig', settingsObj.navigationConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear navigationConfig:', healError.message);
             }
         }
         

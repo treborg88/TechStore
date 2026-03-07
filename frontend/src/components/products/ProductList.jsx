@@ -1,7 +1,8 @@
-import { useState, useMemo, useEffect, Fragment } from 'react';
+import { useState, useMemo, Fragment } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
+import RichTextEditor from '../common/RichTextEditor';
 import './ProductList.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
@@ -33,24 +34,6 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [filters, setFilters] = useState({ search: '', category: 'all' });
 	const [showAddForm, setShowAddForm] = useState(false);
-
-	const handleAutoResize = (event) => {
-		const target = event.currentTarget;
-		if (!(target instanceof HTMLTextAreaElement)) return;
-		target.style.height = 'auto';
-		target.style.height = `${target.scrollHeight}px`;
-	};
-
-	useEffect(() => {
-		requestAnimationFrame(() => {
-			document.querySelectorAll('.auto-resize').forEach((el) => {
-				if (el instanceof HTMLTextAreaElement) {
-					el.style.height = 'auto';
-					el.style.height = `${el.scrollHeight}px`;
-				}
-			});
-		});
-	}, [editingProduct, showAddForm]);
 
 	const confirmAction = (message) => {
 		return new Promise((resolve) => {
@@ -424,12 +407,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 							</label>
 						</div>
 						<label>Descripción
-							<textarea
-								rows="3"
-								className="auto-resize"
+							<RichTextEditor
 								value={newProduct.description}
-								onChange={(event) => handleFieldChange('description', event.target.value)}
-								onInput={handleAutoResize}
+								onChange={(html) => handleFieldChange('description', html)}
+								placeholder="Descripcion del producto..."
+								minHeight={140}
 							/>
 						</label>
 						<label>Imágenes
@@ -673,12 +655,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																</div>
 																<label>
 																	Descripción
-																	<textarea
-																		rows="3"
-																		className="auto-resize"
+																	<RichTextEditor
 																		value={editingProduct.description}
-																		onChange={(event) => handleEditField('description', event.target.value)}
-																		onInput={handleAutoResize}
+																		onChange={(html) => handleEditField('description', html)}
+																		placeholder="Descripcion del producto..."
+																		minHeight={140}
 																	/>
 																</label>
 																<div className="admin-card-actions">
@@ -863,12 +844,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 												</div>
 												<label>
 													Descripción
-													<textarea
-														rows="3"
-														className="auto-resize"
+													<RichTextEditor
 														value={editingProduct.description}
-														onChange={(event) => handleEditField('description', event.target.value)}
-														onInput={handleAutoResize}
+														onChange={(html) => handleEditField('description', html)}
+														placeholder="Descripcion del producto..."
+														minHeight={140}
 													/>
 												</label>
 												<div className="admin-card-actions">

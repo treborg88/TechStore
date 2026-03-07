@@ -35,8 +35,6 @@ export function useSiteSettings() {
   const [heroSettings, setHeroSettings] = useState({
     title: 'La Mejor Tecnología a Tu Alcance',
     description: 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
-    primaryBtn: 'Ver Productos',
-    secondaryBtn: 'Ofertas Especiales',
     image: '',
     titleSize: 2.1,
     descriptionSize: 1.05,
@@ -101,6 +99,16 @@ export function useSiteSettings() {
   // Landing page config (enabled/disabled + route)
   const [landingPageConfig, setLandingPageConfig] = useState(() => cloneLandingPageConfig(null));
 
+  // Header nav links visibility
+  const [navigationConfig, setNavigationConfig] = useState({
+    showHomeLink: true,
+    showStoreLink: true
+  });
+
+  const [storeModuleConfig, setStoreModuleConfig] = useState({
+    enabled: true
+  });
+
   const parseJsonSetting = (rawValue, settingName) => {
     if (rawValue === undefined || rawValue === null) return null;
     if (typeof rawValue !== 'string') return rawValue;
@@ -147,12 +155,10 @@ export function useSiteSettings() {
     }
 
     // Hero settings
-    if (data.heroTitle || data.heroDescription || data.heroPrimaryBtn || data.heroSecondaryBtn || data.heroImage || data.heroTitleSize || data.heroDescriptionSize || data.heroPositionY || data.heroPositionX || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor || data.heroBannerImage) {
+    if (data.heroTitle || data.heroDescription || data.heroImage || data.heroTitleSize || data.heroDescriptionSize || data.heroPositionY || data.heroPositionX || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor || data.heroBannerImage) {
       setHeroSettings({
         title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
         description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
-        primaryBtn: data.heroPrimaryBtn || 'Ver Productos',
-        secondaryBtn: data.heroSecondaryBtn || 'Ofertas Especiales',
         image: data.heroImage || '',
         titleSize: parseFloat(data.heroTitleSize) || 2.1,
         descriptionSize: parseFloat(data.heroDescriptionSize) || 1.05,
@@ -232,6 +238,17 @@ export function useSiteSettings() {
     // Landing page config (con fallback explícito para restauraciones antiguas)
     const parsedLanding = parseJsonSetting(data.landingPageConfig, 'landingPageConfig');
     setLandingPageConfig(cloneLandingPageConfig(parsedLanding));
+
+    const parsedNavigation = parseJsonSetting(data.navigationConfig, 'navigationConfig');
+    setNavigationConfig({
+      showHomeLink: parsedNavigation?.showHomeLink !== false,
+      showStoreLink: parsedNavigation?.showStoreLink !== false
+    });
+
+    const parsedStoreModule = parseJsonSetting(data.storeModuleConfig, 'storeModuleConfig');
+    setStoreModuleConfig({
+      enabled: parsedStoreModule?.enabled !== false
+    });
   };
 
   // --- Efecto: fetch de settings con caché ---
@@ -356,6 +373,8 @@ export function useSiteSettings() {
     categoryFilterSettings,
     productCardSettings,
     promoSettings,
-    landingPageConfig
+    landingPageConfig,
+    navigationConfig,
+    storeModuleConfig
   };
 }

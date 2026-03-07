@@ -7,6 +7,7 @@ import EmailSettingsSection from './EmailSettingsSection';
 import DatabaseSection from './DatabaseSection';
 import ChatBotAdmin from '../chatbot/ChatBotAdmin';
 import LandingPageAdmin from './LandingPageAdmin';
+import StoreLocationMap from '../common/StoreLocationMap';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
 import { cloneLandingPageConfig } from '../../utils/landingPageDefaults';
@@ -22,12 +23,12 @@ function SettingsManager() {
   const location = useLocation();
   const [activeSection, setActiveSection] = useState('site');
   const [siteTab, setSiteTab] = useState('general');
+  const [uiMode, setUiMode] = useState('quick');
   const [openSections, setOpenSections] = useState({
     theme: true,
     home: true,
     product: true,
     identity: false,
-    heroText: false,
     ecommerce: true,
     promos: true,
     filters: true,
@@ -38,6 +39,9 @@ function SettingsManager() {
     paymentTransfer: false,
     paymentStripe: false,
     paymentPaypal: false,
+    storeModule: true,
+    mapLocation: true,
+    mapShippingZones: true,
     cardLayout: true,
     cardDimensions: false,
     cardColors: false,
@@ -95,6 +99,22 @@ function SettingsManager() {
   };
 
   const clonePaymentMethodsConfig = (config = DEFAULT_PAYMENT_METHODS_CONFIG) => (
+    JSON.parse(JSON.stringify(config))
+  );
+
+  // Default map & shipping configuration
+  const DEFAULT_MAP_CONFIG = {
+    storeLocation: { lat: 18.462673, lng: -69.936051 },
+    shippingZones: [
+      { maxDistance: 5, price: 100, label: 'Zona 1' },
+      { maxDistance: 10, price: 150, label: 'Zona 2' },
+      { maxDistance: 20, price: 200, label: 'Zona 3' },
+      { maxDistance: 50, price: 350, label: 'Zona 4' },
+      { maxDistance: 9999, price: 600, label: 'Zona 5' }
+    ]
+  };
+
+  const cloneMapConfig = (config = DEFAULT_MAP_CONFIG) => (
     JSON.parse(JSON.stringify(config))
   );
 
@@ -163,9 +183,20 @@ function SettingsManager() {
     paypalClientSecret: '',
     // Landing page config
     landingPageConfig: cloneLandingPageConfig(null),
+    // Store module (tienda) config
+    storeModuleConfig: {
+      enabled: true
+    },
+    // Header navigation visibility
+    navigationConfig: {
+      showHomeLink: true,
+      showStoreLink: true
+    },
     // Database credentials (reference copy)
     dbSupabaseUrl: '',
-    dbSupabaseKey: ''
+    dbSupabaseKey: '',
+    // Map & shipping configuration
+    mapConfig: cloneMapConfig()
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -188,6 +219,14 @@ function SettingsManager() {
       setSiteTab('general');
     }
   }, [activeSection, location.hash]);
+
+  const ADVANCED_ONLY_TABS = ['cards', 'filters', 'promos', 'ecommerce', 'email', 'database', 'chatbot', 'landing'];
+
+  useEffect(() => {
+    if (uiMode === 'quick' && ADVANCED_ONLY_TABS.includes(siteTab)) {
+      setSiteTab('general');
+    }
+  }, [uiMode, siteTab]);
 
   useEffect(() => {
     const buildTypedData = (data) => {
@@ -264,6 +303,49 @@ function SettingsManager() {
             typedData[key] = cloneLandingPageConfig(parsed);
           } catch {
             typedData[key] = cloneLandingPageConfig(null);
+          }
+        } else if (key === 'navigationConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            typedData[key] = {
+              showHomeLink: parsed?.showHomeLink !== false,
+              showStoreLink: parsed?.showStoreLink !== false
+            };
+          } catch {
+            typedData[key] = {
+              showHomeLink: true,
+              showStoreLink: true
+            };
+          }
+        } else if (key === 'storeModuleConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            typedData[key] = {
+              enabled: parsed?.enabled !== false
+            };
+          } catch {
+            typedData[key] = { enabled: true };
+          }
+        } else if (key === 'mapConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            // Strip legacy hardcoded distance text from zone labels (e.g. "Zona 1 (0-5km)" → "Zona 1")
+            const cleanZones = (zones) => zones.map(z => ({
+              ...z,
+              label: z.label?.replace(/\s*\([\d>]+-?\d*km\)$/, '') || z.label
+            }));
+            const rawZones = Array.isArray(parsed?.shippingZones) && parsed.shippingZones.length > 0
+              ? parsed.shippingZones
+              : cloneMapConfig().shippingZones;
+            typedData[key] = {
+              storeLocation: {
+                ...cloneMapConfig().storeLocation,
+                ...(parsed?.storeLocation || {})
+              },
+              shippingZones: cleanZones(rawZones)
+            };
+          } catch {
+            typedData[key] = cloneMapConfig();
           }
         } else typedData[key] = value;
       });
@@ -345,6 +427,29 @@ function SettingsManager() {
     e.preventDefault();
     setSaving(true);
     try {
+      const normalizedLandingConfig = cloneLandingPageConfig(settings.landingPageConfig);
+      const normalizedNavigationConfig = {
+        showHomeLink: true,
+        showStoreLink: settings.navigationConfig?.showStoreLink !== false
+      };
+
+      // Guardrail: if landing is disabled and both main nav entries are hidden,
+      // keep at least one visible entry to avoid a dead-end menu.
+      if (!normalizedLandingConfig.enabled && !normalizedNavigationConfig.showHomeLink && !normalizedNavigationConfig.showStoreLink) {
+        normalizedNavigationConfig.showHomeLink = true;
+        toast('Se activo "Inicio" automaticamente para mantener una entrada principal visible.', { icon: 'ℹ️' });
+      }
+
+      const normalizedStoreModuleConfig = {
+        enabled: settings.storeModuleConfig?.enabled !== false
+      };
+
+      // Guardrail: at least one main browsing module must remain active.
+      if (!normalizedLandingConfig.enabled && !normalizedStoreModuleConfig.enabled) {
+        normalizedLandingConfig.enabled = true;
+        toast('Se activo Landing automaticamente para evitar desactivar Inicio y Tienda al mismo tiempo.', { icon: 'ℹ️' });
+      }
+
       const payload = {
         ...settings,
         categoryFiltersConfig: JSON.stringify(settings.categoryFiltersConfig || cloneCategoryConfig()),
@@ -353,7 +458,10 @@ function SettingsManager() {
           currency: normalizeCurrencyCode(settings.productCardConfig?.currency)
         }),
         paymentMethodsConfig: JSON.stringify(settings.paymentMethodsConfig || clonePaymentMethodsConfig()),
-        landingPageConfig: JSON.stringify(settings.landingPageConfig || cloneLandingPageConfig(null))
+        landingPageConfig: JSON.stringify(normalizedLandingConfig),
+        navigationConfig: JSON.stringify(normalizedNavigationConfig),
+        storeModuleConfig: JSON.stringify(normalizedStoreModuleConfig),
+        mapConfig: JSON.stringify(settings.mapConfig || cloneMapConfig())
       };
       const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',
@@ -364,6 +472,12 @@ function SettingsManager() {
       });
 
       if (response.ok) {
+        setSettings(prev => ({
+          ...prev,
+          landingPageConfig: normalizedLandingConfig,
+          navigationConfig: normalizedNavigationConfig,
+          storeModuleConfig: normalizedStoreModuleConfig
+        }));
         toast.success('Ajustes guardados correctamente');
         const cachePayload = {
           timestamp: new Date().getTime(),
@@ -493,6 +607,83 @@ function SettingsManager() {
     }));
   };
 
+  const TAB_METADATA = {
+    general: {
+      title: 'General',
+      subtitle: 'Paleta global y apariencia base de la tienda.'
+    },
+    identity: {
+      title: 'Identidad',
+      subtitle: 'Logo, nombre comercial e imagen de marca en cabecera.'
+    },
+    home: {
+      title: 'Home',
+      subtitle: 'Contenido principal del hero y banner de inicio.'
+    },
+    product: {
+      title: 'Productos',
+      subtitle: 'Ajustes del detalle del producto y hero de la ficha.'
+    },
+    store: {
+      title: 'Tienda',
+      subtitle: 'Control del modulo tienda y sus secciones internas.'
+    },
+    cards: {
+      title: 'Tarjetas',
+      subtitle: 'Diseño visual y layout de tarjetas en catálogo.'
+    },
+    filters: {
+      title: 'Filtros',
+      subtitle: 'Categorías del Home y estilos de filtros.'
+    },
+    promos: {
+      title: 'Promociones',
+      subtitle: 'Banners y textos promocionales visibles al cliente.'
+    },
+    ecommerce: {
+      title: 'E-commerce',
+      subtitle: 'Parámetros operativos de la tienda y mantenimiento.'
+    },
+    payments: {
+      title: 'Pagos',
+      subtitle: 'Configuración de métodos de pago y credenciales.'
+    },
+    email: {
+      title: 'Correo',
+      subtitle: 'SMTP, remitente y plantilla de correos transaccionales.'
+    },
+    database: {
+      title: 'Base de datos',
+      subtitle: 'Estado y conexión de la base de datos.'
+    },
+    chatbot: {
+      title: 'Chatbot',
+      subtitle: 'Proveedor LLM, personalidad y controles del bot.'
+    },
+    landing: {
+      title: 'Landing Page',
+      subtitle: 'Gestión visual y estructural de la landing independiente.'
+    },
+    map: {
+      title: 'Mapa y Envíos',
+      subtitle: 'Ubicación de la tienda y tarifas de envío por distancia.'
+    }
+  };
+
+  const renderTabButton = (tabId, label) => (
+    <button
+      key={tabId}
+      type="button"
+      className={`settings-nav-item ${siteTab === tabId ? 'active' : ''}`}
+      onClick={() => setSiteTab(tabId)}
+    >
+      {label}
+    </button>
+  );
+
+  const tabMeta = TAB_METADATA[siteTab] || TAB_METADATA.general;
+  const isAdvancedMode = uiMode === 'advanced';
+
   return (
     <div className="settings-manager">
       {activeSection === 'site' && (
@@ -506,100 +697,60 @@ function SettingsManager() {
         {activeSection === 'site' && (
           <div className="settings-layout">
             <nav className="settings-sidebar">
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'general' ? 'active' : ''}`}
-                onClick={() => setSiteTab('general')}
-              >
-                🎨 General
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'identity' ? 'active' : ''}`}
-                onClick={() => setSiteTab('identity')}
-              >
-                🏷️ Identidad
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'home' ? 'active' : ''}`}
-                onClick={() => setSiteTab('home')}
-              >
-                🏠 Home
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'cards' ? 'active' : ''}`}
-                onClick={() => setSiteTab('cards')}
-              >
-                🃏 Tarjetas
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'product' ? 'active' : ''}`}
-                onClick={() => setSiteTab('product')}
-              >
-                📦 Producto
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'filters' ? 'active' : ''}`}
-                onClick={() => setSiteTab('filters')}
-              >
-                🔍 Filtros
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'ecommerce' ? 'active' : ''}`}
-                onClick={() => setSiteTab('ecommerce')}
-              >
-                🛒 E-commerce
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'payments' ? 'active' : ''}`}
-                onClick={() => setSiteTab('payments')}
-              >
-                💳 Pagos
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'promos' ? 'active' : ''}`}
-                onClick={() => setSiteTab('promos')}
-              >
-                🏷️ Promociones
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'email' ? 'active' : ''}`}
-                onClick={() => setSiteTab('email')}
-              >
-                ✉️ Correo
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'database' ? 'active' : ''}`}
-                onClick={() => setSiteTab('database')}
-              >
-                🗄️ Base de datos
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'chatbot' ? 'active' : ''}`}
-                onClick={() => setSiteTab('chatbot')}
-              >
-                🤖 Chatbot
-              </button>
-              <button
-                type="button"
-                className={`settings-nav-item ${siteTab === 'landing' ? 'active' : ''}`}
-                onClick={() => setSiteTab('landing')}
-              >
-                🚀 Landing Page
-              </button>
+              <div className="settings-nav-group">
+                <p className="settings-nav-group-title">Nucleo de Sitio</p>
+                {renderTabButton('general', '🎨 General')}
+                {renderTabButton('identity', '🏷️ Identidad')}
+                {renderTabButton('home', '🏠 Home')}
+                {renderTabButton('store', '🛍️ Tienda')}
+              </div>
+
+              <div className="settings-nav-group">
+                <p className="settings-nav-group-title">Catalogo</p>
+                {isAdvancedMode && renderTabButton('product', '📦 Productos')}
+                {isAdvancedMode && renderTabButton('cards', '🃏 Tarjetas')}
+                {isAdvancedMode && renderTabButton('filters', '🔍 Filtros')}
+                {isAdvancedMode && renderTabButton('promos', '🏷️ Promociones')}
+              </div>
+
+              <div className="settings-nav-group">
+                <p className="settings-nav-group-title">Operacion</p>
+                {isAdvancedMode && renderTabButton('ecommerce', '🛒 E-commerce')}
+                {renderTabButton('payments', '💳 Pagos')}
+                {renderTabButton('map', '🗺️ Mapa')}
+                {isAdvancedMode && renderTabButton('email', '✉️ Correo')}
+                {isAdvancedMode && renderTabButton('database', '🗄️ Base de datos')}
+                {isAdvancedMode && renderTabButton('chatbot', '🤖 Chatbot')}
+                {isAdvancedMode && renderTabButton('landing', '🚀 Landing Page')}
+              </div>
             </nav>
 
             <div className="settings-content">
+              <div className="settings-tab-intro">
+                <h3>{tabMeta.title}</h3>
+                <p>{tabMeta.subtitle}</p>
+              </div>
+
+              <div className="settings-mode-switch" role="group" aria-label="Modo de configuracion">
+                <button
+                  type="button"
+                  className={`settings-mode-btn ${uiMode === 'quick' ? 'active' : ''}`}
+                  onClick={() => setUiMode('quick')}
+                >
+                  Modo Rapido
+                </button>
+                <button
+                  type="button"
+                  className={`settings-mode-btn ${uiMode === 'advanced' ? 'active' : ''}`}
+                  onClick={() => setUiMode('advanced')}
+                >
+                  Modo Avanzado
+                </button>
+                <span className="settings-mode-hint">
+                  {isAdvancedMode ? 'Todas las opciones visibles.' : 'Vista simplificada para configuracion rapida.'}
+                </span>
+              </div>
+
               {siteTab === 'general' && (
                 <section className="settings-section collapsible">
                   <button type="button" className="section-toggle" onClick={() => toggleSection('theme')}>
@@ -642,6 +793,59 @@ function SettingsManager() {
                           </div>
                         </div>
                       </div>
+
+                      <div className="settings-subsection" style={{ paddingTop: 0 }}>
+                        <h4 style={{ marginTop: 0, marginBottom: '0.75rem', color: '#374151' }}>Cabecera y Acceso</h4>
+                        <div className="settings-grid">
+                          <div className="form-group">
+                            <label>Color de Fondo del Header</label>
+                            <div className="color-input-wrapper">
+                              <input type="color" name="headerBgColor" value={settings.headerBgColor || '#2563eb'} onChange={handleChange} />
+                              <span>{settings.headerBgColor || '#2563eb'}</span>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label>Color de Texto del Header</label>
+                            <div className="color-input-wrapper">
+                              <input type="color" name="headerTextColor" value={settings.headerTextColor || '#ffffff'} onChange={handleChange} />
+                              <span>{settings.headerTextColor || '#ffffff'}</span>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label>Botón de Login (Fondo)</label>
+                            <div className="color-input-wrapper">
+                              <input type="color" name="headerButtonColor" value={settings.headerButtonColor || '#ffffff'} onChange={handleChange} />
+                              <span>{settings.headerButtonColor || '#ffffff'}</span>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label>Botón de Login (Texto)</label>
+                            <div className="color-input-wrapper">
+                              <input type="color" name="headerButtonTextColor" value={settings.headerButtonTextColor || '#2563eb'} onChange={handleChange} />
+                              <span>{settings.headerButtonTextColor || '#2563eb'}</span>
+                            </div>
+                          </div>
+
+                          <div className="form-group">
+                            <label>Transparencia del Header (%)</label>
+                            <input
+                              type="number"
+                              name="headerTransparency"
+                              min="0"
+                              max="100"
+                              value={settings.headerTransparency || 100}
+                              onChange={handleChange}
+                            />
+                          </div>
+                        </div>
+
+                        <p className="field-hint" style={{ marginTop: '0.5rem' }}>
+                          La activación completa de Tienda se controla en el tab <strong>Tienda</strong>.
+                        </p>
+                      </div>
                     </>
                   )}
                 </section>
@@ -653,41 +857,189 @@ function SettingsManager() {
                     <span className="toggle-indicator">{openSections.home ? '−' : '+'}</span>
                   </button>
                   {openSections.home && (
-                    <>
-                      <div className="form-group">
-                        <label>Título Principal</label>
-                        <input type="text" name="heroTitle" value={settings.heroTitle} onChange={handleChange} />
+                    <div className="hero-settings-compact">
+                      <div className="settings-grid-compact">
+                        <div className="form-group-compact">
+                          <label>Título</label>
+                          <input type="text" name="heroTitle" value={settings.heroTitle || ''} onChange={handleChange} placeholder="La Mejor Tecnología..." />
+                        </div>
+                        <div className="form-group-compact">
+                          <label>Descripción</label>
+                          <input type="text" name="heroDescription" value={settings.heroDescription || ''} onChange={handleChange} placeholder="Descubre nuestra selección..." />
+                        </div>
                       </div>
-                      <div className="form-group">
-                        <label>Descripción</label>
-                        <textarea name="heroDescription" value={settings.heroDescription} onChange={handleChange} rows="2" />
+
+                      <div className="settings-grid" style={{ marginTop: '0.25rem' }}>
+                        <div className="form-group checkbox-group">
+                          <label>
+                            <input
+                              type="checkbox"
+                              checked={settings.landingPageConfig?.enabled === true}
+                              onChange={(e) => setSettings(prev => ({
+                                ...prev,
+                                landingPageConfig: {
+                                  ...cloneLandingPageConfig(prev.landingPageConfig),
+                                  enabled: e.target.checked
+                                }
+                              }))}
+                            />
+                            Activar Landing Page como pagina principal (`/`)
+                          </label>
+                        </div>
                       </div>
-                      <div className="form-group">
-                        <label>Banner del Home</label>
-                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImage')} />
+
+                      <p className="field-hint" style={{ marginTop: 0 }}>
+                        Si Landing está activa, la ruta `/` muestra la landing. Si está apagada, `/` muestra la página Inicio de la tienda.
+                      </p>
+
+                      {isAdvancedMode && (
+                        <div className="settings-grid-4">
+                          <div className="form-group-compact inline-label">
+                            <label>Título <input type="number" name="heroTitleSize" min="1" max="5" step="0.1" value={settings.heroTitleSize || 2.1} onChange={handleChange} className="size-input-mini" />rem</label>
+                          </div>
+                          <div className="form-group-compact inline-label">
+                            <label>Desc. <input type="number" name="heroDescriptionSize" min="0.8" max="2.5" step="0.05" value={settings.heroDescriptionSize || 1.05} onChange={handleChange} className="size-input-mini" />rem</label>
+                          </div>
+                          <div className="form-group-compact">
+                            <label>Pos. Vertical</label>
+                            <select name="heroPositionY" value={settings.heroPositionY || 'center'} onChange={handleChange}>
+                              <option value="flex-start">Arriba</option>
+                              <option value="center">Centro</option>
+                              <option value="flex-end">Abajo</option>
+                            </select>
+                          </div>
+                          <div className="form-group-compact">
+                            <label>Pos. Horizontal</label>
+                            <select name="heroPositionX" value={settings.heroPositionX || 'left'} onChange={handleChange}>
+                              <option value="left">Izquierda</option>
+                              <option value="center">Centro</option>
+                              <option value="right">Derecha</option>
+                            </select>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="settings-grid-3">
+                        <div className="form-group-compact inline-label">
+                          <label>Altura <input type="number" name="heroHeight" min="200" max="600" step="20" value={settings.heroHeight || 360} onChange={handleChange} className="size-input-mini" />px</label>
+                        </div>
+                        {isAdvancedMode && (
+                          <div className="form-group-compact inline-label">
+                            <label>Ancho <input type="number" name="heroImageWidth" min="50" max="100" step="5" value={settings.heroImageWidth || 100} onChange={handleChange} className="size-input-mini" />%</label>
+                          </div>
+                        )}
+                        <div className="form-group-compact inline-label">
+                          <label>Oscurecer <input type="number" name="heroOverlayOpacity" min="0" max="80" step="5" value={Math.round((settings.heroOverlayOpacity ?? 0.5) * 100)} onChange={(e) => handleChange({ target: { name: 'heroOverlayOpacity', value: parseFloat(e.target.value) / 100 } })} className="size-input-mini" />%</label>
+                        </div>
+                      </div>
+
+                      <div className="settings-grid" style={{ marginTop: '0.5rem' }}>
+                        <div className="form-group">
+                          <label>Color del Texto del Hero</label>
+                          <div className="color-input-wrapper">
+                            <input type="color" name="heroTextColor" value={settings.heroTextColor || '#ffffff'} onChange={handleChange} />
+                            <span>{settings.heroTextColor || '#ffffff'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="hero-image-row">
+                        <div className="form-group-compact" style={{ flex: 1 }}>
+                          <label>Imagen del Hero</label>
+                          <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImage')} />
+                        </div>
                         {settings.heroImage && (
-                          <div className="settings-preview">
-                            <img src={settings.heroImage} alt="Home Hero" />
-                            <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroImage: '' }))} className="delete-image-btn">Eliminar</button>
+                          <div className="settings-preview-compact">
+                            <img src={settings.heroImage} alt="Hero" />
+                            <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroImage: '' }))} className="delete-text-btn">eliminar</button>
                           </div>
                         )}
                       </div>
-                      <div className="settings-grid">
-                        <div className="form-group">
-                          <label>Botón Primario</label>
-                          <input type="text" name="heroPrimaryBtn" value={settings.heroPrimaryBtn} onChange={handleChange} />
+
+                      {isAdvancedMode && (
+                      <div className="banner-image-section">
+                        <label className="section-label">Imagen Superpuesta del Banner</label>
+                        <div className="hero-image-row">
+                          <div className="form-group-compact" style={{ flex: 1 }}>
+                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroBannerImage')} />
+                          </div>
+                          {settings.heroBannerImage && (
+                            <div className="settings-preview-compact">
+                              <img src={settings.heroBannerImage} alt="Banner overlay" />
+                              <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroBannerImage: '' }))} className="delete-text-btn">eliminar</button>
+                            </div>
+                          )}
                         </div>
-                        <div className="form-group">
-                          <label>Botón Secundario</label>
-                          <input type="text" name="heroSecondaryBtn" value={settings.heroSecondaryBtn} onChange={handleChange} />
-                        </div>
+                        {settings.heroBannerImage && (
+                          <div className="settings-grid-4" style={{ marginTop: '0.5rem' }}>
+                            <div className="form-group-compact inline-label">
+                              <label>Tamaño <input type="number" name="heroBannerSize" min="50" max="500" step="10" value={settings.heroBannerSize || 150} onChange={handleChange} className="size-input-mini" />px</label>
+                            </div>
+                            <div className="form-group-compact">
+                              <label>Pos. Horizontal</label>
+                              <select name="heroBannerPositionX" value={settings.heroBannerPositionX || 'right'} onChange={handleChange}>
+                                <option value="left">Izquierda</option>
+                                <option value="center">Centro</option>
+                                <option value="right">Derecha</option>
+                              </select>
+                            </div>
+                            <div className="form-group-compact">
+                              <label>Pos. Vertical</label>
+                              <select name="heroBannerPositionY" value={settings.heroBannerPositionY || 'center'} onChange={handleChange}>
+                                <option value="top">Arriba</option>
+                                <option value="center">Centro</option>
+                                <option value="bottom">Abajo</option>
+                              </select>
+                            </div>
+                            <div className="form-group-compact inline-label">
+                              <label>Opacidad <input type="number" name="heroBannerOpacity" min="10" max="100" step="5" value={settings.heroBannerOpacity || 100} onChange={handleChange} className="size-input-mini" />%</label>
+                            </div>
+                          </div>
+                        )}
                       </div>
+                      )}
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {siteTab === 'store' && (
+                <section className="settings-section collapsible">
+                  <button type="button" className="section-toggle" onClick={() => toggleSection('storeModule')}>
+                    <span>🧩 Módulo Tienda</span>
+                    <span className="toggle-indicator">{openSections.storeModule ? '−' : '+'}</span>
+                  </button>
+                  {openSections.storeModule && (
+                    <>
+                      <div className="form-group checkbox-group" style={{ padding: '0 1.5rem 0.5rem' }}>
+                        <label>
+                          <input
+                            type="checkbox"
+                            checked={settings.storeModuleConfig?.enabled !== false}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              storeModuleConfig: {
+                                ...(prev.storeModuleConfig || {}),
+                                enabled: e.target.checked
+                              },
+                              navigationConfig: {
+                                ...(prev.navigationConfig || {}),
+                                showStoreLink: e.target.checked
+                              }
+                            }))}
+                          />
+                          Activar módulo Tienda (rutas `/tienda`, `/products`, `/product/:id`)
+                        </label>
+                      </div>
+                      <p className="section-description">
+                        Cuando está desactivado, la tienda queda desconectada del sitio público sin afectar pagos, carrito y demás funciones existentes.
+                      </p>
                     </>
                   )}
                 </section>
               )}
 
-              {siteTab === 'cards' && (
+              {(siteTab === 'cards' || siteTab === 'store') && (
                 <div className="cards-main-section">
                   <p className="section-description" style={{ marginBottom: '1rem' }}>
                     Configura las tarjetas de producto y la moneda.
@@ -741,14 +1093,6 @@ function SettingsManager() {
                             <select value={productCardConfig.layout?.orientation || 'vertical'} onChange={(e) => handleProductCardLayoutChange('orientation', e.target.value)} disabled={productCardConfig.useDefault}>
                               <option value="vertical">Vertical</option>
                               <option value="horizontal">Horizontal</option>
-                            </select>
-                          </div>
-                          <div className="inline-field">
-                            <label>Moneda</label>
-                            <select value={normalizeCurrencyCode(productCardConfig.currency)} onChange={(e) => updateProductCardConfig(prev => ({ ...prev, currency: normalizeCurrencyCode(e.target.value) }))}>
-                              {PRODUCT_CURRENCY_OPTIONS.map((currencyOption) => (
-                                <option key={currencyOption.code} value={currencyOption.code}>{currencyOption.label}</option>
-                              ))}
                             </select>
                           </div>
                         </div>
@@ -938,7 +1282,7 @@ function SettingsManager() {
                 </div>
               )}
 
-              {siteTab === 'product' && (
+              {(siteTab === 'product' || siteTab === 'store') && (
                 <section className="settings-section collapsible">
                   <button type="button" className="section-toggle" onClick={() => toggleSection('product')}>
                     <span>📦 Detalle de Producto</span>
@@ -1003,6 +1347,7 @@ function SettingsManager() {
                           </div>
 
                           {/* Imagen superpuesta del Banner */}
+                          {isAdvancedMode && (
                           <div className="banner-image-section">
                             <label className="section-label">Imagen Superpuesta del Banner</label>
                             <div className="hero-image-row">
@@ -1043,6 +1388,7 @@ function SettingsManager() {
                               </div>
                             )}
                           </div>
+                          )}
                         </div>
                       )}
 
@@ -1102,165 +1448,6 @@ function SettingsManager() {
                               </div>
                             )}
                           </div>
-                        </div>
-
-                        {/* Transparencia */}
-                        <div className="form-group-compact inline-label">
-                          <label>Transparencia <input type="number" name="headerTransparency" min="0" max="100" value={settings.headerTransparency || 100} onChange={handleChange} className="size-input-mini" />%</label>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Texto del Hero */}
-                  <section className={`settings-section collapsible hero-section-compact ${openSections.heroText ? 'open' : ''}`} style={{ marginTop: '0.5rem' }}>
-                    <button type="button" className={`section-toggle ${openSections.heroText ? 'open' : ''}`} onClick={() => toggleSection('heroText')}>
-                      <span>📝 Texto del Hero (Banner Principal)</span>
-                      <span className="toggle-indicator">{openSections.heroText ? '−' : '+'}</span>
-                    </button>
-                    {openSections.heroText && (
-                      <div className="hero-settings-compact">
-                        {/* Color pickers compactos al inicio */}
-                        <div className="color-pickers-row">
-                          <div className="color-picker-compact" title="Color Principal (Header)">
-                            <input type="color" name="headerBgColor" value={settings.headerBgColor || '#2563eb'} onChange={handleChange} />
-                            <span>Principal</span>
-                          </div>
-                          <div className="color-picker-compact" title="Color Secundario">
-                            <input type="color" name="secondaryColor" value={settings.secondaryColor || '#419579'} onChange={handleChange} />
-                            <span>Secundario</span>
-                          </div>
-                          <div className="color-picker-compact" title="Color de Acento">
-                            <input type="color" name="accentColor" value={settings.accentColor || '#901ab7'} onChange={handleChange} />
-                            <span>Acento</span>
-                          </div>
-                          <div className="color-picker-compact" title="Color de Fondo">
-                            <input type="color" name="backgroundColor" value={settings.backgroundColor || '#f8fafc'} onChange={handleChange} />
-                            <span>Fondo</span>
-                          </div>
-                          <div className="color-picker-compact" title="Texto Hero">
-                            <input type="color" name="heroTextColor" value={settings.heroTextColor || '#ffffff'} onChange={handleChange} />
-                            <span>Hero</span>
-                          </div>
-                          <div className="color-picker-compact" title="Texto/Links Header">
-                            <input type="color" name="headerTextColor" value={settings.headerTextColor || '#ffffff'} onChange={handleChange} />
-                            <span>Links</span>
-                          </div>
-                          <div className="color-picker-compact" title="Fondo Botón">
-                            <input type="color" name="headerButtonColor" value={settings.headerButtonColor || '#ffffff'} onChange={handleChange} />
-                            <span>Btn Fondo</span>
-                          </div>
-                          <div className="color-picker-compact" title="Texto Botón">
-                            <input type="color" name="headerButtonTextColor" value={settings.headerButtonTextColor || '#2563eb'} onChange={handleChange} />
-                            <span>Btn Texto</span>
-                          </div>
-                        </div>
-
-                        {/* Título y Descripción en grid */}
-                        <div className="settings-grid-compact">
-                          <div className="form-group-compact">
-                            <label>Título</label>
-                            <input type="text" name="heroTitle" value={settings.heroTitle || ''} onChange={handleChange} placeholder="La Mejor Tecnología..." />
-                          </div>
-                          <div className="form-group-compact">
-                            <label>Descripción</label>
-                            <input type="text" name="heroDescription" value={settings.heroDescription || ''} onChange={handleChange} placeholder="Descubre nuestra selección..." />
-                          </div>
-                        </div>
-
-                        {/* Tamaños y posiciones */}
-                        <div className="settings-grid-4">
-                          <div className="form-group-compact inline-label">
-                            <label>Título <input type="number" name="heroTitleSize" min="1" max="5" step="0.1" value={settings.heroTitleSize || 2.1} onChange={handleChange} className="size-input-mini" />rem</label>
-                          </div>
-                          <div className="form-group-compact inline-label">
-                            <label>Desc. <input type="number" name="heroDescriptionSize" min="0.8" max="2.5" step="0.05" value={settings.heroDescriptionSize || 1.05} onChange={handleChange} className="size-input-mini" />rem</label>
-                          </div>
-                          <div className="form-group-compact">
-                            <label>Pos. Vertical</label>
-                            <select name="heroPositionY" value={settings.heroPositionY || 'center'} onChange={handleChange}>
-                              <option value="flex-start">Arriba</option>
-                              <option value="center">Centro</option>
-                              <option value="flex-end">Abajo</option>
-                            </select>
-                          </div>
-                          <div className="form-group-compact">
-                            <label>Pos. Horizontal</label>
-                            <select name="heroPositionX" value={settings.heroPositionX || 'left'} onChange={handleChange}>
-                              <option value="left">Izquierda</option>
-                              <option value="center">Centro</option>
-                              <option value="right">Derecha</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Imagen y ajustes */}
-                        <div className="hero-image-row">
-                          <div className="form-group-compact" style={{ flex: 1 }}>
-                            <label>Imagen del Hero</label>
-                            <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroImage')} />
-                          </div>
-                          {settings.heroImage && (
-                            <div className="settings-preview-compact">
-                              <img src={settings.heroImage} alt="Hero" />
-                              <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroImage: '' }))} className="delete-text-btn">eliminar</button>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Altura, ancho y oscurecimiento */}
-                        <div className="settings-grid-3">
-                          <div className="form-group-compact inline-label">
-                            <label>Altura <input type="number" name="heroHeight" min="200" max="600" step="20" value={settings.heroHeight || 360} onChange={handleChange} className="size-input-mini" />px</label>
-                          </div>
-                          <div className="form-group-compact inline-label">
-                            <label>Ancho <input type="number" name="heroImageWidth" min="50" max="100" step="5" value={settings.heroImageWidth || 100} onChange={handleChange} className="size-input-mini" />%</label>
-                          </div>
-                          <div className="form-group-compact inline-label">
-                            <label>Oscurecer <input type="number" name="heroOverlayOpacity" min="0" max="80" step="5" value={Math.round((settings.heroOverlayOpacity ?? 0.5) * 100)} onChange={(e) => handleChange({ target: { name: 'heroOverlayOpacity', value: parseFloat(e.target.value) / 100 } })} className="size-input-mini" />%</label>
-                          </div>
-                        </div>
-
-                        {/* Imagen superpuesta del Banner */}
-                        <div className="banner-image-section">
-                          <label className="section-label">Imagen Superpuesta del Banner</label>
-                          <div className="hero-image-row">
-                            <div className="form-group-compact" style={{ flex: 1 }}>
-                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'heroBannerImage')} />
-                            </div>
-                            {settings.heroBannerImage && (
-                              <div className="settings-preview-compact">
-                                <img src={settings.heroBannerImage} alt="Banner overlay" />
-                                <button type="button" onClick={() => setSettings(prev => ({ ...prev, heroBannerImage: '' }))} className="delete-text-btn">eliminar</button>
-                              </div>
-                            )}
-                          </div>
-                          {settings.heroBannerImage && (
-                            <div className="settings-grid-4" style={{ marginTop: '0.5rem' }}>
-                              <div className="form-group-compact inline-label">
-                                <label>Tamaño <input type="number" name="heroBannerSize" min="50" max="500" step="10" value={settings.heroBannerSize || 150} onChange={handleChange} className="size-input-mini" />px</label>
-                              </div>
-                              <div className="form-group-compact">
-                                <label>Pos. Horizontal</label>
-                                <select name="heroBannerPositionX" value={settings.heroBannerPositionX || 'right'} onChange={handleChange}>
-                                  <option value="left">Izquierda</option>
-                                  <option value="center">Centro</option>
-                                  <option value="right">Derecha</option>
-                                </select>
-                              </div>
-                              <div className="form-group-compact">
-                                <label>Pos. Vertical</label>
-                                <select name="heroBannerPositionY" value={settings.heroBannerPositionY || 'center'} onChange={handleChange}>
-                                  <option value="top">Arriba</option>
-                                  <option value="center">Centro</option>
-                                  <option value="bottom">Abajo</option>
-                                </select>
-                              </div>
-                              <div className="form-group-compact inline-label">
-                                <label>Opacidad <input type="number" name="heroBannerOpacity" min="10" max="100" step="5" value={settings.heroBannerOpacity || 100} onChange={handleChange} className="size-input-mini" />%</label>
-                              </div>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1683,7 +1870,7 @@ function SettingsManager() {
                 </div>
               )}
 
-              {siteTab === 'ecommerce' && (
+              {(siteTab === 'ecommerce' || siteTab === 'store') && (
                 <section className="settings-section collapsible">
                   <button type="button" className="section-toggle" onClick={() => toggleSection('ecommerce')}>
                     <span>⚙️ E-commerce y Otros</span>
@@ -1723,7 +1910,7 @@ function SettingsManager() {
                 </section>
               )}
 
-              {siteTab === 'promos' && (
+              {(siteTab === 'promos' || siteTab === 'store') && (
                 <section className="settings-section collapsible">
                   <button type="button" className="section-toggle" onClick={() => toggleSection('promos')}>
                     <span>Promociones</span>
@@ -1794,7 +1981,7 @@ function SettingsManager() {
                 </section>
               )}
 
-              {siteTab === 'filters' && (
+              {(siteTab === 'filters' || siteTab === 'store') && (
                 <div className="filters-main-section">
                   <p className="section-description" style={{ marginBottom: '1rem' }}>
                     Administra las categorías del Home y personaliza su estilo.
@@ -2072,6 +2259,163 @@ function SettingsManager() {
 
               {siteTab === 'landing' && (
                 <LandingPageAdmin settings={settings} setSettings={setSettings} />
+              )}
+
+              {siteTab === 'map' && (
+                <div className="settings-section-scroll">
+                  {/* Store Location */}
+                  <section className="settings-section">
+                    <div
+                      className="section-header clickable"
+                      onClick={() => toggleSection('mapLocation')}
+                    >
+                      <h4>📍 Ubicación de la Tienda</h4>
+                      <span className={`collapse-icon ${openSections.mapLocation ? 'open' : ''}`}>▼</span>
+                    </div>
+                    {openSections.mapLocation && (
+                      <div className="section-body">
+                        <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: '10px' }}>
+                          Haz clic en el mapa o arrastra el marcador para establecer la ubicación.
+                          Se usa en la página de contacto y como origen para calcular envíos.
+                        </p>
+                        <StoreLocationMap
+                          lat={settings.mapConfig?.storeLocation?.lat || null}
+                          lng={settings.mapConfig?.storeLocation?.lng || null}
+                          editable={true}
+                          onLocationChange={({ lat, lng }) => {
+                            setSettings(prev => ({
+                              ...prev,
+                              mapConfig: {
+                                ...prev.mapConfig,
+                                storeLocation: { lat, lng }
+                              }
+                            }));
+                          }}
+                          height={320}
+                        />
+                        {settings.mapConfig?.storeLocation?.lat && settings.mapConfig?.storeLocation?.lng && (
+                          <p style={{ color: 'var(--gray-500)', fontSize: '0.8rem', marginTop: '8px' }}>
+                            Coordenadas: {Number(settings.mapConfig.storeLocation.lat).toFixed(6)}, {Number(settings.mapConfig.storeLocation.lng).toFixed(6)}
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Shipping Zones */}
+                  <section className="settings-section">
+                    <div
+                      className="section-header clickable"
+                      onClick={() => toggleSection('mapShippingZones')}
+                    >
+                      <h4>🚚 Zonas de Envío</h4>
+                      <span className={`collapse-icon ${openSections.mapShippingZones ? 'open' : ''}`}>▼</span>
+                    </div>
+                    {openSections.mapShippingZones && (
+                      <div className="section-body">
+                        <p style={{ color: 'var(--gray-500)', fontSize: '0.9rem', marginBottom: '12px' }}>
+                          Define las tarifas de envío según la distancia desde la tienda.
+                          La última zona cubre todas las distancias mayores.
+                        </p>
+                        {(settings.mapConfig?.shippingZones || []).map((zone, index) => (
+                          <div key={index} style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 120px 120px auto',
+                            gap: '8px',
+                            alignItems: 'center',
+                            marginBottom: '8px'
+                          }}>
+                            <input
+                              type="text"
+                              value={zone.label}
+                              placeholder="Nombre de la zona"
+                              onChange={(e) => {
+                                const zones = [...(settings.mapConfig?.shippingZones || [])];
+                                zones[index] = { ...zones[index], label: e.target.value };
+                                setSettings(prev => ({
+                                  ...prev,
+                                  mapConfig: { ...prev.mapConfig, shippingZones: zones }
+                                }));
+                              }}
+                              style={{ padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--gray-200)', fontSize: '0.9rem' }}
+                            />
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                value={zone.maxDistance >= 9999 ? '' : zone.maxDistance}
+                                placeholder="∞"
+                                onChange={(e) => {
+                                  const zones = [...(settings.mapConfig?.shippingZones || [])];
+                                  const val = e.target.value === '' ? 9999 : Number(e.target.value);
+                                  zones[index] = { ...zones[index], maxDistance: val };
+                                  setSettings(prev => ({
+                                    ...prev,
+                                    mapConfig: { ...prev.mapConfig, shippingZones: zones }
+                                  }));
+                                }}
+                                style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--gray-200)', fontSize: '0.9rem' }}
+                              />
+                              <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>km</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <input
+                                type="number"
+                                min="0"
+                                value={zone.price}
+                                placeholder="Tarifa"
+                                onChange={(e) => {
+                                  const zones = [...(settings.mapConfig?.shippingZones || [])];
+                                  zones[index] = { ...zones[index], price: Number(e.target.value) || 0 };
+                                  setSettings(prev => ({
+                                    ...prev,
+                                    mapConfig: { ...prev.mapConfig, shippingZones: zones }
+                                  }));
+                                }}
+                                style={{ width: '80px', padding: '8px 10px', borderRadius: '8px', border: '1px solid var(--gray-200)', fontSize: '0.9rem' }}
+                              />
+                              <span style={{ fontSize: '0.8rem', color: 'var(--gray-500)' }}>$</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const zones = (settings.mapConfig?.shippingZones || []).filter((_, i) => i !== index);
+                                setSettings(prev => ({
+                                  ...prev,
+                                  mapConfig: { ...prev.mapConfig, shippingZones: zones }
+                                }));
+                              }}
+                              style={{
+                                background: 'none', border: 'none', cursor: 'pointer',
+                                fontSize: '1.1rem', color: '#ef4444', padding: '4px 8px'
+                              }}
+                              title="Eliminar zona"
+                            >✕</button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const zones = [...(settings.mapConfig?.shippingZones || [])];
+                            const lastMax = zones.length > 0 ? (zones[zones.length - 1].maxDistance || 50) : 0;
+                            const newMax = lastMax >= 9999 ? 9999 : lastMax + 10;
+                            zones.push({ maxDistance: newMax, price: 0, label: `Zona ${zones.length + 1}` });
+                            setSettings(prev => ({
+                              ...prev,
+                              mapConfig: { ...prev.mapConfig, shippingZones: zones }
+                            }));
+                          }}
+                          style={{
+                            marginTop: '8px', padding: '8px 16px', borderRadius: '8px',
+                            border: '1px dashed var(--gray-300)', background: 'none',
+                            cursor: 'pointer', color: 'var(--primary-color)', fontWeight: 600,
+                            fontSize: '0.9rem', width: '100%'
+                          }}
+                        >+ Agregar zona</button>
+                      </div>
+                    )}
+                  </section>
+                </div>
               )}
 
             </div>

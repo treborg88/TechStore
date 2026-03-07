@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { toast } from 'react-hot-toast';
+import StoreLocationMap from '../components/common/StoreLocationMap';
 import './Contact.css';
 
 const defaultContactData = {
@@ -12,8 +13,7 @@ const defaultContactData = {
   contactWhatsapp: '+1 (809) 555-7788',
   contactAddress: 'Av. Winston Churchill 123, Santo Domingo, RD',
   contactHours: 'Lun - Sáb: 9:00 AM - 7:00 PM',
-  contactSupportLine: 'Respuesta en menos de 24 horas',
-  contactMapUrl: 'https://www.google.com/maps?q=Santo%20Domingo&output=embed'
+  contactSupportLine: 'Respuesta en menos de 24 horas'
 };
 
 export default function Contact({ user }) {
@@ -21,6 +21,8 @@ export default function Contact({ user }) {
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [contactData, setContactData] = useState(defaultContactData);
+  // Store location from mapConfig (read-only, configured in Settings)
+  const [storeLocation, setStoreLocation] = useState(null);
   const contactKeys = useMemo(() => Object.keys(defaultContactData), []);
 
   const heroStats = useMemo(() => (
@@ -46,6 +48,13 @@ export default function Contact({ user }) {
           }
         });
         setContactData(nextData);
+        // Parse mapConfig for store location
+        try {
+          const mc = typeof data.mapConfig === 'string' ? JSON.parse(data.mapConfig) : data.mapConfig;
+          if (mc?.storeLocation?.lat && mc?.storeLocation?.lng) {
+            setStoreLocation(mc.storeLocation);
+          }
+        } catch { /* ignore */ }
       } catch (error) {
         console.error('Error cargando ajustes de contacto:', error);
       } finally {
@@ -151,18 +160,14 @@ export default function Contact({ user }) {
             <div className="contact-card">
               <h3>Ubicación</h3>
               <p>Visítanos en nuestra oficina principal o agenda una cita personalizada.</p>
-              {contactData.contactMapUrl ? (
-                <div className="contact-map">
-                  <iframe
-                    title="Mapa"
-                    src={contactData.contactMapUrl}
-                    loading="lazy"
-                    referrerPolicy="no-referrer-when-downgrade"
-                  />
-                </div>
-              ) : (
-                <p className="contact-muted">No hay mapa configurado.</p>
-              )}
+              <div className="contact-map">
+                <StoreLocationMap
+                  lat={storeLocation?.lat || null}
+                  lng={storeLocation?.lng || null}
+                  editable={false}
+                  height={260}
+                />
+              </div>
             </div>
           </div>
 
@@ -207,10 +212,6 @@ export default function Contact({ user }) {
                   <label>
                     Mensaje de soporte
                     <input name="contactSupportLine" value={contactData.contactSupportLine} onChange={handleChange} />
-                  </label>
-                  <label>
-                    URL del mapa
-                    <input name="contactMapUrl" value={contactData.contactMapUrl} onChange={handleChange} />
                   </label>
                   <button type="submit" disabled={saving} className="contact-save-btn">
                     {saving ? 'Guardando...' : 'Guardar cambios'}

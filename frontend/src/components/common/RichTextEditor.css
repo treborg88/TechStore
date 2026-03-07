@@ -1,0 +1,79 @@
+.rich-text-editor-root {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.rte-help-text {
+  font-size: 0.85rem;
+  color: #6b7280;
+  margin: 0;
+  font-style: italic;
+}
+
+.rte-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.rte-format-btn {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 6px;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.85rem;
+  line-height: 1;
+  cursor: pointer;
+  min-width: 36px;
+}
+
+.rte-format-btn:hover {
+  background: #e5e7eb;
+  border-color: #9ca3af;
+}
+
+.rte-input {
+  width: 100%;
+  padding: 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  background-color: #f9fafb;
+  color: #1f2937;
+  overflow-y: auto;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.rte-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.rte-input:empty::before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  pointer-events: none;
+}
+
+.rte-input ul,
+.rte-input ol {
+  margin: 0.5rem 0 0.5rem 1.25rem;
+  padding-left: 1rem;
+}
+
+.rte-input ul {
+  list-style-type: disc;
+}
+
+.rte-input ol {
+  list-style-type: decimal;
+}
