@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment } from 'react';
+import { useState, useMemo, Fragment, useCallback } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -8,6 +8,7 @@ import './ProductList.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG } from '../../config';
+import { formatVariantLabel } from '../../utils/cartHelpers';
 import {
 	PRODUCT_UNIT_OPTIONS,
 	normalizeUnitType,
@@ -23,6 +24,7 @@ function blankProduct() {
 		category: '',
 		stock: '',
 		unitType: 'unidad',
+		isHidden: false,
 		imageFiles: [],
 	};
 }
@@ -33,8 +35,18 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [editingProduct, setEditingProduct] = useState(null);
 	const [newImagesForEdit, setNewImagesForEdit] = useState([]);
 	const [isSubmitting, setIsSubmitting] = useState(false);
-	const [filters, setFilters] = useState({ search: '', category: 'all' });
+	const [filters, setFilters] = useState({ search: '', category: 'all', visibility: 'all' });
 	const [showAddForm, setShowAddForm] = useState(false);
+
+	// ── Variant management state ─────────────────────────────────────────
+	const [variantPanel, setVariantPanel] = useState(null); // product id with open variant panel
+	const [variants, setVariants] = useState([]);
+	const [attributeTypes, setAttributeTypes] = useState([]);
+	const [isLoadingVariants, setIsLoadingVariants] = useState(false);
+	const [editingVariant, setEditingVariant] = useState(null); // variant being edited inline
+	// New variant form (blank template)
+	const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] };
+	const [newVariant, setNewVariant] = useState(blankVariant);
 
 	const confirmAction = (message) => {
 		return new Promise((resolve) => {
@@ -111,7 +123,10 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 				searchTerm.length === 0 ||
 				item.name.toLowerCase().includes(searchTerm) ||
 				(item.description ?? '').toLowerCase().includes(searchTerm);
-			return matchesCategory && matchesSearch;
+			const matchesVisibility = filters.visibility === 'all'
+				|| (filters.visibility === 'visible' && !item.is_hidden)
+				|| (filters.visibility === 'hidden' && item.is_hidden);
+			return matchesCategory && matchesSearch && matchesVisibility;
 		});
 	}, [products, filters]);
 
@@ -156,6 +171,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		formData.append('category', categoryValue);
 		formData.append('stock', newProduct.stock);
 		formData.append('unitType', normalizeUnitType(newProduct.unitType));
+		formData.append('isHidden', newProduct.isHidden);
 		newProduct.imageFiles.forEach((file) => {
 			formData.append('images', file);
 		});
@@ -198,6 +214,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			category: product.category,
 			stock: product.stock,
 			unitType: normalizeUnitType(product.unit_type || product.unitType),
+			isHidden: !!product.is_hidden,
 			images: images,
 		});
 	};
@@ -277,6 +294,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 					category: editingProduct.category,
 					stock: Number(editingProduct.stock),
 					unitType: normalizeUnitType(editingProduct.unitType),
+					isHidden: editingProduct.isHidden,
 				}),
 			});
 
@@ -327,6 +345,383 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const cancelEditing = () => {
 		setEditingProduct(null);
 		setNewImagesForEdit([]);
+		setVariantPanel(null);
+		setVariants([]);
+		setEditingVariant(null);
+	};
+
+	// ── Variant CRUD helpers ──────────────────────────────────────────────
+	const loadVariants = useCallback(async (productId) => {
+		setIsLoadingVariants(true);
+		try {
+			const res = await apiFetch(apiUrl(`/products/${productId}/variants`));
+			if (res.ok) {
+				const data = await res.json();
+				setVariants(data.variants || []);
+				setAttributeTypes(data.attributeTypes || []);
+			}
+		} catch (err) {
+			console.error('Error loading variants:', err);
+		} finally {
+			setIsLoadingVariants(false);
+		}
+	}, []);
+
+	const toggleVariantPanel = async (productId) => {
+		if (variantPanel === productId) {
+			setVariantPanel(null);
+			return;
+		}
+		setVariantPanel(productId);
+		setEditingVariant(null);
+		setNewVariant({ sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] });
+		await loadVariants(productId);
+	};
+
+	const handleCreateVariant = async (productId) => {
+		// Validate attributes have values
+		const validAttrs = newVariant.attributes.filter(a => a.type && a.value);
+		if (validAttrs.length === 0) {
+			toast.error('Agrega al menos un atributo (ej. Color, Talla).');
+			return;
+		}
+		try {
+			// Upload image file if selected
+			let imageUrl = newVariant.image_url || undefined;
+			if (newVariant.imageFile) {
+				imageUrl = await uploadVariantImage(productId, newVariant.imageFile);
+			}
+			const res = await apiFetch(apiUrl(`/products/${productId}/variants`), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sku: newVariant.sku || undefined,
+					price: newVariant.price !== '' ? Number(newVariant.price) : undefined,
+					stock: Number(newVariant.stock) || 0,
+					image_url: imageUrl,
+					attributes: validAttrs
+				})
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.message || 'Error creando variante');
+			}
+			toast.success('Variante creada');
+			setNewVariant({ sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] });
+			await loadVariants(productId);
+			await onRefresh();
+		} catch (err) {
+			toast.error(err.message);
+		}
+	};
+
+	const handleUpdateVariant = async (productId, variantId) => {
+		if (!editingVariant) return;
+		const validAttrs = editingVariant.attributes.filter(a => a.type && a.value);
+		try {
+			// Upload new image file if selected
+			let imageUrl = editingVariant.image_url || null;
+			if (editingVariant.imageFile) {
+				imageUrl = await uploadVariantImage(productId, editingVariant.imageFile);
+			}
+			const res = await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}`), {
+				method: 'PUT',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					sku: editingVariant.sku || undefined,
+					price: editingVariant.price !== '' && editingVariant.price != null ? Number(editingVariant.price) : null,
+					stock: Number(editingVariant.stock) || 0,
+					image_url: imageUrl,
+					is_active: editingVariant.is_active,
+					attributes: validAttrs.length > 0 ? validAttrs : undefined
+				})
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.message || 'Error actualizando variante');
+			}
+			toast.success('Variante actualizada');
+			setEditingVariant(null);
+			await loadVariants(productId);
+			await onRefresh();
+		} catch (err) {
+			toast.error(err.message);
+		}
+	};
+
+	const handleDeleteVariant = async (productId, variantId) => {
+		const confirmed = await confirmAction('¿Eliminar esta variante?');
+		if (!confirmed) return;
+		try {
+			const res = await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}`), {
+				method: 'DELETE'
+			});
+			if (!res.ok) {
+				const data = await res.json().catch(() => ({}));
+				throw new Error(data.message || 'Error eliminando variante');
+			}
+			toast.success('Variante eliminada');
+			await loadVariants(productId);
+			await onRefresh();
+		} catch (err) {
+			toast.error(err.message);
+		}
+	};
+
+	// Attribute row helpers for variant forms
+	const updateAttrRow = (list, setList, idx, field, value) => {
+		const updated = [...list];
+		updated[idx] = { ...updated[idx], [field]: value };
+		if (typeof setList === 'function') setList(updated);
+		return updated;
+	};
+	const addAttrRow = (list) => [...list, { type: '', value: '', color_hex: '' }];
+	const removeAttrRow = (list, idx) => list.length > 1 ? list.filter((_, i) => i !== idx) : list;
+	// Check if an attribute type uses color swatch display
+	const isColorType = (typeName) => attributeTypes.some(t => t.name === typeName && t.display_type === 'color_swatch');
+
+	// Upload a single variant image and return the public URL
+	const uploadVariantImage = async (productId, file) => {
+		const formData = new FormData();
+		formData.append('image', file);
+		const res = await apiFetch(apiUrl(`/products/${productId}/variants/upload-image`), {
+			method: 'POST',
+			body: formData,
+		});
+		if (!res.ok) {
+			const data = await res.json().catch(() => ({}));
+			throw new Error(data.message || 'Error subiendo imagen de variante');
+		}
+		const data = await res.json();
+		return data.image_url;
+	};
+
+	// Pre-fill new variant form with parent product data (convert parent to variant)
+	const handleConvertParentToVariant = () => {
+		if (!editingProduct) return;
+		const firstImage = editingProduct.images?.[0];
+		const imageUrl = firstImage ? resolveImageUrl(firstImage.image_path) : '';
+		setNewVariant({
+			sku: '',
+			price: editingProduct.price ?? '',
+			stock: editingProduct.stock ?? 0,
+			image_url: imageUrl,
+			imageFile: null,
+			attributes: [{ type: '', value: '', color_hex: '' }],
+		});
+		toast.success('Datos del producto copiados. Asigna los atributos y crea la variante.');
+	};
+
+	// Reusable variant management section (used in both desktop + mobile edit forms)
+	const renderVariantSection = (productId) => {
+		const isOpen = variantPanel === productId;
+		return (
+			<div className="variant-section">
+				<button
+					type="button"
+					className="variant-toggle-btn"
+					onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleVariantPanel(productId); }}
+				>
+					<span>🧩 Variantes (colores, tallas...)</span>
+					<span className="collapsible-icon">{isOpen ? '−' : '+'}</span>
+				</button>
+
+				{isOpen && (
+					<div className="variant-panel" onClick={(e) => e.stopPropagation()}>
+						{isLoadingVariants ? (
+							<div className="variant-loading"><LoadingSpinner fullPage={false} /></div>
+						) : (
+							<>
+								{/* Existing variants list */}
+								{variants.length > 0 && (
+									<div className="variant-list">
+										<h4 className="variant-list-title">Variantes existentes ({variants.length})</h4>
+										{variants.map((v) => {
+											const isEditingThis = editingVariant?.id === v.id;
+											return (
+												<div key={v.id} className={`variant-row ${!v.is_active ? 'inactive' : ''}`}>
+													{isEditingThis ? (
+														/* Inline edit mode */
+														<div className="variant-edit-inline">
+															<div className="variant-edit-fields">
+																<label>SKU
+																	<input type="text" value={editingVariant.sku || ''} onChange={(e) => setEditingVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="SKU" />
+																</label>
+																<label>Precio (override)
+																	<input type="number" step="0.01" value={editingVariant.price ?? ''} onChange={(e) => setEditingVariant(prev => ({ ...prev, price: e.target.value }))} placeholder="Precio base" />
+																</label>
+																<label>Stock
+																	<input type="number" value={editingVariant.stock || 0} onChange={(e) => setEditingVariant(prev => ({ ...prev, stock: e.target.value }))} />
+																</label>
+																<label>Imagen
+																	<input type="file" accept="image/*" onChange={(e) => {
+																		const file = e.target.files[0] || null;
+																		setEditingVariant(prev => ({ ...prev, imageFile: file }));
+																	}} />
+																	{/* Preview: new file or existing URL */}
+																	{(editingVariant.imageFile || editingVariant.image_url) && (
+																		<div className="variant-image-preview">
+																			<img
+																				src={editingVariant.imageFile ? URL.createObjectURL(editingVariant.imageFile) : editingVariant.image_url}
+																				alt="Preview"
+																				onError={(e) => { e.currentTarget.style.display = 'none'; }}
+																			/>
+																			<button type="button" className="variant-image-remove" onClick={() => setEditingVariant(prev => ({ ...prev, image_url: '', imageFile: null }))}>✕</button>
+																		</div>
+																	)}
+																</label>
+																<label className="variant-active-label">
+																	<input type="checkbox" checked={editingVariant.is_active !== false} onChange={(e) => setEditingVariant(prev => ({ ...prev, is_active: e.target.checked }))} />
+																	Activa
+																</label>
+															</div>
+															<div className="variant-attrs-edit">
+																<span className="variant-attrs-title">Atributos:</span>
+																{editingVariant.attributes.map((attr, idx) => (
+																	<div key={idx} className="variant-attr-row">
+																		<select value={attr.type} onChange={(e) => {
+																			const updated = [...editingVariant.attributes];
+																			updated[idx] = { ...updated[idx], type: e.target.value };
+																			setEditingVariant(prev => ({ ...prev, attributes: updated }));
+																		}}>
+																			<option value="">Tipo...</option>
+																			{attributeTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+																		</select>
+																		<input type="text" value={attr.value} placeholder="Valor" onChange={(e) => {
+																			const updated = [...editingVariant.attributes];
+																			updated[idx] = { ...updated[idx], value: e.target.value };
+																			setEditingVariant(prev => ({ ...prev, attributes: updated }));
+																		}} />
+																		{/* Color picker — only for color_swatch attribute types */}
+																		{isColorType(attr.type) && (
+																			<input type="color" className="variant-color-picker" value={attr.color_hex || '#000000'} title="Color del botón" onChange={(e) => {
+																				const updated = [...editingVariant.attributes];
+																				updated[idx] = { ...updated[idx], color_hex: e.target.value };
+																				setEditingVariant(prev => ({ ...prev, attributes: updated }));
+																			}} />
+																		)}
+																		{editingVariant.attributes.length > 1 && (
+																			<button type="button" className="variant-attr-remove" onClick={() => {
+																				setEditingVariant(prev => ({ ...prev, attributes: removeAttrRow(prev.attributes, idx) }));
+																			}}>✕</button>
+																		)}
+																	</div>
+																))}
+																<button type="button" className="variant-attr-add" onClick={() => {
+																	setEditingVariant(prev => ({ ...prev, attributes: addAttrRow(prev.attributes) }));
+																}}>+ Atributo</button>
+															</div>
+															<div className="variant-edit-actions">
+																<button type="button" className="admin-btn" onClick={() => handleUpdateVariant(productId, v.id)}>Guardar</button>
+																<button type="button" className="admin-btn ghost" onClick={() => setEditingVariant(null)}>Cancelar</button>
+															</div>
+														</div>
+													) : (
+														/* Read-only row */
+														<>
+															<div className="variant-row-info">
+																<span className="variant-attrs-label">{formatVariantLabel(v.attributes.map(a => ({ attribute_value: a.value })))}</span>
+																{v.sku && <span className="variant-sku">SKU: {v.sku}</span>}
+																<span className="variant-price">
+																	{v.price != null ? formatCurrency(v.price, currencyCode) : '—'}
+																</span>
+																<span className={`admin-stock ${v.stock > 0 ? 'in-stock' : 'out-stock'}`}>
+																	Stock: {v.stock}
+																</span>
+																{!v.is_active && <span className="variant-inactive-badge">Inactiva</span>}
+															</div>
+															<div className="variant-row-actions">
+																<button type="button" className="admin-btn ghost" onClick={() => setEditingVariant({ ...v, price: v.price ?? '' })}>✏️</button>
+																<button type="button" className="admin-btn danger" onClick={() => handleDeleteVariant(productId, v.id)}>🗑️</button>
+															</div>
+														</>
+													)}
+												</div>
+											);
+										})}
+									</div>
+								)}
+
+								{/* Add new variant form */}
+								<div className="variant-add-form">
+									<div className="variant-add-header">
+										<h4 className="variant-list-title">Agregar variante</h4>
+										{/* Quick button to pre-fill form with parent product data */}
+										<button type="button" className="admin-btn ghost variant-convert-btn" onClick={handleConvertParentToVariant}>
+											📋 Copiar datos del producto
+										</button>
+									</div>
+									<div className="variant-edit-fields">
+										<label>SKU
+											<input type="text" value={newVariant.sku} onChange={(e) => setNewVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="Opcional" />
+										</label>
+										<label>Precio (override)
+											<input type="number" step="0.01" value={newVariant.price} onChange={(e) => setNewVariant(prev => ({ ...prev, price: e.target.value }))} placeholder="Precio base" />
+										</label>
+										<label>Stock
+											<input type="number" value={newVariant.stock} onChange={(e) => setNewVariant(prev => ({ ...prev, stock: e.target.value }))} />
+										</label>
+										<label>Imagen
+											<input type="file" accept="image/*" onChange={(e) => {
+												const file = e.target.files[0] || null;
+												setNewVariant(prev => ({ ...prev, imageFile: file, image_url: '' }));
+											}} />
+											{/* Preview: new file or pre-filled URL (from parent conversion) */}
+											{(newVariant.imageFile || newVariant.image_url) && (
+												<div className="variant-image-preview">
+													<img
+														src={newVariant.imageFile ? URL.createObjectURL(newVariant.imageFile) : newVariant.image_url}
+														alt="Preview"
+														onError={(e) => { e.currentTarget.style.display = 'none'; }}
+													/>
+													<button type="button" className="variant-image-remove" onClick={() => setNewVariant(prev => ({ ...prev, imageFile: null, image_url: '' }))}>✕</button>
+												</div>
+											)}
+										</label>
+									</div>
+									<div className="variant-attrs-edit">
+										<span className="variant-attrs-title">Atributos:</span>
+										{newVariant.attributes.map((attr, idx) => (
+											<div key={idx} className="variant-attr-row">
+												<select value={attr.type} onChange={(e) => {
+													const updated = updateAttrRow(newVariant.attributes, null, idx, 'type', e.target.value);
+													setNewVariant(prev => ({ ...prev, attributes: updated }));
+												}}>
+													<option value="">Tipo...</option>
+													{attributeTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+												</select>
+												<input type="text" value={attr.value} placeholder="Valor (ej. Rojo, M)" onChange={(e) => {
+													const updated = updateAttrRow(newVariant.attributes, null, idx, 'value', e.target.value);
+													setNewVariant(prev => ({ ...prev, attributes: updated }));
+												}} />
+												{/* Color picker — only for color_swatch attribute types */}
+												{isColorType(attr.type) && (
+													<input type="color" className="variant-color-picker" value={attr.color_hex || '#000000'} title="Color del botón" onChange={(e) => {
+														const updated = updateAttrRow(newVariant.attributes, null, idx, 'color_hex', e.target.value);
+														setNewVariant(prev => ({ ...prev, attributes: updated }));
+													}} />
+												)}
+												{newVariant.attributes.length > 1 && (
+													<button type="button" className="variant-attr-remove" onClick={() => {
+														setNewVariant(prev => ({ ...prev, attributes: removeAttrRow(prev.attributes, idx) }));
+													}}>✕</button>
+												)}
+											</div>
+										))}
+										<button type="button" className="variant-attr-add" onClick={() => {
+											setNewVariant(prev => ({ ...prev, attributes: addAttrRow(prev.attributes) }));
+										}}>+ Atributo</button>
+									</div>
+									<button type="button" className="admin-btn" onClick={() => handleCreateVariant(productId)}>
+										Crear Variante
+									</button>
+								</div>
+							</>
+						)}
+					</div>
+				)}
+			</div>
+		);
 	};
 
 
@@ -407,6 +802,16 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 								</select>
 							</label>
 						</div>
+						<div className="form-row">
+							<label className="toggle-label">
+								<input
+									type="checkbox"
+									checked={newProduct.isHidden}
+									onChange={(event) => handleFieldChange('isHidden', event.target.checked)}
+								/>
+								Ocultar producto en la tienda
+							</label>
+						</div>
 						<label>Descripción
 							<RichTextEditor
 								value={newProduct.description}
@@ -469,6 +874,18 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 							))}
 						</select>
 					</div>
+					<div className="filter-field">
+						<label htmlFor="admin-visibility">Visibilidad</label>
+						<select
+							id="admin-visibility"
+							value={filters.visibility}
+							onChange={(event) => setFilters((prev) => ({ ...prev, visibility: event.target.value }))}
+						>
+							<option value="all">Todos</option>
+							<option value="visible">Visibles</option>
+							<option value="hidden">Ocultos</option>
+						</select>
+					</div>
 				</div>
 
 				{isLoading ? (
@@ -521,7 +938,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 														/>
 													)}
 												</td>
-												<td className="admin-table-name" data-label="Nombre">{product.name}</td>
+												<td className="admin-table-name" data-label="Nombre">
+													{product.name}
+													{product.has_variants && <span className="variant-badge" title="Tiene variantes">🧩</span>}
+													{product.is_hidden && <span className="hidden-badge" title="Oculto en la tienda">👁️‍🗨️</span>}
+												</td>
 												<td data-label="Categoría">
 													<span className="admin-chip">{product.category}</span>
 												</td>
@@ -654,6 +1075,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																		</button>
 																	)}
 																</div>
+																{/* Variant manager */}
+																{renderVariantSection(editingProduct.id)}
 																<label>
 																	Descripción
 																	<RichTextEditor
@@ -673,6 +1096,16 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																		}}
 																	>
 																		Eliminar
+																	</button>
+																	<button
+																		type="button"
+																		className="admin-btn hide-toggle-btn"
+																		onClick={(event) => {
+																			event.stopPropagation();
+																			handleEditField('isHidden', !editingProduct.isHidden);
+																		}}
+																	>
+																		{editingProduct.isHidden ? 'Mostrar' : 'Ocultar'}
 																	</button>
 																	<div className="admin-actions-right">
 																		<button type="button" onClick={cancelEditing} className="admin-btn ghost">
@@ -719,7 +1152,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 											<div className="mobile-product-main">
 												<img src={mainImage} alt={product.name} onError={(event) => { event.currentTarget.src = '/images/placeholder.svg'; }} />
 												<div className="mobile-product-info">
-													<div className="mobile-product-title">{product.name}</div>
+													<div className="mobile-product-title">
+														{product.name}
+														{product.has_variants && <span className="variant-badge" title="Tiene variantes">🧩</span>}
+														{product.is_hidden && <span className="hidden-badge" title="Oculto en la tienda">👁️‍🗨️</span>}
+													</div>
 													<div className="mobile-product-subtitle">
 														<span className="mobile-product-category">{product.category}</span>
 														<span className={`mobile-product-stock ${product.stock > 0 ? 'in-stock' : 'out-stock'}`}>
@@ -843,6 +1280,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 														</button>
 													)}
 												</div>
+												{/* Variant manager */}
+												{renderVariantSection(editingProduct.id)}
 												<label>
 													Descripción
 													<RichTextEditor
@@ -862,6 +1301,16 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 														}}
 													>
 														Eliminar
+													</button>
+													<button
+														type="button"
+														className="admin-btn hide-toggle-btn"
+														onClick={(event) => {
+															event.stopPropagation();
+															handleEditField('isHidden', !editingProduct.isHidden);
+														}}
+													>
+														{editingProduct.isHidden ? '👁️ Mostrar' : '🙈 Ocultar'}
 													</button>
 													<div className="admin-actions-right">
 														<button type="button" onClick={cancelEditing} className="admin-btn ghost">

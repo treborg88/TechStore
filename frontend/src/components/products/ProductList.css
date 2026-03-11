@@ -452,3 +452,348 @@
   }
 }
 
+/* ── Variant Management ─────────────────────────────────── */
+
+/* Badge next to product name */
+.variant-badge {
+  margin-left: 6px;
+  font-size: 0.85em;
+  vertical-align: middle;
+  cursor: default;
+}
+
+/* Hidden product badge */
+.hidden-badge {
+  margin-left: 4px;
+  font-size: 0.8em;
+  vertical-align: middle;
+  cursor: default;
+  opacity: 0.7;
+}
+
+/* Toggle label for checkbox fields */
+.toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.92rem;
+  user-select: none;
+}
+.toggle-label input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary-color, #4f46e5);
+  cursor: pointer;
+}
+
+/* Ocultar/Mostrar toggle button (gray) */
+.hide-toggle-btn {
+  background: #6b7280 !important;
+  color: #fff !important;
+  border: none !important;
+}
+.hide-toggle-btn:hover {
+  background: #4b5563 !important;
+}
+
+/* Collapsible section inside edit form */
+.variant-section {
+  margin: 12px 0;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.variant-toggle-btn {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 10px 14px;
+  background: var(--bg-secondary, #f8f9fa);
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-color, #333);
+  transition: background 0.2s;
+}
+
+.variant-toggle-btn:hover {
+  background: var(--hover-bg, #eef0f2);
+}
+
+/* Expanded panel */
+.variant-panel {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.variant-loading {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.variant-list-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  margin: 0 0 8px;
+  color: var(--text-secondary, #555);
+}
+
+/* Each variant row */
+.variant-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light, #eee);
+  border-radius: 6px;
+  margin-bottom: 6px;
+  gap: 8px;
+  background: #fff;
+  transition: opacity 0.2s;
+}
+
+.variant-row.inactive {
+  opacity: 0.55;
+}
+
+.variant-row-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.variant-attrs-label {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.variant-sku {
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.variant-price {
+  font-weight: 500;
+  font-size: 0.88rem;
+}
+
+.variant-inactive-badge {
+  font-size: 0.75rem;
+  background: #f0ad4e;
+  color: #fff;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.variant-row-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.variant-row-actions .admin-btn {
+  padding: 4px 8px;
+  font-size: 0.82rem;
+  min-width: unset;
+}
+
+/* Inline edit mode */
+.variant-edit-inline {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.variant-edit-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.variant-edit-fields label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.variant-edit-fields input {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.85rem;
+}
+
+.variant-active-label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px !important;
+}
+
+.variant-active-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+/* Attribute rows */
+.variant-attrs-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.variant-attrs-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-secondary, #555);
+}
+
+.variant-attr-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.variant-attr-row select,
+.variant-attr-row input {
+  padding: 5px 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.84rem;
+  flex: 1;
+}
+
+.variant-attr-row select {
+  max-width: 140px;
+}
+
+/* Color picker for color_swatch attributes */
+.variant-color-picker {
+  width: 36px !important;
+  height: 32px;
+  padding: 2px !important;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  cursor: pointer;
+  flex: 0 0 36px !important;
+}
+
+/* Variant image preview */
+.variant-image-preview {
+  position: relative;
+  display: inline-block;
+  margin-top: 6px;
+}
+
+.variant-image-preview img {
+  width: 80px;
+  height: 80px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #ddd;
+}
+
+.variant-image-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  background: #d9534f;
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 0.7rem;
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.variant-attr-remove {
+  background: none;
+  border: none;
+  color: #d9534f;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+
+.variant-attr-add {
+  align-self: flex-start;
+  background: none;
+  border: 1px dashed #aaa;
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: #555;
+  transition: border-color 0.2s;
+}
+
+.variant-attr-add:hover {
+  border-color: var(--primary-color, #333);
+  color: var(--primary-color, #333);
+}
+
+/* Edit row actions */
+.variant-edit-actions {
+  display: flex;
+  gap: 6px;
+}
+
+/* Add-variant form */
+.variant-add-form {
+  border-top: 1px solid var(--border-light, #eee);
+  padding-top: 12px;
+}
+
+/* Header with title + convert button */
+.variant-add-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.variant-convert-btn {
+  font-size: 0.78rem !important;
+  padding: 4px 10px !important;
+}
+
+.variant-add-form .admin-btn {
+  margin-top: 8px;
+}
+
+/* Responsive: stack variant fields on narrow screens */
+@media (max-width: 600px) {
+  .variant-edit-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .variant-row {
+    flex-direction: column;
+  }
+
+  .variant-row-actions {
+    align-self: flex-end;
+  }
+}
+

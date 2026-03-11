@@ -362,6 +362,18 @@
     line-height: 1.2;
 }
 
+/* Variant label in checkout mini cart */
+.mini-item-variant {
+    font-size: 0.75rem;
+    color: var(--gray-500);
+    background: var(--gray-50, #f9fafb);
+    border: 1px solid var(--gray-200, #e5e7eb);
+    border-radius: 3px;
+    padding: 1px 6px;
+    display: inline-block;
+    width: fit-content;
+}
+
 .mini-item-meta {
     font-size: 0.8rem;
     color: var(--gray-500);

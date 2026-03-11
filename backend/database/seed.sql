@@ -23,7 +23,19 @@ ON CONFLICT (email) DO NOTHING;
 
 
 -- ---------------------------------------------------------------------------
--- 2. DEFAULT APP SETTINGS
+-- 2. DEFAULT PRODUCT ATTRIBUTE TYPES (for product variants)
+-- ---------------------------------------------------------------------------
+INSERT INTO product_attribute_types (name, display_type) VALUES
+    ('Color',    'color_swatch'),   -- rendered as circular color buttons
+    ('Talla',    'pill'),           -- rendered as pill/tag buttons (S, M, L, XL)
+    ('Material', 'pill'),           -- pill buttons (Algodón, Poliéster…)
+    ('Capacidad','pill'),           -- pill buttons (64GB, 128GB, 256GB…)
+    ('Estilo',   'pill')            -- pill buttons (Clásico, Moderno…)
+ON CONFLICT (name) DO NOTHING;
+
+
+-- ---------------------------------------------------------------------------
+-- 3. DEFAULT APP SETTINGS
 -- ---------------------------------------------------------------------------
 -- Branding
 INSERT INTO app_settings (id, value) VALUES

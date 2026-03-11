@@ -1,0 +1,142 @@
+/* VariantSelector.css - Estilos del selector de variantes */
+
+.variant-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+}
+
+/* Grupo de atributos (Color, Talla, etc.) */
+.variant-attribute-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.variant-attribute-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-color, #333);
+  text-transform: capitalize;
+}
+
+.variant-options-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* --- Base: option button (pill) --- */
+.variant-option {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.4rem 1rem;
+  border: 2px solid #ddd;
+  border-radius: 20px;
+  background: #fff;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-color, #333);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s, opacity 0.2s;
+  min-width: 40px;
+  text-align: center;
+}
+
+.variant-option:hover:not(:disabled) {
+  border-color: var(--primary-color, #3b82f6);
+}
+
+.variant-option.selected {
+  border-color: var(--primary-color, #3b82f6);
+  background: var(--primary-color, #3b82f6);
+  color: #fff;
+}
+
+.variant-option.unavailable {
+  opacity: 0.35;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+/* --- Color swatch variant --- */
+.variant-color-swatch {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  padding: 0;
+  border-radius: 50%;
+  background-color: var(--swatch-color, #ccc);
+  border: 2px solid #ddd;
+  position: relative;
+}
+
+.variant-color-swatch.selected {
+  border-color: var(--primary-color, #3b82f6);
+  box-shadow: 0 0 0 2px var(--primary-color, #3b82f6);
+  background-color: var(--swatch-color, #ccc);
+  color: transparent;
+}
+
+.variant-color-swatch.unavailable {
+  opacity: 0.3;
+}
+
+/* Checkmark inside selected swatch */
+.variant-color-swatch.selected::after {
+  content: '✓';
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* --- Variant price display --- */
+.variant-price {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--primary-color, #3b82f6);
+}
+
+/* --- Variant stock badge --- */
+.variant-stock {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.variant-out-of-stock {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+/* --- Error: incomplete selection --- */
+.variant-error {
+  font-size: 0.8rem;
+  color: #dc2626;
+  font-style: italic;
+}
+
+/* --- Responsive --- */
+@media (max-width: 640px) {
+  .variant-options-row {
+    gap: 0.4rem;
+  }
+
+  .variant-option {
+    padding: 0.35rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .variant-color-swatch {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+}

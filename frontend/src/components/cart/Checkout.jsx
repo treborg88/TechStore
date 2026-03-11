@@ -15,6 +15,7 @@ import './Checkout.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { formatQuantityWithUnit } from '../../utils/productUnits';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
+import { cartItemKey, formatVariantLabel } from '../../utils/cartHelpers';
 
 function Checkout({ cartItems: propCartItems, total: propTotal, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
     const navigate = useNavigate();
@@ -529,10 +530,11 @@ e.preventDefault();
         // For cash/transfer payments - create order immediately (no payment gateway)
         const isAuthenticated = !!getCurrentUser();
 
-        // Preparar items para el backend
+        // Preparar items para el backend (incluye variant_id si aplica)
         const orderItems = cartItems.map(item => ({
             product_id: item.id,
-            quantity: item.quantity
+            quantity: item.quantity,
+            ...(item.variant_id && { variant_id: item.variant_id })
         }));
 
         let response;
@@ -1049,7 +1051,8 @@ return (
                                                 const isAuthenticated = !!getCurrentUser();
                                                 const orderItems = orderCartItems.map(item => ({
                                                     product_id: item.id,
-                                                    quantity: item.quantity
+                                                    quantity: item.quantity,
+                                                    ...(item.variant_id && { variant_id: item.variant_id })
                                                 }));
                                                 
                                                 // Create order with payment already confirmed
@@ -1182,7 +1185,8 @@ return (
                                                 const isAuthenticated = !!getCurrentUser();
                                                 const orderItems = orderCartItems.map(item => ({
                                                     product_id: item.id,
-                                                    quantity: item.quantity
+                                                    quantity: item.quantity,
+                                                    ...(item.variant_id && { variant_id: item.variant_id })
                                                 }));
                                                 
                                                 // Create order with payment already confirmed
@@ -1387,7 +1391,7 @@ return (
                                 <>
                                 <div className="mini-item-list">
                                     {cartItems.map(item => (
-                                        <div key={item.id} className="mini-item">
+                                        <div key={cartItemKey(item)} className="mini-item">
                                             <div className="mini-item-main">
                                                 <img 
                                                     src={resolveImageUrl(item.image)} 
@@ -1397,6 +1401,9 @@ return (
                                                 />
                                                 <div className="mini-item-info">
                                                     <span className="mini-item-name">{item.name}</span>
+                                                    {item.variant_attributes && (
+                                                        <span className="mini-item-variant">{formatVariantLabel(item.variant_attributes)}</span>
+                                                    )}
                                                     <span className="mini-item-meta">{formatQuantityWithUnit(item.quantity, item.unit_type)} x {formatCurrency(item.price, currencyCode)}</span>
                                                 </div>
                                             </div>

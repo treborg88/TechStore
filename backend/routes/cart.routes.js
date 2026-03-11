@@ -6,6 +6,20 @@ const { statements } = require('../database');
 const { authenticateToken } = require('../middleware/auth');
 
 /**
+ * Helper: resolve effective stock and price for a product/variant pair
+ */
+const resolveStockAndPrice = async (product, variantId) => {
+    if (!variantId) return { stock: product.stock, price: product.price, variant: null };
+    const variant = await statements.getVariantById(variantId);
+    if (!variant || variant.product_id !== product.id || !variant.is_active) return null;
+    return {
+        stock: variant.stock,
+        price: (variant.price_override != null) ? variant.price_override : product.price,
+        variant
+    };
+};
+
+/**
  * GET /api/cart
  * Get current user's cart
  */
@@ -21,11 +35,12 @@ router.get('/', authenticateToken, async (req, res) => {
 
 /**
  * POST /api/cart
- * Add item to cart
+ * Add item to cart (optional variantId for variant products)
  */
 router.post('/', authenticateToken, async (req, res) => {
     const productId = Number.parseInt(req.body?.productId, 10);
     const quantity = Number.parseInt(req.body?.quantity, 10);
+    const variantId = req.body?.variantId ? Number.parseInt(req.body.variantId, 10) : null;
 
     if (!Number.isFinite(productId) || !Number.isFinite(quantity) || quantity <= 0) {
         return res.status(400).json({ message: 'ID de producto o cantidad inválida.' });
@@ -33,34 +48,46 @@ router.post('/', authenticateToken, async (req, res) => {
 
     try {
         const product = await statements.getProductById(productId);
-
         if (!product) {
             return res.status(404).json({ message: 'Producto no encontrado' });
         }
-        if (product.stock <= 0) {
+
+        // Enforce variant selection on variant-enabled products
+        if (product.has_variants && !variantId) {
+            return res.status(400).json({ message: 'Debe seleccionar una variante para este producto.' });
+        }
+
+        // Resolve stock source (variant or product)
+        const resolved = await resolveStockAndPrice(product, variantId);
+        if (!resolved) {
+            return res.status(400).json({ message: 'Variante no válida o inactiva.' });
+        }
+        const { stock } = resolved;
+
+        if (stock <= 0) {
             return res.status(400).json({ message: `Producto "${product.name}" está agotado.` });
         }
 
-        const existingItem = await statements.getCartItem(req.user.id, productId);
+        const existingItem = await statements.getCartItem(req.user.id, productId, variantId);
 
         if (existingItem) {
             const newQuantity = existingItem.quantity + quantity;
-            if (newQuantity > product.stock) {
+            if (newQuantity > stock) {
                 return res.status(400).json({
-                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${product.stock}, en carrito ya tiene: ${existingItem.quantity}`,
-                    availableStock: product.stock,
+                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${stock}, en carrito ya tiene: ${existingItem.quantity}`,
+                    availableStock: stock,
                     currentCartQuantity: existingItem.quantity
                 });
             }
-            await statements.updateCartItem(newQuantity, req.user.id, productId);
+            await statements.updateCartItem(newQuantity, req.user.id, productId, variantId);
         } else {
-            if (quantity > product.stock) {
+            if (quantity > stock) {
                 return res.status(400).json({
-                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${product.stock}`,
-                    availableStock: product.stock
+                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${stock}`,
+                    availableStock: stock
                 });
             }
-            await statements.addToCart(req.user.id, productId, quantity);
+            await statements.addToCart(req.user.id, productId, quantity, variantId);
         }
 
         const cart = await statements.getCartByUserId(req.user.id);
@@ -74,11 +101,12 @@ router.post('/', authenticateToken, async (req, res) => {
 
 /**
  * PUT /api/cart/:productId
- * Update cart item quantity
+ * Update cart item quantity (variantId in body for variant items)
  */
 router.put('/:productId', authenticateToken, async (req, res) => {
     const productId = parseInt(req.params.productId, 10);
     const quantity = Number.parseInt(req.body?.quantity, 10);
+    const variantId = req.body?.variantId ? Number.parseInt(req.body.variantId, 10) : null;
 
     if (!Number.isFinite(productId) || !Number.isFinite(quantity) || quantity < 0) {
         return res.status(400).json({ message: 'Cantidad inválida.' });
@@ -86,19 +114,23 @@ router.put('/:productId', authenticateToken, async (req, res) => {
 
     try {
         if (quantity === 0) {
-            await statements.removeFromCart(req.user.id, productId);
+            await statements.removeFromCart(req.user.id, productId, variantId);
         } else {
             const product = await statements.getProductById(productId);
             if (!product) {
                 return res.status(404).json({ message: 'Producto no encontrado' });
             }
-            if (quantity > product.stock) {
+            const resolved = await resolveStockAndPrice(product, variantId);
+            if (!resolved) {
+                return res.status(400).json({ message: 'Variante no válida o inactiva.' });
+            }
+            if (quantity > resolved.stock) {
                 return res.status(400).json({
-                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${product.stock}`,
-                    availableStock: product.stock
+                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${resolved.stock}`,
+                    availableStock: resolved.stock
                 });
             }
-            await statements.updateCartItem(quantity, req.user.id, productId);
+            await statements.updateCartItem(quantity, req.user.id, productId, variantId);
         }
 
         const cart = await statements.getCartByUserId(req.user.id);
@@ -111,12 +143,13 @@ router.put('/:productId', authenticateToken, async (req, res) => {
 
 /**
  * DELETE /api/cart/:productId
- * Remove item from cart
+ * Remove item from cart (variantId via query param for variant items)
  */
 router.delete('/:productId', authenticateToken, async (req, res) => {
     const productId = parseInt(req.params.productId, 10);
+    const variantId = req.query.variantId ? parseInt(req.query.variantId, 10) : null;
     try {
-        await statements.removeFromCart(req.user.id, productId);
+        await statements.removeFromCart(req.user.id, productId, variantId);
 
         const cart = await statements.getCartByUserId(req.user.id);
         console.log('Item eliminado del carrito del usuario', req.user.id, ':', cart);

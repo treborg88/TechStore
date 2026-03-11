@@ -21,12 +21,16 @@ const normalizeProductUnitType = (value) => {
 };
 
 /**
- * Helper: Rollback reserved stock on error
+ * Helper: Rollback reserved stock on error (supports variant stock)
  */
 const rollbackReservedStock = async (reservedItems) => {
     for (const item of reservedItems) {
         try {
-            await statements.incrementStock(item.product_id, item.quantity);
+            if (item.variant_id) {
+                await statements.incrementVariantStock(item.variant_id, item.quantity);
+            } else {
+                await statements.incrementStock(item.product_id, item.quantity);
+            }
         } catch (rollbackError) {
             console.error('Error rollback stock:', rollbackError);
         }
@@ -34,7 +38,7 @@ const rollbackReservedStock = async (reservedItems) => {
 };
 
 /**
- * Helper: Restore stock when order is cancelled/returned
+ * Helper: Restore stock when order is cancelled/returned (supports variant stock)
  */
 const restoreStockForOrder = async (orderId, oldStatus, newStatus) => {
     const isCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(newStatus);
@@ -44,17 +48,23 @@ const restoreStockForOrder = async (orderId, oldStatus, newStatus) => {
         console.log(`Restoring stock for order ${orderId} (Status: ${oldStatus} -> ${newStatus})`);
         const orderItems = await statements.getOrderItems(orderId);
         for (const item of orderItems) {
-            const product = await statements.getProductById(item.product_id);
-            if (product) {
-                const newStock = product.stock + item.quantity;
-                await statements.updateProduct(
-                    product.name,
-                    product.description,
-                    product.price,
-                    product.category,
-                    newStock,
-                    item.product_id
-                );
+            if (item.variant_id) {
+                // Restore variant stock via RPC
+                await statements.incrementVariantStock(item.variant_id, item.quantity);
+            } else {
+                // Restore product-level stock
+                const product = await statements.getProductById(item.product_id);
+                if (product) {
+                    const newStock = product.stock + item.quantity;
+                    await statements.updateProduct(
+                        product.name,
+                        product.description,
+                        product.price,
+                        product.category,
+                        newStock,
+                        item.product_id
+                    );
+                }
             }
         }
     }
@@ -248,7 +258,7 @@ router.post('/', authenticateToken, async (req, res) => {
     const itemDetails = [];
 
     try {
-        // Calculate total and reserve stock
+        // Calculate total and reserve stock (supports variant items)
         for (const item of items) {
             const product = await statements.getProductById(item.product_id);
             if (!product) {
@@ -256,21 +266,45 @@ router.post('/', authenticateToken, async (req, res) => {
                 return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
             }
 
-            const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
-            if (!reserved) {
-                await rollbackReservedStock(reservedItems);
-                return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
+            let itemPrice = product.price;
+            let variantSnapshot = null;
+
+            if (item.variant_id) {
+                // Variant item: decrement variant stock, resolve variant price
+                const variant = await statements.getVariantById(item.variant_id);
+                if (!variant || variant.product_id !== product.id || !variant.is_active) {
+                    await rollbackReservedStock(reservedItems);
+                    return res.status(400).json({ message: `Variante no válida para ${product.name}` });
+                }
+                if (variant.price_override != null) itemPrice = variant.price_override;
+
+                const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
+                if (!reserved) {
+                    await rollbackReservedStock(reservedItems);
+                    return res.status(400).json({ message: `Stock insuficiente para variante de ${product.name}` });
+                }
+                // Build snapshot of attributes for order history (getVariantById already maps to type/value)
+                variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
+            } else {
+                // Non-variant item: decrement product stock
+                const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+                if (!reserved) {
+                    await rollbackReservedStock(reservedItems);
+                    return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
+                }
             }
 
-            reservedItems.push({ product_id: product.id, quantity: item.quantity });
+            reservedItems.push({ product_id: product.id, variant_id: item.variant_id || null, quantity: item.quantity });
             itemDetails.push({
                 product_id: product.id,
+                variant_id: item.variant_id || null,
+                variant_attributes: variantSnapshot,
                 name: product.name,
                 quantity: item.quantity,
-                price: product.price,
+                price: itemPrice,
                 unit_type: normalizeProductUnitType(product.unit_type)
             });
-            total += product.price * item.quantity;
+            total += itemPrice * item.quantity;
         }
 
         const paymentMethodValue = payment_method || 'cash';
@@ -316,7 +350,7 @@ router.post('/', authenticateToken, async (req, res) => {
         }
 
         for (const item of itemDetails) {
-            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price);
+            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price, item.variant_id, item.variant_attributes);
         }
 
         await statements.clearCart(req.user.id);
@@ -386,6 +420,7 @@ router.post('/guest', async (req, res) => {
     const itemDetails = [];
 
     try {
+        // Calculate total and reserve stock (supports variant items)
         for (const item of items) {
             const product = await statements.getProductById(item.product_id);
             if (!product) {
@@ -393,21 +428,44 @@ router.post('/guest', async (req, res) => {
                 return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
             }
 
-            const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
-            if (!reserved) {
-                await rollbackReservedStock(reservedItems);
-                return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
+            let itemPrice = product.price;
+            let variantSnapshot = null;
+
+            if (item.variant_id) {
+                // Variant item: decrement variant stock, resolve variant price
+                const variant = await statements.getVariantById(item.variant_id);
+                if (!variant || variant.product_id !== product.id || !variant.is_active) {
+                    await rollbackReservedStock(reservedItems);
+                    return res.status(400).json({ message: `Variante no válida para ${product.name}` });
+                }
+                if (variant.price_override != null) itemPrice = variant.price_override;
+
+                const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
+                if (!reserved) {
+                    await rollbackReservedStock(reservedItems);
+                    return res.status(400).json({ message: `Stock insuficiente para variante de ${product.name}` });
+                }
+                // Build snapshot of attributes for order history (getVariantById already maps to type/value)
+                variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
+            } else {
+                const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+                if (!reserved) {
+                    await rollbackReservedStock(reservedItems);
+                    return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
+                }
             }
 
-            reservedItems.push({ product_id: product.id, quantity: item.quantity });
+            reservedItems.push({ product_id: product.id, variant_id: item.variant_id || null, quantity: item.quantity });
             itemDetails.push({
                 product_id: product.id,
+                variant_id: item.variant_id || null,
+                variant_attributes: variantSnapshot,
                 name: product.name,
                 quantity: item.quantity,
-                price: product.price,
+                price: itemPrice,
                 unit_type: normalizeProductUnitType(product.unit_type)
             });
-            total += product.price * item.quantity;
+            total += itemPrice * item.quantity;
         }
 
         const paymentMethodValue = payment_method || 'cash';
@@ -458,7 +516,7 @@ router.post('/guest', async (req, res) => {
         }
 
         for (const item of itemDetails) {
-            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price);
+            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price, item.variant_id, item.variant_attributes);
         }
 
         const order = await statements.getOrderById(orderId);

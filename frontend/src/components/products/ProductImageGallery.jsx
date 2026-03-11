@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import './ProductImageGallery.css';
 
-function ProductImageGallery({ images, productName, className = '', onImageClick }) {
+function ProductImageGallery({ images, productName, className = '', onImageClick, activeVariantImageUrl }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -39,7 +39,15 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
     : [];
 
   // Si no hay imágenes, mostrar imagen por defecto
-  const displayImages = imageList.length > 0 ? imageList : [{ id: 'default', image_path: '/images/placeholder.svg' }];
+  const baseImages = imageList.length > 0 ? imageList : [{ id: 'default', image_path: '/images/placeholder.svg' }];
+
+  // Inject variant image at the start if it's not already in the product gallery
+  const variantAlreadyInGallery = activeVariantImageUrl && baseImages.some(img =>
+    img.image_path === activeVariantImageUrl || resolveImageUrl(img.image_path) === activeVariantImageUrl
+  );
+  const displayImages = (activeVariantImageUrl && !variantAlreadyInGallery)
+    ? [{ id: 'variant-override', image_path: activeVariantImageUrl }, ...baseImages]
+    : baseImages;
 
   // Create infinite carousel by duplicating images
   const infiniteImages = [
@@ -102,6 +110,26 @@ function ProductImageGallery({ images, productName, className = '', onImageClick
       setTimeout(() => setIsWrapping(false), 50);
     }
   }, [isWrapping]);
+
+  // Jump to variant image when a variant with image_url is selected
+  useEffect(() => {
+    if (!activeVariantImageUrl) {
+      // No variant selected — if an injected variant slide exists, skip past it to the first real image
+      if (displayImages[0]?.id === 'variant-override') return;
+      return;
+    }
+    const idx = displayImages.findIndex(img =>
+      img.image_path === activeVariantImageUrl ||
+      resolveImageUrl(img.image_path) === activeVariantImageUrl
+    );
+    if (idx !== -1 && idx !== currentIndex) {
+      setIsTransitioning(true);
+      setZoom(1);
+      setPan({ x: 0, y: 0 });
+      setCurrentIndex(idx);
+      setInternalIndex(idx + 1);
+    }
+  }, [activeVariantImageUrl, displayImages.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleModal = () => {
     if (!isModalOpen) {

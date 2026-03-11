@@ -1,7 +1,7 @@
 // useCart.js - Hook para gestión completa del carrito (guest + autenticado)
 import { useState, useCallback, useEffect } from 'react';
 import { apiFetch, apiUrl, initializeCsrfToken } from '../services/apiClient';
-import { formatBackendCart } from '../utils/cartHelpers';
+import { formatBackendCart, cartItemKey } from '../utils/cartHelpers';
 import { toast } from 'react-hot-toast';
 
 /**
@@ -54,16 +54,19 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
   const syncLocalCart = useCallback(async (localCart) => {
     if (!localCart || localCart.length === 0) return;
     
-    const promises = localCart.map(item => 
-      apiFetch(apiUrl('/cart'), {
+    const promises = localCart.map(item => {
+      const payload = {
+        productId: Number.parseInt(item.id, 10),
+        quantity: Number.parseInt(item.quantity, 10)
+      };
+      // Preserve variant selection during sync
+      if (item.variant_id) payload.variantId = item.variant_id;
+      return apiFetch(apiUrl('/cart'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productId: Number.parseInt(item.id, 10),
-          quantity: Number.parseInt(item.quantity, 10)
-        })
-      })
-    );
+        body: JSON.stringify(payload)
+      });
+    });
 
     try {
       await Promise.all(promises);
@@ -76,8 +79,9 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
   // --- Operaciones CRUD del carrito ---
 
   // Agrega un producto (backend si autenticado, local si guest)
+  // options.variant = { id, price_override, stock, attributes, image_url } para productos con variantes
   const addToCart = async (product, options = {}) => {
-    const { showLoading = false } = options;
+    const { showLoading = false, variant = null } = options;
     if (showLoading) setIsCartLoading(true);
 
     if (user) {
@@ -88,10 +92,13 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
           return false;
         }
 
+        const payload = { productId, quantity: 1 };
+        if (variant?.id) payload.variantId = variant.id;
+
         const response = await apiFetch(apiUrl('/cart'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ productId, quantity: 1 })
+          body: JSON.stringify(payload)
         });
         
         if (response.ok) {
@@ -113,14 +120,19 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
         if (showLoading) setIsCartLoading(false);
       }
     } else {
-      // Modo guest: carrito local
+      // Modo guest: carrito local (usa cartItemKey para soportar variantes)
       try {
-        const exist = cartItems.find(item => item.id === product.id);
+        const variantId = variant?.id || null;
+        const targetKey = cartItemKey({ id: product.id, variant_id: variantId });
+        const exist = cartItems.find(item => cartItemKey(item) === targetKey);
+        // Stock efectivo: variante o producto
+        const effectiveStock = variant ? variant.stock : product.stock;
+
         if (exist) {
-          if (exist.quantity < product.stock) {
+          if (exist.quantity < effectiveStock) {
             toast.success("Cantidad actualizada");
             setCartItems(prev => prev.map(item =>
-              item.id === product.id
+              cartItemKey(item) === targetKey
                 ? { ...item, quantity: item.quantity + 1 }
                 : item
             ));
@@ -131,11 +143,15 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
             return false;
           }
         } else {
-          const image = product.images && product.images.length > 0
-            ? product.images[0].image_path
-            : product.image;
+          const image = variant?.image_url
+            || (product.images && product.images.length > 0 ? product.images[0].image_path : product.image);
+          const price = (variant?.price_override != null) ? variant.price_override : product.price;
           toast.success("Producto agregado al carrito");
-          setCartItems(prev => [...prev, { ...product, image, quantity: 1 }]);
+          setCartItems(prev => [...prev, {
+            ...product, image, quantity: 1, price, stock: effectiveStock,
+            variant_id: variantId,
+            variant_attributes: variant?.attributes || null
+          }]);
           updateProductStock(product.id, -1);
           return true;
         }
@@ -150,10 +166,12 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
     if (user) {
       if (product.quantity > 1) {
         try {
+          const payload = { quantity: product.quantity - 1 };
+          if (product.variant_id) payload.variantId = product.variant_id;
           const response = await apiFetch(apiUrl(`/cart/${product.id}`), {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantity: product.quantity - 1 })
+            body: JSON.stringify(payload)
           });
           if (response.ok) {
             const data = await response.json();
@@ -164,13 +182,14 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
         } catch (e) { console.error(e); }
       }
     } else {
+      const key = cartItemKey(product);
       if (product.quantity > 1) {
         toast.success("Cantidad actualizada");
         updateProductStock(product.id, 1);
       }
       setCartItems(prev =>
         prev.map(item =>
-          item.id === product.id && item.quantity > 1
+          cartItemKey(item) === key && item.quantity > 1
             ? { ...item, quantity: item.quantity - 1 }
             : item
         )
@@ -189,10 +208,12 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
 
     if (user) {
       try {
+        const payload = { quantity: parsedQuantity };
+        if (product.variant_id) payload.variantId = product.variant_id;
         const response = await apiFetch(apiUrl(`/cart/${product.id}`), {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quantity: parsedQuantity })
+          body: JSON.stringify(payload)
         });
 
         if (response.ok) {
@@ -214,7 +235,8 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
     }
 
     // Modo guest: ajustar stock por diferencia entre cantidad actual y nueva
-    const currentItem = cartItems.find((item) => item.id === product.id);
+    const key = cartItemKey(product);
+    const currentItem = cartItems.find((item) => cartItemKey(item) === key);
     if (!currentItem) return false;
 
     const stockLimit = Number.isFinite(Number(currentItem.stock)) && Number(currentItem.stock) > 0
@@ -236,7 +258,7 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
     }
 
     setCartItems((prev) => prev.map((item) => (
-      item.id === product.id ? { ...item, quantity: safeQuantity } : item
+      cartItemKey(item) === key ? { ...item, quantity: safeQuantity } : item
     )));
 
     toast.success('Cantidad actualizada');
@@ -247,7 +269,9 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
   const clearFromCart = async (product) => {
     if (user) {
       try {
-        const response = await apiFetch(apiUrl(`/cart/${product.id}`), {
+        // Pass variant_id as query param for variant items
+        const variantQuery = product.variant_id ? `?variantId=${product.variant_id}` : '';
+        const response = await apiFetch(apiUrl(`/cart/${product.id}${variantQuery}`), {
           method: 'DELETE',
         });
         if (response.ok) {
@@ -257,8 +281,9 @@ export function useCart({ user, updateProductStock, syncProductsFromCartData }) 
         }
       } catch (e) { console.error(e); }
     } else {
+      const key = cartItemKey(product);
       updateProductStock(product.id, product.quantity);
-      setCartItems(prev => prev.filter(item => item.id !== product.id));
+      setCartItems(prev => prev.filter(item => cartItemKey(item) !== key));
     }
   };
 

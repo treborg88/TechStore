@@ -221,9 +221,9 @@ const statements = {
     if (error) console.error('Error getProductsByCategory:', error);
     return data || [];
   },
-  createProduct: async (name, description, price, category, stock, unitType = 'unidad') => {
+  createProduct: async (name, description, price, category, stock, unitType = 'unidad', isHidden = false) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const payload = { name, description, price, category, stock };
+    const payload = { name, description, price, category, stock, is_hidden: !!isHidden };
     if (supportsUnitType) {
       payload.unit_type = normalizeProductUnitType(unitType);
     }
@@ -235,9 +235,9 @@ const statements = {
     if (error) throw error;
     return { lastInsertRowid: data.id };
   },
-  updateProduct: async (name, description, price, category, stock, id, unitType) => {
+  updateProduct: async (name, description, price, category, stock, id, unitType, isHidden) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const payload = { name, description, price, category, stock, updated_at: new Date().toISOString() };
+    const payload = { name, description, price, category, stock, is_hidden: !!isHidden, updated_at: new Date().toISOString() };
     if (supportsUnitType && unitType !== undefined) {
       payload.unit_type = normalizeProductUnitType(unitType);
     }
@@ -350,19 +350,212 @@ const statements = {
     return true;
   },
 
+  // ── Product Variants ─────────────────────────────────────
+  // Get all variants for a product — includes attributes array
+  getVariantsByProduct: async (product_id) => {
+    const { data: variants, error } = await supabase
+      .from('product_variants')
+      .select('*')
+      .eq('product_id', product_id)
+      .order('created_at', { ascending: true });
+    if (error) { console.error('Error getVariantsByProduct:', error); return []; }
+    if (!variants || variants.length === 0) return [];
+
+    // Fetch attributes for all variants in one query
+    const variantIds = variants.map(v => v.id);
+    const { data: attrs, error: attrsError } = await supabase
+      .from('product_variant_attributes')
+      .select('*')
+      .in('variant_id', variantIds);
+    if (attrsError) console.error('Error fetching variant attrs:', attrsError);
+
+    // Group attributes by variant_id
+    const attrsMap = (attrs || []).reduce((acc, a) => {
+      if (!acc[a.variant_id]) acc[a.variant_id] = [];
+      acc[a.variant_id].push({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null });
+      return acc;
+    }, {});
+
+    return variants.map(v => ({
+      ...v,
+      price_override: v.price,
+      attributes: attrsMap[v.id] || []
+    }));
+  },
+
+  // Get a single variant by ID — includes attributes
+  getVariantById: async (variant_id) => {
+    const { data: variant, error } = await supabase
+      .from('product_variants')
+      .select('*')
+      .eq('id', variant_id)
+      .single();
+    if (error) { if (error.code !== 'PGRST116') console.error('Error getVariantById:', error); return null; }
+
+    const { data: attrs } = await supabase
+      .from('product_variant_attributes')
+      .select('*')
+      .eq('variant_id', variant_id);
+
+    return {
+      ...variant,
+      price_override: variant.price,
+      attributes: (attrs || []).map(a => ({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null }))
+    };
+  },
+
+  // Create a new variant with its attributes (transactional-style)
+  createVariant: async (product_id, { sku, price, stock, image_url, is_active = true, attributes = [] }) => {
+    // Insert variant row
+    const { data: variant, error } = await supabase
+      .from('product_variants')
+      .insert([{ product_id, sku: sku || null, price: price ?? null, stock: stock || 0, image_url: image_url || null, is_active }])
+      .select()
+      .single();
+    if (error) throw error;
+
+    // Insert attributes (if any)
+    if (attributes.length > 0) {
+      const attrRows = attributes.map(a => ({
+        variant_id: variant.id,
+        attribute_type: a.type,
+        attribute_value: a.value,
+        color_hex: a.color_hex || null
+      }));
+      const { error: attrError } = await supabase
+        .from('product_variant_attributes')
+        .insert(attrRows);
+      if (attrError) throw attrError;
+    }
+
+    // Mark parent product as has_variants = true
+    await supabase
+      .from('products')
+      .update({ has_variants: true, updated_at: new Date().toISOString() })
+      .eq('id', product_id);
+
+    return { ...variant, attributes };
+  },
+
+  // Update an existing variant
+  updateVariant: async (variant_id, { sku, price, stock, image_url, is_active, attributes }) => {
+    // Update variant fields
+    const payload = { updated_at: new Date().toISOString() };
+    if (sku !== undefined)      payload.sku = sku;
+    if (price !== undefined)    payload.price = price;
+    if (stock !== undefined)    payload.stock = stock;
+    if (image_url !== undefined) payload.image_url = image_url;
+    if (is_active !== undefined) payload.is_active = is_active;
+
+    const { data: variant, error } = await supabase
+      .from('product_variants')
+      .update(payload)
+      .eq('id', variant_id)
+      .select()
+      .single();
+    if (error) throw error;
+
+    // Replace attributes if provided
+    if (attributes && Array.isArray(attributes)) {
+      // Delete old attrs
+      await supabase
+        .from('product_variant_attributes')
+        .delete()
+        .eq('variant_id', variant_id);
+      // Insert new attrs
+      if (attributes.length > 0) {
+        const attrRows = attributes.map(a => ({
+          variant_id,
+          attribute_type: a.type,
+          attribute_value: a.value,
+          color_hex: a.color_hex || null
+        }));
+        const { error: attrError } = await supabase
+          .from('product_variant_attributes')
+          .insert(attrRows);
+        if (attrError) throw attrError;
+      }
+    }
+
+    return { ...variant, attributes: attributes || [] };
+  },
+
+  // Delete a variant — cascade deletes its attributes
+  deleteVariant: async (variant_id) => {
+    // Get product_id before deleting
+    const { data: variant } = await supabase
+      .from('product_variants')
+      .select('product_id')
+      .eq('id', variant_id)
+      .single();
+
+    const { error } = await supabase
+      .from('product_variants')
+      .delete()
+      .eq('id', variant_id);
+    if (error) throw error;
+
+    // Check if parent still has variants → update has_variants flag
+    if (variant?.product_id) {
+      const { data: remaining } = await supabase
+        .from('product_variants')
+        .select('id')
+        .eq('product_id', variant.product_id)
+        .limit(1);
+      if (!remaining || remaining.length === 0) {
+        await supabase
+          .from('products')
+          .update({ has_variants: false, updated_at: new Date().toISOString() })
+          .eq('id', variant.product_id);
+      }
+    }
+    return true;
+  },
+
+  // Get all available attribute types (global catalog)
+  getAttributeTypes: async () => {
+    const { data, error } = await supabase
+      .from('product_attribute_types')
+      .select('*')
+      .order('name', { ascending: true });
+    if (error) { console.error('Error getAttributeTypes:', error); return []; }
+    return data || [];
+  },
+
+  // ── Variant Stock (atomic via RPC) ───────────────────────
+  decrementVariantStock: async (variant_id, quantity) => {
+    const { data, error } = await supabase.rpc('decrement_variant_stock', {
+      p_variant_id: variant_id,
+      p_quantity: quantity
+    });
+    if (error) throw error;
+    return !!data;
+  },
+  incrementVariantStock: async (variant_id, quantity) => {
+    const { data, error } = await supabase.rpc('increment_variant_stock', {
+      p_variant_id: variant_id,
+      p_quantity: quantity
+    });
+    if (error) throw error;
+    return !!data;
+  },
+
   // ── Cart ─────────────────────────────────────────────────
   getCartByUserId: async (user_id) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
     const productFields = supportsUnitType
-      ? 'name, price, stock, unit_type, image, product_images (image_path)'
-      : 'name, price, stock, image, product_images (image_path)';
+      ? 'name, price, stock, unit_type, image, has_variants, product_images (image_path)'
+      : 'name, price, stock, image, has_variants, product_images (image_path)';
 
     const { data, error } = await supabase
       .from('cart')
       .select(`
-        id, product_id, quantity,
+        id, product_id, variant_id, quantity,
         products (
           ${productFields}
+        ),
+        product_variants (
+          sku, price, stock, image_url, is_active
         )
       `)
       .eq('user_id', user_id)
@@ -373,47 +566,80 @@ const statements = {
       return [];
     }
 
+    // Fetch variant attributes for cart items that have a variant
+    const variantIds = data.filter(i => i.variant_id).map(i => i.variant_id);
+    let variantAttrs = {};
+    if (variantIds.length > 0) {
+      const { data: attrs } = await supabase
+        .from('product_variant_attributes')
+        .select('variant_id, attribute_type, attribute_value')
+        .in('variant_id', variantIds);
+      if (attrs) {
+        for (const a of attrs) {
+          if (!variantAttrs[a.variant_id]) variantAttrs[a.variant_id] = [];
+          variantAttrs[a.variant_id].push({ type: a.attribute_type, value: a.attribute_value });
+        }
+      }
+    }
+
     return data.map(item => {
       const product = item.products;
-      // Prefer first gallery image over legacy product.image
-      let image = (product.product_images && product.product_images.length > 0)
-        ? product.product_images[0].image_path
-        : product.image;
+      const variant = item.product_variants;
+      // Prefer variant image > gallery image > legacy product.image
+      let image = variant?.image_url
+        || (product.product_images && product.product_images.length > 0
+            ? product.product_images[0].image_path
+            : product.image);
+
+      // Price: variant override > product price
+      const price = (variant?.price != null) ? variant.price : product.price;
+      // Stock: variant stock when applicable
+      const stock = variant ? variant.stock : product.stock;
 
       return {
         id: item.id,
         product_id: item.product_id,
+        variant_id: item.variant_id || null,
         quantity: item.quantity,
         name: product.name,
-        price: product.price,
-        stock: product.stock,
+        price,
+        stock,
         unit_type: normalizeProductUnitType(product.unit_type),
-        image: image
+        image,
+        variant_attributes: variantAttrs[item.variant_id] || null
       };
     });
   },
-  addToCart: async (user_id, product_id, quantity) => {
+  // variant_id is optional — null for non-variant products
+  addToCart: async (user_id, product_id, quantity, variant_id = null) => {
+    const row = { user_id, product_id, quantity, updated_at: new Date().toISOString() };
+    if (variant_id) row.variant_id = variant_id;
     const { data, error } = await supabase
       .from('cart')
-      .upsert({ user_id, product_id, quantity, updated_at: new Date().toISOString() }, { onConflict: 'user_id, product_id' });
+      .insert(row);
     if (error) throw error;
     return data;
   },
-  updateCartItem: async (quantity, user_id, product_id) => {
-    const { data, error } = await supabase
+  updateCartItem: async (quantity, user_id, product_id, variant_id = null) => {
+    let query = supabase
       .from('cart')
       .update({ quantity, updated_at: new Date().toISOString() })
       .eq('user_id', user_id)
       .eq('product_id', product_id);
+    // Filter by variant: explicit null vs. actual value
+    query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    const { data, error } = await query;
     if (error) throw error;
     return data;
   },
-  removeFromCart: async (user_id, product_id) => {
-    const { error } = await supabase
+  removeFromCart: async (user_id, product_id, variant_id = null) => {
+    let query = supabase
       .from('cart')
       .delete()
       .eq('user_id', user_id)
       .eq('product_id', product_id);
+    query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    const { error } = await query;
     if (error) throw error;
     return true;
   },
@@ -425,13 +651,14 @@ const statements = {
     if (error) throw error;
     return true;
   },
-  getCartItem: async (user_id, product_id) => {
-    const { data, error } = await supabase
+  getCartItem: async (user_id, product_id, variant_id = null) => {
+    let query = supabase
       .from('cart')
       .select('*')
       .eq('user_id', user_id)
-      .eq('product_id', product_id)
-      .single();
+      .eq('product_id', product_id);
+    query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    const { data, error } = await query.single();
     if (error && error.code !== 'PGRST116') console.error('Error getCartItem:', error);
     return data;
   },
@@ -633,10 +860,14 @@ const statements = {
   },
 
   // ── Order Items ──────────────────────────────────────────
-  addOrderItem: async (order_id, product_id, quantity, price) => {
+  // variant_id and variant_attributes are optional (null for non-variant items)
+  addOrderItem: async (order_id, product_id, quantity, price, variant_id = null, variant_attributes = null) => {
+    const row = { order_id, product_id, quantity, price };
+    if (variant_id) row.variant_id = variant_id;
+    if (variant_attributes) row.variant_attributes = variant_attributes;
     const { data, error } = await supabase
       .from('order_items')
-      .insert([{ order_id, product_id, quantity, price }]);
+      .insert([row]);
     if (error) throw error;
     return data;
   },
@@ -665,7 +896,10 @@ const statements = {
         ...item,
         name: item.products?.name || 'Producto eliminado',
         unit_type: normalizeProductUnitType(item.products?.unit_type),
-        image: itemImage || null
+        image: itemImage || null,
+        // Include variant snapshot for display
+        variant_id: item.variant_id || null,
+        variant_attributes: item.variant_attributes || null
       };
     });
   },

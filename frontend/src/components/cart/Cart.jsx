@@ -6,6 +6,7 @@ import LoadingSpinner from '../common/LoadingSpinner';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import { getUnitShortLabel } from '../../utils/productUnits';
+import { cartItemKey, formatVariantLabel } from '../../utils/cartHelpers';
 
 function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, onClear, onClose, onClearAll, currencyCode }) {
     const navigate = useNavigate();
@@ -16,7 +17,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
     useEffect(() => {
         const nextInputs = {};
         cartItems.forEach((item) => {
-            nextInputs[item.id] = String(item.quantity);
+            nextInputs[cartItemKey(item)] = String(item.quantity);
         });
         setQuantityInputs(nextInputs);
     }, [cartItems]);
@@ -30,10 +31,13 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
         navigate('/checkout');
     };
 
-    // Función para aumentar cantidad
+    // Incrementar cantidad (pasa info de variante si aplica)
     const handleIncreaseQuantity = (item) => {
         if (onAdd) {
-            onAdd({ ...item, id: item.id }, 1);
+            const variant = item.variant_id
+                ? { id: item.variant_id, stock: item.stock, attributes: item.variant_attributes }
+                : undefined;
+            onAdd(item, { variant });
         }
     };
 
@@ -53,11 +57,12 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
 
     // Confirmar cantidad al salir del campo o presionar Enter
     const handleQuantityCommit = (item) => {
-        const rawValue = quantityInputs[item.id];
+        const key = cartItemKey(item);
+        const rawValue = quantityInputs[key];
         const parsed = Number.parseInt(rawValue, 10);
 
         if (!Number.isFinite(parsed) || parsed < 1) {
-            setQuantityInputs(prev => ({ ...prev, [item.id]: String(item.quantity) }));
+            setQuantityInputs(prev => ({ ...prev, [key]: String(item.quantity) }));
             return;
         }
 
@@ -70,7 +75,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
             toast.error(`Solo hay ${stockLimit} unidad(es) disponibles.`);
         }
 
-        setQuantityInputs(prev => ({ ...prev, [item.id]: String(safeQuantity) }));
+        setQuantityInputs(prev => ({ ...prev, [key]: String(safeQuantity) }));
 
         if (safeQuantity !== item.quantity && onSetQuantity) {
             onSetQuantity(item, safeQuantity);
@@ -158,7 +163,7 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
                                     const isAtStockLimit = stockLimit !== null && item.quantity >= stockLimit;
 
                                     return (
-                                        <li key={`cart-${item.id}`} className="cart-item">
+                                        <li key={`cart-${cartItemKey(item)}`} className="cart-item">
                                             <div className="cart-item-image-container">
                                                 <button
                                                     type="button"
@@ -185,6 +190,12 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
                                                     >
                                                         {item.name}
                                                     </button>
+                                                    {/* Etiqueta de variante (e.g. "Rojo / M") */}
+                                                    {item.variant_attributes && (
+                                                        <span className="cart-item-variant-label">
+                                                            {formatVariantLabel(item.variant_attributes)}
+                                                        </span>
+                                                    )}
                                                     <button 
                                                         className="remove-item-btn" 
                                                         onClick={() => handleRemoveItem(item)}
@@ -213,8 +224,8 @@ function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, on
                                                                 pattern="[0-9]*"
                                                                 className="qty-input"
                                                                 aria-label={`Cantidad de ${item.name}`}
-                                                                value={quantityInputs[item.id] ?? String(item.quantity)}
-                                                                onChange={(e) => handleQuantityInputChange(item.id, e.target.value)}
+                                                            value={quantityInputs[cartItemKey(item)] ?? String(item.quantity)}
+                                                            onChange={(e) => handleQuantityInputChange(cartItemKey(item), e.target.value)}
                                                                 onBlur={() => handleQuantityCommit(item)}
                                                                 onKeyDown={(e) => {
                                                                     if (e.key === 'Enter') {

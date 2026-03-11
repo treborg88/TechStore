@@ -5,6 +5,7 @@ import './Invoice.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { STATUS_CONFIG, PAYMENT_METHODS, getResolvedPaymentMethods, buildInvoiceData, getPaymentStatusLabel } from '../../utils/invoiceUtils';
 import { apiFetch, apiUrl } from '../../services/apiClient';
+import { formatVariantLabel } from '../../utils/cartHelpers';
 import InvoicePDF from './InvoicePDF';
 
 // PaymentInstructions accepts a resolved methods map
@@ -302,7 +303,12 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <tbody>
                                                         {items.map((item, index) => (
                                                                 <tr key={item.id}>
-                                    <td>{item.name}</td>
+                                    <td>
+                                        {item.name}
+                                        {item.variant_attributes && (
+                                            <span style={{display:'block',fontSize:'0.8em',color:'#6b7280'}}>{formatVariantLabel(item.variant_attributes)}</span>
+                                        )}
+                                    </td>
                                                                         <td>{invoiceData.items[index]?.quantityLabel || `${item.quantity} un.`}</td>
                                   <td>{formatCurrency(item.price, invoiceData.currency)}</td>
                                     <td></td>
@@ -422,7 +428,12 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                         <tbody>
                             {items.map((item, index) => (
                                 <tr key={item.id}>
-                                    <td>{item.name}</td>
+                                    <td>
+                                        {item.name}
+                                        {item.variant_attributes && (
+                                            <span style={{display:'block',fontSize:'0.8em',color:'#6b7280'}}>{formatVariantLabel(item.variant_attributes)}</span>
+                                        )}
+                                    </td>
                                     <td>{invoiceData.items[index]?.quantityLabel || `${item.quantity} un.`}</td>
                                 <td>{formatCurrency(item.price, invoiceData.currency)}</td>
                                 <td>{formatCurrency(item.price * item.quantity, invoiceData.currency)}</td>

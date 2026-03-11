@@ -1746,6 +1746,18 @@ ul {
   color: var(--gray-800);
 }
 
+/* Variant attributes label in cart items (e.g. "Rojo / M") */
+.cart-item-variant-label {
+  display: inline-block;
+  font-size: 0.8rem;
+  color: var(--gray-500);
+  background: var(--gray-50, #f9fafb);
+  border: 1px solid var(--gray-200, #e5e7eb);
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin-top: 2px;
+}
+
 .remove-item-btn {
   background: none;
   border: none;

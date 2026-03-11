@@ -5,7 +5,7 @@ const router = express.Router();
 
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { productImagesUpload } = require('../middleware/upload');
+const { productImagesUpload, singleImageUpload } = require('../middleware/upload');
 
 const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
 
@@ -13,6 +13,21 @@ const normalizeProductUnitType = (value) => {
     const normalized = String(value || '').trim().toLowerCase();
     return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
 };
+
+/**
+ * GET /api/products/attribute-types
+ * List available attribute types (public — used by variant selector UI)
+ * MUST be defined before /:id to avoid Express param collision
+ */
+router.get('/attribute-types', async (_req, res) => {
+    try {
+        const types = await statements.getAttributeTypes();
+        res.json(types);
+    } catch (error) {
+        console.error('Error obteniendo tipos de atributo:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
 
 /**
  * GET /api/products
@@ -80,12 +95,22 @@ router.get('/:id', async (req, res) => {
                 await statements.addProductImage(productId, product.image);
                 images = await statements.getProductImages(productId);
             }
+
+            // Include variants + attribute types if product uses variant-level stock/pricing
+            let variants = [];
+            let attributeTypes = [];
+            if (product.has_variants) {
+                variants = await statements.getVariantsByProduct(productId);
+                attributeTypes = await statements.getAttributeTypes();
+            }
             
             res.json({ 
                 ...product, 
                 unit_type: normalizeProductUnitType(product.unit_type),
                 images,
-                image: images.length > 0 ? images[0].image_path : product.image
+                image: images.length > 0 ? images[0].image_path : product.image,
+                variants,
+                attributeTypes
             });
         } else {
             res.status(404).json({ message: 'Producto no encontrado' });
@@ -102,7 +127,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (req, res) => {
     try {
-        const { name, description, price, category, stock, unitType } = req.body;
+        const { name, description, price, category, stock, unitType, isHidden } = req.body;
 
         if (!name || !price || !category || stock === undefined) {
             return res.status(400).json({ message: 'Faltan campos requeridos (nombre, precio, categoría, stock).' });
@@ -117,7 +142,8 @@ router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (re
             parseFloat(price),
             category,
             parseInt(stock, 10),
-            normalizeProductUnitType(unitType)
+            normalizeProductUnitType(unitType),
+            isHidden === 'true' || isHidden === true
         );
 
         const productId = result.lastInsertRowid;
@@ -176,7 +202,8 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
             productId,
             updatedData.unitType !== undefined
                 ? normalizeProductUnitType(updatedData.unitType)
-                : existingProduct.unit_type
+                : existingProduct.unit_type,
+            updatedData.isHidden !== undefined ? updatedData.isHidden : existingProduct.is_hidden
         );
 
         const updatedProduct = await statements.getProductById(productId);
@@ -267,6 +294,142 @@ router.delete('/:id/images/:imageId', authenticateToken, requireAdmin, async (re
         res.json({ message: 'Imagen eliminada exitosamente', images });
     } catch (error) {
         console.error('Error eliminando imagen:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+
+// ── Product Variants ───────────────────────────────────────────────────────
+
+/**
+ * POST /api/products/:id/variants/upload-image
+ * Upload a single image for a variant (admin only)
+ * Returns { image_url } with the public URL of the uploaded image
+ */
+router.post('/:id/variants/upload-image', authenticateToken, requireAdmin, singleImageUpload, async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: 'No se recibió ningún archivo de imagen.' });
+        }
+        const publicUrl = await statements.uploadImage(req.file);
+        res.json({ image_url: publicUrl });
+    } catch (error) {
+        console.error('Error subiendo imagen de variante:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * GET /api/products/:id/variants
+ * List all variants for a product (public)
+ */
+router.get('/:id/variants', async (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    try {
+        const product = await statements.getProductById(productId);
+        if (!product) return res.status(404).json({ message: 'Producto no encontrado' });
+
+        const variants = await statements.getVariantsByProduct(productId);
+        // Also return available attribute types for the selector UI
+        const attributeTypes = await statements.getAttributeTypes();
+        res.json({ variants, attributeTypes });
+    } catch (error) {
+        console.error('Error obteniendo variantes:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/products/:id/variants
+ * Create a new variant for a product (admin only)
+ * Body: { sku?, price?, stock, image_url?, attributes: [{ type, value }] }
+ */
+router.post('/:id/variants', authenticateToken, requireAdmin, async (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    try {
+        const product = await statements.getProductById(productId);
+        if (!product) return res.status(404).json({ message: 'Producto no encontrado' });
+
+        const { sku, price, stock, image_url, attributes } = req.body;
+
+        // Validate: at least one attribute required
+        if (!attributes || !Array.isArray(attributes) || attributes.length === 0) {
+            return res.status(400).json({ message: 'Se requiere al menos un atributo (ej. Color, Talla).' });
+        }
+
+        // Validate each attribute has type and value
+        for (const attr of attributes) {
+            if (!attr.type || !attr.value) {
+                return res.status(400).json({ message: 'Cada atributo requiere type y value.' });
+            }
+        }
+
+        const variant = await statements.createVariant(productId, {
+            sku,
+            price: price !== undefined ? parseFloat(price) : null,
+            stock: parseInt(stock, 10) || 0,
+            image_url,
+            attributes
+        });
+
+        res.status(201).json(variant);
+    } catch (error) {
+        console.error('Error creando variante:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * PUT /api/products/:id/variants/:variantId
+ * Update an existing variant (admin only)
+ * Body: { sku?, price?, stock?, image_url?, is_active?, attributes?: [{ type, value }] }
+ */
+router.put('/:id/variants/:variantId', authenticateToken, requireAdmin, async (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    const variantId = parseInt(req.params.variantId, 10);
+    try {
+        // Verify variant belongs to the product (Number() coercion — DB may return string IDs)
+        const variant = await statements.getVariantById(variantId);
+        if (!variant || Number(variant.product_id) !== productId) {
+            return res.status(404).json({ message: 'Variante no encontrada para este producto' });
+        }
+
+        const { sku, price, stock, image_url, is_active, attributes } = req.body;
+
+        const updated = await statements.updateVariant(variantId, {
+            sku,
+            price: price !== undefined ? parseFloat(price) : undefined,
+            stock: stock !== undefined ? parseInt(stock, 10) : undefined,
+            image_url,
+            is_active,
+            attributes
+        });
+
+        res.json(updated);
+    } catch (error) {
+        console.error('Error actualizando variante:', error);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * DELETE /api/products/:id/variants/:variantId
+ * Delete a variant (admin only) — cascade deletes attributes
+ */
+router.delete('/:id/variants/:variantId', authenticateToken, requireAdmin, async (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+    const variantId = parseInt(req.params.variantId, 10);
+    try {
+        // Verify variant belongs to the product (Number() coercion — DB may return string IDs)
+        const variant = await statements.getVariantById(variantId);
+        if (!variant || Number(variant.product_id) !== productId) {
+            return res.status(404).json({ message: 'Variante no encontrada para este producto' });
+        }
+
+        await statements.deleteVariant(variantId);
+        res.json({ message: 'Variante eliminada exitosamente' });
+    } catch (error) {
+        console.error('Error eliminando variante:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });

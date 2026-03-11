@@ -3,6 +3,7 @@ import { pdf } from '@react-pdf/renderer';
 import React from 'react';
 import { InvoicePDF } from '../components/common/InvoicePDF';
 import { formatQuantityWithUnit, getUnitShortLabel } from './productUnits';
+import { formatVariantLabel } from './cartHelpers';
 
 export const STATUS_CONFIG = {
     pending_payment: { label: 'Pendiente de Pago', icon: '⏳', color: '#f59e0b' },
@@ -136,6 +137,9 @@ export const buildInvoiceData = ({
   const normalizedItems = (items || []).map(item => {
     // Get the item name (support different field names)
     const itemName = item.name || item.product_name || 'Producto';
+    // Append variant attributes if present (e.g. "Camiseta - Rojo / M")
+    const variantLabel = formatVariantLabel(item.variant_attributes);
+    const description = variantLabel ? `${itemName} - ${variantLabel}` : itemName;
     // Get the item price (support different field names)
     const itemPrice = Number(item.price) || Number(item.unit_price) || 0;
     // Get quantity
@@ -143,7 +147,7 @@ export const buildInvoiceData = ({
         const itemUnitType = item.unit_type || item.unitType;
     
     return {
-      description: itemName,
+      description,
       quantity: itemQuantity,
             quantityLabel: formatQuantityWithUnit(itemQuantity, itemUnitType),
             unitShortLabel: getUnitShortLabel(itemUnitType),

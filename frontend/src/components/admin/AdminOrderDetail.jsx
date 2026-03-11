@@ -3,6 +3,7 @@ import { pdf } from '@react-pdf/renderer';
 import InvoicePDF from '../common/InvoicePDF';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { PAYMENT_METHODS, buildInvoiceData } from '../../utils/invoiceUtils';
+import { formatVariantLabel } from '../../utils/cartHelpers';
 import './AdminOrderDetail.css';
 
 const ONLINE_ORDER_STEPS = [
@@ -186,17 +187,23 @@ export default function AdminOrderDetail({
                         <div className="order-section">
                             <h3 className="card-section-header">📦 Productos ({items.length})</h3>
                             <div className="admin-items-list">
-                                {items.map((item, idx) => (
-                                    <div className="admin-item-row" key={item.id || idx}>
-                                        <div className="admin-item-info">
-                                            <span className="admin-item-name">{item.name}</span>
-                                            <span className="admin-item-qty">× {item.quantity}</span>
+                                {items.map((item, idx) => {
+                                    const variantLabel = formatVariantLabel(item.variant_attributes);
+                                    return (
+                                        <div className="admin-item-row" key={item.id || idx}>
+                                            <div className="admin-item-info">
+                                                <span className="admin-item-name">
+                                                    {item.name}
+                                                    {variantLabel && <span className="admin-item-variant"> — {variantLabel}</span>}
+                                                </span>
+                                                <span className="admin-item-qty">× {item.quantity}</span>
+                                            </div>
+                                            <span className="admin-item-price">
+                                                {formatCurrency(item.price * item.quantity, currencyCode)}
+                                            </span>
                                         </div>
-                                        <span className="admin-item-price">
-                                            {formatCurrency(item.price * item.quantity, currencyCode)}
-                                        </span>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             {/* Totals */}
                             <div className="admin-totals">

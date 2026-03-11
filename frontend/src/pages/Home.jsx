@@ -312,11 +312,12 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     productsScrollRef.current.scrollLeft = scrollLeftProducts.current - walk;
   };
 
-  // Filter products based on search query
+  // Filter products: exclude hidden, then apply search query
   const filteredProducts = useMemo(() => {
-    if (!searchQuery.trim()) return products;
+    const visible = products.filter(p => !p.is_hidden);
+    if (!searchQuery.trim()) return visible;
     const query = searchQuery.toLowerCase().trim();
-    return products.filter(product => 
+    return visible.filter(product => 
       product.name?.toLowerCase().includes(query) ||
       product.description?.toLowerCase().includes(query) ||
       product.category?.toLowerCase().includes(query)

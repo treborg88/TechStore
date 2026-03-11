@@ -234,32 +234,32 @@ const statements = {
     );
     return rows;
   },
-  createProduct: async (name, description, price, category, stock, unitType = 'unidad') => {
+  createProduct: async (name, description, price, category, stock, unitType = 'unidad', isHidden = false) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
     let query, params;
     if (supportsUnitType) {
-      query = `INSERT INTO products (name, description, price, category, stock, unit_type)
-               VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-      params = [name, description, price, category, stock, normalizeProductUnitType(unitType)];
+      query = `INSERT INTO products (name, description, price, category, stock, unit_type, is_hidden)
+               VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
+      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), !!isHidden];
     } else {
-      query = `INSERT INTO products (name, description, price, category, stock)
-               VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-      params = [name, description, price, category, stock];
+      query = `INSERT INTO products (name, description, price, category, stock, is_hidden)
+               VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
+      params = [name, description, price, category, stock, !!isHidden];
     }
     const { rows } = await pool.query(query, params);
     return { lastInsertRowid: rows[0].id };
   },
-  updateProduct: async (name, description, price, category, stock, id, unitType) => {
+  updateProduct: async (name, description, price, category, stock, id, unitType, isHidden) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
     let query, params;
     if (supportsUnitType && unitType !== undefined) {
       query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-               stock=$5, unit_type=$6, updated_at=NOW() WHERE id=$7 RETURNING *`;
-      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), id];
+               stock=$5, unit_type=$6, is_hidden=$7, updated_at=NOW() WHERE id=$8 RETURNING *`;
+      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), !!isHidden, id];
     } else {
       query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-               stock=$5, updated_at=NOW() WHERE id=$6 RETURNING *`;
-      params = [name, description, price, category, stock, id];
+               stock=$5, is_hidden=$6, updated_at=NOW() WHERE id=$7 RETURNING *`;
+      params = [name, description, price, category, stock, !!isHidden, id];
     }
     const { rows } = await pool.query(query, params);
     return rows[0] || null;
@@ -322,61 +322,204 @@ const statements = {
     return true;
   },
 
+  // ── Product Variants ─────────────────────────────────────
+  // Get all variants for a product — includes attributes array
+  getVariantsByProduct: async (product_id) => {
+    const { rows: variants } = await pool.query(
+      'SELECT * FROM product_variants WHERE product_id = $1 ORDER BY created_at ASC', [product_id]
+    );
+    if (variants.length === 0) return [];
+
+    const variantIds = variants.map(v => v.id);
+    const { rows: attrs } = await pool.query(
+      'SELECT * FROM product_variant_attributes WHERE variant_id = ANY($1)', [variantIds]
+    );
+
+    const attrsMap = attrs.reduce((acc, a) => {
+      if (!acc[a.variant_id]) acc[a.variant_id] = [];
+      acc[a.variant_id].push({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null });
+      return acc;
+    }, {});
+
+    return variants.map(v => ({ ...v, price_override: v.price, attributes: attrsMap[v.id] || [] }));
+  },
+
+  getVariantById: async (variant_id) => {
+    const { rows } = await pool.query('SELECT * FROM product_variants WHERE id = $1', [variant_id]);
+    if (rows.length === 0) return null;
+    const variant = rows[0];
+    const { rows: attrs } = await pool.query(
+      'SELECT * FROM product_variant_attributes WHERE variant_id = $1', [variant_id]
+    );
+    return { ...variant, price_override: variant.price, attributes: attrs.map(a => ({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null })) };
+  },
+
+  createVariant: async (product_id, { sku, price, stock, image_url, is_active = true, attributes = [] }) => {
+    const { rows } = await pool.query(
+      `INSERT INTO product_variants (product_id, sku, price, stock, image_url, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [product_id, sku || null, price ?? null, stock || 0, image_url || null, is_active]
+    );
+    const variant = rows[0];
+
+    for (const a of attributes) {
+      await pool.query(
+        'INSERT INTO product_variant_attributes (variant_id, attribute_type, attribute_value, color_hex) VALUES ($1, $2, $3, $4)',
+        [variant.id, a.type, a.value, a.color_hex || null]
+      );
+    }
+
+    // Mark parent as has_variants = true
+    await pool.query('UPDATE products SET has_variants = TRUE, updated_at = NOW() WHERE id = $1', [product_id]);
+    return { ...variant, attributes };
+  },
+
+  updateVariant: async (variant_id, { sku, price, stock, image_url, is_active, attributes }) => {
+    const sets = ['updated_at = NOW()'];
+    const vals = [];
+    let idx = 1;
+    if (sku !== undefined)       { sets.push(`sku = $${idx}`);       vals.push(sku);       idx++; }
+    if (price !== undefined)     { sets.push(`price = $${idx}`);     vals.push(price);     idx++; }
+    if (stock !== undefined)     { sets.push(`stock = $${idx}`);     vals.push(stock);     idx++; }
+    if (image_url !== undefined) { sets.push(`image_url = $${idx}`); vals.push(image_url); idx++; }
+    if (is_active !== undefined) { sets.push(`is_active = $${idx}`); vals.push(is_active); idx++; }
+    vals.push(variant_id);
+
+    const { rows } = await pool.query(
+      `UPDATE product_variants SET ${sets.join(', ')} WHERE id = $${idx} RETURNING *`, vals
+    );
+    const variant = rows[0];
+
+    if (attributes && Array.isArray(attributes)) {
+      await pool.query('DELETE FROM product_variant_attributes WHERE variant_id = $1', [variant_id]);
+      for (const a of attributes) {
+        await pool.query(
+          'INSERT INTO product_variant_attributes (variant_id, attribute_type, attribute_value, color_hex) VALUES ($1, $2, $3, $4)',
+          [variant_id, a.type, a.value, a.color_hex || null]
+        );
+      }
+    }
+    return { ...variant, attributes: attributes || [] };
+  },
+
+  deleteVariant: async (variant_id) => {
+    const { rows } = await pool.query('SELECT product_id FROM product_variants WHERE id = $1', [variant_id]);
+    const productId = rows[0]?.product_id;
+
+    await pool.query('DELETE FROM product_variants WHERE id = $1', [variant_id]);
+
+    if (productId) {
+      const { rows: remaining } = await pool.query(
+        'SELECT id FROM product_variants WHERE product_id = $1 LIMIT 1', [productId]
+      );
+      if (remaining.length === 0) {
+        await pool.query('UPDATE products SET has_variants = FALSE, updated_at = NOW() WHERE id = $1', [productId]);
+      }
+    }
+    return true;
+  },
+
+  getAttributeTypes: async () => {
+    const { rows } = await pool.query('SELECT * FROM product_attribute_types ORDER BY name ASC');
+    return rows;
+  },
+
+  // ── Variant Stock (atomic via RPC) ───────────────────────
+  decrementVariantStock: async (variant_id, quantity) => {
+    const result = await pool.query('SELECT decrement_variant_stock($1, $2) AS ok', [variant_id, quantity]);
+    return result.rows[0]?.ok || false;
+  },
+  incrementVariantStock: async (variant_id, quantity) => {
+    const result = await pool.query('SELECT increment_variant_stock($1, $2) AS ok', [variant_id, quantity]);
+    return result.rows[0]?.ok || false;
+  },
+
   // ── Cart ─────────────────────────────────────────────────
   getCartByUserId: async (user_id) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
     const unitCol = supportsUnitType ? ', p.unit_type' : '';
 
     const { rows } = await pool.query(`
-      SELECT c.id, c.product_id, c.quantity,
-             p.name, p.price, p.stock${unitCol}, p.image,
+      SELECT c.id, c.product_id, c.variant_id, c.quantity,
+             p.name, p.price, p.stock${unitCol}, p.image, p.has_variants,
              (SELECT pi.image_path FROM product_images pi
               WHERE pi.product_id = c.product_id
-              ORDER BY pi.created_at ASC LIMIT 1) AS gallery_image
+              ORDER BY pi.created_at ASC LIMIT 1) AS gallery_image,
+             pv.sku AS variant_sku, pv.price AS variant_price,
+             pv.stock AS variant_stock, pv.image_url AS variant_image, pv.is_active AS variant_active
       FROM cart c
       JOIN products p ON p.id = c.product_id
+      LEFT JOIN product_variants pv ON pv.id = c.variant_id
       WHERE c.user_id = $1
       ORDER BY c.created_at DESC
     `, [user_id]);
 
+    // Fetch variant attributes for items with variant_id
+    const variantIds = rows.filter(r => r.variant_id).map(r => r.variant_id);
+    let variantAttrs = {};
+    if (variantIds.length > 0) {
+      const { rows: attrs } = await pool.query(
+        `SELECT variant_id, attribute_type AS type, attribute_value AS value
+         FROM product_variant_attributes WHERE variant_id = ANY($1)`,
+        [variantIds]
+      );
+      for (const a of attrs) {
+        if (!variantAttrs[a.variant_id]) variantAttrs[a.variant_id] = [];
+        variantAttrs[a.variant_id].push({ type: a.type, value: a.value });
+      }
+    }
+
     return rows.map((r) => ({
       id: r.id,
       product_id: r.product_id,
+      variant_id: r.variant_id || null,
       quantity: r.quantity,
       name: r.name,
-      price: r.price,
-      stock: r.stock,
+      // Price: variant override > product price
+      price: (r.variant_price != null) ? r.variant_price : r.price,
+      // Stock: variant stock when applicable
+      stock: r.variant_id ? r.variant_stock : r.stock,
       unit_type: normalizeProductUnitType(r.unit_type),
-      image: r.gallery_image || r.image
+      // Image priority: variant > gallery > legacy
+      image: r.variant_image || r.gallery_image || r.image,
+      variant_attributes: variantAttrs[r.variant_id] || null
     }));
   },
-  addToCart: async (user_id, product_id, quantity) => {
+  // variant_id is optional — null for non-variant products
+  addToCart: async (user_id, product_id, quantity, variant_id = null) => {
     await pool.query(
-      `INSERT INTO cart (user_id, product_id, quantity, updated_at)
-       VALUES ($1, $2, $3, NOW())
-       ON CONFLICT (user_id, product_id) DO UPDATE SET quantity = $3, updated_at = NOW()`,
-      [user_id, product_id, quantity]
+      `INSERT INTO cart (user_id, product_id, quantity, variant_id, updated_at)
+       VALUES ($1, $2, $3, $4, NOW())`,
+      [user_id, product_id, quantity, variant_id]
     );
     return null;
   },
-  updateCartItem: async (quantity, user_id, product_id) => {
+  updateCartItem: async (quantity, user_id, product_id, variant_id = null) => {
     await pool.query(
-      'UPDATE cart SET quantity=$1, updated_at=NOW() WHERE user_id=$2 AND product_id=$3',
-      [quantity, user_id, product_id]
+      `UPDATE cart SET quantity=$1, updated_at=NOW()
+       WHERE user_id=$2 AND product_id=$3
+       AND variant_id IS NOT DISTINCT FROM $4`,
+      [quantity, user_id, product_id, variant_id]
     );
     return null;
   },
-  removeFromCart: async (user_id, product_id) => {
-    await pool.query('DELETE FROM cart WHERE user_id=$1 AND product_id=$2', [user_id, product_id]);
+  removeFromCart: async (user_id, product_id, variant_id = null) => {
+    await pool.query(
+      `DELETE FROM cart WHERE user_id=$1 AND product_id=$2
+       AND variant_id IS NOT DISTINCT FROM $3`,
+      [user_id, product_id, variant_id]
+    );
     return true;
   },
   clearCart: async (user_id) => {
     await pool.query('DELETE FROM cart WHERE user_id = $1', [user_id]);
     return true;
   },
-  getCartItem: async (user_id, product_id) => {
+  getCartItem: async (user_id, product_id, variant_id = null) => {
     const { rows } = await pool.query(
-      'SELECT * FROM cart WHERE user_id=$1 AND product_id=$2', [user_id, product_id]
+      `SELECT * FROM cart WHERE user_id=$1 AND product_id=$2
+       AND variant_id IS NOT DISTINCT FROM $3`,
+      [user_id, product_id, variant_id]
     );
     return rows[0] || null;
   },
@@ -557,11 +700,12 @@ const statements = {
   },
 
   // ── Order Items ──────────────────────────────────────────
-  addOrderItem: async (order_id, product_id, quantity, price) => {
+  // variant_id and variant_attributes are optional (null for non-variant items)
+  addOrderItem: async (order_id, product_id, quantity, price, variant_id = null, variant_attributes = null) => {
     const { rows } = await pool.query(
-      `INSERT INTO order_items (order_id, product_id, quantity, price)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [order_id, product_id, quantity, price]
+      `INSERT INTO order_items (order_id, product_id, quantity, price, variant_id, variant_attributes)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [order_id, product_id, quantity, price, variant_id, variant_attributes ? JSON.stringify(variant_attributes) : null]
     );
     return rows;
   },
@@ -585,7 +729,10 @@ const statements = {
       ...item,
       name: product_name || 'Producto eliminado',
       unit_type: normalizeProductUnitType(product_unit_type),
-      image: gallery_image || product_image || null
+      image: gallery_image || product_image || null,
+      // Include variant snapshot for display
+      variant_id: item.variant_id || null,
+      variant_attributes: item.variant_attributes || null
     }));
   },
 

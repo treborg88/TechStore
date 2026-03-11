@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
+import VariantSelector from './VariantSelector';
 import LoadingSpinner from '../common/LoadingSpinner';
 import Footer from '../common/Footer';
 import RichTextEditor from '../common/RichTextEditor';
@@ -38,18 +39,23 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   const [isEditing, setIsEditing] = useState(false);
   const [editedDescription, setEditedDescription] = useState('');
   const [saving, setSaving] = useState(false);
+  // Variant state (only used when product.has_variants === true)
+  const [selectedVariant, setSelectedVariant] = useState(null);
+  const onVariantChange = useCallback((v) => setSelectedVariant(v), []);
 
   useEffect(() => {
     const loadProduct = async () => {
       setLoading(true);
+      setSelectedVariant(null);
       window.scrollTo(0, 0);
 
       try {
         // 1. Intentar encontrar el producto en la lista pasada por props
         let foundProduct = products.find(p => p.id === parseInt(id));
 
-        // 2. Si no está (ej. carga directa), buscar en la API
-        if (!foundProduct) {
+        // 2. Si no está (ej. carga directa) o necesita datos de variantes, buscar en la API
+        const needsFullFetch = !foundProduct || (foundProduct.has_variants && !foundProduct.variants);
+        if (needsFullFetch) {
           const response = await fetch(`${API_URL}/products/${id}`);
           if (!response.ok) {
             throw new Error('Producto no encontrado');
@@ -66,7 +72,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
           let related = [];
           if (products.length > 0) {
             related = products
-              .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id)
+              .filter(p => p.category === foundProduct.category && p.id !== foundProduct.id && !p.is_hidden)
               .slice(0, 10);
           } else {
             // Si no, hacemos fetch por categoría (opcional, por ahora usamos lo que hay o nada)
@@ -202,8 +208,13 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   if (loading) return <LoadingSpinner fullPage={true} />;
   if (!product) return null;
 
-  const isOutOfStock = product.stock <= 0;
-  const isLowStock = product.stock > 0 && product.stock <= 10;
+  // Resolve effective price/stock from selected variant (or product defaults)
+  const effectivePrice = selectedVariant?.price_override ?? product.price;
+  const effectiveStock = selectedVariant ? selectedVariant.stock : product.stock;
+  const isOutOfStock = effectiveStock <= 0;
+  const isLowStock = effectiveStock > 0 && effectiveStock <= 10;
+  // Variant products require a variant selection before adding to cart
+  const needsVariantSelection = product.has_variants && !selectedVariant;
   const unitType = normalizeUnitType(product.unit_type || product.unitType);
   const unitLabel = PRODUCT_UNIT_LABELS[unitType];
 
@@ -296,10 +307,14 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
               <button 
                 className="primary-button"
                 onClick={async () => {
+                  if (needsVariantSelection) {
+                    toast.error('Selecciona una variante antes de comprar.');
+                    return;
+                  }
                   if (onCartOpen) {
                     onCartOpen();
                   }
-                  await addToCart(product, { showLoading: true });
+                  await addToCart(product, { showLoading: true, variant: selectedVariant });
                 }}
               >
                 🛒 Comprar Ahora
@@ -317,21 +332,37 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
             images={product.images || product.image} 
             productName={product.name}
             productDescription={product.description}
+            activeVariantImageUrl={selectedVariant?.image_url}
           />
         </div>
 
         <div className="product-info">
           <div className="product-header">
             <span className="product-category">{product.category}</span>
+            {/* Badge indicating product has selectable variants */}
+            {product.has_variants && product.variants?.length > 0 && (
+              <span className="product-variant-badge">🎨 Variantes disponibles</span>
+            )}
             <h1 className="product-title">{product.name}</h1>
           </div>
 
           <div className="product-price-stock">
-            <div className="product-price">{formatCurrency(product.price, currencyCode)}</div>
+            <div className="product-price">{formatCurrency(effectivePrice, currencyCode)}</div>
             <div className={`stock-badge ${isOutOfStock ? 'out-of-stock' : isLowStock ? 'low-stock' : 'in-stock'}`}>
-              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${product.stock} ${unitLabel}!` : '🟢 Disponible'}
+              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${effectiveStock} ${unitLabel}!` : '🟢 Disponible'}
             </div>
           </div>
+
+          {/* Variant selector (only when product has variants) */}
+          {product.has_variants && product.variants && product.variants.length > 0 && (
+            <VariantSelector
+              variants={product.variants}
+              attributeTypes={product.attributeTypes || []}
+              basePrice={product.price}
+              currencyCode={currencyCode}
+              onVariantChange={onVariantChange}
+            />
+          )}
 
           <div className="product-description-container">
             <div className="description-header">
@@ -382,10 +413,16 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
             <div className="action-buttons">
               <button 
                 className="add-to-cart-btn"
-                onClick={() => addToCart(product)}
-                disabled={isOutOfStock}
+                onClick={() => {
+                  if (needsVariantSelection) {
+                    toast.error('Selecciona una variante antes de agregar.');
+                    return;
+                  }
+                  addToCart(product, { variant: selectedVariant });
+                }}
+                disabled={isOutOfStock || needsVariantSelection}
               >
-                {isOutOfStock ? 'Agotado' : '🛒 Agregar'}
+                {isOutOfStock ? 'Agotado' : needsVariantSelection ? 'Selecciona variante' : '🛒 Agregar'}
               </button>
               <ShareButton label="Compartir" />
             </div>

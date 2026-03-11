@@ -262,6 +262,13 @@
     white-space: nowrap;
 }
 
+/* Tag de variante junto al nombre del producto */
+.admin-item-variant {
+    font-weight: 400;
+    color: #64748b;
+    font-size: 0.82rem;
+}
+
 .admin-item-qty {
     font-size: 0.8rem;
     color: #94a3b8;
