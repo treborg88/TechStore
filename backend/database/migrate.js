@@ -3,7 +3,7 @@
 // Database Migration Script — runs schema.sql + seed.sql via pg (no psql needed)
 // =============================================================================
 // Usage: node backend/database/migrate.js
-// Reads DATABASE_URL from .env / .env.local (same as the app).
+// Checks DATABASE_URL or SUPABASE_DB_URL from .env / .env.local.
 // Safe to re-run: schema uses IF NOT EXISTS, seed uses ON CONFLICT DO NOTHING.
 // =============================================================================
 
@@ -18,9 +18,13 @@ const SCHEMA_FILE = path.join(__dirname, 'schema.sql');
 const SEED_FILE = path.join(__dirname, 'seed.sql');
 
 async function run() {
-  const dbUrl = process.env.DATABASE_URL;
+  // Accept DATABASE_URL (postgres adapter) or SUPABASE_DB_URL (direct PG for Supabase)
+  const dbUrl = process.env.DATABASE_URL || process.env.SUPABASE_DB_URL;
   if (!dbUrl) {
-    console.error('❌ DATABASE_URL not set in .env or .env.local');
+    console.error('❌ No database connection string found.');
+    console.error('   Set one of these in backend/.env.local:');
+    console.error('   - DATABASE_URL  (for native PostgreSQL)');
+    console.error('   - SUPABASE_DB_URL  (Supabase → Project Settings → Database → Connection string → URI)');
     process.exit(1);
   }
 
