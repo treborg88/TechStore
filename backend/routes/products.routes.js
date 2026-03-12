@@ -14,6 +14,37 @@ const normalizeProductUnitType = (value) => {
     return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
 };
 
+const parseImageUrls = (raw) => {
+    if (!raw) return [];
+
+    let candidates = [];
+
+    if (Array.isArray(raw)) {
+        candidates = raw;
+    } else if (typeof raw === 'string') {
+        const trimmed = raw.trim();
+        if (!trimmed) return [];
+
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+                candidates = parsed;
+            } else {
+                candidates = [trimmed];
+            }
+        } catch {
+            candidates = [trimmed];
+        }
+    } else {
+        candidates = [raw];
+    }
+
+    return candidates
+        .map((value) => String(value || '').trim())
+        .filter(Boolean)
+        .filter((value) => /^https?:\/\//i.test(value));
+};
+
 /**
  * GET /api/products/attribute-types
  * List available attribute types (public — used by variant selector UI)
@@ -128,12 +159,13 @@ router.get('/:id', async (req, res) => {
 router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (req, res) => {
     try {
         const { name, description, price, category, stock, unitType } = req.body;
+        const imageUrls = parseImageUrls(req.body.imageUrls);
 
         if (!name || !price || !category || stock === undefined) {
             return res.status(400).json({ message: 'Faltan campos requeridos (nombre, precio, categoría, stock).' });
         }
-        if (!req.files || req.files.length === 0) {
-            return res.status(400).json({ message: 'Se requiere al menos una imagen.' });
+        if ((!req.files || req.files.length === 0) && imageUrls.length === 0) {
+            return res.status(400).json({ message: 'Se requiere al menos una imagen (archivo o URL).' });
         }
 
         const result = await statements.createProduct(
@@ -151,6 +183,11 @@ router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (re
         for (const file of req.files) {
             const publicUrl = await statements.uploadImage(file);
             await statements.addProductImage(productId, publicUrl);
+        }
+
+        // Add image URLs provided from admin form
+        for (const imageUrl of imageUrls) {
+            await statements.addProductImage(productId, imageUrl);
         }
 
         const newProduct = await statements.getProductById(productId);
@@ -269,6 +306,37 @@ router.post('/:id/images', authenticateToken, requireAdmin, productImagesUpload,
         res.status(201).json(images);
     } catch (err) {
         console.error('Error agregando imágenes:', err);
+        res.status(500).json({ message: 'Error interno del servidor' });
+    }
+});
+
+/**
+ * POST /api/products/:id/images/links
+ * Add image URLs to product (admin only)
+ * Body: { imageUrls: string[] }
+ */
+router.post('/:id/images/links', authenticateToken, requireAdmin, async (req, res) => {
+    const productId = parseInt(req.params.id, 10);
+
+    try {
+        const product = await statements.getProductById(productId);
+        if (!product) {
+            return res.status(404).json({ message: 'Producto no encontrado' });
+        }
+
+        const imageUrls = parseImageUrls(req.body.imageUrls);
+        if (imageUrls.length === 0) {
+            return res.status(400).json({ message: 'No se recibió ninguna URL válida de imagen.' });
+        }
+
+        for (const imageUrl of imageUrls) {
+            await statements.addProductImage(productId, imageUrl);
+        }
+
+        const images = await statements.getProductImages(productId);
+        res.status(201).json(images);
+    } catch (error) {
+        console.error('Error agregando URLs de imágenes:', error);
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });

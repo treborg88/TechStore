@@ -157,6 +157,37 @@
   margin-top: 10px;
 }
 
+.url-images-panel {
+  margin-top: 6px;
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.url-inputs-wrap {
+  padding: 10px 12px;
+  display: grid;
+  gap: 8px;
+  background: #fff;
+}
+
+.url-input-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.url-input-row input[type="url"] {
+  width: 100%;
+}
+
+.url-input-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .current-images {
   display: flex;
   gap: 10px;

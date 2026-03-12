@@ -25,6 +25,7 @@ function blankProduct() {
 		stock: '',
 		unitType: 'unidad',
 		imageFiles: [],
+		imageUrls: [''],
 	};
 }
 
@@ -33,9 +34,12 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [customCategory, setCustomCategory] = useState('');
 	const [editingProduct, setEditingProduct] = useState(null);
 	const [newImagesForEdit, setNewImagesForEdit] = useState([]);
+	const [newImageUrlsForEdit, setNewImageUrlsForEdit] = useState(['']);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [filters, setFilters] = useState({ search: '', category: 'all', visibility: 'all' });
 	const [showAddForm, setShowAddForm] = useState(false);
+	const [showCreateUrlPanel, setShowCreateUrlPanel] = useState(false);
+	const [showEditUrlPanel, setShowEditUrlPanel] = useState(false);
 
 	// ── Variant management state ─────────────────────────────────────────
 	const [variantPanel, setVariantPanel] = useState(null); // product id with open variant panel
@@ -146,20 +150,66 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		setNewProduct((prev) => ({ ...prev, imageFiles: files }));
 	};
 
+	const setCreateUrlAt = (index, value) => {
+		setNewProduct((prev) => {
+			const imageUrls = [...(prev.imageUrls || [''])];
+			imageUrls[index] = value;
+			return { ...prev, imageUrls };
+		});
+	};
+
+	const addCreateUrlInput = () => {
+		setNewProduct((prev) => ({
+			...prev,
+			imageUrls: [...(prev.imageUrls || ['']), ''],
+		}));
+	};
+
+	const removeCreateUrlInput = (index) => {
+		setNewProduct((prev) => {
+			const current = prev.imageUrls || [''];
+			const imageUrls = current.length > 1 ? current.filter((_, i) => i !== index) : [''];
+			return { ...prev, imageUrls };
+		});
+	};
+
+	const setEditUrlAt = (index, value) => {
+		setNewImageUrlsForEdit((prev) => {
+			const next = [...prev];
+			next[index] = value;
+			return next;
+		});
+	};
+
+	const addEditUrlInput = () => setNewImageUrlsForEdit((prev) => [...prev, '']);
+
+	const removeEditUrlInput = (index) => {
+		setNewImageUrlsForEdit((prev) => (prev.length > 1 ? prev.filter((_, i) => i !== index) : ['']));
+	};
+
+	const sanitizeImageUrls = (list = []) => {
+		return list
+			.map((value) => String(value || '').trim())
+			.filter(Boolean)
+			.filter((value) => /^https?:\/\//i.test(value));
+	};
+
 	const resetForm = () => {
 		setNewProduct(blankProduct());
 		setCustomCategory('');
+		setShowCreateUrlPanel(false);
 	};
 
 	const handleCreate = async (event) => {
 		event.preventDefault();
 		const categoryValue = (customCategory || newProduct.category).trim();
+		const imageUrls = sanitizeImageUrls(newProduct.imageUrls);
 		if (!categoryValue) {
 			toast.error('Selecciona o ingresa una categoría.');
 			return;
 		}
-		if (!newProduct.imageFiles || newProduct.imageFiles.length === 0) {
-			toast.error('Selecciona al menos una imagen para el producto.');
+		if ((!newProduct.imageFiles || newProduct.imageFiles.length === 0) && imageUrls.length === 0) {
+			toast.error('Selecciona al menos una imagen por archivo o URL.');
 			return;
 		}
 
@@ -173,6 +223,9 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		newProduct.imageFiles.forEach((file) => {
 			formData.append('images', file);
 		});
+		if (imageUrls.length > 0) {
+			formData.append('imageUrls', JSON.stringify(imageUrls));
+		}
 
 		try {
 			setIsSubmitting(true);
@@ -215,6 +268,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			isHidden: !!product.is_hidden,
 			images: images,
 		});
+		setNewImageUrlsForEdit(['']);
+		setShowEditUrlPanel(false);
 	};
 
 	const handleEditField = (field, value) => {
@@ -266,6 +321,39 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			setEditingProduct((prev) => prev ? { ...prev, images: data } : null);
 			setNewImagesForEdit([]);
 			toast.success('Imágenes agregadas correctamente');
+			await onRefresh();
+		} catch (error) {
+			toast.error(error.message);
+		}
+	};
+
+	const handleAddImageUrls = async () => {
+		if (!editingProduct) return;
+
+		const imageUrls = sanitizeImageUrls(newImageUrlsForEdit);
+		if (imageUrls.length === 0) {
+			toast.error('Agrega al menos una URL válida (http/https).');
+			return;
+		}
+
+		try {
+			const response = await apiFetch(apiUrl(`/products/${editingProduct.id}/images/links`), {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify({ imageUrls }),
+			});
+
+			if (!response.ok) {
+				const data = await response.json().catch(() => ({}));
+				throw new Error(data.message || 'Error agregando URLs de imágenes');
+			}
+
+			const data = await response.json();
+			setEditingProduct((prev) => prev ? { ...prev, images: data } : null);
+			setNewImageUrlsForEdit(['']);
+			toast.success('URLs de imágenes agregadas correctamente');
 			await onRefresh();
 		} catch (error) {
 			toast.error(error.message);
@@ -343,6 +431,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const cancelEditing = () => {
 		setEditingProduct(null);
 		setNewImagesForEdit([]);
+		setNewImageUrlsForEdit(['']);
+		setShowEditUrlPanel(false);
 		setVariantPanel(null);
 		setVariants([]);
 		setEditingVariant(null);
@@ -811,6 +901,34 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 						<label>Imágenes
 							<input type="file" accept="image/*" multiple onChange={handleImageChange} />
 						</label>
+						<div className="url-images-panel">
+							<button
+								type="button"
+								className="variant-toggle-btn"
+								onClick={() => setShowCreateUrlPanel((prev) => !prev)}
+							>
+								<span>🔗 Agregar imágenes por URL</span>
+								<span className="collapsible-icon">{showCreateUrlPanel ? '−' : '+'}</span>
+							</button>
+							{showCreateUrlPanel && (
+								<div className="url-inputs-wrap">
+									{(newProduct.imageUrls || ['']).map((url, index) => (
+										<div key={`create-url-${index}`} className="url-input-row">
+											<input
+												type="url"
+												placeholder="https://ejemplo.com/imagen.jpg"
+												value={url}
+												onChange={(event) => setCreateUrlAt(index, event.target.value)}
+											/>
+											{(newProduct.imageUrls || []).length > 1 && (
+												<button type="button" className="admin-btn ghost" onClick={() => removeCreateUrlInput(index)}>✕</button>
+											)}
+										</div>
+									))}
+									<button type="button" className="admin-btn ghost" onClick={addCreateUrlInput}>+ URL</button>
+								</div>
+							)}
+						</div>
 						<button type="submit" className="admin-submit" disabled={isSubmitting}>
 							{isSubmitting ? 'Guardando...' : 'Crear producto'}
 						</button>
@@ -1062,6 +1180,37 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																			Agregar {newImagesForEdit.length} imagen(es)
 																		</button>
 																	)}
+																	<div className="url-images-panel">
+																		<button
+																			type="button"
+																			className="variant-toggle-btn"
+																			onClick={() => setShowEditUrlPanel((prev) => !prev)}
+																		>
+																			<span>🔗 Agregar imágenes por URL</span>
+																			<span className="collapsible-icon">{showEditUrlPanel ? '−' : '+'}</span>
+																		</button>
+																		{showEditUrlPanel && (
+																			<div className="url-inputs-wrap">
+																				{newImageUrlsForEdit.map((url, index) => (
+																					<div key={`edit-url-desktop-${index}`} className="url-input-row">
+																						<input
+																							type="url"
+																							placeholder="https://ejemplo.com/imagen.jpg"
+																							value={url}
+																							onChange={(event) => setEditUrlAt(index, event.target.value)}
+																						/>
+																						{newImageUrlsForEdit.length > 1 && (
+																							<button type="button" className="admin-btn ghost" onClick={() => removeEditUrlInput(index)}>✕</button>
+																						)}
+																					</div>
+																				))}
+																				<div className="url-input-actions">
+																					<button type="button" className="admin-btn ghost" onClick={addEditUrlInput}>+ URL</button>
+																					<button type="button" className="admin-btn" onClick={handleAddImageUrls}>Agregar URLs</button>
+																				</div>
+																			</div>
+																		)}
+																	</div>
 																</div>
 																{/* Variant manager */}
 																{renderVariantSection(editingProduct.id)}
@@ -1267,6 +1416,37 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 															Agregar {newImagesForEdit.length} imagen(es)
 														</button>
 													)}
+													<div className="url-images-panel">
+														<button
+															type="button"
+															className="variant-toggle-btn"
+															onClick={() => setShowEditUrlPanel((prev) => !prev)}
+														>
+															<span>🔗 Agregar imágenes por URL</span>
+															<span className="collapsible-icon">{showEditUrlPanel ? '−' : '+'}</span>
+														</button>
+														{showEditUrlPanel && (
+															<div className="url-inputs-wrap">
+																{newImageUrlsForEdit.map((url, index) => (
+																	<div key={`edit-url-mobile-${index}`} className="url-input-row">
+																		<input
+																			type="url"
+																			placeholder="https://ejemplo.com/imagen.jpg"
+																			value={url}
+																			onChange={(event) => setEditUrlAt(index, event.target.value)}
+																		/>
+																		{newImageUrlsForEdit.length > 1 && (
+																			<button type="button" className="admin-btn ghost" onClick={() => removeEditUrlInput(index)}>✕</button>
+																		)}
+																	</div>
+																))}
+																<div className="url-input-actions">
+																	<button type="button" className="admin-btn ghost" onClick={addEditUrlInput}>+ URL</button>
+																	<button type="button" className="admin-btn" onClick={handleAddImageUrls}>Agregar URLs</button>
+																</div>
+															</div>
+														)}
+													</div>
 												</div>
 												{/* Variant manager */}
 												{renderVariantSection(editingProduct.id)}
