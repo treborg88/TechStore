@@ -127,7 +127,7 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (req, res) => {
     try {
-        const { name, description, price, category, stock, unitType, isHidden } = req.body;
+        const { name, description, price, category, stock, unitType } = req.body;
 
         if (!name || !price || !category || stock === undefined) {
             return res.status(400).json({ message: 'Faltan campos requeridos (nombre, precio, categoría, stock).' });
@@ -142,8 +142,7 @@ router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (re
             parseFloat(price),
             category,
             parseInt(stock, 10),
-            normalizeProductUnitType(unitType),
-            isHidden === 'true' || isHidden === true
+            normalizeProductUnitType(unitType)
         );
 
         const productId = result.lastInsertRowid;

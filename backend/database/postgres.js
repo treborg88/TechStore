@@ -234,17 +234,17 @@ const statements = {
     );
     return rows;
   },
-  createProduct: async (name, description, price, category, stock, unitType = 'unidad', isHidden = false) => {
+  createProduct: async (name, description, price, category, stock, unitType = 'unidad') => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
     let query, params;
     if (supportsUnitType) {
-      query = `INSERT INTO products (name, description, price, category, stock, unit_type, is_hidden)
-               VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`;
-      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), !!isHidden];
-    } else {
-      query = `INSERT INTO products (name, description, price, category, stock, is_hidden)
+      query = `INSERT INTO products (name, description, price, category, stock, unit_type)
                VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-      params = [name, description, price, category, stock, !!isHidden];
+      params = [name, description, price, category, stock, normalizeProductUnitType(unitType)];
+    } else {
+      query = `INSERT INTO products (name, description, price, category, stock)
+               VALUES ($1, $2, $3, $4, $5) RETURNING *`;
+      params = [name, description, price, category, stock];
     }
     const { rows } = await pool.query(query, params);
     return { lastInsertRowid: rows[0].id };

@@ -24,7 +24,6 @@ function blankProduct() {
 		category: '',
 		stock: '',
 		unitType: 'unidad',
-		isHidden: false,
 		imageFiles: [],
 	};
 }
@@ -171,7 +170,6 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		formData.append('category', categoryValue);
 		formData.append('stock', newProduct.stock);
 		formData.append('unitType', normalizeUnitType(newProduct.unitType));
-		formData.append('isHidden', newProduct.isHidden);
 		newProduct.imageFiles.forEach((file) => {
 			formData.append('images', file);
 		});
@@ -800,16 +798,6 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 										<option key={option.value} value={option.value}>{option.label}</option>
 									))}
 								</select>
-							</label>
-						</div>
-						<div className="form-row">
-							<label className="toggle-label">
-								<input
-									type="checkbox"
-									checked={newProduct.isHidden}
-									onChange={(event) => handleFieldChange('isHidden', event.target.checked)}
-								/>
-								Ocultar producto en la tienda
 							</label>
 						</div>
 						<label>Descripción

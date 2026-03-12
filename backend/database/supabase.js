@@ -221,9 +221,9 @@ const statements = {
     if (error) console.error('Error getProductsByCategory:', error);
     return data || [];
   },
-  createProduct: async (name, description, price, category, stock, unitType = 'unidad', isHidden = false) => {
+  createProduct: async (name, description, price, category, stock, unitType = 'unidad') => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const payload = { name, description, price, category, stock, is_hidden: !!isHidden };
+    const payload = { name, description, price, category, stock };
     if (supportsUnitType) {
       payload.unit_type = normalizeProductUnitType(unitType);
     }
