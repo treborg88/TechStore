@@ -83,6 +83,7 @@ const normalizeProductUnitType = (value) => {
 };
 
 let productUnitTypeColumnSupported = null;
+let productIsHiddenColumnSupported = null;
 
 // Check if legacy deployments have the unit_type column
 const ensureProductUnitTypeColumnSupport = async () => {
@@ -95,6 +96,19 @@ const ensureProductUnitTypeColumnSupport = async () => {
     productUnitTypeColumnSupported = false;
   }
   return productUnitTypeColumnSupported;
+};
+
+// Check if legacy deployments have the is_hidden column
+const ensureProductIsHiddenColumnSupport = async () => {
+  if (productIsHiddenColumnSupported !== null) return productIsHiddenColumnSupported;
+  if (!pool) { productIsHiddenColumnSupported = false; return false; }
+  try {
+    await pool.query('SELECT is_hidden FROM products LIMIT 1');
+    productIsHiddenColumnSupported = true;
+  } catch {
+    productIsHiddenColumnSupported = false;
+  }
+  return productIsHiddenColumnSupported;
 };
 
 // Ensure a directory exists (recursive), used for uploads
@@ -251,15 +265,24 @@ const statements = {
   },
   updateProduct: async (name, description, price, category, stock, id, unitType, isHidden) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
+    const supportsIsHidden = await ensureProductIsHiddenColumnSupport();
     let query, params;
-    if (supportsUnitType && unitType !== undefined) {
+    if (supportsUnitType && supportsIsHidden && unitType !== undefined) {
       query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
                stock=$5, unit_type=$6, is_hidden=$7, updated_at=NOW() WHERE id=$8 RETURNING *`;
       params = [name, description, price, category, stock, normalizeProductUnitType(unitType), !!isHidden, id];
-    } else {
+    } else if (supportsUnitType && unitType !== undefined) {
+      query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
+               stock=$5, unit_type=$6, updated_at=NOW() WHERE id=$7 RETURNING *`;
+      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), id];
+    } else if (supportsIsHidden && isHidden !== undefined) {
       query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
                stock=$5, is_hidden=$6, updated_at=NOW() WHERE id=$7 RETURNING *`;
       params = [name, description, price, category, stock, !!isHidden, id];
+    } else {
+      query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
+               stock=$5, updated_at=NOW() WHERE id=$6 RETURNING *`;
+      params = [name, description, price, category, stock, id];
     }
     const { rows } = await pool.query(query, params);
     return rows[0] || null;

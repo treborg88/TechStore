@@ -47,6 +47,7 @@ const normalizeProductUnitType = (value) => {
 };
 
 let productUnitTypeColumnSupported = null;
+let productIsHiddenColumnSupported = null;
 
 // Backwards compat: older deployments may not have unit_type column
 const ensureProductUnitTypeColumnSupport = async () => {
@@ -61,6 +62,21 @@ const ensureProductUnitTypeColumnSupport = async () => {
     .limit(1);
   productUnitTypeColumnSupported = !error;
   return productUnitTypeColumnSupported;
+};
+
+// Backwards compat: older deployments may not have is_hidden column
+const ensureProductIsHiddenColumnSupport = async () => {
+  if (productIsHiddenColumnSupported !== null) return productIsHiddenColumnSupported;
+  if (!supabase) {
+    productIsHiddenColumnSupported = false;
+    return false;
+  }
+  const { error } = await supabase
+    .from('products')
+    .select('is_hidden')
+    .limit(1);
+  productIsHiddenColumnSupported = !error;
+  return productIsHiddenColumnSupported;
 };
 
 // ---------------------------------------------------------------------------
@@ -237,9 +253,13 @@ const statements = {
   },
   updateProduct: async (name, description, price, category, stock, id, unitType, isHidden) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const payload = { name, description, price, category, stock, is_hidden: !!isHidden, updated_at: new Date().toISOString() };
+    const supportsIsHidden = await ensureProductIsHiddenColumnSupport();
+    const payload = { name, description, price, category, stock, updated_at: new Date().toISOString() };
     if (supportsUnitType && unitType !== undefined) {
       payload.unit_type = normalizeProductUnitType(unitType);
+    }
+    if (supportsIsHidden && isHidden !== undefined) {
+      payload.is_hidden = !!isHidden;
     }
     const { data, error } = await supabase
       .from('products')
