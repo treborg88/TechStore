@@ -48,6 +48,7 @@ const normalizeProductUnitType = (value) => {
 
 let productUnitTypeColumnSupported = null;
 let productIsHiddenColumnSupported = null;
+let variantSchemaSupported = null;
 
 // Backwards compat: older deployments may not have unit_type column
 const ensureProductUnitTypeColumnSupport = async () => {
@@ -77,6 +78,21 @@ const ensureProductIsHiddenColumnSupport = async () => {
     .limit(1);
   productIsHiddenColumnSupported = !error;
   return productIsHiddenColumnSupported;
+};
+
+// Backwards compat: older deployments may not have product_variants table / cart.variant_id
+const ensureVariantSchemaSupport = async () => {
+  if (variantSchemaSupported !== null) return variantSchemaSupported;
+  if (!supabase) {
+    variantSchemaSupported = false;
+    return false;
+  }
+  const { error } = await supabase
+    .from('product_variants')
+    .select('id')
+    .limit(1);
+  variantSchemaSupported = !error;
+  return variantSchemaSupported;
 };
 
 // ---------------------------------------------------------------------------
@@ -574,21 +590,29 @@ const statements = {
   // ── Cart ─────────────────────────────────────────────────
   getCartByUserId: async (user_id) => {
     const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const productFields = supportsUnitType
-      ? 'name, price, stock, unit_type, image, has_variants, product_images (image_path)'
-      : 'name, price, stock, image, has_variants, product_images (image_path)';
+    const supportsVariants = await ensureVariantSchemaSupport();
+
+    // Build product embed fields (conditionally include has_variants)
+    let productFields = supportsUnitType
+      ? 'name, price, stock, unit_type, image, product_images (image_path)'
+      : 'name, price, stock, image, product_images (image_path)';
+    if (supportsVariants) {
+      productFields = supportsUnitType
+        ? 'name, price, stock, unit_type, image, has_variants, product_images (image_path)'
+        : 'name, price, stock, image, has_variants, product_images (image_path)';
+    }
+
+    // Build select: only include variant_id + product_variants embed when supported
+    const cartFields = supportsVariants
+      ? 'id, product_id, variant_id, quantity'
+      : 'id, product_id, quantity';
+    const variantEmbed = supportsVariants
+      ? ', product_variants (sku, price, stock, image_url, is_active)'
+      : '';
 
     const { data, error } = await supabase
       .from('cart')
-      .select(`
-        id, product_id, variant_id, quantity,
-        products (
-          ${productFields}
-        ),
-        product_variants (
-          sku, price, stock, image_url, is_active
-        )
-      `)
+      .select(`${cartFields}, products (${productFields})${variantEmbed}`)
       .eq('user_id', user_id)
       .order('created_at', { ascending: false });
 
@@ -598,24 +622,26 @@ const statements = {
     }
 
     // Fetch variant attributes for cart items that have a variant
-    const variantIds = data.filter(i => i.variant_id).map(i => i.variant_id);
     let variantAttrs = {};
-    if (variantIds.length > 0) {
-      const { data: attrs } = await supabase
-        .from('product_variant_attributes')
-        .select('variant_id, attribute_type, attribute_value')
-        .in('variant_id', variantIds);
-      if (attrs) {
-        for (const a of attrs) {
-          if (!variantAttrs[a.variant_id]) variantAttrs[a.variant_id] = [];
-          variantAttrs[a.variant_id].push({ type: a.attribute_type, value: a.attribute_value });
+    if (supportsVariants) {
+      const variantIds = data.filter(i => i.variant_id).map(i => i.variant_id);
+      if (variantIds.length > 0) {
+        const { data: attrs } = await supabase
+          .from('product_variant_attributes')
+          .select('variant_id, attribute_type, attribute_value')
+          .in('variant_id', variantIds);
+        if (attrs) {
+          for (const a of attrs) {
+            if (!variantAttrs[a.variant_id]) variantAttrs[a.variant_id] = [];
+            variantAttrs[a.variant_id].push({ type: a.attribute_type, value: a.attribute_value });
+          }
         }
       }
     }
 
     return data.map(item => {
       const product = item.products;
-      const variant = item.product_variants;
+      const variant = supportsVariants ? item.product_variants : null;
       // Prefer variant image > gallery image > legacy product.image
       let image = variant?.image_url
         || (product.product_images && product.product_images.length > 0
@@ -630,7 +656,7 @@ const statements = {
       return {
         id: item.id,
         product_id: item.product_id,
-        variant_id: item.variant_id || null,
+        variant_id: (supportsVariants && item.variant_id) || null,
         quantity: item.quantity,
         name: product.name,
         price,
@@ -643,8 +669,9 @@ const statements = {
   },
   // variant_id is optional — null for non-variant products
   addToCart: async (user_id, product_id, quantity, variant_id = null) => {
+    const supportsVariants = await ensureVariantSchemaSupport();
     const row = { user_id, product_id, quantity, updated_at: new Date().toISOString() };
-    if (variant_id) row.variant_id = variant_id;
+    if (supportsVariants && variant_id) row.variant_id = variant_id;
     const { data, error } = await supabase
       .from('cart')
       .insert(row);
@@ -652,24 +679,30 @@ const statements = {
     return data;
   },
   updateCartItem: async (quantity, user_id, product_id, variant_id = null) => {
+    const supportsVariants = await ensureVariantSchemaSupport();
     let query = supabase
       .from('cart')
       .update({ quantity, updated_at: new Date().toISOString() })
       .eq('user_id', user_id)
       .eq('product_id', product_id);
-    // Filter by variant: explicit null vs. actual value
-    query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    // Filter by variant only when schema supports it
+    if (supportsVariants) {
+      query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    }
     const { data, error } = await query;
     if (error) throw error;
     return data;
   },
   removeFromCart: async (user_id, product_id, variant_id = null) => {
+    const supportsVariants = await ensureVariantSchemaSupport();
     let query = supabase
       .from('cart')
       .delete()
       .eq('user_id', user_id)
       .eq('product_id', product_id);
-    query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    if (supportsVariants) {
+      query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    }
     const { error } = await query;
     if (error) throw error;
     return true;
@@ -683,12 +716,16 @@ const statements = {
     return true;
   },
   getCartItem: async (user_id, product_id, variant_id = null) => {
+    const supportsVariants = await ensureVariantSchemaSupport();
     let query = supabase
       .from('cart')
       .select('*')
       .eq('user_id', user_id)
       .eq('product_id', product_id);
-    query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    // Filter by variant only when schema supports it
+    if (supportsVariants) {
+      query = variant_id ? query.eq('variant_id', variant_id) : query.is('variant_id', null);
+    }
     const { data, error } = await query.single();
     if (error && error.code !== 'PGRST116') console.error('Error getCartItem:', error);
     return data;
