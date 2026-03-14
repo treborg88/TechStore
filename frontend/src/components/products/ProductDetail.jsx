@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
 import ProductImageGallery from './ProductImageGallery';
@@ -37,6 +37,13 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   const [loading, setLoading] = useState(true);
   const [similarProducts, setSimilarProducts] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
+
+  // Refs para mouse drag scroll en productos similares
+  const similarScrollRef = useRef(null);
+  const isDraggingSimilar = useRef(false);
+  const startXSimilar = useRef(0);
+  const scrollLeftSimilar = useRef(0);
+  const hasDraggedSimilar = useRef(false);
   const [editedDescription, setEditedDescription] = useState('');
   const [saving, setSaving] = useState(false);
   // Variant state (only used when product.has_variants === true)
@@ -433,12 +440,39 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
       {similarProducts.length > 0 && (
         <div className="similar-products-section">
           <h2 className="section-title">Productos Similares</h2>
-          <div className="similar-products-grid">
+          <div
+            className="similar-products-grid"
+            ref={similarScrollRef}
+            onMouseDown={(e) => {
+              isDraggingSimilar.current = true;
+              hasDraggedSimilar.current = false;
+              startXSimilar.current = e.pageX - similarScrollRef.current.offsetLeft;
+              scrollLeftSimilar.current = similarScrollRef.current.scrollLeft;
+              similarScrollRef.current.style.cursor = 'grabbing';
+            }}
+            onMouseLeave={() => {
+              isDraggingSimilar.current = false;
+              if (similarScrollRef.current) similarScrollRef.current.style.cursor = 'grab';
+            }}
+            onMouseUp={() => {
+              isDraggingSimilar.current = false;
+              if (similarScrollRef.current) similarScrollRef.current.style.cursor = 'grab';
+            }}
+            onMouseMove={(e) => {
+              if (!isDraggingSimilar.current) return;
+              e.preventDefault();
+              const x = e.pageX - similarScrollRef.current.offsetLeft;
+              const walk = (x - startXSimilar.current) * 2;
+              if (Math.abs(walk) > 5) hasDraggedSimilar.current = true;
+              similarScrollRef.current.scrollLeft = scrollLeftSimilar.current - walk;
+            }}
+          >
             {similarProducts.map(similar => (
               <div 
                 key={similar.id} 
                 className="similar-product-card"
-                onClick={() => navigate(`/product/${similar.id}`)}
+                draggable={false}
+                onClick={() => { if (!hasDraggedSimilar.current) navigate(`/product/${similar.id}`); }}
               >
                 <img 
                   src={resolveImageUrl(
@@ -448,6 +482,8 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
                   )} 
                   alt={similar.name} 
                   className="similar-product-image"
+                  draggable={false}
+                  onError={(e) => { e.target.onerror = null; e.target.src = '/images/placeholder.svg'; }}
                 />
                 <div className="similar-product-info">
                   <div className="similar-product-name">{similar.name}</div>

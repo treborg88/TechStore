@@ -69,13 +69,15 @@ router.get('/', async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || '';
+    const sort = req.query.sort || '';
 
     try {
         const { data: products, total } = await statements.getProductsPaginated(
             page, 
             limit, 
             search, 
-            categoryFilter && categoryFilter.toLowerCase() !== 'todos' ? categoryFilter : 'all'
+            categoryFilter && categoryFilter.toLowerCase() !== 'todos' ? categoryFilter : 'all',
+            sort
         );
 
         // Add images to each product and migrate legacy images

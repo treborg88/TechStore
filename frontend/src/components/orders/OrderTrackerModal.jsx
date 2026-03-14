@@ -339,11 +339,12 @@ function OrderTrackerModal({ onClose, user, currencyCode }) {
                                         {selectedOrder.items.map((item) => (
                                             <div key={item.id} className="order-item-row">
                                                 <img 
-                                                    src={resolveImageUrl(item.image, 'https://placehold.co/100x100?text=No+imagen')} 
+                                                    src={resolveImageUrl(item.image)} 
                                                     alt={item.name}
                                                     className="item-image"
                                                     onError={(e) => {
-                                                        e.target.src = 'https://placehold.co/100x100?text=No+imagen';
+                                                        e.target.onerror = null;
+                                                        e.target.src = '/images/placeholder.svg';
                                                     }}
                                                 />
                                                 <div className="item-info">

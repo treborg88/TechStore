@@ -19,7 +19,7 @@ export function useProducts() {
   const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const lastRequestRef = useRef({ category: 'todos', page: 1 });
+  const lastRequestRef = useRef({ category: 'todos', page: 1, search: '', sort: '' });
 
   // Modifica el stock local de un producto por delta (+/-)
   const updateProductStock = useCallback((productId, delta) => {
@@ -59,9 +59,9 @@ export function useProducts() {
 
   // Fetch de productos con caché en localStorage
   const fetchProducts = useCallback(async (category = 'todos', page = 1, options = {}) => {
-    const { force = false } = options;
-    lastRequestRef.current = { category, page };
-    const cacheKey = buildProductsCacheKey(category, page);
+    const { force = false, search = '', sort = '' } = options;
+    lastRequestRef.current = { category, page, search, sort };
+    const cacheKey = buildProductsCacheKey(category, page, search, sort);
 
     try {
       const cachedData = getCacheItem(cacheKey);
@@ -103,6 +103,12 @@ export function useProducts() {
 
       if (category !== 'todos') {
         queryParams.append('category', category);
+      }
+      if (search) {
+        queryParams.append('search', search);
+      }
+      if (sort) {
+        queryParams.append('sort', sort);
       }
 
       const url = `${API_URL}/products?${queryParams}`;
@@ -157,8 +163,8 @@ export function useProducts() {
   // Revalidación al volver al tab/app para evitar datos visualmente desactualizados
   useEffect(() => {
     const revalidateOnFocus = () => {
-      const { category, page } = lastRequestRef.current;
-      fetchProducts(category, page, { force: false });
+      const { category, page, search, sort } = lastRequestRef.current;
+      fetchProducts(category, page, { force: false, search, sort });
     };
 
     const handleVisibilityChange = () => {

@@ -203,7 +203,7 @@ const statements = {
     const { rows } = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
     return rows;
   },
-  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '') => {
+  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '', sort = '') => {
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
@@ -226,6 +226,17 @@ const statements = {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
+    // Resolve ORDER BY clause from sort param (whitelist to prevent injection)
+    const SORT_MAP = {
+      newest: 'created_at DESC',
+      oldest: 'created_at ASC',
+      price_asc: 'price ASC',
+      price_desc: 'price DESC',
+      name_asc: 'name ASC',
+      name_desc: 'name DESC',
+    };
+    const orderBy = SORT_MAP[sort] || 'created_at DESC';
+
     // Count query
     const countRes = await pool.query(`SELECT count(*)::int FROM products ${where}`, params);
     const total = countRes.rows[0].count;
@@ -233,7 +244,7 @@ const statements = {
     // Data query with pagination
     const dataParams = [...params, limit, offset];
     const { rows } = await pool.query(
-      `SELECT * FROM products ${where} ORDER BY created_at DESC LIMIT $${idx} OFFSET $${idx + 1}`,
+      `SELECT * FROM products ${where} ORDER BY ${orderBy} LIMIT $${idx} OFFSET $${idx + 1}`,
       dataParams
     );
     return { data: rows, total };

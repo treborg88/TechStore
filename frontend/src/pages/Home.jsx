@@ -14,6 +14,12 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState('');
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef(null);
+  
+  // Debounce ref for server-side search
+  const searchTimerRef = useRef(null);
   
   // Ref para el scroll de categorías
   const categoriesScrollRef = useRef(null);
@@ -246,12 +252,6 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     }
   }, [categories, selectedCategory, fetchProducts]);
 
-  // Función para cambiar de categoría
-  const handleCategoryChange = (categorySlug) => {
-    setSelectedCategory(categorySlug);
-    fetchProducts(categorySlug);
-  };
-
   // Funciones para drag con mouse en categorías
   const handleMouseDown = (e) => {
     isDragging.current = true;
@@ -312,23 +312,63 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     productsScrollRef.current.scrollLeft = scrollLeftProducts.current - walk;
   };
 
-  // Filter products: exclude hidden, then apply search query
+  // Filter only hidden products client-side; search is now server-side
   const filteredProducts = useMemo(() => {
-    const visible = products.filter(p => !p.is_hidden);
-    if (!searchQuery.trim()) return visible;
-    const query = searchQuery.toLowerCase().trim();
-    return visible.filter(product => 
-      product.name?.toLowerCase().includes(query) ||
-      product.description?.toLowerCase().includes(query) ||
-      product.category?.toLowerCase().includes(query)
-    );
-  }, [products, searchQuery]);
+    return products.filter(p => !p.is_hidden);
+  }, [products]);
 
   // Clear search when changing category
   const handleCategoryChangeWithClear = (categorySlug) => {
     setSearchQuery('');
-    handleCategoryChange(categorySlug);
+    clearTimeout(searchTimerRef.current);
+    setSelectedCategory(categorySlug);
+    fetchProducts(categorySlug, 1, { search: '', sort: sortBy });
   };
+
+  // Debounced server-side search handler
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      fetchProducts(selectedCategory, 1, { search: value.trim(), sort: sortBy, force: true });
+    }, 400);
+  };
+
+  // Clear search input and re-fetch
+  const handleSearchClear = () => {
+    setSearchQuery('');
+    clearTimeout(searchTimerRef.current);
+    fetchProducts(selectedCategory, 1, { search: '', sort: sortBy, force: true });
+  };
+
+  // Sort change handler
+  const handleSortChange = (value) => {
+    setSortBy(value);
+    setSortDropdownOpen(false);
+    fetchProducts(selectedCategory, 1, { search: searchQuery, sort: value, force: true });
+  };
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target)) {
+        setSortDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Sort options config
+  const sortOptions = [
+    { value: '', label: 'Más recientes' },
+    { value: 'oldest', label: 'Más antiguos' },
+    { value: 'price_asc', label: 'Precio: menor a mayor' },
+    { value: 'price_desc', label: 'Precio: mayor a menor' },
+    { value: 'name_asc', label: 'Nombre: A-Z' },
+    { value: 'name_desc', label: 'Nombre: Z-A' },
+  ];
 
   // Hero style variables for dynamic positioning and sizing
   const heroStyleVars = useMemo(() => {
@@ -466,7 +506,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
         </div>
       </section>
 
-      {/* Search Bar */}
+      {/* Search Bar with integrated Sort */}
       <section className="search-section">
         <div className="container">
           <div className="search-bar-wrapper">
@@ -474,24 +514,49 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
             <input
               type="text"
               className="search-input"
-              placeholder="Buscar productos por nombre, descripción o categoría..."
+              placeholder="Buscar productos por nombre o descripción..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               aria-label="Buscar productos"
             />
             {searchQuery && (
               <button 
                 className="search-clear-btn"
-                onClick={() => setSearchQuery('')}
+                onClick={handleSearchClear}
                 aria-label="Limpiar búsqueda"
               >
                 ✕
               </button>
             )}
+            {/* Sort dropdown integrado en la barra */}
+            <div className="sort-dropdown" ref={sortDropdownRef}>
+              <button
+                className="sort-dropdown-toggle"
+                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                aria-label="Ordenar productos"
+                aria-expanded={sortDropdownOpen}
+              >
+                <span className="sort-dropdown-arrow">▾</span>
+              </button>
+              {sortDropdownOpen && (
+                <ul className="sort-dropdown-menu">
+                  {sortOptions.map((opt) => (
+                    <li
+                      key={opt.value}
+                      className={`sort-dropdown-item${sortBy === opt.value ? ' active' : ''}`}
+                      onClick={() => handleSortChange(opt.value)}
+                    >
+                      {sortBy === opt.value && <span className="sort-check">✓</span>}
+                      {opt.label}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-          {searchQuery && (
+          {(searchQuery || sortBy) && pagination && (
             <p className="search-results-count">
-              {filteredProducts.length} producto{filteredProducts.length !== 1 ? 's' : ''} encontrado{filteredProducts.length !== 1 ? 's' : ''}
+              {pagination.total} producto{pagination.total !== 1 ? 's' : ''} encontrado{pagination.total !== 1 ? 's' : ''}
             </p>
           )}
         </div>
@@ -559,7 +624,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                     <button 
                         className="secondary-button"
                         disabled={pagination.page === 1}
-                        onClick={() => fetchProducts(selectedCategory, pagination.page - 1)}
+                        onClick={() => fetchProducts(selectedCategory, pagination.page - 1, { search: searchQuery, sort: sortBy })}
                     >
                         &laquo; Anterior
                     </button>
@@ -567,7 +632,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                     <button 
                         className="secondary-button"
                         disabled={pagination.page === pagination.totalPages}
-                        onClick={() => fetchProducts(selectedCategory, pagination.page + 1)}
+                        onClick={() => fetchProducts(selectedCategory, pagination.page + 1, { search: searchQuery, sort: sortBy })}
                     >
                         Siguiente &raquo;
                     </button>

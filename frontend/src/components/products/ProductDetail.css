@@ -451,11 +451,21 @@
   /* Ocultar scrollbar para IE, Edge */
   -ms-overflow-style: none;
   -webkit-overflow-scrolling: touch;
+  cursor: grab;
+  user-select: none;
 }
 
 /* Ocultar scrollbar para Chrome, Safari y Opera */
 .similar-products-grid::-webkit-scrollbar {
   display: none;
+}
+
+/* Prevenir drag nativo de imágenes y links dentro del grid */
+.similar-products-grid img,
+.similar-products-grid a {
+  -webkit-user-drag: none;
+  user-drag: none;
+  pointer-events: none;
 }
 
 .similar-product-card {

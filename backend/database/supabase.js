@@ -185,7 +185,7 @@ const statements = {
     if (error) console.error('Error getAllProducts:', error);
     return data || [];
   },
-  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '') => {
+  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '', sort = '') => {
     const from = (page - 1) * limit;
     const to = from + limit - 1;
 
@@ -209,8 +209,19 @@ const statements = {
       query = query.eq('category', category);
     }
 
+    // Resolve sort column + direction (whitelist to prevent injection)
+    const SORT_MAP = {
+      newest:     { column: 'created_at', ascending: false },
+      oldest:     { column: 'created_at', ascending: true },
+      price_asc:  { column: 'price',      ascending: true },
+      price_desc: { column: 'price',      ascending: false },
+      name_asc:   { column: 'name',       ascending: true },
+      name_desc:  { column: 'name',       ascending: false },
+    };
+    const { column, ascending } = SORT_MAP[sort] || SORT_MAP.newest;
+
     const { data, count, error } = await query
-      .order('created_at', { ascending: false })
+      .order(column, { ascending })
       .range(from, to);
 
     if (error) {

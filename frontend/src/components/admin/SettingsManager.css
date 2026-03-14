@@ -13,6 +13,12 @@
   padding-bottom: 1rem;
 }
 
+.settings-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
 .settings-header h2 {
   margin: 0;
   color: #111827;
@@ -22,6 +28,67 @@
 .settings-header p {
   color: #6b7280;
   margin: 0.5rem 0 0 0;
+}
+
+/* Credential warning badge */
+.credentials-warning-badge {
+  position: relative;
+  cursor: default;
+}
+
+.credentials-warning-icon {
+  font-size: 1.15rem;
+  opacity: 0.65;
+  transition: opacity 0.2s;
+}
+
+.credentials-warning-badge:hover .credentials-warning-icon {
+  opacity: 1;
+}
+
+.credentials-warning-tooltip {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 6px;
+  background: #1f2937;
+  color: #f3f4f6;
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  min-width: 230px;
+  z-index: 100;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.credentials-warning-badge:hover .credentials-warning-tooltip {
+  display: block;
+}
+
+.credentials-warning-title {
+  font-weight: 600;
+  margin: 0 0 0.4rem 0;
+  color: #fbbf24;
+  font-size: 0.85rem;
+}
+
+.credentials-warning-tooltip ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  list-style: disc;
+}
+
+.credentials-warning-tooltip ul li {
+  margin-bottom: 2px;
+}
+
+.credentials-warning-hint {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  font-style: italic;
 }
 
 .settings-form {

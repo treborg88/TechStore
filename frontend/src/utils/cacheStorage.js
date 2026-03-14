@@ -24,4 +24,5 @@ export const removeCacheItem = (key) => {
   localStorage.removeItem(key);
 };
 
-export const buildProductsCacheKey = (category, page) => `products_cache_v2_${category}_${page}`;
+export const buildProductsCacheKey = (category, page, search = '', sort = '') =>
+  `products_cache_v3_${category}_${page}_${search}_${sort}`;

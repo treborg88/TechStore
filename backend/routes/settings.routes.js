@@ -327,4 +327,67 @@ router.post('/upload', authenticateToken, requireAdmin, singleImageUpload, async
     }
 });
 
+/**
+ * GET /api/settings/credentials-status
+ * Returns which service credentials are configured (admin only)
+ */
+router.get('/credentials-status', authenticateToken, requireAdmin, async (req, res) => {
+    try {
+        const config = require('../config');
+        const { decryptSetting } = require('../services/encryption.service');
+
+        // Leer settings de DB para verificar credenciales guardadas allí
+        let dbSettings = {};
+        try {
+            const rows = await statements.getSettings();
+            for (const { id, value } of rows) dbSettings[id] = value;
+        } catch { /* DB may not be available */ }
+
+        // Helper: verifica si un valor encriptado en DB es válido
+        const hasDbKey = (key) => {
+            if (!dbSettings[key]) return false;
+            try {
+                const decrypted = decryptSetting(dbSettings[key]);
+                return !!decrypted && decrypted.length > 0;
+            } catch {
+                return !!dbSettings[key]; // fallback: existe aunque no se pueda desencriptar
+            }
+        };
+
+        // Email: DB (mailUser+mailPassword) o ENV (EMAIL_USER+EMAIL_PASS)
+        const emailDb = !!(dbSettings.mailUser && hasDbKey('mailPassword'));
+        const emailEnv = !!(config.EMAIL_USER && config.EMAIL_PASS);
+
+        // Stripe: DB (stripeSecretKey) o ENV
+        const stripeDb = hasDbKey('stripeSecretKey');
+        const stripeEnv = !!config.STRIPE_SECRET_KEY;
+
+        // PayPal: DB o ENV
+        const paypalDb = !!(dbSettings.paypalClientId && hasDbKey('paypalClientSecret'));
+        const paypalEnv = !!(config.PAYPAL_CLIENT_ID && config.PAYPAL_CLIENT_SECRET);
+
+        // Chatbot: DB (chatbotLlmApiKey) o ENV
+        const chatbotDb = hasDbKey('chatbotLlmApiKey');
+        const chatbotEnv = !!process.env.CHATBOT_LLM_API_KEY;
+
+        // Base de datos: verificar conexión activa
+        const db = require('../database');
+        const dbConnected = db.dbConfigured();
+
+        const credentials = [
+            { id: 'database', label: 'Base de Datos', configured: dbConnected },
+            { id: 'email', label: 'Correo SMTP', configured: emailDb || emailEnv },
+            { id: 'stripe', label: 'Stripe (Pagos con tarjeta)', configured: stripeDb || stripeEnv },
+            { id: 'paypal', label: 'PayPal', configured: paypalDb || paypalEnv },
+            { id: 'chatbot', label: 'Chatbot (LLM API Key)', configured: chatbotDb || chatbotEnv },
+        ];
+
+        const missing = credentials.filter(c => !c.configured);
+        res.json({ credentials, missing, allConfigured: missing.length === 0 });
+    } catch (error) {
+        console.error('Error checking credentials status:', error);
+        res.status(500).json({ message: 'Error al verificar credenciales' });
+    }
+});
+
 module.exports = router;

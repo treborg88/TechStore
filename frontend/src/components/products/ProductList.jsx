@@ -1041,6 +1041,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 														<img
 															src={resolveImageUrl(product.image)}
 															alt={product.name}
+															onError={(e) => { e.target.onerror = null; e.target.src = '/images/placeholder.svg'; }}
 														/>
 													)}
 												</td>

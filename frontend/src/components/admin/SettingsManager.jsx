@@ -200,6 +200,7 @@ function SettingsManager() {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [credentialWarnings, setCredentialWarnings] = useState([]);
 
   useEffect(() => {
     const hash = location.hash?.replace('#', '').trim();
@@ -386,6 +387,18 @@ function SettingsManager() {
       }
     };
     fetchSettings();
+
+    // Verificar estado de credenciales
+    const fetchCredentials = async () => {
+      try {
+        const res = await apiFetch(apiUrl('/settings/credentials-status'));
+        if (res.ok) {
+          const data = await res.json();
+          setCredentialWarnings(data.missing || []);
+        }
+      } catch { /* silently ignore */ }
+    };
+    fetchCredentials();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -689,7 +702,23 @@ function SettingsManager() {
     <div className="settings-manager">
       {activeSection === 'site' && (
         <div className="settings-header">
-          <h2>⚙️ Ajustes del Sitio</h2>
+          <div className="settings-header-row">
+            <h2>⚙️ Ajustes del Sitio</h2>
+            {credentialWarnings.length > 0 && (
+              <div className="credentials-warning-badge">
+                <span className="credentials-warning-icon">⚠️</span>
+                <div className="credentials-warning-tooltip">
+                  <p className="credentials-warning-title">Credenciales pendientes</p>
+                  <ul>
+                    {credentialWarnings.map(c => (
+                      <li key={c.id}>{c.label}</li>
+                    ))}
+                  </ul>
+                  <p className="credentials-warning-hint">Configúralas en Modo Avanzado para habilitar estas funciones.</p>
+                </div>
+              </div>
+            )}
+          </div>
           <p>Configura parámetros globales de la tienda.</p>
         </div>
       )}
