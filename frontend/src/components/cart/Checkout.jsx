@@ -159,6 +159,15 @@ const [step, setStep] = useState(1);
     const [storeLocation, setStoreLocation] = useState(null);
     // Shipping zones from mapConfig (loaded from settings)
     const [shippingZones, setShippingZones] = useState(null);
+    // Map & shipping feature toggles (from mapConfig)
+    const [mapEnabled, setMapEnabled] = useState(true);
+    const [shippingCalcEnabled, setShippingCalcEnabled] = useState(true);
+
+    // Email feature toggles (loaded from public settings)
+    const [emailToggles, setEmailToggles] = useState({
+        emailVerifyGuestCheckout: true,
+        emailInvoiceAutoSend: true
+    });
 
     // Salto instantáneo al tope de la página cada vez que cambia el step
     useEffect(() => {
@@ -199,7 +208,6 @@ const [step, setStep] = useState(1);
                 console.error('Error restoring PayPal payment state:', e);
             }
         }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Run only on mount
 
     // Validate cart has items - redirect if empty and no order/pending payment exists
@@ -224,7 +232,13 @@ const [step, setStep] = useState(1);
                 if (res.ok) {
                     const data = await res.json();
 
-                    // Load map config (store location + shipping zones)
+                    // Load email feature toggles
+                    setEmailToggles({
+                        emailVerifyGuestCheckout: data.emailVerifyGuestCheckout !== 'false',
+                        emailInvoiceAutoSend: data.emailInvoiceAutoSend !== 'false'
+                    });
+
+                    // Load map config (store location, shipping zones, feature toggles)
                     try {
                         const mc = typeof data.mapConfig === 'string' ? JSON.parse(data.mapConfig) : data.mapConfig;
                         if (mc?.storeLocation?.lat && mc?.storeLocation?.lng) {
@@ -233,6 +247,9 @@ const [step, setStep] = useState(1);
                         if (Array.isArray(mc?.shippingZones) && mc.shippingZones.length > 0) {
                             setShippingZones(mc.shippingZones);
                         }
+                        // Apply map & shipping toggles (default to true if not set)
+                        setMapEnabled(mc?.mapEnabled !== false);
+                        setShippingCalcEnabled(mc?.shippingCalcEnabled !== false);
                     } catch { /* ignore parse errors */ }
 
                     if (data.paymentMethodsConfig) {
@@ -480,7 +497,7 @@ e.preventDefault();
         // For Stripe payments - show payment form BEFORE creating order
         // Order will be created after payment is confirmed
         if (formData.paymentMethod === 'stripe') {
-            const orderTotal = total + (mapData.shippingCost || 0);
+            const orderTotal = total + (shippingCalcEnabled ? (mapData.shippingCost || 0) : 0);
             // Store pending data (no order yet, just preparation data)
             const pendingData = { 
                 total: orderTotal,
@@ -505,7 +522,7 @@ e.preventDefault();
         // For PayPal payments - show payment form BEFORE creating order
         // Order will be created after payment is confirmed
         if (formData.paymentMethod === 'paypal') {
-            const orderTotal = total + (mapData.shippingCost || 0);
+            const orderTotal = total + (shippingCalcEnabled ? (mapData.shippingCost || 0) : 0);
             // Store pending data (no order yet, just preparation data)
             const pendingData = { 
                 total: orderTotal,
@@ -556,9 +573,9 @@ e.preventDefault();
                     shipping_city: formData.city,
                     shipping_sector: formData.sector,
                     notes: formData.notes,
-                    shipping_cost: mapData.shippingCost,
-                    shipping_distance: mapData.distance,
-                    shipping_coordinates: mapData.selectedLocation,
+                    shipping_cost: mapData.shippingCost || 0,
+                    shipping_distance: mapData.distance || null,
+                    shipping_coordinates: mapData.selectedLocation || null,
                     skipEmail: true
                 })
             });
@@ -576,9 +593,9 @@ e.preventDefault();
                     shipping_city: formData.city,
                     shipping_sector: formData.sector,
                     notes: formData.notes,
-                    shipping_cost: mapData.shippingCost,
-                    shipping_distance: mapData.distance,
-                    shipping_coordinates: mapData.selectedLocation,
+                    shipping_cost: mapData.shippingCost || 0,
+                    shipping_distance: mapData.distance || null,
+                    shipping_coordinates: mapData.selectedLocation || null,
                     skipEmail: true,
                     customer_info: {
                         name: `${formData.firstName} ${formData.lastName}`,
@@ -604,8 +621,10 @@ e.preventDefault();
     setOrderCreated(order);
     localStorage.removeItem('checkout_progress');
 
-    // Send invoice email with saved items (before cart is cleared)
-    await sendInvoiceEmail(order, itemsForInvoice);
+    // Send invoice email automatically (only if toggle is enabled)
+    if (emailToggles.emailInvoiceAutoSend) {
+        await sendInvoiceEmail(order, itemsForInvoice);
+    }
 
     if (onOrderComplete) {
         onOrderComplete(cartItems);
@@ -682,18 +701,18 @@ return (
                     order={{
                         ...orderCreated,
                         subtotal: total,
-                        shipping_cost: mapData.shippingCost,
-                        shipping_distance: mapData.distance,
-                        shipping_coordinates: mapData.selectedLocation,
-                        total: total + mapData.shippingCost
+                        shipping_cost: mapData.shippingCost || 0,
+                        shipping_distance: mapData.distance || null,
+                        shipping_coordinates: mapData.selectedLocation || null,
+                        total: total + (mapData.shippingCost || 0)
                     }}
                     customerInfo={{
                         ...formData,
                         // Use payment_method from order if available (more reliable after Stripe/PayPal payments)
                         paymentMethod: orderCreated.payment_method || formData.paymentMethod,
-                        shippingCost: mapData.shippingCost,
-                        shippingDistance: mapData.distance,
-                        shippingCoordinates: mapData.selectedLocation
+                        shippingCost: mapData.shippingCost || 0,
+                        shippingDistance: mapData.distance || null,
+                        shippingCoordinates: mapData.selectedLocation || null
                     }}
                     items={confirmedItems}
                     onClose={() => {
@@ -800,6 +819,12 @@ return (
                                     }
                                     const user = getCurrentUser();
                                     if (user || isEmailVerified) {
+                                        goToStep(2);
+                                        return;
+                                    }
+                                    // Skip email verification if toggle is disabled
+                                    if (!emailToggles.emailVerifyGuestCheckout) {
+                                        setIsEmailVerified(true);
                                         goToStep(2);
                                         return;
                                     }
@@ -947,22 +972,26 @@ return (
                                     </div>
                                 </div>
 
-                                <DeliveryMap
-                                    mapData={mapData}
-                                    setMapData={setMapData}
-                                    onAddressSelect={(address) => {
-                                        setFormData(prev => ({ ...prev, address }));
-                                    }}
-                                    onError={setError}
-                                    currencyCode={currencyCode}
-                                    addressFields={{
-                                        address: formData.address,
-                                        sector: formData.sector,
-                                        city: formData.city
-                                    }}
-                                    warehouseLocation={storeLocation}
-                                    shippingZones={shippingZones}
-                                />
+                                {/* Delivery map (conditionally rendered via admin toggle) */}
+                                {mapEnabled && (
+                                    <DeliveryMap
+                                        mapData={mapData}
+                                        setMapData={setMapData}
+                                        onAddressSelect={(address) => {
+                                            setFormData(prev => ({ ...prev, address }));
+                                        }}
+                                        onError={setError}
+                                        currencyCode={currencyCode}
+                                        addressFields={{
+                                            address: formData.address,
+                                            sector: formData.sector,
+                                            city: formData.city
+                                        }}
+                                        warehouseLocation={storeLocation}
+                                        shippingZones={shippingZones}
+                                        shippingCalcEnabled={shippingCalcEnabled}
+                                    />
+                                )}
                             </form>
                         )}
 
@@ -986,13 +1015,13 @@ return (
                                         <label>Dirección:</label>
                                         <p>{formData.address}, {formData.sector}, {formData.city}</p>
                                     </div>
-                                    {mapData.selectedLocation && (
+                                    {mapEnabled && mapData.selectedLocation && (
                                         <div className="review-item">
                                             <label>📍 Coordenadas GPS:</label>
                                             <p>{mapData.selectedLocation.lat.toFixed(6)}, {mapData.selectedLocation.lng.toFixed(6)}</p>
                                         </div>
                                     )}
-                                    {mapData.distance && (
+                                    {shippingCalcEnabled && mapData.distance && (
                                         <div className="review-item">
                                             <label>📏 Distancia de envío:</label>
                                             <p>{mapData.distance.toFixed(2)} km</p>
@@ -1005,7 +1034,7 @@ return (
                                         </div>
                                     )}
                                 </div>
-                                {mapData.shippingCost > 0 && (
+                                {shippingCalcEnabled && mapData.shippingCost > 0 && (
                                     <div className="review-shipping-cost">
                                         <span>💵 Costo de Envío:</span>
                                         <span className="shipping-total">{formatCurrency(mapData.shippingCost, currencyCode)}</span>
@@ -1127,8 +1156,10 @@ return (
                                                 localStorage.removeItem('checkout_progress');
                                                 localStorage.removeItem('pending_stripe_payment');
                                                 
-                                                // Send invoice email
-                                                await sendInvoiceEmail(paidOrder, orderCartItems, orderFormData);
+                                                // Send invoice email (only if toggle is enabled)
+                                                if (emailToggles.emailInvoiceAutoSend) {
+                                                    await sendInvoiceEmail(paidOrder, orderCartItems, orderFormData);
+                                                }
                                                 
                                                 // Clear cart AFTER order is created
                                                 if (onClearCart) onClearCart();
@@ -1261,8 +1292,10 @@ return (
                                                 localStorage.removeItem('checkout_progress');
                                                 localStorage.removeItem('pending_paypal_payment');
                                                 
-                                                // Send invoice email
-                                                await sendInvoiceEmail(paidOrder, orderCartItems, orderFormData);
+                                                // Send invoice email (only if toggle is enabled)
+                                                if (emailToggles.emailInvoiceAutoSend) {
+                                                    await sendInvoiceEmail(paidOrder, orderCartItems, orderFormData);
+                                                }
                                                 
                                                 // Clear cart AFTER order is created
                                                 if (onClearCart) onClearCart();
@@ -1418,16 +1451,16 @@ return (
                                 </div>
                                 <div className="summary-row shipping-row">
                                     <span>Envío</span>
-                                    <span className={mapData.shippingCost > 0 ? '' : 'shipping-pending'}>
-                                        {mapData.shippingCost > 0 
+                                    <span className={shippingCalcEnabled && mapData.shippingCost > 0 ? '' : 'shipping-pending'}>
+                                        {shippingCalcEnabled && mapData.shippingCost > 0 
                                             ? formatCurrency(mapData.shippingCost, currencyCode) 
-                                            : 'Pendiente'}
+                                            : shippingCalcEnabled ? 'Pendiente' : 'N/A'}
                                     </span>
                                 </div>
                                 <div className="summary-divider"></div>
                                 <div className="summary-row total-row">
                                     <span>Total</span>
-                                    <span>{formatCurrency(total + mapData.shippingCost, currencyCode)}</span>
+                                    <span>{formatCurrency(total + (shippingCalcEnabled ? mapData.shippingCost : 0), currencyCode)}</span>
                                 </div>
                                 </>
                                 )}

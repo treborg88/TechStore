@@ -242,6 +242,47 @@ router.post('/message', chatLimiter, async (req, res) => {
       settings
     });
 
+    // --- Escalamiento a WhatsApp (intent HUMAN_AGENT) ---
+    if (intentInfo.primaryIntent === 'HUMAN_AGENT' && settings.chatbotEscalationEnabled !== 'false') {
+      // Leer datos de contacto para construir el link de WhatsApp
+      const { statements } = require('../database');
+      const allSettings = await statements.getSettings();
+      const store = {};
+      for (const { id, value } of allSettings) store[id] = value;
+
+      const whatsappNumber = (store.contactWhatsapp || '').replace(/\D/g, '');
+      const customMsg = settings.chatbotEscalationMessage || '';
+      // Personalizar mensaje de escalamiento con nombre del usuario
+      const escalationMsg = userName
+        ? (customMsg || `${userName}, te conecto con un asesor.`)
+        : (customMsg || 'Te conecto con un asesor.');
+
+      // Generar resumen de la conversación para prellenar el mensaje de WA
+      const summaryLines = recentHistory
+        .filter(h => h.role === 'user')
+        .slice(-3)
+        .map(h => h.content);
+      const nameIntro = userName ? `Soy ${userName}. ` : '';
+      const summary = summaryLines.length > 0
+        ? `Hola, ${nameIntro}vengo del chatbot de ${store.siteName || 'la tienda'}. Estuve consultando sobre: ${summaryLines.join(' | ')}`
+        : `Hola, ${nameIntro}vengo del chatbot de ${store.siteName || 'la tienda'} y me gustaría hablar con un asesor.`;
+
+      const whatsappUrl = whatsappNumber
+        ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(summary)}`
+        : null;
+
+      return res.json({
+        reply: escalationMsg,
+        type: 'escalation',
+        escalation: {
+          whatsappUrl,
+          phone: store.contactPhone || null,
+          hours: store.contactHours || null,
+          summary
+        }
+      });
+    }
+
     // Inyectar contexto dinámico en el user message (ahorra tokens vs system prompt)
     const userMessageWithContext = dynamicContext
       ? `[CONTEXTO DINÁMICO para esta pregunta:\n${dynamicContext}\n]\n\nPregunta del usuario: ${message.trim()}`

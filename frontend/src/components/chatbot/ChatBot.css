@@ -224,6 +224,60 @@
   cursor: default;
 }
 
+/* --- Tarjeta de escalamiento a WhatsApp --- */
+.chatbot-escalation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 10px;
+}
+.chatbot-escalation-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  border: none;
+  transition: filter 0.15s, transform 0.1s;
+}
+.chatbot-escalation-btn:hover {
+  filter: brightness(0.93);
+  transform: translateY(-1px);
+}
+.chatbot-escalation-btn:active {
+  transform: translateY(0);
+}
+.chatbot-escalation-icon {
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+/* WhatsApp button */
+.chatbot-escalation-btn--wa {
+  background: #25d366;
+  color: #fff;
+}
+/* Copy button */
+.chatbot-escalation-btn--copy {
+  background: #f1f5f9;
+  color: #475569;
+  font-weight: 500;
+}
+/* Hours text */
+.chatbot-escalation-hours {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-align: center;
+}
+
 /* --- Mobile --- */
 @media (max-width: 480px) {
   .chatbot-panel {

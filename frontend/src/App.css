@@ -2486,6 +2486,67 @@ ul {
   margin-bottom: 20px; /* Espacio antes de la tabla */
 }
 
+/* ── Order flow groups (split view with inline filters) ── */
+.order-flow-group {
+  margin-bottom: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.order-flow-summary {
+  padding: 12px 16px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.95rem;
+  background: #f8fafc;
+  color: #334155;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+  border-bottom: 1px solid #e2e8f0;
+  transition: background 0.2s;
+}
+
+.order-flow-summary::-webkit-details-marker { display: none; }
+
+/* Chevron indicator */
+.order-flow-summary::after {
+  content: '▸';
+  margin-left: auto;
+  font-size: 0.9rem;
+  color: #94a3b8;
+  transition: transform 0.2s;
+}
+
+.order-flow-group[open] .order-flow-summary::after {
+  transform: rotate(90deg);
+}
+
+.order-flow-summary:hover {
+  background: #f1f5f9;
+}
+
+.order-flow-content {
+  padding: 0;
+}
+
+/* Inline filter stepper inside each flow group */
+.inline-filter-stepper {
+  display: flex;
+  width: 100%;
+  overflow-x: auto;
+  background: #f1f5f9;
+  padding: 4px;
+  gap: 2px;
+  scrollbar-width: none;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.inline-filter-stepper::-webkit-scrollbar { display: none; }
+
 .admin-filter-stepper::-webkit-scrollbar {
   display: none; /* Chrome/Safari */
 }

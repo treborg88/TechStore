@@ -18,7 +18,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 	const [orders, setOrders] = useState([]);
 	const [isLoadingOrders, setIsLoadingOrders] = useState(false);
 	const [focusOrderId, setFocusOrderId] = useState(null);
-    const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' });
+    const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', onlineStatus: 'all', codStatus: 'all', type: 'all', paymentType: 'all' });
     const [ordersPagination, setOrdersPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
 
 	// All orders for analytics (overview tab)

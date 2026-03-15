@@ -144,8 +144,14 @@ function ChatBot() {
       const data = await res.json();
       const botText = data.reply || data.message || 'No pude responder. Intenta de nuevo.';
 
+      // Construir mensaje del bot (puede ser escalamiento o texto normal)
+      const botMsg = { from: 'bot', text: botText };
+      if (data.type === 'escalation' && data.escalation) {
+        botMsg.type = 'escalation';
+        botMsg.escalation = data.escalation;
+      }
       setMessages(prev => {
-        const updated = [...prev, { from: 'bot', text: botText }];
+        const updated = [...prev, botMsg];
         return updated.length > maxMessages ? updated.slice(-maxMessages) : updated;
       });
 
@@ -210,6 +216,39 @@ function ChatBot() {
                 {msg.text.split('\n').map((line, j) => (
                   <p key={j}>{renderText(line)}</p>
                 ))}
+
+                {/* Tarjeta de escalamiento a WhatsApp */}
+                {msg.type === 'escalation' && msg.escalation && (
+                  <div className="chatbot-escalation-card">
+                    {msg.escalation.whatsappUrl && (
+                      <a
+                        href={msg.escalation.whatsappUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="chatbot-escalation-btn chatbot-escalation-btn--wa"
+                      >
+                        <span className="chatbot-escalation-icon">💬</span>
+                        Continuar por WhatsApp
+                      </a>
+                    )}
+                    {/* Botón copiar resumen al clipboard */}
+                    {msg.escalation.summary && (
+                      <button
+                        className="chatbot-escalation-btn chatbot-escalation-btn--copy"
+                        onClick={() => {
+                          navigator.clipboard.writeText(msg.escalation.summary);
+                        }}
+                      >
+                        <span className="chatbot-escalation-icon">📋</span>
+                        Copiar conversación
+                      </button>
+                    )}
+                    {msg.escalation.hours && (
+                      <p className="chatbot-escalation-hours">🕐 {msg.escalation.hours}</p>
+                    )}
+                  </div>
+                )}
+
               </div>
             ))}
             {/* Indicador de "escribiendo..." */}

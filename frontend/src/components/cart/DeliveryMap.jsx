@@ -17,7 +17,7 @@ const DEFAULT_WAREHOUSE = {
     address: 'Centro de Distribución - Santo Domingo'
 };
 
-function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCode, addressFields, warehouseLocation, shippingZones }) {
+function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCode, addressFields, warehouseLocation, shippingZones, shippingCalcEnabled = true }) {
     // Use provided store location or fall back to default
     const WAREHOUSE_LOCATION = warehouseLocation && warehouseLocation.lat && warehouseLocation.lng
         ? warehouseLocation
@@ -78,7 +78,8 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
             lat,
             lng
         );
-        const cost = calculateShippingCost(distance);
+        // Only calculate cost if shipping calc is enabled
+        const cost = shippingCalcEnabled ? calculateShippingCost(distance) : 0;
 
         setMapDataRef.current(prev => ({
             ...prev,
@@ -474,7 +475,7 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                 <p>📍 Arrastra el marcador rojo para ajustar la posición</p>
             </div> */}
 
-            {mapData.distance && (
+            {shippingCalcEnabled && mapData.distance && (
                 <div className="shipping-cost-card" style={{
                     display: 'flex',
                     alignItems: 'center',

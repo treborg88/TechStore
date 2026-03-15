@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const router = express.Router();
 
 const { statements } = require('../database');
+const { getSettingsMap } = require('../services/email.service');
 
 // Generate unique session ID for each login (per device/browser)
 const generateSessionId = () => crypto.randomBytes(16).toString('hex');
@@ -38,19 +39,28 @@ router.post('/register', async (req, res) => {
     try {
         const { name, email, password, code } = req.body;
 
+        // Check if registration email verification is disabled
+        let skipVerification = false;
+        try {
+            const settings = await getSettingsMap();
+            skipVerification = settings.emailVerifyRegistration === 'false';
+        } catch { /* default: require verification */ }
+
         // Basic validation
-        if (!name || !email || !password || !code) {
+        if (!name || !email || !password || (!code && !skipVerification)) {
             return res.status(400).json({ 
                 message: 'Nombre, email, contraseña y código de verificación son requeridos' 
             });
         }
 
-        // Validate verification code
-        const verificationRecord = await statements.getVerificationCode(email.toLowerCase(), code, 'register');
-        if (!verificationRecord) {
-            return res.status(400).json({ 
-                message: 'Código de verificación inválido o expirado' 
-            });
+        // Validate verification code (skip if email verification is disabled)
+        if (!skipVerification) {
+            const verificationRecord = await statements.getVerificationCode(email.toLowerCase(), code, 'register');
+            if (!verificationRecord) {
+                return res.status(400).json({ 
+                    message: 'Código de verificación inválido o expirado' 
+                });
+            }
         }
 
         // Validate email format
@@ -93,8 +103,10 @@ router.post('/register', async (req, res) => {
         const newUserId = result.lastInsertRowid;
         const newUser = await statements.getUserById(newUserId);
 
-        // Delete used verification code
-        await statements.deleteVerificationCodes(email.toLowerCase(), 'register');
+        // Delete used verification code (only if verification was required)
+        if (!skipVerification) {
+            await statements.deleteVerificationCodes(email.toLowerCase(), 'register');
+        }
 
         // Generate unique session ID for this device
         const sessionId = generateSessionId();
@@ -243,6 +255,14 @@ router.post('/forgot-password', async (req, res) => {
     if (!email) {
         return res.status(400).json({ message: 'Email es requerido' });
     }
+
+    // Check if password reset email is disabled
+    try {
+        const settings = await getSettingsMap();
+        if (settings.emailPasswordReset === 'false') {
+            return res.status(400).json({ message: 'La recuperación de contraseña por email está deshabilitada por el administrador' });
+        }
+    } catch { /* default: allow */ }
 
     try {
         const user = await statements.getUserByEmail(email.toLowerCase());

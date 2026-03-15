@@ -67,6 +67,23 @@ const INTENT_PATTERNS = {
       'agregar al carrito', 'añadir al carrito'
     ],
     priority: 1
+  },
+  HUMAN_AGENT: {
+    // Solicitud de atención humana / escalamiento a WhatsApp
+    // Usa palabras individuales + frases cortas para evitar fallos con palabras intermedias
+    // Ej: "hablar con una persona" matchea por "hablar" + "persona" = score 10
+    keywords: [
+      'persona', 'alguien', 'humano', 'agente',
+      'representante', 'asesor', 'asesora', 'ejecutivo',
+      'operador', 'operadora',
+      'quiero hablar', 'necesito hablar', 'puedo hablar',
+      'hablar con', 'comunicarme',
+      'atencion humana', 'soporte humano', 'asistencia humana',
+      'agente real', 'persona real', 'ayuda real',
+      'no me ayudas', 'no entiendes', 'no me sirve',
+      'servicio al cliente', 'contactar persona'
+    ],
+    priority: 5  // Alta prioridad — el usuario quiere salir del bot
   }
 };
 

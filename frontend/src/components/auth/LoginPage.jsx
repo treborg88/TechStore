@@ -30,16 +30,28 @@ const [resetData, setResetData] = useState({
 
 const [resetStep, setResetStep] = useState('input_email'); // input_email, verify_code, success
 
-    // Refresh CSRF token on mount to ensure clean state (clears stale cookies)
+    // Email feature toggles (loaded from public settings)
+    const [emailToggles, setEmailToggles] = useState({
+        emailVerifyRegistration: true,
+        emailPasswordReset: true
+    });
+
+    // Refresh CSRF token on mount + load email toggles
     useEffect(() => {
-        const refreshCsrf = async () => {
+        const init = async () => {
+            try { await apiFetch(apiUrl('/auth/csrf')); } catch { /* non-critical */ }
             try {
-                await apiFetch(apiUrl('/auth/csrf'));
-            } catch {
-                // Non-critical: CSRF refresh failed silently
-            }
+                const res = await apiFetch(apiUrl('/settings/public'));
+                if (res.ok) {
+                    const data = await res.json();
+                    setEmailToggles({
+                        emailVerifyRegistration: data.emailVerifyRegistration !== 'false',
+                        emailPasswordReset: data.emailPasswordReset !== 'false'
+                    });
+                }
+            } catch { /* non-critical */ }
         };
-        refreshCsrf();
+        init();
     }, []);
 
     // Persistencia para no perder el progreso si se recarga la página
@@ -191,6 +203,23 @@ const handleSubmit = async (e) => {
     setError('');
 
     if (isRegister && !showVerification) {
+        // Skip verification step if email verification is disabled
+        if (!emailToggles.emailVerifyRegistration) {
+            setLoading(true);
+            try {
+                const userData = await register(formData.nombre, formData.email, formData.password, 'SKIP');
+                toast.success('¡Cuenta creada exitosamente!');
+                localStorage.removeItem('auth_form_persistence');
+                onLoginSuccess(userData);
+            } catch (err) {
+                const msg = err.message || 'Ha ocurrido un error. Inténtalo de nuevo.';
+                setError(msg);
+                toast.error(msg);
+            } finally {
+                setLoading(false);
+            }
+            return;
+        }
         setShowVerification(true);
         return;
     }
@@ -530,7 +559,7 @@ return (
         </form>
         )}
 
-        {!isRegister && !showVerification && !isForgotPassword && (
+        {!isRegister && !showVerification && !isForgotPassword && emailToggles.emailPasswordReset && (
             <div className="forgot-password">
             <button 
                 type="button" 

@@ -4,7 +4,7 @@ const router = express.Router();
 
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
-const { sendOrderEmail } = require('../services/email.service');
+const { sendOrderEmail, getSettingsMap } = require('../services/email.service');
 const { generateOrderNumber } = require('../utils/orderNumber');
 
 // Valid order statuses
@@ -325,7 +325,10 @@ router.post('/', authenticateToken, async (req, res) => {
             shipping_street,
             shipping_city,
             shipping_postal_code || '',
-            shipping_sector || ''
+            shipping_sector || '',
+            shipping_cost || 0,
+            shipping_distance || null,
+            shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
         );
         orderId = orderResult.lastInsertRowid;
 
@@ -340,15 +343,6 @@ router.post('/', authenticateToken, async (req, res) => {
         const orderNumber = generateOrderNumber(orderId);
         await statements.updateOrderNumber(orderNumber, orderId);
 
-        // Update shipping info if provided (cost, distance, coordinates)
-        if (shipping_cost !== undefined || shipping_distance !== undefined || shipping_coordinates) {
-            await statements.updateOrder(orderId, {
-                shipping_cost: shipping_cost || 0,
-                shipping_distance: shipping_distance || null,
-                shipping_coordinates: shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
-            });
-        }
-
         for (const item of itemDetails) {
             await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price, item.variant_id, item.variant_attributes);
         }
@@ -356,8 +350,16 @@ router.post('/', authenticateToken, async (req, res) => {
         await statements.clearCart(req.user.id);
 
         const order = await statements.getOrderById(orderId);
-        
-        if (req.body.skipEmail !== true) {
+
+        // Check emailOrderConfirmation toggle before sending
+        let shouldSendEmail = req.body.skipEmail !== true;
+        if (shouldSendEmail) {
+            try {
+                const emailSettings = await getSettingsMap();
+                if (emailSettings.emailOrderConfirmation === 'false') shouldSendEmail = false;
+            } catch { /* default: send */ }
+        }
+        if (shouldSendEmail) {
             const emailSent = await sendOrderEmail({
                 order,
                 items: itemDetails,
@@ -485,7 +487,10 @@ router.post('/guest', async (req, res) => {
             shipping_street,
             shipping_city,
             shipping_postal_code || '',
-            shipping_sector || ''
+            shipping_sector || '',
+            shipping_cost || 0,
+            shipping_distance || null,
+            shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
         );
         orderId = orderResult.lastInsertRowid;
 
@@ -502,26 +507,21 @@ router.post('/guest', async (req, res) => {
 
         // Update shipping info if provided (cost, distance, coordinates)
         // Wrapped in try-catch in case columns don't exist in database yet
-        if (shipping_cost !== undefined || shipping_distance !== undefined || shipping_coordinates) {
-            try {
-                await statements.updateOrder(orderId, {
-                    shipping_cost: shipping_cost || 0,
-                    shipping_distance: shipping_distance || null,
-                    shipping_coordinates: shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
-                });
-            } catch (shippingError) {
-                // Log warning but don't fail the order creation
-                console.warn('Could not save shipping info for guest order (columns may not exist):', shippingError.message);
-            }
-        }
-
         for (const item of itemDetails) {
             await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price, item.variant_id, item.variant_attributes);
         }
 
         const order = await statements.getOrderById(orderId);
         
-        if (req.body.skipEmail !== true) {
+        // Check emailOrderConfirmation toggle before sending
+        let shouldSendGuestEmail = req.body.skipEmail !== true;
+        if (shouldSendGuestEmail) {
+            try {
+                const emailSettings = await getSettingsMap();
+                if (emailSettings.emailOrderConfirmation === 'false') shouldSendGuestEmail = false;
+            } catch { /* default: send */ }
+        }
+        if (shouldSendGuestEmail) {
             const emailSent = await sendOrderEmail({
                 order,
                 items: itemDetails,

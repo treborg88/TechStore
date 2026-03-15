@@ -101,7 +101,7 @@ INSERT INTO app_settings (id, value) VALUES
     ('contactAddress',     ''),
     ('contactHours',       'Lunes a Viernes: 9:00 AM - 6:00 PM'),
     ('contactSupportLine', ''),
-    ('mapConfig',          '{"storeLocation":{"lat":18.462673,"lng":-69.936051},"shippingZones":[{"maxDistance":5,"price":100,"label":"Zona 1"},{"maxDistance":10,"price":150,"label":"Zona 2"},{"maxDistance":20,"price":200,"label":"Zona 3"},{"maxDistance":50,"price":350,"label":"Zona 4"},{"maxDistance":9999,"price":600,"label":"Zona 5"}]}'),
+    ('mapConfig',          '{"mapEnabled":true,"shippingCalcEnabled":true,"storeLocation":{"lat":18.462673,"lng":-69.936051},"shippingZones":[{"maxDistance":5,"price":100,"label":"Zona 1"},{"maxDistance":10,"price":150,"label":"Zona 2"},{"maxDistance":20,"price":200,"label":"Zona 3"},{"maxDistance":50,"price":350,"label":"Zona 4"},{"maxDistance":9999,"price":600,"label":"Zona 5"}]}'),
     -- Store info
     ('storePhone',   ''),
     ('storeAddress', ''),
@@ -111,6 +111,13 @@ INSERT INTO app_settings (id, value) VALUES
     ('stripeSecretKey',      ''),
     ('paypalClientId',       ''),
     ('paypalClientSecret',   ''),
+    -- Email feature toggles (master + per-feature)
+    ('emailEnabled',              'true'),
+    ('emailVerifyRegistration',   'true'),
+    ('emailVerifyGuestCheckout',  'true'),
+    ('emailOrderConfirmation',    'true'),
+    ('emailInvoiceAutoSend',      'true'),
+    ('emailPasswordReset',        'true'),
     -- Chatbot  
     ('chatbotEnabled',       'false'),
     ('chatbotGreeting',      '¡Hola! 👋 Soy el asistente de TechStore. ¿En qué puedo ayudarte?'),
@@ -125,7 +132,9 @@ INSERT INTO app_settings (id, value) VALUES
     ('chatbotTemperature',   '0.7'),
     ('chatbotPersonality',   'helpful'),
     ('chatbotVerbosity',     'normal'),
-    ('chatbotSystemPrompt',  '')
+    ('chatbotSystemPrompt',  ''),
+    -- Shipping slip (admin order detail)
+    ('shippingSlipEnabled',  'false')
 ON CONFLICT (id) DO NOTHING;
 
 

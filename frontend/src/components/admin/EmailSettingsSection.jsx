@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 
 /**
- * Email & invoice footer settings section
- * Manages SMTP credentials and bank transfer details for invoices
+ * Email settings section: SMTP credentials, feature toggles, invoice footer
+ * Manages email sending configuration and per-feature on/off toggles
  */
 function EmailSettingsSection({ settings, onChange, setSettings }) {
   const [showPassword, setShowPassword] = useState(false);
@@ -19,11 +19,31 @@ function EmailSettingsSection({ settings, onChange, setSettings }) {
     }));
   };
 
+  // Master email toggle — controls whether child toggles are editable
+  const emailEnabled = settings.emailEnabled !== 'false' && settings.emailEnabled !== false;
+
+  // Helper: toggle a boolean setting stored as 'true'/'false' string
+  const handleToggle = (name) => {
+    setSettings(prev => ({
+      ...prev,
+      [name]: prev[name] === 'false' || prev[name] === false ? 'true' : 'false'
+    }));
+  };
+
+  // Feature toggle definitions
+  const emailFeatures = [
+    { key: 'emailVerifyRegistration',  label: 'Verificación de email al registrarse',     desc: 'Envía código de verificación cuando un usuario crea una cuenta nueva.' },
+    { key: 'emailVerifyGuestCheckout', label: 'Verificación de email en checkout (invitado)', desc: 'Requiere verificar email por código para compras como invitado.' },
+    { key: 'emailOrderConfirmation',   label: 'Confirmación de orden por email',           desc: 'Envía email automático de confirmación al crear una orden.' },
+    { key: 'emailInvoiceAutoSend',     label: 'Envío automático de factura (PDF)',         desc: 'Envía la factura en PDF por email al completar el pago.' },
+    { key: 'emailPasswordReset',       label: 'Recuperación de contraseña por email',      desc: 'Permite enviar código para restablecer contraseña olvidada.' }
+  ];
+
   return (
     <section className="settings-section">
       <h3>✉️ Correo y Facturación</h3>
       <p className="section-description">
-        Configura el envío de correos y los datos del pie de factura.
+        Configura el envío de correos, activa o desactiva funciones de email, y los datos del pie de factura.
       </p>
 
       <div className="settings-subtabs">
@@ -33,6 +53,13 @@ function EmailSettingsSection({ settings, onChange, setSettings }) {
           onClick={() => setCredentialsTab('correo')}
         >
           Correo SMTP
+        </button>
+        <button
+          type="button"
+          className={`settings-subtab ${credentialsTab === 'funciones' ? 'active' : ''}`}
+          onClick={() => setCredentialsTab('funciones')}
+        >
+          Funciones
         </button>
         <button
           type="button"
@@ -142,6 +169,58 @@ function EmailSettingsSection({ settings, onChange, setSettings }) {
               Variables disponibles: {'{{siteName}}'}, {'{{siteIcon}}'}, {'{{orderNumber}}'}, {'{{customerName}}'}, {'{{customerEmail}}'}, {'{{customerPhone}}'}, {'{{shippingAddress}}'}, {'{{paymentMethod}}'}, {'{{status}}'}, {'{{subtotal}}'}, {'{{shippingCost}}'}, {'{{total}}'}, {'{{itemsTable}}'}.
             </p>
           </div>
+        </>
+      )}
+
+      {/* Tab: Funciones — master toggle + per-feature checkboxes */}
+      {credentialsTab === 'funciones' && (
+        <>
+          {/* Master toggle */}
+          <div className="email-toggle-master" style={{ marginBottom: '18px', padding: '14px 16px', background: emailEnabled ? '#f0fdf4' : '#fef2f2', borderRadius: '8px', border: `1px solid ${emailEnabled ? '#bbf7d0' : '#fecaca'}` }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontWeight: 600, fontSize: '1.05rem' }}>
+              <input
+                type="checkbox"
+                checked={emailEnabled}
+                onChange={() => handleToggle('emailEnabled')}
+                style={{ width: '18px', height: '18px' }}
+              />
+              {emailEnabled ? '✅' : '⛔'} Envío de correos {emailEnabled ? 'activado' : 'desactivado'}
+            </label>
+            <p className="field-hint" style={{ marginTop: '6px', marginLeft: '28px' }}>
+              {emailEnabled
+                ? 'El sistema puede enviar correos. Desactiva para pausar todos los envíos.'
+                : 'Ningún correo será enviado mientras esté desactivado.'}
+            </p>
+          </div>
+
+          {/* Per-feature toggles */}
+          <div style={{ opacity: emailEnabled ? 1 : 0.5, pointerEvents: emailEnabled ? 'auto' : 'none' }}>
+            {emailFeatures.map(({ key, label, desc }) => {
+              const isOn = settings[key] !== 'false' && settings[key] !== false;
+              return (
+                <div key={key} className="email-toggle-row" style={{ padding: '10px 0', borderBottom: '1px solid var(--gray-200, #e5e7eb)' }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={isOn}
+                      onChange={() => handleToggle(key)}
+                      style={{ width: '16px', height: '16px', marginTop: '3px', flexShrink: 0 }}
+                    />
+                    <span>
+                      <strong>{label}</strong>
+                      <br />
+                      <span className="field-hint" style={{ fontSize: '0.85rem' }}>{desc}</span>
+                    </span>
+                  </label>
+                </div>
+              );
+            })}
+          </div>
+          {!emailEnabled && (
+            <p style={{ marginTop: '12px', color: '#b91c1c', fontWeight: 500, fontSize: '0.9rem' }}>
+              ⚠️ Activa el envío de correos arriba para configurar funciones individuales.
+            </p>
+          )}
         </>
       )}
 

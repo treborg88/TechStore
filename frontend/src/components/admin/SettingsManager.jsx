@@ -104,6 +104,8 @@ function SettingsManager() {
 
   // Default map & shipping configuration
   const DEFAULT_MAP_CONFIG = {
+    mapEnabled: true,
+    shippingCalcEnabled: true,
     storeLocation: { lat: 18.462673, lng: -69.936051 },
     shippingZones: [
       { maxDistance: 5, price: 100, label: 'Zona 1' },
@@ -340,6 +342,8 @@ function SettingsManager() {
               ? parsed.shippingZones
               : cloneMapConfig().shippingZones;
             typedData[key] = {
+              mapEnabled: parsed?.mapEnabled !== false,
+              shippingCalcEnabled: parsed?.shippingCalcEnabled !== false,
               storeLocation: {
                 ...cloneMapConfig().storeLocation,
                 ...(parsed?.storeLocation || {})
@@ -1935,6 +1939,15 @@ function SettingsManager() {
                           Activar Modo Mantenimiento
                         </label>
                       </div>
+                      <div className="form-group checkbox-group">
+                        <label>
+                          <input type="checkbox" name="shippingSlipEnabled" checked={settings.shippingSlipEnabled} onChange={handleChange} />
+                          Habilitar Cartilla de Envío en detalle de orden
+                        </label>
+                        <small style={{ color: '#6b7280', fontSize: '0.8rem' }}>
+                          Permite generar una cartilla con los datos de envío para copiar o compartir.
+                        </small>
+                      </div>
                     </>
                   )}
                 </section>
@@ -2293,8 +2306,27 @@ function SettingsManager() {
 
               {siteTab === 'map' && (
                 <div className="settings-section-scroll">
-                  {/* Store Location */}
+                  {/* Store Location (with map toggle) */}
                   <section className="settings-section">
+                    <div className="feature-toggle-banner">
+                      <div className="feature-toggle-left">
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={settings.mapConfig?.mapEnabled !== false}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              mapConfig: { ...prev.mapConfig, mapEnabled: e.target.checked }
+                            }))}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                        <span className="feature-toggle-text">Mapa de entrega en checkout</span>
+                      </div>
+                      <span className={`feature-toggle-badge ${settings.mapConfig?.mapEnabled !== false ? 'active' : 'inactive'}`}>
+                        {settings.mapConfig?.mapEnabled !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
                     <div
                       className="section-header clickable"
                       onClick={() => toggleSection('mapLocation')}
@@ -2332,8 +2364,27 @@ function SettingsManager() {
                     )}
                   </section>
 
-                  {/* Shipping Zones */}
+                  {/* Shipping Zones (with shipping calc toggle) */}
                   <section className="settings-section">
+                    <div className="feature-toggle-banner">
+                      <div className="feature-toggle-left">
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={settings.mapConfig?.shippingCalcEnabled !== false}
+                            onChange={(e) => setSettings(prev => ({
+                              ...prev,
+                              mapConfig: { ...prev.mapConfig, shippingCalcEnabled: e.target.checked }
+                            }))}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                        <span className="feature-toggle-text">Calcular costo de envío por distancia</span>
+                      </div>
+                      <span className={`feature-toggle-badge ${settings.mapConfig?.shippingCalcEnabled !== false ? 'active' : 'inactive'}`}>
+                        {settings.mapConfig?.shippingCalcEnabled !== false ? 'Activo' : 'Inactivo'}
+                      </span>
+                    </div>
                     <div
                       className="section-header clickable"
                       onClick={() => toggleSection('mapShippingZones')}

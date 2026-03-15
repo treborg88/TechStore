@@ -32,6 +32,9 @@ const PUBLIC_SETTINGS = [
     'paymentMethodsConfig',
     // Site domain (for CORS / display)
     'siteDomain',
+    // Email feature toggles (public — frontend needs these to conditionally show verification)
+    'emailEnabled', 'emailVerifyRegistration', 'emailVerifyGuestCheckout',
+    'emailOrderConfirmation', 'emailInvoiceAutoSend', 'emailPasswordReset',
     // Chatbot public settings
     'chatbotEnabled', 'chatbotGreeting', 'chatbotMaxMessages',
     'chatbotPlaceholder', 'chatbotColor',

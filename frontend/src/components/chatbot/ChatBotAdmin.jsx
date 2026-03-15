@@ -294,6 +294,36 @@ function ChatBotAdmin({ settings, onChange, setSettings }) {
         <small className="chatbot-admin__field-hint">Si está activo, los usuarios pueden preguntar por el estado de sus pedidos.</small>
       </section>
 
+      {/* --- Escalamiento a WhatsApp --- */}
+      <section className="chatbot-admin__section">
+        <h3>Escalamiento a WhatsApp</h3>
+        <p className="chatbot-admin__section-desc">
+          Cuando un cliente pide hablar con una persona, el chatbot muestra un botón para continuar la conversación por WhatsApp
+          con un resumen automático del contexto.
+        </p>
+        <label className="chatbot-admin__toggle-label">
+          <input
+            type="checkbox"
+            checked={settings.chatbotEscalationEnabled !== 'false'}
+            onChange={e => updateField('chatbotEscalationEnabled', e.target.checked)}
+          />
+          <span>Permitir escalamiento a WhatsApp</span>
+        </label>
+        <small className="chatbot-admin__field-hint">
+          Usa el número de WhatsApp configurado en la página de Contacto.
+        </small>
+        <div className="chatbot-admin__field" style={{ marginTop: '10px' }}>
+          <label>Mensaje de escalamiento (opcional)</label>
+          <textarea
+            rows={2}
+            value={settings.chatbotEscalationMessage || ''}
+            onChange={e => updateField('chatbotEscalationMessage', e.target.value)}
+            placeholder="Ej: Entiendo, te conecto con un asesor. Haz clic en el botón para continuar por WhatsApp."
+          />
+          <small>Si se deja vacío, se usa un mensaje predeterminado.</small>
+        </div>
+      </section>
+
       {/* --- Base de Conocimiento --- */}
       <section className="chatbot-admin__section">
         <h3>Base de Conocimiento</h3>

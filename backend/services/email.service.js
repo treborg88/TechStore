@@ -138,10 +138,18 @@ const renderTemplate = (template, data) => {
 
 /**
  * Send email using configured settings
+ * Respects master emailEnabled toggle — returns silently if disabled
  * @param {Object} mailOptions - Nodemailer mail options
  */
 const sendMailWithSettings = async (mailOptions) => {
     const settings = await getSettingsMap();
+
+    // Master toggle: if email is disabled globally, skip silently
+    if (settings.emailEnabled === 'false') {
+        console.log('📧 Email disabled globally (emailEnabled=false), skipping send');
+        return;
+    }
+
     const transporter = createMailTransporter(settings);
     
     if (!transporter) {

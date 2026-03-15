@@ -559,15 +559,17 @@ const statements = {
   },
 
   // ── Orders ───────────────────────────────────────────────
-  createOrder: async (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector) => {
+  createOrder: async (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector, shipping_cost, shipping_distance, shipping_coordinates) => {
     const { rows } = await pool.query(
       `INSERT INTO orders (user_id, total, shipping_address, payment_method,
        customer_name, customer_email, customer_phone,
-       shipping_street, shipping_city, shipping_postal_code, shipping_sector)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+       shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+       shipping_cost, shipping_distance, shipping_coordinates)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) RETURNING *`,
       [user_id, total, shipping_address, payment_method,
        customer_name, customer_email, customer_phone,
-       shipping_street, shipping_city, shipping_postal_code, shipping_sector]
+       shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+       shipping_cost || 0, shipping_distance || null, shipping_coordinates || null]
     );
     return { lastInsertRowid: rows[0].id };
   },

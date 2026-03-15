@@ -3,18 +3,35 @@ const express = require('express');
 const router = express.Router();
 
 const { statements } = require('../database');
-const { sendMailWithSettings } = require('../services/email.service');
+const { sendMailWithSettings, getSettingsMap } = require('../services/email.service');
 const { EMAIL_USER } = require('../config');
 
 /**
  * POST /api/verification/send-code
  * Send verification code to email
+ * Respects per-purpose email toggles (registration, guest checkout)
  */
 router.post('/send-code', async (req, res) => {
     const { email, purpose } = req.body;
 
     if (!email) {
         return res.status(400).json({ message: 'Email es requerido' });
+    }
+
+    // Check email feature toggles — skip verification if disabled for this purpose
+    try {
+        const settings = await getSettingsMap();
+        if (purpose === 'register' && settings.emailVerifyRegistration === 'false') {
+            return res.json({ success: true, skipped: true, message: 'Verificación de registro deshabilitada' });
+        }
+        if (purpose === 'guest_checkout' && settings.emailVerifyGuestCheckout === 'false') {
+            return res.json({ success: true, skipped: true, message: 'Verificación de checkout deshabilitada' });
+        }
+        if (purpose === 'password_reset' && settings.emailPasswordReset === 'false') {
+            return res.status(400).json({ message: 'La recuperación de contraseña por email está deshabilitada' });
+        }
+    } catch (settingsError) {
+        console.warn('Could not check email toggles, proceeding with send:', settingsError.message);
     }
 
     const normalizedEmail = email.toLowerCase().trim();

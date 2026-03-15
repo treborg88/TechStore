@@ -732,13 +732,16 @@ const statements = {
   },
 
   // ── Orders ───────────────────────────────────────────────
-  createOrder: async (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector) => {
+  createOrder: async (user_id, total, shipping_address, payment_method, customer_name, customer_email, customer_phone, shipping_street, shipping_city, shipping_postal_code, shipping_sector, shipping_cost, shipping_distance, shipping_coordinates) => {
     const { data, error } = await supabase
       .from('orders')
       .insert([{
         user_id, total, shipping_address, payment_method,
         customer_name, customer_email, customer_phone,
-        shipping_street, shipping_city, shipping_postal_code, shipping_sector
+        shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+        shipping_cost: shipping_cost || 0,
+        shipping_distance: shipping_distance || null,
+        shipping_coordinates: shipping_coordinates || null
       }])
       .select()
       .single();

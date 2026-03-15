@@ -48,11 +48,27 @@ export default function OrderList({
 	onToggleOrderAlert
 }) {
 	// const [orderFilters, setOrderFilters] = useState({ search: '', status: 'all', type: 'all', paymentType: 'all' }); // Moved to parent
-    const orderFilters = filters || { search: '', status: 'all', type: 'all', paymentType: 'all' };
+    const orderFilters = filters || { search: '', status: 'all', onlineStatus: 'all', codStatus: 'all', type: 'all', paymentType: 'all' };
     const setOrderFilters = onFilterChange || (() => {});
 	
 	const [selectedOrder, setSelectedOrder] = useState(null);
 	const [isSubmitting, setIsSubmitting] = useState(false);
+
+	// Persist collapsed/expanded state of flow sections in localStorage
+	const [onlineFlowOpen, setOnlineFlowOpen] = useState(() => {
+		const saved = localStorage.getItem('orderFlow_onlineOpen');
+		return saved === null ? true : saved === 'true';
+	});
+	const [codFlowOpen, setCodFlowOpen] = useState(() => {
+		const saved = localStorage.getItem('orderFlow_codOpen');
+		return saved === null ? true : saved === 'true';
+	});
+	const toggleOnlineFlow = () => {
+		setOnlineFlowOpen(prev => { localStorage.setItem('orderFlow_onlineOpen', String(!prev)); return !prev; });
+	};
+	const toggleCodFlow = () => {
+		setCodFlowOpen(prev => { localStorage.setItem('orderFlow_codOpen', String(!prev)); return !prev; });
+	};
 	
 	// Tracking Modal State
 	const [showTrackingModal, setShowTrackingModal] = useState(false);
@@ -694,7 +710,7 @@ export default function OrderList({
 							<select
 								id="order-payment-type"
 								value={orderFilters.paymentType}
-								onChange={(event) => setOrderFilters((prev) => ({ ...prev, paymentType: event.target.value, status: 'all' }))}
+								onChange={(event) => setOrderFilters((prev) => ({ ...prev, paymentType: event.target.value, status: 'all', onlineStatus: 'all', codStatus: 'all' }))}
 							>
 								<option value="all">Todas</option>
 								<option value="online">Pago en línea</option>
@@ -713,35 +729,36 @@ export default function OrderList({
 								<option value="guest">Invitados</option>
 							</select>
 						</div>
-						<div className="filter-field full-width">
-							<label>Filtrar por Estado</label>
-							<div className="admin-filter-stepper">
-								{(orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS).map((step, index) => {
-									const steps = orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS;
-									const currentIdx = steps.findIndex(s => s.id === orderFilters.status);
-									const isHighlighted = orderFilters.status !== 'all' && index > 0 && index < currentIdx;
-									const isActive = orderFilters.status === step.id;
-									// Count: 'all' sums all statuses, others use specific status count
-									const count = step.id === 'all'
-										? Object.values(orderCounts).reduce((s, v) => s + v, 0)
-										: (orderCounts[step.id] || 0);
-									
-									return (
-										<div 
-											key={step.id} 
-											className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
-											onClick={() => setOrderFilters((prev) => ({ ...prev, status: step.id }))}
-										>
-											<span className="step-icon">{step.icon}</span>
-											<span className="step-label">{step.label}</span>
-											{count > 0 && (
-												<span className="step-count-badge">{count}</span>
-											)}
-										</div>
-									);
-								})}
+						{/* Single filter bar only when a specific payment type is selected */}
+						{orderFilters.paymentType !== 'all' && (
+							<div className="filter-field full-width">
+								<label>Filtrar por Estado</label>
+								<div className="admin-filter-stepper">
+									{(orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS).map((step, index) => {
+										const steps = orderFilters.paymentType === 'cod' ? COD_ORDER_STEPS : ONLINE_ORDER_STEPS;
+										const currentIdx = steps.findIndex(s => s.id === orderFilters.status);
+										const isHighlighted = orderFilters.status !== 'all' && index > 0 && index < currentIdx;
+										const isActive = orderFilters.status === step.id;
+										const count = step.id === 'all'
+											? Object.values(orderCounts).reduce((s, v) => s + v, 0)
+											: (orderCounts[step.id] || 0);
+										return (
+											<div 
+												key={step.id} 
+												className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
+												onClick={() => setOrderFilters((prev) => ({ ...prev, status: step.id }))}
+											>
+												<span className="step-icon">{step.icon}</span>
+												<span className="step-label">{step.label}</span>
+												{count > 0 && (
+													<span className="step-count-badge">{count}</span>
+												)}
+											</div>
+										);
+									})}
+								</div>
 							</div>
-						</div>
+						)}
 					</div>
 
 					{isLoading ? (
@@ -751,18 +768,97 @@ export default function OrderList({
 					) : (
 						orderFilters.paymentType === 'all' ? (
 							<div className="orders-split-view">
-								<details open className="order-group">
-									<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
-										Pago en línea ({filteredOrders.filter(o => o.payment_method !== 'cash').length})
-									</summary>
-									{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method !== 'cash'))}
-								</details>
-								<details open className="order-group" style={{marginTop: '20px'}}>
-									<summary style={{padding: '10px', cursor: 'pointer', fontWeight: 'bold', backgroundColor: '#f5f5f5', borderRadius: '5px', marginBottom: '10px'}}>
-										Contra entrega ({filteredOrders.filter(o => o.payment_method === 'cash').length})
-									</summary>
-									{renderResponsiveOrders(filteredOrders.filter(o => o.payment_method === 'cash'))}
-								</details>
+								{/* Online orders section with inline filter */}
+								{(() => {
+									const onlineOrders = filteredOrders.filter(o => o.payment_method !== 'cash');
+									const filtered = orderFilters.onlineStatus === 'all' 
+										? onlineOrders 
+										: onlineOrders.filter(o => o.status === orderFilters.onlineStatus);
+									return (
+										<details open={onlineFlowOpen} className="order-flow-group">
+											<summary className="order-flow-summary" onClick={(e) => { e.preventDefault(); toggleOnlineFlow(); }}>
+												💳 Pago en línea ({filtered.length})
+											</summary>
+											<div className="order-flow-content">
+												{/* Inline filter stepper for online flow */}
+												<div className="inline-filter-stepper">
+													{ONLINE_ORDER_STEPS.map((step, index) => {
+														const currentIdx = ONLINE_ORDER_STEPS.findIndex(s => s.id === orderFilters.onlineStatus);
+														const isHighlighted = orderFilters.onlineStatus !== 'all' && index > 0 && index < currentIdx;
+														const isActive = orderFilters.onlineStatus === step.id;
+														const count = step.id === 'all'
+															? onlineOrders.length
+															: onlineOrders.filter(o => o.status === step.id).length;
+														return (
+															<div 
+																key={step.id} 
+																className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
+																onClick={() => setOrderFilters((prev) => ({ ...prev, onlineStatus: step.id }))}
+															>
+																<span className="step-icon">{step.icon}</span>
+																<span className="step-label">{step.label}</span>
+																{count > 0 && (
+																	<span className="step-count-badge">{count}</span>
+																)}
+															</div>
+														);
+													})}
+												</div>
+												{filtered.length === 0 ? (
+													<div className="admin-empty">No hay órdenes en línea con este filtro.</div>
+												) : (
+													renderResponsiveOrders(filtered)
+												)}
+											</div>
+										</details>
+									);
+								})()}
+
+								{/* COD orders section with inline filter */}
+								{(() => {
+									const codOrders = filteredOrders.filter(o => o.payment_method === 'cash');
+									const filtered = orderFilters.codStatus === 'all' 
+										? codOrders 
+										: codOrders.filter(o => o.status === orderFilters.codStatus);
+									return (
+										<details open={codFlowOpen} className="order-flow-group">
+											<summary className="order-flow-summary" onClick={(e) => { e.preventDefault(); toggleCodFlow(); }}>
+												💵 Contra entrega ({filtered.length})
+											</summary>
+											<div className="order-flow-content">
+												{/* Inline filter stepper for COD flow */}
+												<div className="inline-filter-stepper">
+													{COD_ORDER_STEPS.map((step, index) => {
+														const currentIdx = COD_ORDER_STEPS.findIndex(s => s.id === orderFilters.codStatus);
+														const isHighlighted = orderFilters.codStatus !== 'all' && index > 0 && index < currentIdx;
+														const isActive = orderFilters.codStatus === step.id;
+														const count = step.id === 'all'
+															? codOrders.length
+															: codOrders.filter(o => o.status === step.id).length;
+														return (
+															<div 
+																key={step.id} 
+																className={`filter-step ${isHighlighted ? 'highlighted' : ''} ${isActive ? 'active' : ''}`}
+																onClick={() => setOrderFilters((prev) => ({ ...prev, codStatus: step.id }))}
+															>
+																<span className="step-icon">{step.icon}</span>
+																<span className="step-label">{step.label}</span>
+																{count > 0 && (
+																	<span className="step-count-badge">{count}</span>
+																)}
+															</div>
+														);
+													})}
+												</div>
+												{filtered.length === 0 ? (
+													<div className="admin-empty">No hay órdenes contra entrega con este filtro.</div>
+												) : (
+													renderResponsiveOrders(filtered)
+												)}
+											</div>
+										</details>
+									);
+								})()}
 							</div>
 						) : (
 							renderResponsiveOrders(filteredOrders)
