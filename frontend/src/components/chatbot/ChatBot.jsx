@@ -138,7 +138,7 @@ function ChatBot() {
       const res = await apiFetch(apiUrl('/chatbot/message'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: trimmed, history, pageContext })
+        body: JSON.stringify({ message: trimmed, history, pageContext, siteBaseUrl: window.location.origin })
       });
 
       const data = await res.json();

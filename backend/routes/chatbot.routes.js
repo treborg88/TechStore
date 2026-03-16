@@ -169,12 +169,12 @@ router.get('/config', async (_req, res) => {
 /**
  * POST /api/chatbot/message
  * Recibe mensaje del usuario, genera respuesta con LLM.
- * Body: { message: string, history: [{role, content}], pageContext?: {page, productId, cartItemCount} }
+ * Body: { message: string, history: [{role, content}], pageContext?: {page, productId, cartItemCount}, siteBaseUrl?: string }
  * Response: { reply: string, usage?: Object, suggestions?: string[] }
  */
 router.post('/message', chatLimiter, async (req, res) => {
   try {
-    const { message, history = [], pageContext } = req.body;
+    const { message, history = [], pageContext, siteBaseUrl } = req.body;
 
     if (!message || typeof message !== 'string' || message.trim().length === 0) {
       return res.status(400).json({ message: 'Mensaje vacío.' });
@@ -240,7 +240,7 @@ router.post('/message', chatLimiter, async (req, res) => {
       pageContext: pageContext || null,
       userId,
       settings,
-      originUrl: req.get('origin') || req.get('referer') || ''
+      originUrl: siteBaseUrl || req.get('origin') || req.get('referer') || ''
     });
 
     // --- Escalamiento a WhatsApp (intent HUMAN_AGENT) ---

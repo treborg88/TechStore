@@ -260,11 +260,11 @@ const loadCatalogSummary = async () => {
 const buildDynamicContext = async ({ message, history = [], pageContext, userId, settings, originUrl }) => {
   const store = await getStoreInfo();
 
-  // Resolver URL del sitio: siteDomain (admin) → Origin header → env vars
+  // Resolver URL del sitio: Origin del request (más fiable) → env vars → siteDomain (fallback)
+  const origin = (originUrl || '').replace(/\/+$/, '');
   const domain = (store.siteDomain || '').replace(/\/+$/, '');
-  _resolvedSiteUrl = (domain && domain.startsWith('http') ? domain : (domain ? `https://${domain}` : ''))
-    || (originUrl || '').replace(/\/+$/, '')
-    || FRONTEND_URL || BASE_URL || '';
+  const domainUrl = domain && domain.startsWith('http') ? domain : (domain ? `https://${domain}` : '');
+  _resolvedSiteUrl = origin || FRONTEND_URL || BASE_URL || domainUrl || '';
   // Pasar historial al detector para mantener coherencia conversacional
   const intentInfo = detectIntent(message, history);
   const { primaryIntent, searchTerms } = intentInfo;
