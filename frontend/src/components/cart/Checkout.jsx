@@ -366,7 +366,7 @@ const [step, setStep] = useState(1);
             console.error('Error sending invoice email:', error.message || error);
             return false;
         }
-    }, [formData, siteName, siteIcon, currencyCode]);
+    }, [formData, siteName, siteIcon, currencyCode, pdfConfig]);
 
     const getSavedAddressDefaults = useCallback(() => {
         const savedAddr = localStorage.getItem('user_default_address');

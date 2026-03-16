@@ -216,7 +216,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
     } finally {
       setIsGeneratingPdf(false);
     }
-  }, [invoiceData, order, isGeneratingPdf]);
+  }, [invoiceData, order, isGeneratingPdf, pdfConfig]);
 
     return (
         <div className="order-success printable-area">

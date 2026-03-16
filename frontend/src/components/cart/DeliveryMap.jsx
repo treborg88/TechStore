@@ -1,5 +1,4 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { formatCurrency } from '../../utils/formatCurrency';
 
 // Default shipping rates by distance (in km) — used when no config is provided
 const DEFAULT_PRICE_RANGES = [
@@ -17,7 +16,7 @@ const DEFAULT_WAREHOUSE = {
     address: 'Centro de Distribución - Santo Domingo'
 };
 
-function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCode, addressFields, warehouseLocation, shippingZones, shippingCalcEnabled = true }) {
+function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, addressFields, warehouseLocation, shippingZones, shippingCalcEnabled = true }) {
     // Use provided store location or fall back to default
     const WAREHOUSE_LOCATION = warehouseLocation && warehouseLocation.lat && warehouseLocation.lng
         ? warehouseLocation

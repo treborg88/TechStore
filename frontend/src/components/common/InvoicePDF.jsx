@@ -2,7 +2,7 @@ import React from 'react';
 import { Document, Page, Text, View } from '@react-pdf/renderer';
 import { buildPdfStyles } from './InvoicePdfStyles';
 import { formatCurrency } from '../../utils/formatCurrency';
-import { PDF_DEFAULTS } from '../admin/InvoicePdfSection';
+import { PDF_DEFAULTS } from '../../utils/pdfDefaults';
 
 export const InvoicePDF = ({ invoiceData, pdfConfig: rawConfig }) => {
   // Merge admin config with defaults
