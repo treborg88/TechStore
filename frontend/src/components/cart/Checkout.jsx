@@ -166,8 +166,11 @@ const [step, setStep] = useState(1);
     // Email feature toggles (loaded from public settings)
     const [emailToggles, setEmailToggles] = useState({
         emailVerifyGuestCheckout: true,
+        emailOrderConfirmation: true,
         emailInvoiceAutoSend: true
     });
+    // PDF config from admin settings
+    const [pdfConfig, setPdfConfig] = useState(null);
 
     // Salto instantáneo al tope de la página cada vez que cambia el step
     useEffect(() => {
@@ -232,11 +235,21 @@ const [step, setStep] = useState(1);
                 if (res.ok) {
                     const data = await res.json();
 
-                    // Load email feature toggles
+                    // Load email feature toggles (master toggle overrides individual)
+                    const masterOff = data.emailEnabled === 'false' || data.emailEnabled === false;
                     setEmailToggles({
-                        emailVerifyGuestCheckout: data.emailVerifyGuestCheckout !== 'false',
-                        emailInvoiceAutoSend: data.emailInvoiceAutoSend !== 'false'
+                        emailVerifyGuestCheckout: !masterOff && data.emailVerifyGuestCheckout !== 'false',
+                        emailOrderConfirmation: !masterOff && data.emailOrderConfirmation !== 'false',
+                        emailInvoiceAutoSend: !masterOff && data.emailInvoiceAutoSend !== 'false'
                     });
+
+                    // Load PDF invoice config
+                    try {
+                        const pc = typeof data.invoicePdfConfig === 'string'
+                            ? JSON.parse(data.invoicePdfConfig)
+                            : data.invoicePdfConfig;
+                        if (pc && Object.keys(pc).length) setPdfConfig(pc);
+                    } catch { /* ignorar parse error */ }
 
                     // Load map config (store location, shipping zones, feature toggles)
                     try {
@@ -324,9 +337,10 @@ const [step, setStep] = useState(1);
                 items: orderItems,
                 siteName,
                 siteIcon,
-                currencyCode
+                currencyCode,
+                pdfConfig
             });
-            const pdfBlob = await generateInvoicePdfBlob(invoiceData);
+            const pdfBlob = await generateInvoicePdfBlob(invoiceData, pdfConfig);
             const pdfBase64 = await blobToBase64(pdfBlob);
             
             // Send invoice email
@@ -722,6 +736,7 @@ return (
                     siteName={siteName}
                     siteIcon={siteIcon}
                     currencyCode={currencyCode}
+                    showEmailConfirmation={emailToggles.emailOrderConfirmation}
                 />
             ) : (
         <div className="checkout-flow-container" ref={checkoutRef}>
@@ -1034,12 +1049,6 @@ return (
                                         </div>
                                     )}
                                 </div>
-                                {shippingCalcEnabled && mapData.shippingCost > 0 && (
-                                    <div className="review-shipping-cost">
-                                        <span>💵 Costo de Envío:</span>
-                                        <span className="shipping-total">{formatCurrency(mapData.shippingCost, currencyCode)}</span>
-                                    </div>
-                                )}
                             </div>
                         )}
 

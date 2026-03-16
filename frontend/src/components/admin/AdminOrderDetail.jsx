@@ -19,8 +19,8 @@ const ONLINE_ORDER_STEPS = [
 const COD_ORDER_STEPS = [
     { id: 'to_ship', label: 'Para Enviar', icon: '📦', color: '#3b82f6' },
     { id: 'shipped', label: 'Enviado', icon: '🚚', color: '#8b5cf6' },
-    { id: 'delivered', label: 'Entregado', icon: '✅', color: '#059669' },
-    { id: 'paid', label: 'Pagado ✓', icon: '💰', color: '#10b981' }
+    { id: 'paid', label: 'Pagado ✓', icon: '💰', color: '#10b981' },
+    { id: 'delivered', label: 'Entregado', icon: '✅', color: '#059669' }
 ];
 
 // Extra status options shared by both flows
@@ -53,20 +53,29 @@ export default function AdminOrderDetail({
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [showShippingSlip, setShowShippingSlip] = useState(false);
     const [shippingSlipEnabled, setShippingSlipEnabled] = useState(false);
+    // PDF config from admin settings
+    const [pdfConfig, setPdfConfig] = useState(null);
 
-    // Leer toggle de cartilla de envío desde admin settings
+    // Leer toggle de cartilla de envío + PDF config desde admin settings
     useEffect(() => {
-        const loadSlipSetting = async () => {
+        const loadSettings = async () => {
             try {
                 const res = await apiFetch(apiUrl('/settings'));
                 if (!res.ok) return;
                 const data = await res.json();
-                // El endpoint /settings retorna un objeto { key: value }
+                // Shipping slip toggle
                 const val = data?.shippingSlipEnabled;
                 setShippingSlipEnabled(val === 'true' || val === true);
+                // PDF invoice config
+                try {
+                    const parsed = typeof data?.invoicePdfConfig === 'string'
+                        ? JSON.parse(data.invoicePdfConfig)
+                        : data?.invoicePdfConfig;
+                    if (parsed && Object.keys(parsed).length) setPdfConfig(parsed);
+                } catch { /* ignorar parse error */ }
             } catch { /* ignorar */ }
         };
-        loadSlipSetting();
+        loadSettings();
     }, []);
 
     const isCOD = order.payment_method === 'cash';
@@ -132,8 +141,8 @@ export default function AdminOrderDetail({
         if (isGeneratingPdf) return;
         setIsGeneratingPdf(true);
         try {
-            const invoiceData = buildInvoiceData({ order, customerInfo, items, siteName, siteIcon, currencyCode });
-            const blob = await pdf(React.createElement(InvoicePDF, { invoiceData })).toBlob();
+            const invoiceData = buildInvoiceData({ order, customerInfo, items, siteName, siteIcon, currencyCode, pdfConfig });
+            const blob = await pdf(React.createElement(InvoicePDF, { invoiceData, pdfConfig })).toBlob();
             const url = URL.createObjectURL(blob);
             const link = document.createElement('a');
             link.href = url;
@@ -147,7 +156,7 @@ export default function AdminOrderDetail({
         } finally {
             setIsGeneratingPdf(false);
         }
-    }, [order, customerInfo, items, siteName, siteIcon, currencyCode, isGeneratingPdf]);
+    }, [order, customerInfo, items, siteName, siteIcon, currencyCode, isGeneratingPdf, pdfConfig]);
 
     // --- Cartilla de Envío: genera texto plano con datos del envío ---
     const buildShippingSlipText = useCallback(() => {
@@ -159,7 +168,12 @@ export default function AdminOrderDetail({
 
         // Cliente
         lines.push(`\n👤 Cliente: ${order.customer_name || '—'}`);
-        if (order.customer_phone) lines.push(`📞 Tel: ${order.customer_phone}`);
+        if (order.customer_phone) {
+            // Link directo a WhatsApp con el número del cliente
+            const waNumber = order.customer_phone.replace(/\D/g, '');
+            lines.push(`📞 Tel: ${order.customer_phone}`);
+            lines.push(`💬 WhatsApp: https://wa.me/${waNumber}`);
+        }
         if (order.customer_email) lines.push(`✉️ Email: ${order.customer_email}`);
 
         // Dirección

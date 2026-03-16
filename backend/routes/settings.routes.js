@@ -43,7 +43,9 @@ const PUBLIC_SETTINGS = [
     // Header navigation visibility controls
     'navigationConfig',
     // Store module control
-    'storeModuleConfig'
+    'storeModuleConfig',
+    // Invoice PDF customization
+    'invoicePdfConfig'
 ];
 
 /**

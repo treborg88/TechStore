@@ -44,9 +44,11 @@ const [resetStep, setResetStep] = useState('input_email'); // input_email, verif
                 const res = await apiFetch(apiUrl('/settings/public'));
                 if (res.ok) {
                     const data = await res.json();
+                    // Master toggle overrides individual toggles
+                    const masterOff = data.emailEnabled === 'false' || data.emailEnabled === false;
                     setEmailToggles({
-                        emailVerifyRegistration: data.emailVerifyRegistration !== 'false',
-                        emailPasswordReset: data.emailPasswordReset !== 'false'
+                        emailVerifyRegistration: !masterOff && data.emailVerifyRegistration !== 'false',
+                        emailPasswordReset: !masterOff && data.emailPasswordReset !== 'false'
                     });
                 }
             } catch { /* non-critical */ }

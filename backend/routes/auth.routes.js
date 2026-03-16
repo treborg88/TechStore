@@ -43,7 +43,8 @@ router.post('/register', async (req, res) => {
         let skipVerification = false;
         try {
             const settings = await getSettingsMap();
-            skipVerification = settings.emailVerifyRegistration === 'false';
+            // Master toggle o toggle individual desactivan verificación
+            skipVerification = settings.emailEnabled === 'false' || settings.emailVerifyRegistration === 'false';
         } catch { /* default: require verification */ }
 
         // Basic validation
@@ -256,9 +257,12 @@ router.post('/forgot-password', async (req, res) => {
         return res.status(400).json({ message: 'Email es requerido' });
     }
 
-    // Check if password reset email is disabled
+    // Check if password reset email is disabled (master or individual toggle)
     try {
         const settings = await getSettingsMap();
+        if (settings.emailEnabled === 'false') {
+            return res.status(400).json({ message: 'El envío de correos está deshabilitado por el administrador' });
+        }
         if (settings.emailPasswordReset === 'false') {
             return res.status(400).json({ message: 'La recuperación de contraseña por email está deshabilitada por el administrador' });
         }

@@ -351,12 +351,12 @@ router.post('/', authenticateToken, async (req, res) => {
 
         const order = await statements.getOrderById(orderId);
 
-        // Check emailOrderConfirmation toggle before sending
+        // Check master + individual email toggle before sending
         let shouldSendEmail = req.body.skipEmail !== true;
         if (shouldSendEmail) {
             try {
                 const emailSettings = await getSettingsMap();
-                if (emailSettings.emailOrderConfirmation === 'false') shouldSendEmail = false;
+                if (emailSettings.emailEnabled === 'false' || emailSettings.emailOrderConfirmation === 'false') shouldSendEmail = false;
             } catch { /* default: send */ }
         }
         if (shouldSendEmail) {
@@ -513,12 +513,12 @@ router.post('/guest', async (req, res) => {
 
         const order = await statements.getOrderById(orderId);
         
-        // Check emailOrderConfirmation toggle before sending
+        // Check master + individual email toggle before sending
         let shouldSendGuestEmail = req.body.skipEmail !== true;
         if (shouldSendGuestEmail) {
             try {
                 const emailSettings = await getSettingsMap();
-                if (emailSettings.emailOrderConfirmation === 'false') shouldSendGuestEmail = false;
+                if (emailSettings.emailEnabled === 'false' || emailSettings.emailOrderConfirmation === 'false') shouldSendGuestEmail = false;
             } catch { /* default: send */ }
         }
         if (shouldSendGuestEmail) {
@@ -562,6 +562,14 @@ router.post('/guest', async (req, res) => {
 router.post('/:id/invoice-email', async (req, res) => {
     const orderId = parseInt(req.params.id, 10);
     const { pdfBase64, email } = req.body || {};
+
+    // Check master email toggle
+    try {
+        const emailSettings = await getSettingsMap();
+        if (emailSettings.emailEnabled === 'false') {
+            return res.status(400).json({ message: 'El envío de correos está deshabilitado' });
+        }
+    } catch { /* default: allow */ }
 
     // Validate required params
     if (!orderId || isNaN(orderId)) {

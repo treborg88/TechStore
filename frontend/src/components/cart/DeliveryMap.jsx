@@ -475,24 +475,27 @@ function DeliveryMap({ mapData, setMapData, onAddressSelect, onError, currencyCo
                 <p>📍 Arrastra el marcador rojo para ajustar la posición</p>
             </div> */}
 
-            {shippingCalcEnabled && mapData.distance && (
-                <div className="shipping-cost-card" style={{
+            {/* Subtly show distance and coordinates (shipping cost shown in payment step) */}
+            {mapData.distance && (
+                <div style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
-                    padding: '12px 16px',
-                    backgroundColor: '#f0fdf4',
-                    border: '1px solid #86efac',
-                    borderRadius: '8px',
+                    padding: '8px 14px',
+                    backgroundColor: '#f8fafc',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    fontSize: '0.82rem',
+                    color: '#64748b',
                     flexWrap: 'wrap',
-                    gap: '10px'
+                    gap: '6px'
                 }}>
-                    <span style={{ fontWeight: 600, color: '#166534' }}>
-                        💵 Costo de Envío: <span className="shipping-price">{formatCurrency(mapData.shippingCost, currencyCode)}</span>
-                    </span>
-                    <span style={{ color: '#475569', fontSize: '0.9rem' }}>
-                        Distancia: <span className="shipping-distance" style={{ fontWeight: 500 }}>{mapData.distance.toFixed(2)} km</span>
-                    </span>
+                    <span>📍 Distancia: <strong style={{ color: '#334155' }}>{mapData.distance.toFixed(2)} km</strong></span>
+                    {mapData.selectedLocation && (
+                        <span style={{ fontFamily: 'monospace', fontSize: '0.78rem' }}>
+                            {mapData.selectedLocation.lat.toFixed(5)}, {mapData.selectedLocation.lng.toFixed(5)}
+                        </span>
+                    )}
                 </div>
             )}
         </div>

@@ -22,8 +22,8 @@ const COD_ORDER_STEPS = [
 	{ id: 'all', label: 'Todos', icon: '📋' },
 	{ id: 'to_ship', label: 'Para Enviar', icon: '📦' },
 	{ id: 'shipped', label: 'Enviado', icon: '🚚' },
-	{ id: 'delivered', label: 'Entregado', icon: '✅' },
 	{ id: 'paid', label: 'Pagado', icon: '💰' },
+	{ id: 'delivered', label: 'Entregado', icon: '✅' },
 	{ id: 'return', label: 'Devolución', icon: '↩️' },
 	{ id: 'refund', label: 'Reembolso', icon: '💸' },
 	{ id: 'cancelled', label: 'Cancelado', icon: '❌' }

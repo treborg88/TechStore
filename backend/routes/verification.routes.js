@@ -18,9 +18,16 @@ router.post('/send-code', async (req, res) => {
         return res.status(400).json({ message: 'Email es requerido' });
     }
 
-    // Check email feature toggles — skip verification if disabled for this purpose
+    // Check email feature toggles — skip verification if disabled globally or per purpose
     try {
         const settings = await getSettingsMap();
+        // Master toggle: all email functions disabled
+        if (settings.emailEnabled === 'false') {
+            if (purpose === 'password_reset') {
+                return res.status(400).json({ message: 'El envío de correos está deshabilitado' });
+            }
+            return res.json({ success: true, skipped: true, message: 'Envío de correos deshabilitado' });
+        }
         if (purpose === 'register' && settings.emailVerifyRegistration === 'false') {
             return res.json({ success: true, skipped: true, message: 'Verificación de registro deshabilitada' });
         }

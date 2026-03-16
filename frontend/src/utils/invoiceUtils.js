@@ -127,7 +127,8 @@ export const buildInvoiceData = ({
   items,
   siteName = 'Mi Tienda Online',
   siteIcon = '🛒',
-  currencyCode
+  currencyCode,
+  pdfConfig
 }) => {
   const orderDate = order?.created_at ? new Date(order.created_at) : new Date();
   const currentDate = orderDate.toLocaleDateString('es-DO', { year: 'numeric', month: '2-digit', day: '2-digit' });
@@ -165,10 +166,10 @@ export const buildInvoiceData = ({
   return {
     companyName: siteName,
     companyIcon: siteIcon,
-    companyAddress: 'Calle Principal #123, Santo Domingo',
-    companyPhone: '829-334-6358',
-    companyRNC: '123456789',
-    companyLocation: 'República Dominicana',
+    companyAddress: pdfConfig?.companyAddress || 'Calle Principal #123, Santo Domingo',
+    companyPhone: pdfConfig?.companyPhone || '829-334-6358',
+    companyRNC: pdfConfig?.companyRNC || '123456789',
+    companyLocation: pdfConfig?.companyLocation || 'República Dominicana',
     invoiceNumber: order?.order_number || `COT/${order?.id?.toString().padStart(6, '0')}`,
     date: currentDate,
     time: currentTime,
@@ -177,7 +178,7 @@ export const buildInvoiceData = ({
     customerPhone: customerInfo?.phone || 'N/A',
     customerAddress: `${customerInfo?.address || ''}, ${customerInfo?.sector || ''}, ${customerInfo?.city || ''}`.replace(/^,\s*|,\s*,/g, '').trim(),
     customerID: customerInfo?.identification || 'N/A',
-    seller: 'Sistema Online',
+    seller: pdfConfig?.seller || 'Sistema Online',
     paymentType: PAYMENT_METHODS[customerInfo?.paymentMethod]?.label || 'Pendiente',
     // Estado de pago considerando el método: COD se paga al entregar
     paymentStatus: getPaymentStatusLabel(order?.status, customerInfo?.paymentMethod),
@@ -193,8 +194,8 @@ export const buildInvoiceData = ({
   };
 };
 
-export const generateInvoicePdfBlob = async (invoiceData) => {
+export const generateInvoicePdfBlob = async (invoiceData, pdfConfig) => {
   // Usamos React.createElement para evitar sintaxis JSX en archivo .js
-  const blob = await pdf(React.createElement(InvoicePDF, { invoiceData })).toBlob();
+  const blob = await pdf(React.createElement(InvoicePDF, { invoiceData, pdfConfig })).toBlob();
   return blob;
 };

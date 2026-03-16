@@ -7,6 +7,7 @@ import EmailSettingsSection from './EmailSettingsSection';
 import DatabaseSection from './DatabaseSection';
 import ChatBotAdmin from '../chatbot/ChatBotAdmin';
 import LandingPageAdmin from './LandingPageAdmin';
+import InvoicePdfSection from './InvoicePdfSection';
 import StoreLocationMap from '../common/StoreLocationMap';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
@@ -198,7 +199,9 @@ function SettingsManager() {
     dbSupabaseUrl: '',
     dbSupabaseKey: '',
     // Map & shipping configuration
-    mapConfig: cloneMapConfig()
+    mapConfig: cloneMapConfig(),
+    // Invoice PDF configuration
+    invoicePdfConfig: {}
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -353,6 +356,12 @@ function SettingsManager() {
           } catch {
             typedData[key] = cloneMapConfig();
           }
+        } else if (key === 'invoicePdfConfig') {
+          try {
+            typedData[key] = typeof value === 'string' ? JSON.parse(value) : (value || {});
+          } catch {
+            typedData[key] = {};
+          }
         } else typedData[key] = value;
       });
       return typedData;
@@ -479,7 +488,8 @@ function SettingsManager() {
         landingPageConfig: JSON.stringify(normalizedLandingConfig),
         navigationConfig: JSON.stringify(normalizedNavigationConfig),
         storeModuleConfig: JSON.stringify(normalizedStoreModuleConfig),
-        mapConfig: JSON.stringify(settings.mapConfig || cloneMapConfig())
+        mapConfig: JSON.stringify(settings.mapConfig || cloneMapConfig()),
+        invoicePdfConfig: JSON.stringify(settings.invoicePdfConfig || {})
       };
       const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',
@@ -685,6 +695,10 @@ function SettingsManager() {
     map: {
       title: 'Mapa y Envíos',
       subtitle: 'Ubicación de la tienda y tarifas de envío por distancia.'
+    },
+    invoice: {
+      title: 'Factura PDF',
+      subtitle: 'Personaliza el formato, fuentes, colores y contenido de la factura en PDF.'
     }
   };
 
@@ -756,6 +770,7 @@ function SettingsManager() {
                 {isAdvancedMode && renderTabButton('database', '🗄️ Base de datos')}
                 {isAdvancedMode && renderTabButton('chatbot', '🤖 Chatbot')}
                 {isAdvancedMode && renderTabButton('landing', '🚀 Landing Page')}
+                {renderTabButton('invoice', '🧾 Factura PDF')}
               </div>
             </nav>
 
@@ -2302,6 +2317,10 @@ function SettingsManager() {
 
               {siteTab === 'landing' && (
                 <LandingPageAdmin settings={settings} setSettings={setSettings} />
+              )}
+
+              {siteTab === 'invoice' && (
+                <InvoicePdfSection settings={settings} setSettings={setSettings} />
               )}
 
               {siteTab === 'map' && (

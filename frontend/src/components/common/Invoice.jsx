@@ -66,8 +66,8 @@ const STATUS_STEPS = [
 const COD_STATUS_STEPS = [
     { id: 'to_ship', ...STATUS_CONFIG.to_ship },
     { id: 'shipped', ...STATUS_CONFIG.shipped },
-    { id: 'delivered', ...STATUS_CONFIG.delivered },
-    { id: 'paid', ...STATUS_CONFIG.paid }
+    { id: 'paid', ...STATUS_CONFIG.paid },
+    { id: 'delivered', ...STATUS_CONFIG.delivered }
 ];
 
 // StatusTag genérico para mostrar el estado de la orden
@@ -135,33 +135,40 @@ const StatusStepper = ({ currentStatus, paymentMethod, onStatusChange }) => {
     );
 };
 
-const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒', currencyCode }) => {
+const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onStatusChange, siteName = 'Mi Tienda Online', siteIcon = '🛒', currencyCode, showEmailConfirmation = true }) => {
   const isAuthenticated = !!localStorage.getItem('userData');
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [pdfError, setPdfError] = useState(null);
   // Resolved payment methods with dynamic transfer config from settings
   const [resolvedMethods, setResolvedMethods] = useState(PAYMENT_METHODS);
+  // PDF config from admin settings
+  const [pdfConfig, setPdfConfig] = useState(null);
 
-  // Load transfer config from public settings on mount
+  // Load transfer config + PDF config from public settings on mount
   useEffect(() => {
-    const loadTransferConfig = async () => {
+    const loadSettings = async () => {
       try {
         const res = await apiFetch(apiUrl('/settings/public'));
         if (res.ok) {
           const data = await res.json();
+          // Transfer config
           const config = typeof data.paymentMethodsConfig === 'string'
             ? JSON.parse(data.paymentMethodsConfig)
             : data.paymentMethodsConfig;
           if (config?.transfer) {
             setResolvedMethods(getResolvedPaymentMethods(config.transfer));
           }
+          // PDF invoice config
+          const parsed = typeof data.invoicePdfConfig === 'string'
+            ? JSON.parse(data.invoicePdfConfig)
+            : data.invoicePdfConfig;
+          if (parsed && Object.keys(parsed).length) setPdfConfig(parsed);
         }
       } catch (err) {
-        // Fallback to static defaults on error
-        console.warn('Could not load transfer config:', err.message);
+        console.warn('Could not load settings:', err.message);
       }
     };
-    loadTransferConfig();
+    loadSettings();
   }, []);
 
   const invoiceData = buildInvoiceData({
@@ -170,7 +177,8 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
     items,
     siteName,
     siteIcon,
-    currencyCode
+    currencyCode,
+    pdfConfig
   });
 
   // Handle PDF download manually for better error handling
@@ -188,7 +196,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
 
       // Generate PDF blob using React.createElement to avoid JSX issues
       const blob = await pdf(
-        React.createElement(InvoicePDF, { invoiceData })
+        React.createElement(InvoicePDF, { invoiceData, pdfConfig })
       ).toBlob();
       
       // Create download link
@@ -219,7 +227,7 @@ const Invoice = ({ order, customerInfo, items, onClose, showSuccess = true, onSt
                     <p className="order-number">Orden {order.order_number || `#${order.id}`}</p>
                     <p className="success-message no-print">
                         Tu pedido ha sido recibido y está siendo procesado.
-                        {!isAuthenticated && (
+                        {!isAuthenticated && showEmailConfirmation && (
                             <><br/>📧 Recibirás la confirmación en <strong>{customerInfo.email}</strong></>
                         )}
                     </p>

@@ -134,7 +134,9 @@ INSERT INTO app_settings (id, value) VALUES
     ('chatbotVerbosity',     'normal'),
     ('chatbotSystemPrompt',  ''),
     -- Shipping slip (admin order detail)
-    ('shippingSlipEnabled',  'false')
+    ('shippingSlipEnabled',  'false'),
+    -- Invoice PDF configuration (JSON)
+    ('invoicePdfConfig',     '{}')
 ON CONFLICT (id) DO NOTHING;
 
 
