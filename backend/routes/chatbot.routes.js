@@ -239,7 +239,8 @@ router.post('/message', chatLimiter, async (req, res) => {
       history: recentHistory,
       pageContext: pageContext || null,
       userId,
-      settings
+      settings,
+      originUrl: req.get('origin') || req.get('referer') || ''
     });
 
     // --- Escalamiento a WhatsApp (intent HUMAN_AGENT) ---

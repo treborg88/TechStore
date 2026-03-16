@@ -5,8 +5,9 @@ const { statements } = require('../../database');
 const { detectIntent } = require('./intentDetector');
 const { FRONTEND_URL, BASE_URL } = require('../../config');
 
-// URL base del frontend para generar links directos a productos
-const getSiteUrl = () => FRONTEND_URL || BASE_URL || 'http://localhost:5173';
+// URL base del frontend — se resuelve dinámicamente por request
+let _resolvedSiteUrl = '';
+const getSiteUrl = () => _resolvedSiteUrl || FRONTEND_URL || BASE_URL || '';
 
 // --- Caché ligero para datos que cambian poco ---
 let _storeInfoCache = { data: null, expiry: 0 };
@@ -256,8 +257,14 @@ const loadCatalogSummary = async () => {
  * @param {Object} opts.settings — Settings del chatbot (chatbotKb*, chatbotContext*)
  * @returns {Promise<{ dynamicContext: string, intentInfo: Object }>}
  */
-const buildDynamicContext = async ({ message, history = [], pageContext, userId, settings }) => {
+const buildDynamicContext = async ({ message, history = [], pageContext, userId, settings, originUrl }) => {
   const store = await getStoreInfo();
+
+  // Resolver URL del sitio: siteDomain (admin) → Origin header → env vars
+  const domain = (store.siteDomain || '').replace(/\/+$/, '');
+  _resolvedSiteUrl = (domain && domain.startsWith('http') ? domain : (domain ? `https://${domain}` : ''))
+    || (originUrl || '').replace(/\/+$/, '')
+    || FRONTEND_URL || BASE_URL || '';
   // Pasar historial al detector para mantener coherencia conversacional
   const intentInfo = detectIntent(message, history);
   const { primaryIntent, searchTerms } = intentInfo;
