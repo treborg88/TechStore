@@ -109,6 +109,9 @@ export function useSiteSettings() {
     enabled: true
   });
 
+  // SEO configuration
+  const [seoConfig, setSeoConfig] = useState({});
+
   const parseJsonSetting = (rawValue, settingName) => {
     if (rawValue === undefined || rawValue === null) return null;
     if (typeof rawValue !== 'string') return rawValue;
@@ -251,6 +254,10 @@ export function useSiteSettings() {
     setStoreModuleConfig({
       enabled: parsedStoreModule?.enabled !== false
     });
+
+    // SEO config
+    const parsedSeo = parseJsonSetting(data.seoConfig, 'seoConfig');
+    if (parsedSeo) setSeoConfig(parsedSeo);
   };
 
   // --- Efecto: fetch de settings con caché ---
@@ -315,10 +322,8 @@ export function useSiteSettings() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // --- Efecto: actualizar título de la página y favicon dinámicamente ---
+  // --- Efecto: actualizar favicon dinámicamente (título manejado por useSeo) ---
   useEffect(() => {
-    document.title = siteName || 'Tienda en linea';
-    
     const favicon = document.getElementById('favicon');
     if (favicon) {
       if (siteLogo) {
@@ -378,6 +383,7 @@ export function useSiteSettings() {
     promoSettings,
     landingPageConfig,
     navigationConfig,
-    storeModuleConfig
+    storeModuleConfig,
+    seoConfig
   };
 }

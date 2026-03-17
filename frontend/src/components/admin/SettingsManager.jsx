@@ -8,6 +8,7 @@ import DatabaseSection from './DatabaseSection';
 import ChatBotAdmin from '../chatbot/ChatBotAdmin';
 import LandingPageAdmin from './LandingPageAdmin';
 import InvoicePdfSection from './InvoicePdfSection';
+import SeoSection from './SeoSection';
 import StoreLocationMap from '../common/StoreLocationMap';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
@@ -201,7 +202,9 @@ function SettingsManager() {
     // Map & shipping configuration
     mapConfig: cloneMapConfig(),
     // Invoice PDF configuration
-    invoicePdfConfig: {}
+    invoicePdfConfig: {},
+    // SEO configuration
+    seoConfig: {}
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -362,6 +365,12 @@ function SettingsManager() {
           } catch {
             typedData[key] = {};
           }
+        } else if (key === 'seoConfig') {
+          try {
+            typedData[key] = typeof value === 'string' ? JSON.parse(value) : (value || {});
+          } catch {
+            typedData[key] = {};
+          }
         } else typedData[key] = value;
       });
       return typedData;
@@ -489,7 +498,8 @@ function SettingsManager() {
         navigationConfig: JSON.stringify(normalizedNavigationConfig),
         storeModuleConfig: JSON.stringify(normalizedStoreModuleConfig),
         mapConfig: JSON.stringify(settings.mapConfig || cloneMapConfig()),
-        invoicePdfConfig: JSON.stringify(settings.invoicePdfConfig || {})
+        invoicePdfConfig: JSON.stringify(settings.invoicePdfConfig || {}),
+        seoConfig: JSON.stringify(settings.seoConfig || {})
       };
       const response = await apiFetch(apiUrl('/settings'), {
         method: 'PUT',
@@ -699,6 +709,10 @@ function SettingsManager() {
     invoice: {
       title: 'Factura PDF',
       subtitle: 'Personaliza el formato, fuentes, colores y contenido de la factura en PDF.'
+    },
+    seo: {
+      title: 'SEO',
+      subtitle: 'Meta tags, títulos por página, sitemap y verificación de buscadores.'
     }
   };
 
@@ -771,6 +785,7 @@ function SettingsManager() {
                 {isAdvancedMode && renderTabButton('chatbot', '🤖 Chatbot')}
                 {isAdvancedMode && renderTabButton('landing', '🚀 Landing Page')}
                 {renderTabButton('invoice', '🧾 Factura PDF')}
+                {renderTabButton('seo', '🔎 SEO')}
               </div>
             </nav>
 
@@ -2321,6 +2336,10 @@ function SettingsManager() {
 
               {siteTab === 'invoice' && (
                 <InvoicePdfSection settings={settings} setSettings={setSettings} />
+              )}
+
+              {siteTab === 'seo' && (
+                <SeoSection settings={settings} setSettings={setSettings} />
               )}
 
               {siteTab === 'map' && (

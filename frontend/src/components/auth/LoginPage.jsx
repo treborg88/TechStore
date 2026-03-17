@@ -4,8 +4,11 @@ import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
 import EmailVerification from './EmailVerification';
 import { apiFetch, apiUrl } from '../../services/apiClient';
+import { useSeo } from '../../hooks/useSeo';
 
 export default function LoginPage({ onLoginSuccess, onBackToHome, prefillEmail = '', lockEmail = false, embedded = false, hideRegister = false }) {
+// SEO dinámico para login (solo si no es embedded)
+useSeo(embedded ? null : 'login');
 const [isRegister, setIsRegister] = useState(false);
 const [isForgotPassword, setIsForgotPassword] = useState(false);
 const [showPassword, setShowPassword] = useState(false);

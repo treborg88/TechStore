@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useSeo } from '../hooks/useSeo';
 import ProductImageGallery from '../components/products/ProductImageGallery';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Footer from '../components/common/Footer';
@@ -11,6 +12,8 @@ const HERO_IMAGE_CACHE_KEY = 'hero_image_cache';
 const HERO_IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
 function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings, promoSettings }) {
+  // SEO dinámico para la página principal
+  useSeo('home');
   const [selectedCategory, setSelectedCategory] = useState('todos');
   const [imageLoaded, setImageLoaded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

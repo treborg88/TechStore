@@ -26,7 +26,8 @@ const {
     chatbotRoutes,
     setupRoutes,
     storageRoutes,
-    databaseRoutes
+    databaseRoutes,
+    seoRoutes
 } = require('./routes');
 
 // Share page utilities
@@ -88,6 +89,9 @@ app.use('/api/payments', paymentsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/database', databaseRoutes);
 
+// --- SEO (robots.txt, sitemap.xml — root level) ---
+app.use('/', seoRoutes);
+
 // --- Storage Proxy (Supabase images → Cloudflare CDN) ---
 // Served by backend so it works immediately after Setup Wizard.
 // Nginx forwards /storage/ here; no need for supabase_ref in Nginx config.
@@ -112,14 +116,18 @@ const getShareSettings = async () => {
         const allSettings = await statements.getSettings();
         const settingsMap = {};
         for (const s of allSettings) settingsMap[s.id] = s.value;
+        // Parsear seoConfig para fallbacks de OG
+        let seoConfig = {};
+        try { seoConfig = settingsMap.seoConfig ? JSON.parse(settingsMap.seoConfig) : {}; } catch { /* ignore */ }
         _shareSettingsCache = {
             siteName: settingsMap.siteName || 'TechStore',
-            currency: settingsMap.currencyCode || 'DOP'
+            currency: settingsMap.currencyCode || 'DOP',
+            ogImage: seoConfig.ogImage || '',
+            locale: seoConfig.locale || 'es_DO'
         };
         _shareSettingsCacheTime = now;
     } catch (_err) {
-        // Fallback if DB unavailable
-        _shareSettingsCache = { siteName: 'TechStore', currency: 'DOP' };
+        _shareSettingsCache = { siteName: 'TechStore', currency: 'DOP', ogImage: '', locale: 'es_DO' };
     }
     return _shareSettingsCache;
 };
@@ -204,7 +212,8 @@ app.get('/p/:slug', async (req, res) => {
             url: productPageUrl,
             siteName: shareSettings.siteName,
             price: product.price,
-            currency: shareSettings.currency
+            currency: shareSettings.currency,
+            locale: shareSettings.locale
         });
 
         res.setHeader('Content-Type', 'text/html; charset=utf-8');

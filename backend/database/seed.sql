@@ -136,7 +136,9 @@ INSERT INTO app_settings (id, value) VALUES
     -- Shipping slip (admin order detail)
     ('shippingSlipEnabled',  'false'),
     -- Invoice PDF configuration (JSON)
-    ('invoicePdfConfig',     '{}')
+    ('invoicePdfConfig',     '{}'),
+    -- SEO configuration (JSON)
+    ('seoConfig',            '{}')
 ON CONFLICT (id) DO NOTHING;
 
 

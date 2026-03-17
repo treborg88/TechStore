@@ -11,6 +11,7 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import './ProductDetail.css';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
+import { useSeo } from '../../hooks/useSeo';
 
 const PRODUCT_UNIT_LABELS = {
   unidad: 'ud',
@@ -49,6 +50,16 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   // Variant state (only used when product.has_variants === true)
   const [selectedVariant, setSelectedVariant] = useState(null);
   const onVariantChange = useCallback((v) => setSelectedVariant(v), []);
+
+  // SEO dinámico: se actualiza cuando el producto carga
+  useSeo('product', {
+    productName: product?.name,
+    productDescription: product?.description,
+    productImage: product?.images?.[0]?.image_url || product?.image,
+    productPrice: product?.price,
+    productStock: product?.stock,
+    currency: currencyCode
+  });
 
   useEffect(() => {
     const loadProduct = async () => {

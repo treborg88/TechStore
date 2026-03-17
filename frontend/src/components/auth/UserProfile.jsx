@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
+import { useSeo } from '../../hooks/useSeo';
 import './UserProfile.css';
 
 function UserProfile({ onClose, onLogout, onUpdate, user }) {
+    // SEO dinámico para perfil
+    useSeo('profile');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [showPassword, setShowPassword] = useState(false);

@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { apiFetch, apiUrl } from '../services/apiClient';
+import { useSeo } from '../hooks/useSeo';
 import { formatCurrency } from '../utils/formatCurrency';
 import Invoice from '../components/common/Invoice';
 import { API_URL } from '../config';
@@ -81,6 +82,8 @@ function OrderTimeline({ status, paymentMethod }) {
 }
 
 export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'Mi Tienda Online', siteIcon = '🛒' }) {
+  // SEO dinámico para rastreo de pedidos
+  useSeo('orders');
   // Estado principal
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);

@@ -8,7 +8,7 @@
 - All code is intended for a production environment unless otherwise specified.
 - whenever a code change, update or fix, make sure to delete any obsolete code as resulting from the change.
 
-## Production Infrastructure (Verified Feb 2026)
+## Production Infrastructure (Verified Mar 2026)
 
 | Field | Value |
 |-------|-------|
@@ -20,7 +20,7 @@
 | **Reverse proxy** | Nginx on :80 (redirect) + :443 (SSL) |
 | **SSL** | Cloudflare Full (Strict) — Origin Certificate on Nginx :443 |
 | **CI/CD** | GitHub Actions: `ci.yml` (lint+build), `deploy.yml` (auto on push to main), `rollback.yml` (manual) |
-| **DB** | Supabase (hosted Postgres + Storage bucket `products`) |
+| **DB** | Supabase (hosted Postgres + Storage bucket `products`) or native PostgreSQL (provider-switchable) |
 | **Version** | `1.0.0` (SemVer — see `CHANGELOG.md`) |
 
 ## Architecture Overview
@@ -29,16 +29,16 @@
 | Layer | Key Files | Tech Stack |
 |-------|-----------|------------|
 | API | `backend/server.js` (~200 LOC, modular) | Express, JWT, bcrypt, multer |
-| Routes | `backend/routes/*.routes.js` | auth, products, cart, orders, users, settings, verification, payments, chatbot |
+| Routes | `backend/routes/*.routes.js` | auth, products, cart, orders, users, settings, verification, payments, chatbot, seo, database, setup, storage |
 | Middleware | `backend/middleware/` | auth, csrf, rateLimiter, upload |
 | Services | `backend/services/` | email.service, encryption.service, llm/ (chatbot) |
 | Config | `backend/config/` | env vars, CORS (dynamic) |
-| DB | `backend/database.js` (statements object) | Supabase (Postgres + Storage) |
+| DB | `backend/database/index.js` (provider switcher) | Supabase or native PostgreSQL (dual adapter) |
 | DB Schema | `backend/database/schema.sql` | 9 tables, 2 RPC functions, indexes |
 | DB Seed | `backend/database/seed.sql` | Admin user, ~90 default settings |
 | Share | `backend/sharePage.js` | OG meta for social sharing |
 | UI | `frontend/src/App.jsx` (state hub) | React 19, react-router-dom v7, react-hot-toast |
-| Hooks | `frontend/src/hooks/` | useAuth, useCart, useProducts, useSiteSettings |
+| Hooks | `frontend/src/hooks/` | useAuth, useCart, useProducts, useSiteSettings, useSeo |
 | FE Services | `frontend/src/services/apiClient.js` | `apiFetch()` wraps fetch with auth/CSRF headers |
 | Routes | `frontend/src/routes/AppRoutes.jsx` | Lazy-loaded routes with React.lazy + Suspense |
 
@@ -46,12 +46,14 @@
 ```
 backend/
 ├── server.js              # Main entry (~200 lines)
-├── database.js            # Supabase statements
-├── sharePage.js           # OG meta for social sharing
+├── sharePage.js           # OG meta for social sharing (with locale + seoConfig)
 ├── config/
 │   ├── index.js           # ENV vars (JWT_SECRET, PORT, EMAIL_*)
 │   └── cors.js            # Dynamic CORS (env var + Admin Panel siteDomain + localhost)
 ├── database/
+│   ├── index.js           # Provider switcher (Supabase vs native PostgreSQL)
+│   ├── supabase.js        # Supabase adapter
+│   ├── postgres.js        # Native PostgreSQL adapter (pg Pool + filesystem storage)
 │   ├── schema.sql         # 9 tables, 2 RPC functions, indexes
 │   └── seed.sql           # Default admin + ~90 settings
 ├── middleware/
@@ -68,7 +70,11 @@ backend/
 │   ├── settings.routes.js # /api/settings/* (5 endpoints)
 │   ├── verification.routes.js # /api/verification/* (2 endpoints)
 │   ├── payments.routes.js # /api/payments/* (9 endpoints: Stripe + PayPal + saved cards)
-│   └── chatbot.routes.js  # /api/chatbot/* (4 endpoints: message, config, providers, test)
+│   ├── chatbot.routes.js  # /api/chatbot/* (4 endpoints: message, config, providers, test)
+│   ├── seo.routes.js      # /robots.txt, /sitemap.xml (dynamic from seoConfig, 5-min cache)
+│   ├── database.routes.js # /api/database/* (admin backup/restore .tar.gz archives)
+│   ├── setup.routes.js    # /api/setup/* (setup wizard, only when DB not configured)
+│   └── storage.routes.js  # /storage/* (unified image proxy: Supabase or local filesystem)
 ├── services/
 │   ├── email.service.js   # sendOrderEmail, sendMailWithSettings (HTML templates)
 │   ├── encryption.service.js # AES-256-GCM for settings
@@ -91,8 +97,12 @@ frontend/src/
 │   │   ├── AdminDashboard.jsx    # 4-tab dashboard: Overview, Products, Orders, Users
 │   │   ├── AdminOrderDetail.jsx  # Order detail: status stepper, tracking, notes, PDF
 │   │   ├── DatabaseSection.jsx   # Supabase URL/key editor + connection test
+│   │   ├── DatabaseManager.jsx   # Backup/restore UI (.tar.gz archives: SQL + images)
 │   │   ├── EmailSettingsSection.jsx # SMTP config + invoice footer
-│   │   ├── SettingsManager.jsx   # Full site config (20+ sections)
+│   │   ├── InvoicePdfSection.jsx # PDF invoice appearance config (fonts, colors, sections)
+│   │   ├── LandingPageAdmin.jsx  # Landing page builder: sections, styles, 5 template presets
+│   │   ├── SeoSection.jsx        # SEO config panel (global meta, per-page titles, verification)
+│   │   ├── SettingsManager.jsx   # Full site config (25+ sections)
 │   │   └── UserList.jsx          # CRUD users, roles, status, filters
 │   ├── auth/
 │   │   ├── EmailVerification.jsx # Multi-purpose: register, guest, payment
@@ -111,23 +121,31 @@ frontend/src/
 │   │   ├── Header.jsx            # Responsive header, hamburger menu, transparent mode
 │   │   ├── Footer.jsx            # Social links, quick links, customer service
 │   │   ├── Invoice.jsx           # HTML invoice with status stepper + payment instructions
-│   │   ├── InvoicePDF.jsx        # @react-pdf/renderer A4 PDF generation
+│   │   ├── InvoicePDF.jsx        # @react-pdf/renderer A4 PDF generation (configurable via pdfConfig)
+│   │   ├── InvoicePdfStyles.js   # Dynamic PDF StyleSheet builder from admin config
+│   │   ├── RichTextEditor.jsx    # WYSIWYG editor (bold, italic, H3, lists, font sizes)
+│   │   ├── StoreLocationMap.jsx  # Leaflet store location map (admin can pick location)
 │   │   └── LoadingSpinner.jsx    # Fullpage overlay + custom message
 │   ├── orders/
 │   │   ├── OrderList.jsx         # Filterable, searchable order list + status badges
 │   │   └── OrderTrackerModal.jsx # Timeline modal for order tracking
-│   └── products/
-│       ├── ProductDetail.jsx     # Gallery, sharing, similar products, admin inline edit
-│       ├── ProductImageGallery.jsx # Carousel, swipe, zoom, pinch, fullscreen
-│       └── ProductList.jsx       # Grid with drag scroll, pagination
+│   ├── products/
+│   │   ├── ProductDetail.jsx     # Gallery, sharing, similar products, admin inline edit
+│   │   ├── ProductImageGallery.jsx # Carousel, swipe, zoom, pinch, fullscreen
+│   │   ├── ProductList.jsx       # Grid with drag scroll, pagination
+│   │   └── VariantSelector.jsx   # Product variant picker (colors, sizes → swatches/pills)
+│   └── setup/
+│       └── SetupWizard.jsx       # Initial setup wizard (3-step: provider → credentials → success)
 ├── hooks/
 │   ├── useAuth.js         # Auth state, cross-tab sync, checkout cleanup
 │   ├── useCart.js         # Cart logic, guest/server merge, localStorage persistence
 │   ├── useProducts.js    # Product fetching, localStorage cache (10min), stale-while-revalidate
-│   └── useSiteSettings.js # Dynamic theme (CSS vars), favicon, title, settings cache
+│   ├── useSeo.js         # Dynamic SEO meta tags (title, description, OG, Twitter, JSON-LD, canonical)
+│   └── useSiteSettings.js # Dynamic theme (CSS vars), favicon, settings cache
 ├── pages/
 │   ├── Home.jsx           # Hero banner, category filters, product grid, promo, features
 │   ├── Contact.jsx        # Contact info, Google Maps embed, admin inline editing
+│   ├── LandingPage.jsx    # Customizable landing page (sections from admin config)
 │   └── OrderTracker.jsx   # Public order search, visual timeline, email lookup
 ├── routes/
 │   └── AppRoutes.jsx      # Lazy-loaded routes with React.lazy + Suspense
@@ -136,11 +154,19 @@ frontend/src/
 │   ├── authService.js     # Login, register, profile API calls
 │   └── verificationService.js # Send/verify code API calls
 └── utils/
+    ├── cacheStorage.js    # Centralized localStorage cache (get/set/remove with TTL)
     ├── cartHelpers.js     # formatBackendCart (normalize backend → frontend format)
     ├── formatCurrency.js  # Intl.NumberFormat with configurable currency (default RD$)
     ├── invoiceUtils.js    # PDF blob generation, download helpers
+    ├── landingPageDefaults.js # Default config for landing page system
+    ├── landingPageTemplates.js # 5 visual presets (Modern, Story, Neon, Warm, Clean)
     ├── notificationSound.js # Web Audio API two-tone chime (C5+E5) for new orders
-    └── settingsHelpers.js # Deep-merge settings with category/card config defaults
+    ├── pdfDefaults.js     # PDF_DEFAULTS for invoice customization
+    ├── productUnits.js    # Product unit system (unidad, paquete, lb, kg, etc.)
+    ├── resolveImageUrl.js # Image URL resolution (Supabase proxy vs direct)
+    ├── seoDefaults.js     # SEO_DEFAULTS + SEO_PAGE_LABELS for admin & hook
+    ├── settingsHelpers.js # Deep-merge settings with category/card config defaults
+    └── stripHtml.js       # HTML → plain text via DOMParser
 ```
 
 ## Quick Start
@@ -232,7 +258,7 @@ cd frontend && npm install && npm run dev
 - **Filters**: search, role (all/admin/customer), status (all/active/inactive).
 - **Self-protection**: admins cannot demote or deactivate themselves.
 
-### Admin Settings Manager (20+ Sections)
+### Admin Settings Manager (25+ Sections)
 - **Site identity**: logo upload, custom site name as image, sizing.
 - **Maintenance mode** toggle.
 - **Free shipping threshold**.
@@ -244,6 +270,10 @@ cd frontend && npm install && npm run dev
 - **Category filters**: custom categories with icon/image, 20+ CSS style props.
 - **Product card**: layout (orientation, responsive columns per breakpoint), 30+ CSS props, currency.
 - **Payment methods**: toggle + configure cash/transfer/Stripe/PayPal individually.
+- **SEO**: global meta description/keywords, OG image, per-page title templates, Google/Bing verification codes, JSON-LD toggle, sitemap toggle, custom head tags.
+- **Invoice PDF**: company info, font sizes, colors, section visibility in generated PDFs.
+- **Landing page builder**: enable/disable, global styles, section ordering, 5 template presets.
+- **Database backup/restore**: `.tar.gz` archives (SQL + product images).
 - **All sections collapsible** with toggle state.
 
 ### Admin Database Section
@@ -271,10 +301,55 @@ cd frontend && npm install && npm run dev
 - Google Maps embed via configurable URL.
 - Admin inline editing of all contact fields (saves to settings).
 
+### SEO System
+- **Admin config**: `seoConfig` JSON in `app_settings` — global meta, per-page title templates, verification codes, JSON-LD, sitemap.
+- **`useSeo()` hook**: called per page (`useSeo('home')`, `useSeo('product', { productName, ... })`). Injects `<title>`, `<meta description>`, OG tags, Twitter Card, canonical URL, JSON-LD, verification meta tags into `<head>`.
+- **`seoDefaults.js`**: shared defaults + `SEO_PAGE_LABELS` for admin UI.
+- **Placeholders**: `{siteName}`, `{productName}`, `{categoryName}` in title templates.
+- **JSON-LD**: `Organization` (all pages) and `Product` structured data (product pages, with availability).
+- **`/robots.txt`**: dynamic from `seoConfig.robots` setting (cached 5 min).
+- **`/sitemap.xml`**: auto-generated from static pages + all non-hidden products (cached 5 min).
+- **`SeoSection.jsx`**: admin panel with 4 sub-tabs (Global, Páginas, Verificación, Avanzado).
+
 ### Social Sharing (Backend)
 - `/p/<slug>` renders full HTML with Open Graph, Twitter Card, WhatsApp/Telegram meta tags.
 - Product price meta tags (`product:price:amount`, `product:price:currency`).
+- `og:locale` from seoConfig settings.
 - Auto-redirect to frontend product page via `<meta http-equiv="refresh">`.
+
+### Product Variants
+- **Variant system**: products can have `has_variants` flag with associated variant data (colors, sizes, etc.).
+- **VariantSelector.jsx**: groups attributes by type, renders color swatches + size pills, resolves selected variant for cart.
+- **Product units**: support for `unitType` (unidad, paquete, caja, docena, lb, kg, g, L, ml, m) with formatting helpers in `productUnits.js`.
+
+### Landing Page System
+- **Standalone page**: configurable route (default `/landing`), enabled/disabled from admin.
+- **Section-based**: ordered sections rendered from `landingPageConfig` in `app_settings`.
+- **Admin builder**: `LandingPageAdmin.jsx` — section ordering, content editing, global styles.
+- **5 template presets**: Modern Minimal, Story Brand, Neon Tech, Warm Commerce, Clean Editorial.
+- **Route logic**: when enabled, `/` shows LandingPage, store moves to `/tienda`.
+
+### Invoice PDF Customization
+- **Admin config**: `InvoicePdfSection.jsx` — company info, font sizes, colors, section visibility.
+- **`pdfDefaults.js`**: shared `PDF_DEFAULTS` for consistent rendering.
+- **`InvoicePdfStyles.js`**: `buildPdfStyles(cfg)` generates `@react-pdf/renderer` StyleSheet from admin config.
+- **`InvoicePDF.jsx`**: accepts `pdfConfig` prop, threaded from admin/order views.
+
+### Setup Wizard
+- **First-run experience**: `SetupWizard.jsx` shown when DB not configured.
+- **3-step flow**: provider selection (Supabase vs PostgreSQL) → credentials → auto-schema creation.
+- **Backend**: `setup.routes.js` — only works when DB not configured, direct PostgreSQL with SSL auto-fallback.
+
+### Database Backup/Restore
+- **`.tar.gz` archives**: unified backup containing SQL dump + product images.
+- **Admin UI**: `DatabaseManager.jsx` inside `DatabaseSection` — create, download, upload backups.
+- **Backend**: `database.routes.js` — admin-only, uses `pg_dump`/`psql`/`tar` CLI tools.
+
+### Image Storage
+- **Unified proxy**: `storage.routes.js` at `/storage/*`.
+- **Supabase mode**: proxies to Supabase Storage bucket.
+- **Postgres mode**: serves from local `uploads/` directory.
+- **`resolveImageUrl.js`**: centralizes URL resolution — production rewrites to `/storage/<path>` (Nginx → Cloudflare), dev uses Supabase URLs directly.
 
 ### User Profile
 - Profile editing: name, email, phone.
@@ -318,7 +393,7 @@ CSRF token fallback: in-memory cache when cookies don't work (mobile browsers).
 ### Dynamic Theming
 - `useSiteSettings` hook applies CSS variables to `:root` (primary, secondary, accent, bg, text + hover).
 - Dynamic favicon: emoji → canvas → PNG, or logo URL.
-- Dynamic page title from `siteName`.
+- Dynamic page title via `useSeo()` hook (per-page templates from seoConfig).
 - Header supports configurable background color with transparency (0–100%).
 
 ### Config Switching (Important!)
@@ -332,7 +407,7 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 ```
 **Production note**: No frontend `.env` files on server. `deploy.yml` does NOT pass VITE_ env vars. Frontend uses the `/api` relative + `window.location.origin` defaults.
 
-## API Routes Summary (56 total endpoints)
+## API Routes Summary (68+ total endpoints)
 | Route | Auth | Notes |
 |-------|------|-------|
 | `GET /api/auth/csrf` | Public | Returns CSRF token |
@@ -386,6 +461,14 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 | `GET /api/chatbot/config` | Admin | Chatbot settings |
 | `GET /api/chatbot/providers` | Admin | Available providers list |
 | `POST /api/chatbot/test` | Admin | Test LLM connection |
+| `GET /robots.txt` | Public | Dynamic robots.txt from seoConfig |
+| `GET /sitemap.xml` | Public | Auto-generated sitemap (static pages + products) |
+| `GET/POST /api/database/backup` | Admin | Create/list backups (.tar.gz) |
+| `GET /api/database/backup/:id` | Admin | Download backup archive |
+| `POST /api/database/restore` | Admin | Restore from backup |
+| `GET /api/setup/status` | Public | Check if DB is configured |
+| `POST /api/setup/configure` | Public | Initial DB setup (provider + credentials) |
+| `GET /storage/*` | Public | Unified image proxy (Supabase or local) |
 
 ## Database Schema (9 Tables)
 | Table | Purpose |
@@ -404,12 +487,21 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 
 ## Testing
 ```bash
+# Unit tests (vitest)
+cd frontend && npm run test:unit     # All 116 unit tests
+cd frontend && npm run test:unit:p0  # Critical unit tests
+cd frontend && npm run test:unit:p1  # High priority
+cd frontend && npm run test:unit:p2  # Medium priority
+cd frontend && npm run test:unit:p3  # Smoke tests
+
+# E2E tests (Playwright)
 cd frontend && npm run test:e2e     # All Playwright tests
 cd frontend && npm run test:e2e:p0  # Critical tests only
 cd frontend && npm run test:e2e:p1  # High priority
 cd frontend && npm run test:e2e:p2  # Medium priority
 ```
-- Specs in `frontend/tests/specs/` organized by priority: `p0-critical/`, `p1-high/`, `p2-medium/`, `components/`.
+- Unit tests in `frontend/tests/unit/` organized by priority: `p0/`, `p1/`, `p2/`, `p3/`, `p4/`.
+- E2E specs in `frontend/tests/specs/` organized by priority: `p0-critical/`, `p1-high/`, `p2-medium/`, `components/`.
 - `playwright.config.js` baseURL is `http://localhost:5173/`.
 - **Gotcha**: auth tests can trigger rate limits; space out runs.
 
@@ -433,6 +525,10 @@ cd frontend && npm run test:e2e:p2  # Medium priority
 6. **Order number format**: `W-YYMMDD-XXXXX` (generated in `backend/utils/orderNumber.js`).
 7. **Currency**: Default `RD$` (Dominican Peso), configurable from admin settings. Uses `Intl.NumberFormat`.
 8. **Leaflet map**: warehouse location hardcoded to Santo Domingo, DR in `DeliveryMap.jsx`.
+9. **Dual DB**: `database/index.js` switches between Supabase (`supabase.js`) and native PostgreSQL (`postgres.js`). Same interface — provider-agnostic.
+10. **SEO config**: stored as `seoConfig` JSON key in `app_settings`. Read via `GET /api/settings/public` (whitelisted). Frontend hook `useSeo()` called per page.
+11. **Image proxy**: all product images served via `/storage/*` in production. `resolveImageUrl.js` rewrites URLs.
+12. **Rich text**: product descriptions support HTML via `RichTextEditor.jsx`. Stripped to plain text for cards via `stripHtml.js`.
 
 ## Adding Features Checklist
 - [ ] New endpoint: create route file in `routes/`, register in `routes/index.js`, mount in `server.js`

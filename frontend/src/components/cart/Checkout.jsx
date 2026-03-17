@@ -16,8 +16,11 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { formatQuantityWithUnit } from '../../utils/productUnits';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import { cartItemKey, formatVariantLabel } from '../../utils/cartHelpers';
+import { useSeo } from '../../hooks/useSeo';
 
 function Checkout({ cartItems: propCartItems, total: propTotal, onSubmit, onClose, onClearCart, onOrderComplete, siteName, siteIcon, onLoginSuccess, currencyCode }) {
+    // SEO dinámico para checkout
+    useSeo('checkout');
     const navigate = useNavigate();
     
     // Use internal cart items state that can be recovered from pending payment

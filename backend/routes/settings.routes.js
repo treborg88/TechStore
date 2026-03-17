@@ -45,7 +45,9 @@ const PUBLIC_SETTINGS = [
     // Store module control
     'storeModuleConfig',
     // Invoice PDF customization
-    'invoicePdfConfig'
+    'invoicePdfConfig',
+    // SEO configuration
+    'seoConfig'
 ];
 
 /**

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { apiFetch, apiUrl } from '../services/apiClient';
+import { useSeo } from '../hooks/useSeo';
 import { toast } from 'react-hot-toast';
 import StoreLocationMap from '../components/common/StoreLocationMap';
 import './Contact.css';
@@ -17,6 +18,8 @@ const defaultContactData = {
 };
 
 export default function Contact({ user }) {
+  // SEO dinámico para la página de contacto
+  useSeo('contact');
   const isAdmin = user?.role === 'admin';
   const [_loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);

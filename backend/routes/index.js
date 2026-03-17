@@ -11,6 +11,7 @@ const chatbotRoutes = require('./chatbot.routes');
 const setupRoutes = require('./setup.routes');
 const storageRoutes = require('./storage.routes');
 const databaseRoutes = require('./database.routes');
+const seoRoutes = require('./seo.routes');
 
 module.exports = {
     authRoutes,
@@ -24,5 +25,6 @@ module.exports = {
     chatbotRoutes,
     setupRoutes,
     storageRoutes,
-    databaseRoutes
+    databaseRoutes,
+    seoRoutes
 };

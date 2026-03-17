@@ -45,7 +45,7 @@ const extractProductIdFromSlug = (slug = '') => {
  * @param {string} [params.price] - Product price for og:price
  * @param {string} [params.currency] - Price currency (default: DOP)
  */
-const buildShareHtml = ({ title, description, imageUrl, url, siteName = 'TechStore', price, currency = 'DOP' }) => {
+const buildShareHtml = ({ title, description, imageUrl, url, siteName = 'TechStore', price, currency = 'DOP', locale = 'es_DO' }) => {
   const safeTitle = escapeHtml(title || 'Producto');
   const safeDescription = escapeHtml(truncateText(description || '', 200));
   const safeImage = escapeHtml(imageUrl || '');
@@ -76,7 +76,7 @@ const buildShareHtml = ({ title, description, imageUrl, url, siteName = 'TechSto
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="${safeUrl}">
-  <meta property="og:locale" content="es_DO">${priceMetaTags}
+  <meta property="og:locale" content="${escapeHtml(locale)}">${priceMetaTags}
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">

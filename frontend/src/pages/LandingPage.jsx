@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { cloneLandingPageConfig } from '../utils/landingPageDefaults';
+import { useSeo } from '../hooks/useSeo';
 import './LandingPage.css';
 
 /* ═══════════════ RENDER FUNCTIONS PER SECTION TYPE ═══════════════ */
@@ -384,6 +385,8 @@ const SECTION_RENDERERS = {
 /* ═══════════════ COMPONENTE PRINCIPAL ═══════════════ */
 
 const LandingPage = () => {
+  // SEO dinámico para la landing page
+  useSeo('home');
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [loading, setLoading] = useState(true);

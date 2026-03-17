@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from 'react-router-dom';
+import { useSeo } from '../../hooks/useSeo';
 import toast from 'react-hot-toast';
 import '../products/ProductDetail.css';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -9,6 +10,8 @@ import { getUnitShortLabel } from '../../utils/productUnits';
 import { cartItemKey, formatVariantLabel } from '../../utils/cartHelpers';
 
 function Cart({ cartItems, isLoading = false, onAdd, onRemove, onSetQuantity, onClear, onClose, onClearAll, currencyCode }) {
+    // SEO dinámico para el carrito
+    useSeo('cart');
     const navigate = useNavigate();
     const [quantityInputs, setQuantityInputs] = useState({});
     const total = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
