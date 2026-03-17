@@ -23,6 +23,13 @@ const setMeta = (attr, key, content) => {
   } else if (el) {
     // Limpiar si no hay contenido
     el.setAttribute('content', '');
+  }
+};
+/**
+ * Helper: actualiza o crea un <link> tag
+ */
+const setLink = (rel, href) => {
+  let el = document.querySelector(`link[rel="${rel}"]`);
   if (href) {
     if (!el) {
       el = document.createElement('link');
