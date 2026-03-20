@@ -593,7 +593,6 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                         productName={product.name}
                         productDescription={product.description}
                         className="product-image"
-                        onAddToCart={() => addToCart(product)}
                         onImageClick={() => navigate(`/product/${product.id}`)}
                       />
                       <div className="product-content">
@@ -604,11 +603,12 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                         <p className="product-description">{stripHtml(product.description)}</p>
                         <div className="product-footer">
                           <span className="product-price">{formatCurrency(product.price, productCardConfig.currency)}</span>
+                          {/* Variant products navigate to detail page for selection */}
                           <button
-                            onClick={() => addToCart(product)}
+                            onClick={() => product.has_variants ? navigate(`/product/${product.id}`) : addToCart(product)}
                             className="add-to-cart-button"
                           >
-                            Agregar
+                            {product.has_variants ? 'Ver opciones' : 'Agregar'}
                           </button>
                         </div>
                       </div>

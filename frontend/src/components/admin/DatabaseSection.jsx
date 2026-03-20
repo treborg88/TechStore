@@ -259,6 +259,7 @@ function DatabaseSection({ settings, onChange, setSettings }) {
               <>
                 ⚠️ Los valores editables se guardan como referencia. Para aplicar cambios reales en la conexión,
                 actualiza <strong>SUPABASE_URL</strong> y <strong>SUPABASE_KEY</strong> en el archivo <code>.env</code> del backend y reinicia el servidor.
+                El sistema derivará automáticamente un <code>DATABASE_URL</code> válido para respaldos.
               </>
             )}
           </p>

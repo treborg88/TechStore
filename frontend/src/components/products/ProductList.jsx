@@ -497,7 +497,8 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			toast.success('Variante creada');
 			setNewVariant({ sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] });
 			await loadVariants(productId);
-			await onRefresh();
+			// Force refresh to update has_variants flag in product list
+			if (onForceRefresh) onForceRefresh(); else await onRefresh();
 		} catch (err) {
 			toast.error(err.message);
 		}
@@ -531,7 +532,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			toast.success('Variante actualizada');
 			setEditingVariant(null);
 			await loadVariants(productId);
-			await onRefresh();
+			if (onForceRefresh) onForceRefresh(); else await onRefresh();
 		} catch (err) {
 			toast.error(err.message);
 		}
@@ -550,7 +551,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			}
 			toast.success('Variante eliminada');
 			await loadVariants(productId);
-			await onRefresh();
+			if (onForceRefresh) onForceRefresh(); else await onRefresh();
 		} catch (err) {
 			toast.error(err.message);
 		}

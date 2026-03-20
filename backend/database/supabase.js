@@ -602,30 +602,64 @@ const statements = {
         : 'name, price, stock, image, has_variants, product_images (image_path)';
     }
 
-    // Build select: only include variant_id + product_variants embed when supported
+    // Cart fields: include variant_id when supported
     const cartFields = supportsVariants
       ? 'id, product_id, variant_id, quantity'
       : 'id, product_id, quantity';
-    const variantEmbed = supportsVariants
-      ? ', product_variants (sku, price, stock, image_url, is_active)'
-      : '';
 
-    const { data, error } = await supabase
+    // Query cart + products embed (no product_variants embed — avoids FK dependency issues)
+    let { data, error } = await supabase
       .from('cart')
-      .select(`${cartFields}, products (${productFields})${variantEmbed}`)
+      .select(`${cartFields}, products (${productFields})`)
       .eq('user_id', user_id)
       .order('created_at', { ascending: false });
 
+    // Fallback: if has_variants column causes the query to fail, retry without it
+    if (error && supportsVariants) {
+      console.warn('getCartByUserId: retrying without has_variants field —', error.message);
+      productFields = supportsUnitType
+        ? 'name, price, stock, unit_type, image, product_images (image_path)'
+        : 'name, price, stock, image, product_images (image_path)';
+      ({ data, error } = await supabase
+        .from('cart')
+        .select(`${cartFields}, products (${productFields})`)
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false }));
+    }
+
+    // Fallback: if product_images embed fails, retry with basic product fields only
     if (error) {
-      console.error('Error getCartByUserId:', error);
+      console.warn('getCartByUserId: retrying with basic product fields —', error.message);
+      const basicProductFields = supportsUnitType
+        ? 'name, price, stock, unit_type, image'
+        : 'name, price, stock, image';
+      ({ data, error } = await supabase
+        .from('cart')
+        .select(`${cartFields}, products (${basicProductFields})`)
+        .eq('user_id', user_id)
+        .order('created_at', { ascending: false }));
+    }
+
+    if (error) {
+      console.error('Error getCartByUserId (all attempts failed):', error);
       return [];
     }
 
-    // Fetch variant attributes for cart items that have a variant
+    // Fetch variant data separately (avoids needing FK from cart→product_variants)
+    let variantsMap = {};
     let variantAttrs = {};
     if (supportsVariants) {
       const variantIds = data.filter(i => i.variant_id).map(i => i.variant_id);
       if (variantIds.length > 0) {
+        // Fetch variant info
+        const { data: variants } = await supabase
+          .from('product_variants')
+          .select('id, sku, price, stock, image_url, is_active')
+          .in('id', variantIds);
+        if (variants) {
+          for (const v of variants) variantsMap[v.id] = v;
+        }
+        // Fetch variant attributes
         const { data: attrs } = await supabase
           .from('product_variant_attributes')
           .select('variant_id, attribute_type, attribute_value')
@@ -641,9 +675,11 @@ const statements = {
 
     return data.map(item => {
       const product = item.products;
-      const variant = supportsVariants ? item.product_variants : null;
+      if (!product) return null; // FK/product deleted — skip orphan row
+      const variant = (supportsVariants && item.variant_id) ? variantsMap[item.variant_id] || null : null;
+
       // Prefer variant image > gallery image > legacy product.image
-      let image = variant?.image_url
+      const image = variant?.image_url
         || (product.product_images && product.product_images.length > 0
             ? product.product_images[0].image_path
             : product.image);
@@ -665,7 +701,7 @@ const statements = {
         image,
         variant_attributes: variantAttrs[item.variant_id] || null
       };
-    });
+    }).filter(Boolean); // Remove null entries from orphan rows
   },
   // variant_id is optional — null for non-variant products
   addToCart: async (user_id, product_id, quantity, variant_id = null) => {

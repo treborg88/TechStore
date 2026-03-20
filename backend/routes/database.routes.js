@@ -8,6 +8,7 @@ const { execFile } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
+const { getSupabaseDerivedDatabaseUrl } = require('../utils/supabaseDbUrl');
 
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
@@ -173,9 +174,22 @@ router.post('/backup', authenticateToken, requireAdmin, async (req, res) => {
     const archivePath = path.join(BACKUPS_DIR, filename);
     const replacing = fs.existsSync(archivePath);
 
-    // Parse DATABASE_URL
-    const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) return res.status(400).json({ message: 'DATABASE_URL no configurada' });
+    // Resolve a usable DATABASE_URL (native Postgres or derived from Supabase)
+    let dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      dbUrl = await getSupabaseDerivedDatabaseUrl();
+      if (dbUrl) {
+        // Keep it in env for consistency, but do not persist to disk here.
+        process.env.DATABASE_URL = dbUrl;
+      }
+    }
+
+    if (!dbUrl) {
+      return res.status(400).json({
+        message: 'DATABASE_URL no configurada. Asegúrate de tener SUPABASE_URL + SUPABASE_KEY (o configura DATABASE_URL).' 
+      });
+    }
+
     const parsed = parseDbUrl(dbUrl);
     if (!parsed) return res.status(400).json({ message: 'DATABASE_URL inválida' });
 
@@ -281,8 +295,19 @@ router.post('/restore', authenticateToken, requireAdmin, async (req, res) => {
       return res.status(404).json({ message: 'Archivo de backup no encontrado' });
     }
 
-    const dbUrl = process.env.DATABASE_URL;
-    if (!dbUrl) return res.status(400).json({ message: 'DATABASE_URL no configurada' });
+    // Resolve a usable DATABASE_URL (native Postgres or derived from Supabase)
+    let dbUrl = process.env.DATABASE_URL;
+    if (!dbUrl) {
+      dbUrl = await getSupabaseDerivedDatabaseUrl();
+      if (dbUrl) process.env.DATABASE_URL = dbUrl;
+    }
+
+    if (!dbUrl) {
+      return res.status(400).json({
+        message: 'DATABASE_URL no configurada. Asegúrate de tener SUPABASE_URL + SUPABASE_KEY (o configura DATABASE_URL).' 
+      });
+    }
+
     const parsed = parseDbUrl(dbUrl);
     if (!parsed) return res.status(400).json({ message: 'DATABASE_URL inválida' });
     const db = require('../database');

@@ -68,17 +68,15 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
       window.scrollTo(0, 0);
 
       try {
-        // 1. Intentar encontrar el producto en la lista pasada por props
+        // 1. Show cached product immediately for fast render (stale-while-revalidate)
         let foundProduct = products.find(p => p.id === parseInt(id));
 
-        // 2. Si no está (ej. carga directa) o necesita datos de variantes, buscar en la API
-        const needsFullFetch = !foundProduct || (foundProduct.has_variants && !foundProduct.variants);
-        if (needsFullFetch) {
-          const response = await fetch(`${API_URL}/products/${id}`);
-          if (!response.ok) {
-            throw new Error('Producto no encontrado');
-          }
+        // 2. Always fetch from API for full data (variants, attributeTypes, fresh has_variants)
+        const response = await fetch(`${API_URL}/products/${id}`);
+        if (response.ok) {
           foundProduct = await response.json();
+        } else if (!foundProduct) {
+          throw new Error('Producto no encontrado');
         }
 
         setProduct(foundProduct);
@@ -350,7 +348,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
             images={product.images || product.image} 
             productName={product.name}
             productDescription={product.description}
-            activeVariantImageUrl={selectedVariant?.image_url}
+            activeVariantImageUrl={selectedVariant?.image_url ? resolveImageUrl(selectedVariant.image_url) : null}
           />
         </div>
 
