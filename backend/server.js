@@ -66,6 +66,12 @@ app.use(express.urlencoded({ extended: true }));
 // --- CSRF Protection ---
 app.use(csrfProtection);
 
+// --- SaaS Public Routes (before tenant middleware — system-level) ---
+if (config.SAAS_MODE === 'true') {
+    const saasPublicRoutes = require('./routes/saas/public.routes');
+    app.use('/api/saas', saasPublicRoutes);
+}
+
 // --- Multi-Tenant Middleware (SaaS mode only) ---
 if (config.SAAS_MODE === 'true') {
     app.use(createTenantMiddleware(pool));
