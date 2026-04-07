@@ -8,6 +8,7 @@ import UserList from './UserList';
 import SettingsManager from './SettingsManager';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { playNotificationSound } from '../../utils/notificationSound';
+import SubscriptionBanner from '../saas/SubscriptionBanner';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
 export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️', categoryFilterSettings }) {
@@ -348,6 +349,9 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 
 	return (
 		<div className="admin-dashboard">
+			{/* SaaS plan banner (only visible in tenant mode) */}
+			<SubscriptionBanner />
+
 			{/* Tabs Navigation */}
 			<div className="admin-tabs">
 				<button

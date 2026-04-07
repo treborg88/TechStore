@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import { Buffer } from 'buffer';
 import './index.css'
 import App from './App.jsx'
+import { TenantProvider } from './hooks/useTenant.jsx'
 
 // Polyfill Buffer for @react-pdf/renderer
 globalThis.Buffer = Buffer;
@@ -11,7 +12,9 @@ globalThis.Buffer = Buffer;
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <TenantProvider>
+        <App />
+      </TenantProvider>
     </BrowserRouter>
   </StrictMode>,
 )

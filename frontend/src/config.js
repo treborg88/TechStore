@@ -6,6 +6,20 @@
 const isLocalhost = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
+// --- SaaS context detection ---
+const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+const hostParts = hostname.split('.');
+const SYSTEM_SLUGS = ['app', 'admin', 'www', 'staging'];
+
+// Tenant subdomain: {slug}.domain.com (3+ parts, not a system slug, not localhost)
+export const IS_TENANT = hostParts.length >= 3 && !SYSTEM_SLUGS.includes(hostParts[0]) && !isLocalhost;
+export const TENANT_SLUG = IS_TENANT ? hostParts[0] : null;
+
+// System contexts (SaaS platform pages)
+export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0] === 'www');
+export const IS_ONBOARDING = hostParts[0] === 'app' && !isLocalhost;
+export const IS_SUPER_ADMIN = hostParts[0] === 'admin' && !isLocalhost;
+
 // Production defaults: relative /api (Nginx proxy) + auto-detect origin
 // No hardcoded domains — works on any domain behind Nginx
 const DEFAULT_API_URL = isLocalhost 

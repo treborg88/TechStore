@@ -2,6 +2,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Suspense, lazy } from 'react';
 import LoadingSpinner from '../components/common/LoadingSpinner';
+import { IS_LANDING, IS_ONBOARDING, IS_SUPER_ADMIN, IS_TENANT } from '../config';
 
 // Lazy loading de componentes por feature
 const Home = lazy(() => import('../pages/Home'));
@@ -15,6 +16,11 @@ const LoginPage = lazy(() => import('../components/auth/LoginPage'));
 const AdminDashboard = lazy(() => import('../components/admin/AdminDashboard'));
 const SettingsManager = lazy(() => import('../components/admin/SettingsManager'));
 const LandingPage = lazy(() => import('../pages/LandingPage'));
+
+// SaaS platform routes (only loaded when on system subdomains)
+const SaaSLandingRoutes = lazy(() => import('../pages/landing/SaaSLanding'));
+const OnboardingRoutes = lazy(() => import('../pages/onboarding/Onboarding'));
+const SuperAdminRoutes = lazy(() => import('../pages/superadmin/SuperAdmin'));
 
 /**
  * Componente de rutas de la aplicación.
@@ -53,6 +59,30 @@ function AppRoutes({
   const configuredLandingRoute = normalizeLandingRoute(landingPageConfig?.route);
   const isLandingEnabled = Boolean(landingPageConfig?.enabled);
   const isStoreEnabled = storeModuleConfig?.enabled !== false;
+
+  // SaaS platform routing: system subdomains get dedicated route trees
+  // Tenant subdomains and localhost fall through to the normal store routes
+  if (IS_LANDING && !IS_TENANT) {
+    return (
+      <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
+        <SaaSLandingRoutes />
+      </Suspense>
+    );
+  }
+  if (IS_ONBOARDING) {
+    return (
+      <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
+        <OnboardingRoutes />
+      </Suspense>
+    );
+  }
+  if (IS_SUPER_ADMIN) {
+    return (
+      <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
+        <SuperAdminRoutes />
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={<div className="suspense-loading"><LoadingSpinner /></div>}>
