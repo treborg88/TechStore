@@ -1,6 +1,5 @@
-// routes/storage.routes.js - Unified image storage proxy
-// Supabase mode: proxies to Supabase Storage (remote fetch)
-// Postgres mode: serves from local filesystem (uploads/)
+// routes/storage.routes.js - Image storage proxy (local filesystem)
+// Serves product images from the uploads/ directory.
 // Cloudflare caches responses at the edge via long Cache-Control headers.
 
 const express = require('express');
@@ -13,7 +12,7 @@ const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploa
 
 /**
  * GET /storage/*
- * Routes to local filesystem (postgres) or Supabase Storage (supabase).
+ * Serves images from local filesystem (uploads/ directory).
  */
 router.get('/*', async (req, res) => {
   const storagePath = req.params[0];
@@ -26,43 +25,17 @@ router.get('/*', async (req, res) => {
   res.setHeader('X-Cache-Proxy', 'backend-storage-proxy');
   res.removeHeader('Set-Cookie');
 
-  const provider = (process.env.DB_PROVIDER || 'supabase').toLowerCase();
+  // Serve from local filesystem
+  const filePath = path.join(UPLOADS_DIR, storagePath);
 
-  // ── Postgres: serve from local filesystem ──
-  if (provider === 'postgres') {
-    const filePath = path.join(UPLOADS_DIR, storagePath);
-    // Prevent directory traversal
-    if (!filePath.startsWith(UPLOADS_DIR)) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-    if (!fs.existsSync(filePath)) {
-      return res.status(404).end();
-    }
-    return res.sendFile(filePath);
+  // Prevent directory traversal
+  if (!filePath.startsWith(UPLOADS_DIR)) {
+    return res.status(403).json({ message: 'Forbidden' });
   }
-
-  // ── Supabase: proxy to remote storage ──
-  const supabaseUrl = process.env.SUPABASE_URL;
-  if (!supabaseUrl) {
-    return res.status(503).json({ message: 'Database not configured yet' });
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).end();
   }
-
-  const targetUrl = `${supabaseUrl.replace(/\/$/, '')}/storage/v1/object/public/${storagePath}`;
-
-  try {
-    const response = await fetch(targetUrl);
-    if (!response.ok) return res.status(response.status).end();
-
-    // Forward content-type from Supabase
-    const contentType = response.headers.get('content-type');
-    if (contentType) res.setHeader('Content-Type', contentType);
-
-    const arrayBuffer = await response.arrayBuffer();
-    res.send(Buffer.from(arrayBuffer));
-  } catch (err) {
-    console.error('Storage proxy error:', err.message);
-    res.status(502).json({ message: 'Failed to fetch from storage' });
-  }
+  return res.sendFile(filePath);
 });
 
 module.exports = router;

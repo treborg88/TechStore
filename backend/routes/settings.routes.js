@@ -120,7 +120,7 @@ router.get('/', authenticateToken, requireAdmin, async (req, res) => {
         // Convert to object and mask sensitive fields
         const settingsObj = {};
         for (const { id, value } of settings) {
-            if (id === 'mailPassword' || id === 'stripeSecretKey' || id === 'paypalClientSecret' || id === 'dbSupabaseKey') {
+            if (id === 'mailPassword' || id === 'stripeSecretKey' || id === 'paypalClientSecret') {
                 // Don't send actual password/keys, just indicate if set
                 settingsObj[id] = value ? '********' : '';
             } else {
@@ -150,7 +150,7 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
         delete settings.cdlandingPageConfig;
         
         // Sensitive fields that should be encrypted and filtered if empty
-        const sensitiveFields = ['mailPassword', 'stripeSecretKey', 'paypalClientSecret', 'dbSupabaseKey'];
+        const sensitiveFields = ['mailPassword', 'stripeSecretKey', 'paypalClientSecret'];
         
         // Filter out empty sensitive field updates
         const entries = Object.entries(settings).filter(([key, value]) => {
@@ -193,92 +193,37 @@ router.put('/', authenticateToken, requireAdmin, async (req, res) => {
 /**
  * GET /api/settings/db-status
  * Get database connection info (admin only, sensitive data masked)
- * Provider-agnostic: returns info for whichever adapter is active.
  */
 router.get('/db-status', authenticateToken, requireAdmin, async (req, res) => {
     try {
         const db = require('../database');
-        const currentProvider = db.provider;
 
-        // Common: test actual connection
         let connected = false;
         let tableCount = 0;
 
-        if (currentProvider === 'postgres') {
-            // ── PostgreSQL (native) ────────────────────────────
-            const dbUrl = process.env.DATABASE_URL || '';
-            // Mask credentials in connection string for display
-            const maskedUrl = dbUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:****@');
+        const dbUrl = process.env.DATABASE_URL || '';
+        // Mask credentials in connection string for display
+        const maskedUrl = dbUrl.replace(/:\/\/([^:]+):([^@]+)@/, '://$1:****@');
 
-            try {
-                const result = await db.testConnection();
-                connected = result.success;
-                if (connected && db.pool) {
-                    const { rows } = await db.pool.query(
-                        `SELECT COUNT(*) AS c FROM information_schema.tables
-                         WHERE table_schema = 'public'
-                           AND table_name = ANY($1)`,
-                        [['users', 'products', 'orders', 'order_items', 'cart', 'app_settings']]
-                    );
-                    tableCount = parseInt(rows[0].c, 10);
-                }
-            } catch { /* connection failed */ }
-
-            return res.json({
-                provider: 'PostgreSQL (native)',
-                url: maskedUrl,
-                connected,
-                tableCount,
-                dashboardUrl: ''
-            });
-        }
-
-        // ── Supabase (default) ──────────────────────────────
-        const supabaseUrl = process.env.SUPABASE_URL || '';
-        const supabaseKey = process.env.SUPABASE_KEY || '';
-
-        // Extract project ref from URL (e.g. https://abc123.supabase.co -> abc123)
-        let projectRef = '';
         try {
-            const urlObj = new URL(supabaseUrl);
-            projectRef = urlObj.hostname.split('.')[0] || '';
-        } catch { /* invalid URL */ }
-
-        // Mask the API key: show first 8 and last 4 chars
-        const maskedKey = supabaseKey.length > 12
-            ? `${supabaseKey.slice(0, 8)}...${supabaseKey.slice(-4)}`
-            : supabaseKey ? '••••••••' : '';
-
-        // Test connection via Supabase client
-        const dbClient = db.supabase;
-        if (dbClient) {
-            try {
-                const { error } = await dbClient
-                    .from('app_settings')
-                    .select('id', { count: 'exact', head: true });
-                connected = !error;
-                // Count main tables
-                const tables = ['users', 'products', 'orders', 'order_items', 'cart', 'app_settings'];
-                let count = 0;
-                for (const t of tables) {
-                    const { error: tErr } = await dbClient
-                        .from(t)
-                        .select('id', { count: 'exact', head: true });
-                    if (!tErr) count++;
-                }
-                tableCount = count;
-            } catch { /* connection failed */ }
-        }
+            const result = await db.testConnection();
+            connected = result.success;
+            if (connected && db.pool) {
+                const { rows } = await db.pool.query(
+                    `SELECT COUNT(*) AS c FROM information_schema.tables
+                     WHERE table_schema = 'public'
+                       AND table_name = ANY($1)`,
+                    [['users', 'products', 'orders', 'order_items', 'cart', 'app_settings']]
+                );
+                tableCount = parseInt(rows[0].c, 10);
+            }
+        } catch { /* connection failed */ }
 
         res.json({
-            provider: 'Supabase (PostgreSQL)',
-            url: supabaseUrl || '',
-            projectRef,
-            apiKeySet: !!supabaseKey,
-            maskedKey,
+            provider: 'PostgreSQL',
+            url: maskedUrl,
             connected,
-            tableCount,
-            dashboardUrl: projectRef ? `https://supabase.com/dashboard/project/${projectRef}` : ''
+            tableCount
         });
     } catch (error) {
         console.error('Error getting DB status:', error);

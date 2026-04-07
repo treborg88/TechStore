@@ -1,7 +1,7 @@
 // middleware/upload.js - Multer file upload configuration
 const multer = require('multer');
 
-// Memory storage for Supabase uploads
+// Memory storage for file uploads
 const storage = multer.memoryStorage();
 
 // File filter for images only

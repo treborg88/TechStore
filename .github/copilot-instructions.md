@@ -20,7 +20,7 @@
 | **Reverse proxy** | Nginx on :80 (redirect) + :443 (SSL) |
 | **SSL** | Cloudflare Full (Strict) — Origin Certificate on Nginx :443 |
 | **CI/CD** | GitHub Actions: `ci.yml` (lint+build), `deploy.yml` (auto on push to main), `rollback.yml` (manual) |
-| **DB** | Supabase (hosted Postgres + Storage bucket `products`) or native PostgreSQL (provider-switchable) |
+| **DB** | PostgreSQL (Docker or external) + local filesystem storage |
 | **Version** | `1.0.0` (SemVer — see `CHANGELOG.md`) |
 
 ## Architecture Overview
@@ -33,7 +33,7 @@
 | Middleware | `backend/middleware/` | auth, csrf, rateLimiter, upload |
 | Services | `backend/services/` | email.service, encryption.service, llm/ (chatbot) |
 | Config | `backend/config/` | env vars, CORS (dynamic) |
-| DB | `backend/database/index.js` (provider switcher) | Supabase or native PostgreSQL (dual adapter) |
+| DB | `backend/database/index.js` (module re-exporter) | PostgreSQL via `pg` (single adapter) |
 | DB Schema | `backend/database/schema.sql` | 9 tables, 2 RPC functions, indexes |
 | DB Seed | `backend/database/seed.sql` | Admin user, ~90 default settings |
 | Share | `backend/sharePage.js` | OG meta for social sharing |
@@ -51,9 +51,8 @@ backend/
 │   ├── index.js           # ENV vars (JWT_SECRET, PORT, EMAIL_*)
 │   └── cors.js            # Dynamic CORS (env var + Admin Panel siteDomain + localhost)
 ├── database/
-│   ├── index.js           # Provider switcher (Supabase vs native PostgreSQL)
-│   ├── supabase.js        # Supabase adapter
-│   ├── postgres.js        # Native PostgreSQL adapter (pg Pool + filesystem storage)
+│   ├── index.js           # Module re-exporter (requires postgres.js)
+│   ├── postgres.js        # PostgreSQL adapter (pg Pool + filesystem storage)
 │   ├── schema.sql         # 9 tables, 2 RPC functions, indexes
 │   └── seed.sql           # Default admin + ~90 settings
 ├── middleware/
@@ -74,7 +73,7 @@ backend/
 │   ├── seo.routes.js      # /robots.txt, /sitemap.xml (dynamic from seoConfig, 5-min cache)
 │   ├── database.routes.js # /api/database/* (admin backup/restore .tar.gz archives)
 │   ├── setup.routes.js    # /api/setup/* (setup wizard, only when DB not configured)
-│   └── storage.routes.js  # /storage/* (unified image proxy: Supabase or local filesystem)
+│   └── storage.routes.js  # /storage/* (local filesystem image proxy)
 ├── services/
 │   ├── email.service.js   # sendOrderEmail, sendMailWithSettings (HTML templates)
 │   ├── encryption.service.js # AES-256-GCM for settings
@@ -96,7 +95,7 @@ frontend/src/
 │   ├── admin/
 │   │   ├── AdminDashboard.jsx    # 4-tab dashboard: Overview, Products, Orders, Users
 │   │   ├── AdminOrderDetail.jsx  # Order detail: status stepper, tracking, notes, PDF
-│   │   ├── DatabaseSection.jsx   # Supabase URL/key editor + connection test
+│   │   ├── DatabaseSection.jsx   # PostgreSQL connection status + connection test
 │   │   ├── DatabaseManager.jsx   # Backup/restore UI (.tar.gz archives: SQL + images)
 │   │   ├── EmailSettingsSection.jsx # SMTP config + invoice footer
 │   │   ├── InvoicePdfSection.jsx # PDF invoice appearance config (fonts, colors, sections)
@@ -163,7 +162,7 @@ frontend/src/
     ├── notificationSound.js # Web Audio API two-tone chime (C5+E5) for new orders
     ├── pdfDefaults.js     # PDF_DEFAULTS for invoice customization
     ├── productUnits.js    # Product unit system (unidad, paquete, lb, kg, etc.)
-    ├── resolveImageUrl.js # Image URL resolution (Supabase proxy vs direct)
+    ├── resolveImageUrl.js # Image URL resolution (local storage proxy)
     ├── seoDefaults.js     # SEO_DEFAULTS + SEO_PAGE_LABELS for admin & hook
     ├── settingsHelpers.js # Deep-merge settings with category/card config defaults
     └── stripHtml.js       # HTML → plain text via DOMParser
@@ -181,7 +180,7 @@ cd frontend && npm install && npm run dev
 
 **Required backend `.env`:**
 - `JWT_SECRET` (mandatory—server exits if missing)
-- `SUPABASE_URL`, `SUPABASE_KEY`
+- `DATABASE_URL` (PostgreSQL connection string)
 - `EMAIL_USER`, `EMAIL_PASS` (for verification/reset emails)
 - `STRIPE_SECRET_KEY` (optional — for Stripe payments)
 
@@ -277,8 +276,9 @@ cd frontend && npm install && npm run dev
 - **All sections collapsible** with toggle state.
 
 ### Admin Database Section
-- Supabase URL + key editor with masked display.
+- PostgreSQL connection URL (read-only display, masked).
 - Live connection status badge (green/red).
+- Table count and filesystem storage indicator.
 - Test connection button.
 
 ### Admin Email Settings
@@ -337,7 +337,7 @@ cd frontend && npm install && npm run dev
 
 ### Setup Wizard
 - **First-run experience**: `SetupWizard.jsx` shown when DB not configured.
-- **3-step flow**: provider selection (Supabase vs PostgreSQL) → credentials → auto-schema creation.
+- **2-step flow**: PostgreSQL credentials → auto-schema creation.
 - **Backend**: `setup.routes.js` — only works when DB not configured, direct PostgreSQL with SSL auto-fallback.
 
 ### Database Backup/Restore
@@ -347,9 +347,8 @@ cd frontend && npm install && npm run dev
 
 ### Image Storage
 - **Unified proxy**: `storage.routes.js` at `/storage/*`.
-- **Supabase mode**: proxies to Supabase Storage bucket.
-- **Postgres mode**: serves from local `uploads/` directory.
-- **`resolveImageUrl.js`**: centralizes URL resolution — production rewrites to `/storage/<path>` (Nginx → Cloudflare), dev uses Supabase URLs directly.
+- Serves from local `uploads/` directory.
+- **`resolveImageUrl.js`**: centralizes URL resolution — rewrites to `/storage/<path>` for Nginx/Cloudflare.
 
 ### User Profile
 - Profile editing: name, email, phone.
@@ -444,7 +443,7 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 | `GET /api/settings` | Admin | All settings |
 | `GET /api/settings/public` | Public | Public-facing settings |
 | `PUT /api/settings` | Admin | Update settings |
-| `GET /api/settings/db-status` | Admin | Supabase connection status |
+| `GET /api/settings/db-status` | Admin | PostgreSQL connection status |
 | `POST /api/settings/upload` | Admin | Upload image (logo, hero, etc.) |
 | `POST /api/verification/send` | Public | Send verification code |
 | `POST /api/verification/verify` | Public | Verify code |
@@ -467,8 +466,8 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 | `GET /api/database/backup/:id` | Admin | Download backup archive |
 | `POST /api/database/restore` | Admin | Restore from backup |
 | `GET /api/setup/status` | Public | Check if DB is configured |
-| `POST /api/setup/configure` | Public | Initial DB setup (provider + credentials) |
-| `GET /storage/*` | Public | Unified image proxy (Supabase or local) |
+| `POST /api/setup/configure` | Public | Initial DB setup (PostgreSQL credentials) |
+| `GET /storage/*` | Public | Local filesystem image proxy |
 
 ## Database Schema (9 Tables)
 | Table | Purpose |
@@ -483,7 +482,7 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 | `app_settings` | id, key (unique), value (text) |
 | `token_blacklist` | id, token, expires_at |
 - **RPC**: `decrement_stock_if_available()` (prevents overselling), `increment_stock()` (returns/cancellations)
-- **Storage**: Supabase bucket `products` (public read, authenticated write)
+- **Storage**: Local filesystem `uploads/products/` (backend serves via `/storage/*`)
 
 ## Testing
 ```bash
@@ -520,12 +519,12 @@ cd frontend && npm run test:e2e:p2  # Medium priority
 1. **CORS**: Dynamic — set `CORS_ORIGIN` env var (comma-separated domains) or use Admin Panel → E-commerce → Dominio del Sitio. No need to edit code.
 2. **Dependencies**: Root `package.json` has `devDependencies` only (`concurrently`). All production deps in `backend/` or `frontend/`.
 3. **Errors**: All API errors return `{ message: "..." }`—read `.message` on frontend.
-4. **Images**: `product.image` may be full Supabase URL or legacy path; handle both.
+4. **Images**: `product.image` may be a `/storage/` path or legacy filename; handle both.
 5. **ESLint**: Unused vars cause errors unless prefixed with `_`.
 6. **Order number format**: `W-YYMMDD-XXXXX` (generated in `backend/utils/orderNumber.js`).
 7. **Currency**: Default `RD$` (Dominican Peso), configurable from admin settings. Uses `Intl.NumberFormat`.
 8. **Leaflet map**: warehouse location hardcoded to Santo Domingo, DR in `DeliveryMap.jsx`.
-9. **Dual DB**: `database/index.js` switches between Supabase (`supabase.js`) and native PostgreSQL (`postgres.js`). Same interface — provider-agnostic.
+9. **PostgreSQL only**: `database/index.js` re-exports `postgres.js`. Single adapter, no provider switching.
 10. **SEO config**: stored as `seoConfig` JSON key in `app_settings`. Read via `GET /api/settings/public` (whitelisted). Frontend hook `useSeo()` called per page.
 11. **Image proxy**: all product images served via `/storage/*` in production. `resolveImageUrl.js` rewrites URLs.
 12. **Rich text**: product descriptions support HTML via `RichTextEditor.jsx`. Stripped to plain text for cards via `stripHtml.js`.

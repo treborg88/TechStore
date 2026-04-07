@@ -181,7 +181,7 @@ router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (re
 
         const productId = result.lastInsertRowid;
 
-        // Add images to Supabase Storage
+        // Add images to storage
         for (const file of req.files) {
             const publicUrl = await statements.uploadImage(file);
             await statements.addProductImage(productId, publicUrl);
@@ -298,7 +298,7 @@ router.post('/:id/images', authenticateToken, requireAdmin, productImagesUpload,
             return res.status(400).json({ message: 'No se recibió ningún archivo de imagen.' });
         }
 
-        // Add images to Supabase Storage
+        // Add images to storage
         for (const file of req.files) {
             const publicUrl = await statements.uploadImage(file);
             await statements.addProductImage(productId, publicUrl);

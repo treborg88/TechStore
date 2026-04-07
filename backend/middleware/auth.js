@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const { JWT_SECRET } = require('../config');
 const { statements, dbConfigured } = require('../database');
 
-// --- Token Blacklist (hybrid: in-memory cache + Supabase persistence) ---
+// --- Token Blacklist (hybrid: in-memory cache + database persistence) ---
 // In-memory cache for fast lookups (Map: tokenHash -> expiration timestamp)
 const blacklistCache = new Map();
 
@@ -27,13 +27,13 @@ setInterval(async () => {
         }
     }
     
-    // Clean Supabase (async, don't block — skip if DB not configured)
+    // Clean database (async, don't block — skip if DB not configured)
     try {
         if (dbConfigured()) {
             await statements.cleanupExpiredBlacklistTokens();
         }
     } catch (err) {
-        console.error('Error cleaning Supabase blacklist:', err.message);
+        console.error('Error cleaning DB blacklist:', err.message);
     }
     
     if (cleaned > 0) {
@@ -41,7 +41,7 @@ setInterval(async () => {
     }
 }, TOKEN_CLEANUP_INTERVAL);
 
-// Add token to blacklist (both cache and Supabase)
+// Add token to blacklist (both cache and database)
 const blacklistToken = async (token, userId = null, sessionId = null, expiresInMs = 24 * 60 * 60 * 1000, reason = 'logout') => {
     const tokenHash = hashToken(token);
     const expiresAt = new Date(Date.now() + expiresInMs);
@@ -49,7 +49,7 @@ const blacklistToken = async (token, userId = null, sessionId = null, expiresInM
     // Add to local cache for immediate effect
     blacklistCache.set(tokenHash, expiresAt.getTime());
     
-    // Persist to Supabase (async, don't block)
+    // Persist to database (async, don't block)
     try {
         await statements.addToBlacklist(tokenHash, sessionId, userId, expiresAt.toISOString(), reason);
     } catch (err) {
@@ -58,7 +58,7 @@ const blacklistToken = async (token, userId = null, sessionId = null, expiresInM
     }
 };
 
-// Check if token is blacklisted (check cache first, then Supabase)
+// Check if token is blacklisted (check cache first, then database)
 const isTokenBlacklisted = async (token) => {
     const tokenHash = hashToken(token);
     
@@ -72,7 +72,7 @@ const isTokenBlacklisted = async (token) => {
         blacklistCache.delete(tokenHash);
     }
     
-    // Check Supabase (for tokens blacklisted on other server instances)
+    // Check database (for tokens blacklisted on other server instances)
     try {
         const isBlacklisted = await statements.isTokenBlacklisted(tokenHash);
         if (isBlacklisted) {
@@ -81,7 +81,7 @@ const isTokenBlacklisted = async (token) => {
         }
         return isBlacklisted;
     } catch (err) {
-        console.error('Error checking blacklist in Supabase:', err.message);
+        console.error('Error checking blacklist in DB:', err.message);
         // On error, rely only on local cache
         return false;
     }

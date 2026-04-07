@@ -382,14 +382,13 @@
         msg: >
           {% if health_check.json.status | default('') == 'setup' %}
           ⚠️ {{ app_name }} deployed in SETUP MODE — visit https://{{ domain }} to configure the database.
-          Images will work automatically after Setup Wizard configures Supabase.
           {% else %}
           ✅ {{ app_name }} deployed successfully!
           {% endif %}
           Backend: http://127.0.0.1:{{ backend_port }}
           Frontend: http://127.0.0.1:{{ frontend_port }}
           Public: https://{{ domain }}
-          Storage proxy: backend (dynamic — reads SUPABASE_URL at runtime)
+          Storage: local filesystem (uploads/)
 
   # ═══════════════════════════════════════════════════════════════════════════
   # HANDLERS

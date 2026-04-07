@@ -61,9 +61,8 @@ server {
                application/javascript application/json application/xml
                image/svg+xml;
 
-    # --- Supabase Storage Proxy (reduce egress → Cloudflare caches) ---
-    # Proxied through backend: reads SUPABASE_URL from .env.local at runtime.
-    # No SUPABASE_REF needed in Nginx — works immediately after Setup Wizard.
+    # --- Image Storage Proxy (local filesystem → Cloudflare caches) ---
+    # Proxied through backend; images served from uploads/ directory.
     location /storage/ {
         proxy_pass http://127.0.0.1:{{BACKEND_PORT}}/storage/;
         proxy_http_version 1.1;
@@ -199,7 +198,7 @@ server {
 #                application/javascript application/json application/xml
 #                image/svg+xml;
 #
-#     # --- Supabase Storage Proxy ---
+#     # --- Image Storage Proxy ---
 #     location /storage/ {
 #         proxy_pass http://127.0.0.1:{{BACKEND_PORT}}/storage/;
 #         proxy_http_version 1.1;
@@ -305,7 +304,7 @@ server {
 #                application/javascript application/json application/xml
 #                image/svg+xml;
 #
-#     # --- Supabase Storage Proxy ---
+#     # --- Image Storage Proxy ---
 #     location /storage/ {
 #         proxy_pass http://127.0.0.1:{{BACKEND_PORT}}/storage/;
 #         proxy_http_version 1.1;

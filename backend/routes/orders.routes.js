@@ -272,7 +272,7 @@ router.post('/', authenticateToken, async (req, res) => {
             if (item.variant_id) {
                 // Variant item: decrement variant stock, resolve variant price
                 const variant = await statements.getVariantById(item.variant_id);
-                // Coerce to Number — Supabase may return string IDs vs numeric IDs
+                // Coerce to Number — DB may return string IDs vs numeric IDs
                 if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
                     await rollbackReservedStock(reservedItems);
                     return res.status(400).json({ message: `Variante no válida para ${product.name}` });
@@ -437,7 +437,7 @@ router.post('/guest', async (req, res) => {
             if (item.variant_id) {
                 // Variant item: decrement variant stock, resolve variant price
                 const variant = await statements.getVariantById(item.variant_id);
-                // Coerce to Number — Supabase may return string IDs vs numeric IDs
+                // Coerce to Number — DB may return string IDs vs numeric IDs
                 if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
                     await rollbackReservedStock(reservedItems);
                     return res.status(400).json({ message: `Variante no válida para ${product.name}` });

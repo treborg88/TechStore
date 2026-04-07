@@ -14,14 +14,12 @@
 #   Copy .env.example to .env and fill in credentials,
 #   or use the Setup Wizard at first boot (no .env needed).
 #
-# Two modes (set DB_PROVIDER in .env):
-#   DB_PROVIDER=postgres  → uses the local docker PostgreSQL (default)
-#   DB_PROVIDER=supabase  → uses remote Supabase (DATABASE_URL not needed)
+# Database: PostgreSQL (local Docker container)
 # =============================================================================
 
 services:
   # ─────────────────────────────────────────────
-  # Database: PostgreSQL 14 (only used when DB_PROVIDER=postgres)
+  # Database: PostgreSQL 14
   # ─────────────────────────────────────────────
   database:
     image: postgres:14-alpine
@@ -60,7 +58,6 @@ services:
       - ./backend/.env
     environment:
       # Docker-internal defaults (overridden by .env if set)
-      DB_PROVIDER: ${DB_PROVIDER:-postgres}
       DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}}
     depends_on:
       database:

@@ -11,7 +11,7 @@ const { authenticateToken } = require('../middleware/auth');
 const resolveStockAndPrice = async (product, variantId) => {
     if (!variantId) return { stock: product.stock, price: product.price, variant: null };
     const variant = await statements.getVariantById(variantId);
-    // Coerce to Number — Supabase may return string IDs vs numeric IDs
+    // Coerce to Number — DB may return string IDs vs numeric IDs
     if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) return null;
     return {
         stock: variant.stock,

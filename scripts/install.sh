@@ -20,7 +20,7 @@
 #   - Ubuntu 22.04+ (ARM64 or x86_64)
 #   - Run as non-root user with sudo privileges (e.g., 'ubuntu')
 #   - Internet access
-#   - Supabase project created (URL + anon key)
+#   - PostgreSQL database (local Docker or remote)
 #   - Domain pointing to server IP (Cloudflare recommended)
 # =============================================================================
 
@@ -94,16 +94,12 @@ BACKEND_PORT="$REPLY"
 ask "Frontend preview port" "5173"
 FRONTEND_PORT="$REPLY"
 
-# Supabase credentials
+# Database
 echo ""
-info "Supabase credentials (from your Supabase project → Settings → API):"
-ask "SUPABASE_URL (https://xxx.supabase.co)" ""
-SUPABASE_URL="$REPLY"
-[[ -z "$SUPABASE_URL" ]] && error "SUPABASE_URL is required."
-
-ask_secret "SUPABASE_KEY (anon/public key)"
-SUPABASE_KEY="$REPLY"
-[[ -z "$SUPABASE_KEY" ]] && error "SUPABASE_KEY is required."
+info "PostgreSQL connection string:"
+ask "DATABASE_URL (postgresql://user:password@host:5432/dbname)" ""
+DATABASE_URL="$REPLY"
+[[ -z "$DATABASE_URL" ]] && error "DATABASE_URL is required."
 
 # JWT secret
 echo ""
@@ -216,9 +212,8 @@ cat > "$ENV_FILE" << EOF
 # === Server ===
 PORT=${BACKEND_PORT}
 
-# === Database (Supabase) ===
-SUPABASE_URL=${SUPABASE_URL}
-SUPABASE_KEY=${SUPABASE_KEY}
+# === Database (PostgreSQL) ===
+DATABASE_URL=${DATABASE_URL}
 
 # === Authentication ===
 JWT_SECRET=${JWT_SECRET}
@@ -484,8 +479,8 @@ fi
 
 echo ""
 echo "  📝 Next steps:"
-echo "     1. Run schema.sql + seed.sql in Supabase SQL Editor"
-echo "     2. Visit https://${DOMAIN} and log in as admin"
+echo "     1. Visit https://${DOMAIN} — schema auto-creates on first boot"
+echo "     2. Log in as admin (created by seed.sql)"
 echo "     3. Configure store settings in Admin Panel"
 echo "     4. Set up GitHub Actions secrets for CI/CD (see DEPLOYMENT.md)"
 echo ""

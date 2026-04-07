@@ -1,5 +1,4 @@
-// database/postgres.js — Native PostgreSQL adapter (pg Pool + filesystem storage)
-// Same interface as supabase.js so the rest of the app is provider-agnostic.
+// database/postgres.js — PostgreSQL adapter (pg Pool + filesystem storage)
 require('dotenv').config();
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.local'), override: true });
 
@@ -629,7 +628,7 @@ const statements = {
       FROM orders o LEFT JOIN users u ON u.id = o.user_id
       ORDER BY o.created_at DESC
     `);
-    // Map joined user data to top-level customer fields (same shape as supabase adapter)
+    // Map joined user data to top-level customer fields
     return rows.map(({ user_name, user_email, ...o }) => ({
       ...o,
       customer_name: user_name || o.customer_name,
@@ -760,7 +759,7 @@ const statements = {
       WHERE oi.order_id = $1
     `, [order_id]);
 
-    // Map joined fields to top-level (same shape as supabase adapter output)
+    // Map joined fields to top-level
     return rows.map(({ product_name, product_unit_type, product_image, gallery_image, ...item }) => ({
       ...item,
       name: product_name || 'Producto eliminado',
@@ -970,7 +969,6 @@ const testConnection = async () => {
 };
 
 module.exports = {
-  get supabase() { return null; },            // No supabase client in PG mode
   get pool() { return pool; },                // Expose pool for direct access if needed
   provider: 'postgres',                        // Provider identifier
   statements: safeStatements,

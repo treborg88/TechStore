@@ -97,7 +97,6 @@ PORT=5001
 NODE_ENV=production
 
 # Database: Docker PostgreSQL (configured by docker-compose.yml)
-DB_PROVIDER=postgres
 DATABASE_URL=postgresql://techstore:techstore@database:5432/techstore
 EOF
 

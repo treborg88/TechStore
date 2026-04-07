@@ -1,7 +1,7 @@
 {
   "name": "mi-tienda-online",
   "version": "1.0.0",
-  "description": "E-commerce con React + Express + Supabase",
+  "description": "E-commerce con React + Express + PostgreSQL",
   "scripts": {
     "install:all": "npm ci && cd backend && npm ci && cd ../frontend && npm ci",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",

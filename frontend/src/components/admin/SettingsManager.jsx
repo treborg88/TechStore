@@ -196,9 +196,6 @@ function SettingsManager() {
       showHomeLink: true,
       showStoreLink: true
     },
-    // Database credentials (reference copy)
-    dbSupabaseUrl: '',
-    dbSupabaseKey: '',
     // Map & shipping configuration
     mapConfig: cloneMapConfig(),
     // Invoice PDF configuration

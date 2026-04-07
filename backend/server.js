@@ -72,7 +72,7 @@ app.get('/api/health', (req, res) => {
         version: pkg.version || '1.0.0',
         uptime: Math.floor(process.uptime()),
         database: db ? 'connected' : 'not_configured',
-        message: db ? 'All systems operational' : 'Configura SUPABASE_URL y SUPABASE_KEY para activar la app'
+        message: db ? 'All systems operational' : 'Configura DATABASE_URL para activar la app'
     });
 });
 
@@ -92,9 +92,9 @@ app.use('/api/database', databaseRoutes);
 // --- SEO (robots.txt, sitemap.xml — root level) ---
 app.use('/', seoRoutes);
 
-// --- Storage Proxy (Supabase images → Cloudflare CDN) ---
+// --- Storage Proxy (images → Cloudflare CDN) ---
 // Served by backend so it works immediately after Setup Wizard.
-// Nginx forwards /storage/ here; no need for supabase_ref in Nginx config.
+// Nginx forwards /storage/ here.
 app.use('/storage', storageRoutes);
 
 // --- Share Page (OG meta tags for social sharing) ---
@@ -133,9 +133,9 @@ const getShareSettings = async () => {
 };
 
 /**
- * Convert Supabase Storage URL to proxied /storage/ path (for Cloudflare cache).
+ * Resolve image URL to proxied /storage/ path (for Cloudflare cache).
  * External crawlers use the full absolute proxied URL so images go through CDN.
- * In dev (no Nginx), returns the original Supabase URL.
+ * In dev (no Nginx), returns the original URL.
  */
 const resolveShareImageUrl = (imageUrl, baseUrl) => {
     if (!imageUrl) return '';
@@ -145,7 +145,7 @@ const resolveShareImageUrl = (imageUrl, baseUrl) => {
         // Convert to proxied URL: https://domain.com/storage/<path>
         return `${baseUrl}/storage/${imageUrl.slice(idx + marker.length)}`;
     }
-    // Non-Supabase or already absolute → return as-is
+    // Non-proxied or already absolute → return as-is
     if (/^https?:\/\//i.test(imageUrl)) return imageUrl;
     // Relative path → make absolute
     return baseUrl ? `${baseUrl}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}` : imageUrl;
@@ -232,7 +232,7 @@ app.use((err, req, res, _next) => {
         return res.status(503).json({
             message: 'Base de datos no configurada',
             code: 'DB_NOT_CONFIGURED',
-            hint: 'Configura SUPABASE_URL y SUPABASE_KEY en .env y reinicia el servidor'
+            hint: 'Configura DATABASE_URL en .env y reinicia el servidor'
         });
     }
     console.error('Unhandled error:', err);
@@ -262,7 +262,7 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log(`🔒 CORS orígenes permitidos: ${getAllowedOrigins().length} exactos, ${getWildcardDomains().length} wildcard`);
 
     if (!db) {
-        console.log(`⚠️  Modo setup: sin base de datos. Configura SUPABASE_URL + SUPABASE_KEY en .env`);
+        console.log(`⚠️  Modo setup: sin base de datos. Configura DATABASE_URL en .env`);
     }
 });
 
