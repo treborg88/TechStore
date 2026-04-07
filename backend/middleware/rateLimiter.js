@@ -1,5 +1,6 @@
 // middleware/rateLimiter.js - Rate limiting configuration
 const rateLimit = require('express-rate-limit');
+const { ipKeyGenerator } = require('express-rate-limit');
 
 // Check if we should skip rate limiting (for testing)
 const shouldSkipRateLimit = (req) => {
@@ -17,6 +18,12 @@ const shouldSkipRateLimit = (req) => {
     return false;
 };
 
+// SaaS: per-tenant rate limit key (IP + tenant slug)
+const tenantKeyGenerator = (req) => {
+    const slug = req.tenant?.slug || 'global';
+    return `${ipKeyGenerator(req.ip)}_${slug}`;
+};
+
 // Rate limiter for auth routes
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -24,7 +31,8 @@ const authLimiter = rateLimit({
     message: { message: 'Demasiados intentos desde esta IP, por favor intenta de nuevo en 15 minutos' },
     standardHeaders: true,
     legacyHeaders: false,
-    skip: shouldSkipRateLimit
+    skip: shouldSkipRateLimit,
+    keyGenerator: tenantKeyGenerator
 });
 
 // General API limiter (optional, for future use)
@@ -34,7 +42,8 @@ const apiLimiter = rateLimit({
     message: { message: 'Demasiadas peticiones, por favor intenta de nuevo en un momento' },
     standardHeaders: true,
     legacyHeaders: false,
-    skip: shouldSkipRateLimit
+    skip: shouldSkipRateLimit,
+    keyGenerator: tenantKeyGenerator
 });
 
 module.exports = {

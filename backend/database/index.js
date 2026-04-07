@@ -19,5 +19,6 @@ module.exports = {
   dbConfigured:   () => adapter.dbConfigured(),
   reinitializeDb: (...args) => adapter.reinitializeDb(...args),
   disconnectDb:   () => adapter.disconnectDb(),
-  testConnection: () => (adapter.testConnection ? adapter.testConnection() : Promise.resolve(false))
+  testConnection: () => (adapter.testConnection ? adapter.testConnection() : Promise.resolve(false)),
+  withTenantSchema: (...args) => adapter.withTenantSchema(...args),
 };

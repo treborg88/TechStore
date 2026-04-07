@@ -1,7 +1,8 @@
 // middleware/auth.js - Authentication middleware and token blacklist
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
-const { JWT_SECRET } = require('../config');
+const config = require('../config');
+const { JWT_SECRET } = config;
 const { statements, dbConfigured } = require('../database');
 
 // --- Token Blacklist (hybrid: in-memory cache + database persistence) ---
@@ -108,6 +109,14 @@ const authenticateToken = async (req, res, next) => {
         if (err) {
             return res.status(403).json({ message: 'Token inválido o expirado' });
         }
+
+        // SaaS: reject tokens from a different tenant
+        if (config.SAAS_MODE === 'true' && req.tenant) {
+            if (user.tenantId && user.tenantId !== req.tenant.id) {
+                return res.status(401).json({ message: 'Token no válido para esta tienda' });
+            }
+        }
+
         req.user = user;
         req.token = token; // Store token for logout
         next();

@@ -6,12 +6,14 @@ const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 
 // Config
-const { PORT, FRONTEND_URL, BASE_URL } = require('./config');
+const config = require('./config');
+const { PORT, FRONTEND_URL, BASE_URL } = config;
 const { corsOptions, corsHeaders, addSiteDomain, getAllowedOrigins, getWildcardDomains } = require('./config/cors');
 
 // Middleware
 const { authLimiter } = require('./middleware/rateLimiter');
 const { csrfProtection } = require('./middleware/csrf');
+const { createTenantMiddleware, createDbContext } = require('./middleware');
 
 // Routes
 const { 
@@ -31,7 +33,7 @@ const {
 } = require('./routes');
 
 // Share page utilities
-const { statements, dbConfigured } = require('./database');
+const { statements, dbConfigured, pool } = require('./database');
 const { buildShareHtml, extractProductIdFromSlug } = require('./sharePage');
 const pkg = require('../package.json');
 
@@ -64,6 +66,13 @@ app.use(express.urlencoded({ extended: true }));
 // --- CSRF Protection ---
 app.use(csrfProtection);
 
+// --- Multi-Tenant Middleware (SaaS mode only) ---
+if (config.SAAS_MODE === 'true') {
+    app.use(createTenantMiddleware(pool));
+    app.use(createDbContext(pool));
+    console.log('🏢 SaaS multi-tenant mode enabled');
+}
+
 // --- Health Check (works with or without DB) ---
 app.get('/api/health', (req, res) => {
     const db = dbConfigured();
@@ -72,12 +81,16 @@ app.get('/api/health', (req, res) => {
         version: pkg.version || '1.0.0',
         uptime: Math.floor(process.uptime()),
         database: db ? 'connected' : 'not_configured',
+        saas: config.SAAS_MODE === 'true',
         message: db ? 'All systems operational' : 'Configura DATABASE_URL para activar la app'
     });
 });
 
 // --- API Routes ---
-app.use('/api/setup', setupRoutes);
+// Setup wizard disabled in SaaS mode (tenants provisioned via super-admin)
+if (config.SAAS_MODE !== 'true') {
+    app.use('/api/setup', setupRoutes);
+}
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/cart', cartRoutes);
@@ -271,3 +284,6 @@ process.on('SIGINT', () => {
     console.log('Cerrando servidor...');
     process.exit(0);
 });
+
+// Export app for testing
+module.exports = app;

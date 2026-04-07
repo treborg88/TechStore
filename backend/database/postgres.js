@@ -968,6 +968,33 @@ const testConnection = async () => {
   } catch { return false; }
 };
 
+/**
+ * Execute a function with search_path set to a tenant schema.
+ * Uses SET LOCAL inside a transaction — resets on COMMIT/ROLLBACK.
+ * @param {string} schemaName - Tenant schema name (e.g. "tenant_mi_tienda")
+ * @param {Function} fn - async (client) => result
+ * @returns {Promise<*>} Result of fn
+ */
+const withTenantSchema = async (schemaName, fn) => {
+  // Validate schema name (prevent injection)
+  if (!/^tenant_[a-z0-9_]+$/.test(schemaName)) {
+    throw new Error(`Schema inválido: ${schemaName}`);
+  }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query(`SET LOCAL search_path TO "${schemaName}", public`);
+    const result = await fn(client);
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* ignore */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
 module.exports = {
   get pool() { return pool; },                // Expose pool for direct access if needed
   provider: 'postgres',                        // Provider identifier
@@ -976,5 +1003,6 @@ module.exports = {
   reinitializeDb,
   disconnectDb,
   testConnection,
+  withTenantSchema,
   UPLOADS_DIR
 };

@@ -10,7 +10,8 @@ const { getSettingsMap } = require('../services/email.service');
 
 // Generate unique session ID for each login (per device/browser)
 const generateSessionId = () => crypto.randomBytes(16).toString('hex');
-const { JWT_SECRET } = require('../config');
+const config = require('../config');
+const { JWT_SECRET } = config;
 const { authenticateToken, blacklistToken } = require('../middleware/auth');
 const { setAuthCookies, setCsrfCookie, clearAuthCookies, getCookieOptions } = require('../middleware/csrf');
 const { sendMailWithSettings } = require('../services/email.service');
@@ -112,18 +113,19 @@ router.post('/register', async (req, res) => {
         // Generate unique session ID for this device
         const sessionId = generateSessionId();
 
-        // Generate JWT with sessionId
-        const token = jwt.sign(
-            { 
-                id: newUser.id, 
-                email: newUser.email,
-                name: newUser.name,
-                role: newUser.role,
-                sessionId  // Unique per device/browser
-            },
-            JWT_SECRET,
-            { expiresIn: TOKEN_EXPIRY }
-        );
+        // Generate JWT with sessionId (+ tenant context in SaaS mode)
+        const jwtPayload = { 
+            id: newUser.id, 
+            email: newUser.email,
+            name: newUser.name,
+            role: newUser.role,
+            sessionId
+        };
+        if (config.SAAS_MODE === 'true' && req.tenant) {
+            jwtPayload.tenantId = req.tenant.id;
+            jwtPayload.tenantSlug = req.tenant.slug;
+        }
+        const token = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 
         const csrfToken = setAuthCookies(req, res, token);
 
@@ -181,17 +183,19 @@ router.post('/login', async (req, res) => {
         // Generate unique session ID for this device
         const sessionId = generateSessionId();
 
-        const token = jwt.sign(
-            { 
-                id: user.id, 
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                sessionId  // Unique per device/browser
-            },
-            JWT_SECRET,
-            { expiresIn: TOKEN_EXPIRY }
-        );
+        // JWT payload (+ tenant context in SaaS mode)
+        const jwtPayload = { 
+            id: user.id, 
+            email: user.email,
+            name: user.name,
+            role: user.role,
+            sessionId
+        };
+        if (config.SAAS_MODE === 'true' && req.tenant) {
+            jwtPayload.tenantId = req.tenant.id;
+            jwtPayload.tenantSlug = req.tenant.slug;
+        }
+        const token = jwt.sign(jwtPayload, JWT_SECRET, { expiresIn: TOKEN_EXPIRY });
 
         const csrfToken = setAuthCookies(req, res, token);
 

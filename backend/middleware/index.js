@@ -3,6 +3,8 @@ const { authenticateToken, requireAdmin, blacklistToken, isTokenBlacklisted, has
 const { authLimiter, apiLimiter } = require('./rateLimiter');
 const { csrfProtection, setAuthCookies, setCsrfCookie, getCookieOptions } = require('./csrf');
 const { upload, productImagesUpload, singleImageUpload } = require('./upload');
+const { createTenantMiddleware, invalidateTenantCache, clearTenantCache } = require('./tenant');
+const { createDbContext } = require('./dbContext');
 
 module.exports = {
     // Auth
@@ -25,5 +27,11 @@ module.exports = {
     // Upload
     upload,
     productImagesUpload,
-    singleImageUpload
+    singleImageUpload,
+
+    // Multi-tenant (SaaS)
+    createTenantMiddleware,
+    invalidateTenantCache,
+    clearTenantCache,
+    createDbContext
 };
