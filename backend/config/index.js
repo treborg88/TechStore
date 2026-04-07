@@ -37,5 +37,12 @@ module.exports = {
     // PayPal configuration
     PAYPAL_CLIENT_ID: process.env.PAYPAL_CLIENT_ID,
     PAYPAL_CLIENT_SECRET: process.env.PAYPAL_CLIENT_SECRET,
-    PAYPAL_MODE: process.env.PAYPAL_MODE || 'sandbox' // 'sandbox' or 'live'
+    PAYPAL_MODE: process.env.PAYPAL_MODE || 'sandbox', // 'sandbox' or 'live'
+
+    // SaaS multi-tenant config (SAAS_MODE=false preserves single-tenant behavior)
+    SAAS_MODE: process.env.SAAS_MODE || 'false',
+    SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL,
+    SUPER_ADMIN_SECRET: process.env.SUPER_ADMIN_SECRET,
+    TRIAL_DAYS: parseInt(process.env.TRIAL_DAYS) || 14,
+    REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
 };
