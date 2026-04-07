@@ -1,0 +1,209 @@
+// services/tenant/provisioner.js — Create/delete tenant schemas in PostgreSQL
+// Called by SaaS registration flow. Each tenant gets its own schema
+// with the full set of tables from schema.sql + seed data from seed.sql.
+
+const fs = require('fs').promises;
+const path = require('path');
+const bcrypt = require('bcrypt');
+
+// Slug validation: lowercase alphanumeric + hyphens, 3-63 chars
+const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
+
+// Reserved slugs that cannot be used as tenant subdomains
+const RESERVED_SLUGS = new Set([
+    'www', 'api', 'admin', 'app', 'mail', 'smtp', 'ftp',
+    'status', 'docs', 'help', 'support', 'billing',
+    'static', 'assets', 'cdn', 'media',
+]);
+
+/**
+ * Validate slug format and availability.
+ * @param {string} slug - Subdomain to validate
+ * @returns {{ valid: boolean, error?: string }}
+ */
+function validateSlug(slug) {
+    if (!slug || typeof slug !== 'string') {
+        return { valid: false, error: 'El subdominio es requerido' };
+    }
+    if (!SLUG_REGEX.test(slug)) {
+        return { valid: false, error: 'El subdominio solo permite letras minúsculas, números y guiones (3-63 caracteres)' };
+    }
+    if (RESERVED_SLUGS.has(slug)) {
+        return { valid: false, error: `El subdominio "${slug}" está reservado` };
+    }
+    return { valid: true };
+}
+
+/**
+ * Provision a new tenant:
+ * 1. Validates slug format and availability
+ * 2. Creates PostgreSQL schema
+ * 3. Executes schema.sql + seed.sql inside the schema
+ * 4. Creates tenant admin user (overwrites seed default)
+ * 5. Registers in public.tenants + public.subscriptions + audit_log
+ * 6. Creates upload directory
+ *
+ * @param {import('pg').Pool} pool - PostgreSQL pool
+ * @param {Object} opts - Tenant options
+ * @param {string} opts.slug - Subdomain (validated)
+ * @param {string} opts.name - Business/store name
+ * @param {string} opts.ownerEmail - Owner's email
+ * @param {string} opts.ownerPassword - Owner's password (plain text, hashed here)
+ * @param {string} [opts.planId='trial'] - Plan ID
+ * @param {number} [opts.trialDays=14] - Trial duration in days
+ * @returns {Promise<{ tenantId: string, schemaName: string }>}
+ */
+async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, planId = 'trial', trialDays = 14 }) {
+    // Validate slug format
+    const slugCheck = validateSlug(slug);
+    if (!slugCheck.valid) {
+        throw new Error(slugCheck.error);
+    }
+
+    // Schema name derived from slug (hyphens → underscores)
+    const schemaName = 'tenant_' + slug.replace(/-/g, '_');
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // 1. Check slug availability
+        const existing = await client.query(
+            'SELECT id FROM public.tenants WHERE slug = $1',
+            [slug]
+        );
+        if (existing.rows.length > 0) {
+            throw new Error(`El subdominio "${slug}" ya está en uso`);
+        }
+
+        // 2. Create schema (name is validated by SLUG_REGEX → safe for identifier)
+        await client.query(`CREATE SCHEMA "${schemaName}"`);
+
+        // 3. Execute schema.sql + seed.sql inside the new schema
+        await client.query(`SET LOCAL search_path TO "${schemaName}"`);
+
+        const schemaSQL = await fs.readFile(
+            path.join(__dirname, '..', '..', 'database', 'schema.sql'),
+            'utf8'
+        );
+        await client.query(schemaSQL);
+
+        const seedSQL = await fs.readFile(
+            path.join(__dirname, '..', '..', 'database', 'seed.sql'),
+            'utf8'
+        );
+        await client.query(seedSQL);
+
+        // 4. Create tenant admin (overwrite the generic admin from seed.sql)
+        const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+        await client.query(
+            `INSERT INTO users (name, email, password, role, is_active)
+             VALUES ($1, $2, $3, 'admin', true)
+             ON CONFLICT (email) DO UPDATE SET
+               password = EXCLUDED.password, name = EXCLUDED.name`,
+            [name, ownerEmail, hashedPassword]
+        );
+
+        // 5. Register in SaaS system tables (public schema)
+        await client.query('SET LOCAL search_path TO public');
+
+        const tenantResult = await client.query(
+            `INSERT INTO public.tenants (slug, name, owner_email, plan_id, trial_ends_at)
+             VALUES ($1, $2, $3, $4, NOW() + $5 * INTERVAL '1 day')
+             RETURNING id`,
+            [slug, name, ownerEmail, planId, trialDays]
+        );
+        const tenantId = tenantResult.rows[0].id;
+
+        await client.query(
+            `INSERT INTO public.subscriptions (tenant_id, plan_id)
+             VALUES ($1, $2)`,
+            [tenantId, planId]
+        );
+
+        await client.query(
+            `INSERT INTO public.audit_log (tenant_id, action, actor, details)
+             VALUES ($1, 'tenant.created', $2, $3)`,
+            [tenantId, ownerEmail, JSON.stringify({ slug, plan: planId })]
+        );
+
+        await client.query('COMMIT');
+
+        // 6. Create upload directory (outside transaction — non-critical)
+        const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'tenants', slug, 'products');
+        await fs.mkdir(uploadDir, { recursive: true });
+
+        return { tenantId, schemaName };
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        // Clean up partially created schema
+        try {
+            await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+        } catch (_) { /* ignore cleanup errors */ }
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+/**
+ * Completely delete a tenant and all its data.
+ * Requires explicit confirmation string: "DELETE_{SLUG_UPPER}"
+ *
+ * @param {import('pg').Pool} pool - PostgreSQL pool
+ * @param {Object} opts
+ * @param {string} opts.slug - Tenant slug to delete
+ * @param {string} opts.confirm - Confirmation string (must be "DELETE_{SLUG_UPPER}")
+ */
+async function deprovisionTenant(pool, { slug, confirm }) {
+    const expected = `DELETE_${slug.toUpperCase()}`;
+    if (confirm !== expected) {
+        throw new Error(`Confirmación incorrecta. Enviar: ${expected}`);
+    }
+
+    const schemaName = 'tenant_' + slug.replace(/-/g, '_');
+    const client = await pool.connect();
+
+    try {
+        await client.query('BEGIN');
+
+        // Drop the entire schema (all tables, functions, data)
+        await client.query(`DROP SCHEMA IF EXISTS "${schemaName}" CASCADE`);
+
+        // Remove from SaaS system tables
+        const result = await client.query(
+            'DELETE FROM public.tenants WHERE slug = $1 RETURNING id',
+            [slug]
+        );
+
+        // Audit log (tenant_id = null since tenant was deleted)
+        if (result.rows.length > 0) {
+            await client.query(
+                `INSERT INTO public.audit_log (tenant_id, action, actor, details)
+                 VALUES (NULL, 'tenant.deleted', 'super_admin', $1)`,
+                [JSON.stringify({ slug, schema: schemaName })]
+            );
+        }
+
+        await client.query('COMMIT');
+
+        // Clean up upload directory (non-critical)
+        const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'tenants', slug);
+        await fs.rm(uploadDir, { recursive: true, force: true }).catch(() => {});
+
+    } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+    } finally {
+        client.release();
+    }
+}
+
+module.exports = {
+    validateSlug,
+    provisionTenant,
+    deprovisionTenant,
+    RESERVED_SLUGS,
+    SLUG_REGEX,
+};

@@ -340,6 +340,21 @@ $$;
 
 
 -- ===========================================================================
+-- SCHEMA VERSION TRACKING (for per-tenant migrations)
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS _schema_version (
+    version     INT PRIMARY KEY,
+    description TEXT,
+    applied_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Base version — represents the initial schema
+INSERT INTO _schema_version (version, description)
+VALUES (1, 'Initial schema')
+ON CONFLICT (version) DO NOTHING;
+
+
+-- ===========================================================================
 -- SUPABASE STORAGE — Bucket for product images (Supabase-only)
 -- ===========================================================================
 -- Only runs when the 'storage' schema exists (Supabase environment).
