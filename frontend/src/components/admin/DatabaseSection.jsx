@@ -6,7 +6,7 @@ import DatabaseManager from './DatabaseManager';
  * Database settings section — PostgreSQL only
  * Shows connection status, credentials (read-only), and backup/restore.
  */
-function DatabaseSection({ settings, _onChange, setSettings }) {
+function DatabaseSection({ settings, setSettings }) {
   const [showKey, setShowKey] = useState(false);
   const [dbStatus, setDbStatus] = useState(null);
   const [testing, setTesting] = useState(false);
