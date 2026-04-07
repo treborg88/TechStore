@@ -51,7 +51,7 @@ export default function SubscriptionBanner() {
 
       {/* Upgrade CTA */}
       <button
-        onClick={() => window.open('https://app.eonsclover.com/pricing', '_blank')}
+        onClick={() => window.location.href = '/admin/subscription'}
         style={{
           marginLeft: 'auto',
           padding: '0.4rem 1rem',

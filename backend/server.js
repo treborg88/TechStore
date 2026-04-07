@@ -97,6 +97,11 @@ app.get('/api/health', (req, res) => {
 if (config.SAAS_MODE !== 'true') {
     app.use('/api/setup', setupRoutes);
 }
+// Subscription routes (tenant-scoped, after tenant middleware)
+if (config.SAAS_MODE === 'true') {
+    const subscriptionRoutes = require('./routes/saas/subscription.routes');
+    app.use('/api/subscription', subscriptionRoutes);
+}
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/cart', cartRoutes);

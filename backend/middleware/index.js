@@ -5,6 +5,7 @@ const { csrfProtection, setAuthCookies, setCsrfCookie, getCookieOptions } = requ
 const { upload, productImagesUpload, singleImageUpload } = require('./upload');
 const { createTenantMiddleware, invalidateTenantCache, clearTenantCache } = require('./tenant');
 const { createDbContext } = require('./dbContext');
+const { checkLimit } = require('./planLimits');
 
 module.exports = {
     // Auth
@@ -33,5 +34,8 @@ module.exports = {
     createTenantMiddleware,
     invalidateTenantCache,
     clearTenantCache,
-    createDbContext
+    createDbContext,
+
+    // Plan limits (SaaS)
+    checkLimit
 };

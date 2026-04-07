@@ -4,6 +4,7 @@ const router = express.Router();
 
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { checkLimit } = require('../middleware/planLimits');
 const { sendOrderEmail, getSettingsMap } = require('../services/email.service');
 const { generateOrderNumber } = require('../utils/orderNumber');
 
@@ -236,7 +237,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * POST /api/orders
  * Create new order (authenticated user)
  */
-router.post('/', authenticateToken, async (req, res) => {
+router.post('/', authenticateToken, checkLimit('orders_month'), async (req, res) => {
     const { 
         notes, shipping_address, items, payment_method, payment_status,
         customer_name, customer_email, customer_phone, 
@@ -398,7 +399,7 @@ router.post('/', authenticateToken, async (req, res) => {
  * POST /api/orders/guest
  * Create order as guest (no authentication)
  */
-router.post('/guest', async (req, res) => {
+router.post('/guest', checkLimit('orders_month'), async (req, res) => {
     const { 
         notes, shipping_address, items, customer_info, payment_method, payment_status,
         shipping_street, shipping_city, shipping_postal_code, shipping_sector,

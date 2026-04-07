@@ -15,6 +15,7 @@ const Contact = lazy(() => import('../pages/Contact'));
 const LoginPage = lazy(() => import('../components/auth/LoginPage'));
 const AdminDashboard = lazy(() => import('../components/admin/AdminDashboard'));
 const SettingsManager = lazy(() => import('../components/admin/SettingsManager'));
+const SubscriptionPanel = lazy(() => import('../components/saas/SubscriptionPanel'));
 const LandingPage = lazy(() => import('../pages/LandingPage'));
 
 // SaaS platform routes (only loaded when on system subdomains)
@@ -268,6 +269,19 @@ function AppRoutes({
             <main className="admin-wrapper">
               <div className="container">
                 <SettingsManager />
+              </div>
+            </main>
+          ) : (
+            <Navigate to={user ? "/" : "/login"} />
+          )
+        } />
+
+        {/* Subscription management (SaaS tenant admin) */}
+        <Route path="/admin/subscription" element={
+          user && user.role === 'admin' ? (
+            <main className="admin-wrapper">
+              <div className="container">
+                <SubscriptionPanel />
               </div>
             </main>
           ) : (

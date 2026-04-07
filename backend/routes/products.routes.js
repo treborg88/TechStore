@@ -6,6 +6,7 @@ const router = express.Router();
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { productImagesUpload, singleImageUpload } = require('../middleware/upload');
+const { checkLimit } = require('../middleware/planLimits');
 
 const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
 
@@ -158,7 +159,7 @@ router.get('/:id', async (req, res) => {
  * POST /api/products
  * Create new product (admin only)
  */
-router.post('/', authenticateToken, requireAdmin, productImagesUpload, async (req, res) => {
+router.post('/', authenticateToken, requireAdmin, checkLimit('products'), productImagesUpload, async (req, res) => {
     try {
         const { name, description, price, category, stock, unitType } = req.body;
         const imageUrls = parseImageUrls(req.body.imageUrls);
