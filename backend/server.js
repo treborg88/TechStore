@@ -70,6 +70,9 @@ app.use(csrfProtection);
 if (config.SAAS_MODE === 'true') {
     const saasPublicRoutes = require('./routes/saas/public.routes');
     app.use('/api/saas', saasPublicRoutes);
+    // Super admin routes (header-auth, no tenant context needed)
+    const superadminRoutes = require('./routes/saas/superadmin.routes');
+    app.use('/api/superadmin', superadminRoutes);
 }
 
 // --- Multi-Tenant Middleware (SaaS mode only) ---
