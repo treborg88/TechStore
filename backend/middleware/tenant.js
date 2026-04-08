@@ -6,6 +6,8 @@ const config = require('../config');
 
 // In-memory cache: slug → { tenant, expiresAt }
 const tenantCache = new Map();
+// Custom domain → slug reverse map for cache lookups
+const domainToSlugCache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 /**
@@ -22,34 +24,65 @@ function createTenantMiddleware(pool) {
         const host = req.hostname || req.headers.host?.split(':')[0] || '';
         const parts = host.split('.');
 
-        // Extract subdomain: {slug}.eonsclover.com → slug
-        const subdomain = parts.length >= 3 ? parts[0] : null;
+        // Determine if this is a known platform domain (*.eonsclover.com or localhost)
+        const platformDomain = process.env.PLATFORM_DOMAIN || 'eonsclover.com';
+        const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain || host === 'localhost';
 
-        // Bypass: root domain, system subdomains, localhost
+        // Extract subdomain for platform hosts: {slug}.eonsclover.com → slug
+        const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
+
+        // Bypass: system subdomains and root/localhost on platform domain
         const systemSlugs = ['app', 'admin', 'staging', 'www'];
-        if (!subdomain || systemSlugs.includes(subdomain) || host === 'localhost') {
+        if (isPlatformHost && (!subdomain || systemSlugs.includes(subdomain))) {
+            return next();
+        }
+
+        // --- Resolve tenant: by subdomain (slug) or custom domain ---
+        let cacheKey = null;
+        let tenant = null;
+
+        if (isPlatformHost && subdomain) {
+            // Standard flow: subdomain lookup
+            cacheKey = subdomain;
+        } else if (!isPlatformHost) {
+            // Custom domain flow: check reverse cache or query by custom_domain
+            cacheKey = domainToSlugCache.get(host) || null;
+        } else {
             return next();
         }
 
         // Cache lookup
-        const cached = tenantCache.get(subdomain);
-        if (cached && Date.now() < cached.expiresAt) {
-            req.tenant = cached.tenant;
-            return next();
+        if (cacheKey) {
+            const cached = tenantCache.get(cacheKey);
+            if (cached && Date.now() < cached.expiresAt) {
+                req.tenant = cached.tenant;
+                return next();
+            }
         }
 
         try {
-            const result = await pool.query(
-                `SELECT id, slug, name, plan_id, status, schema_name, trial_ends_at, custom_domain
-                 FROM public.tenants WHERE slug = $1`,
-                [subdomain]
-            );
+            let result;
+            if (isPlatformHost && subdomain) {
+                // Lookup by slug
+                result = await pool.query(
+                    `SELECT id, slug, name, plan_id, status, schema_name, trial_ends_at, custom_domain
+                     FROM public.tenants WHERE slug = $1`,
+                    [subdomain]
+                );
+            } else {
+                // Lookup by custom domain
+                result = await pool.query(
+                    `SELECT id, slug, name, plan_id, status, schema_name, trial_ends_at, custom_domain
+                     FROM public.tenants WHERE custom_domain = $1`,
+                    [host]
+                );
+            }
 
             if (result.rows.length === 0) {
                 return res.status(404).json({ message: 'Tienda no encontrada' });
             }
 
-            const tenant = result.rows[0];
+            tenant = result.rows[0];
 
             // Check tenant status
             if (tenant.status === 'suspended') {
@@ -65,8 +98,11 @@ function createTenantMiddleware(pool) {
                 });
             }
 
-            // Cache tenant data
-            tenantCache.set(subdomain, { tenant, expiresAt: Date.now() + CACHE_TTL_MS });
+            // Cache tenant data (by slug, and maintain reverse domain map)
+            tenantCache.set(tenant.slug, { tenant, expiresAt: Date.now() + CACHE_TTL_MS });
+            if (tenant.custom_domain) {
+                domainToSlugCache.set(tenant.custom_domain, tenant.slug);
+            }
             req.tenant = tenant;
             next();
 
@@ -82,12 +118,18 @@ function createTenantMiddleware(pool) {
  * @param {string} slug - Tenant slug to invalidate
  */
 function invalidateTenantCache(slug) {
+    // Also remove from domain reverse map
+    const cached = tenantCache.get(slug);
+    if (cached?.tenant?.custom_domain) {
+        domainToSlugCache.delete(cached.tenant.custom_domain);
+    }
     tenantCache.delete(slug);
 }
 
 /** Clear the entire tenant cache (for testing or deployments). */
 function clearTenantCache() {
     tenantCache.clear();
+    domainToSlugCache.clear();
 }
 
 module.exports = { createTenantMiddleware, invalidateTenantCache, clearTenantCache };

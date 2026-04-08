@@ -41,6 +41,12 @@ export default function SubscriptionPanel() {
   const [changing, setChanging] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  // Custom domain state
+  const [domainData, setDomainData] = useState(null);
+  const [domainInput, setDomainInput] = useState('');
+  const [domainSaving, setDomainSaving] = useState(false);
+  const [domainError, setDomainError] = useState('');
+  const [domainSuccess, setDomainSuccess] = useState('');
 
   // Fetch subscription info
   const loadSubscription = useCallback(async () => {
@@ -63,9 +69,22 @@ export default function SubscriptionPanel() {
     } catch { /* non-critical */ }
   }, []);
 
+  // Fetch custom domain info
+  const loadDomain = useCallback(async () => {
+    try {
+      const res = await apiFetch(apiUrl('/subscription/custom-domain'));
+      if (res.ok) {
+        const d = await res.json();
+        setDomainData(d);
+        setDomainInput(d.custom_domain || '');
+      }
+    } catch { /* non-critical */ }
+  }, []);
+
   useEffect(() => {
     loadSubscription();
-  }, [loadSubscription]);
+    loadDomain();
+  }, [loadSubscription, loadDomain]);
 
   // Change plan handler
   const handleChangePlan = async (planId) => {
@@ -99,6 +118,57 @@ export default function SubscriptionPanel() {
   const handleShowPlans = async () => {
     if (plans.length === 0) await loadPlans();
     setShowPlans(true);
+  };
+
+  // Save custom domain
+  const handleSaveDomain = async () => {
+    const trimmed = domainInput.trim().toLowerCase();
+    if (!trimmed) return;
+    setDomainSaving(true);
+    setDomainError('');
+    setDomainSuccess('');
+    try {
+      const res = await apiFetch(apiUrl('/subscription/custom-domain'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: trimmed }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        setDomainError(result.message || 'Error al guardar dominio');
+      } else {
+        setDomainSuccess('Dominio guardado correctamente');
+        await loadDomain();
+      }
+    } catch {
+      setDomainError('Error de conexión');
+    }
+    setDomainSaving(false);
+  };
+
+  // Remove custom domain
+  const handleRemoveDomain = async () => {
+    setDomainSaving(true);
+    setDomainError('');
+    setDomainSuccess('');
+    try {
+      const res = await apiFetch(apiUrl('/subscription/custom-domain'), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domain: null }),
+      });
+      const result = await res.json();
+      if (!res.ok) {
+        setDomainError(result.message || 'Error al eliminar dominio');
+      } else {
+        setDomainSuccess('Dominio eliminado');
+        setDomainInput('');
+        await loadDomain();
+      }
+    } catch {
+      setDomainError('Error de conexión');
+    }
+    setDomainSaving(false);
   };
 
   if (loading) {
@@ -210,6 +280,109 @@ export default function SubscriptionPanel() {
         <div style={{ marginBottom: '0.4rem' }}><strong>Tienda:</strong> {tenant.name}</div>
         <div style={{ marginBottom: '0.4rem' }}><strong>Subdominio:</strong> {tenant.slug}.eonsclover.com</div>
         <div><strong>Estado:</strong> {tenant.status}</div>
+      </div>
+
+      {/* Custom domain section */}
+      <div style={{
+        background: '#fff', borderRadius: '12px', border: '1px solid #e0e0e0',
+        padding: '1.5rem', marginTop: '1.5rem',
+      }}>
+        <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>🌐 Dominio personalizado</h3>
+
+        {/* Feature gate: show upgrade message if plan doesn't support it */}
+        {domainData && !domainData.allowed ? (
+          <div style={{
+            background: '#f8f9fa', borderRadius: '8px', padding: '1rem',
+            fontSize: '0.9rem', color: '#666', textAlign: 'center',
+          }}>
+            <p style={{ margin: '0 0 0.5rem' }}>Tu plan actual no incluye dominio personalizado.</p>
+            <button
+              onClick={handleShowPlans}
+              style={{
+                padding: '0.5rem 1rem', background: '#4f46e5', color: '#fff',
+                border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              Actualizar plan
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* Feedback messages */}
+            {domainError && (
+              <div style={{ background: '#fff3f3', color: '#c0392b', padding: '0.6rem', borderRadius: '6px', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+                {domainError}
+              </div>
+            )}
+            {domainSuccess && (
+              <div style={{ background: '#d4edda', color: '#155724', padding: '0.6rem', borderRadius: '6px', marginBottom: '0.75rem', fontSize: '0.85rem' }}>
+                ✓ {domainSuccess}
+              </div>
+            )}
+
+            {/* Current domain display */}
+            {domainData?.custom_domain && (
+              <div style={{
+                background: '#eef2ff', borderRadius: '8px', padding: '0.75rem 1rem',
+                marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ fontWeight: 600, color: '#4338ca' }}>{domainData.custom_domain}</span>
+                <button
+                  onClick={handleRemoveDomain}
+                  disabled={domainSaving}
+                  style={{
+                    background: '#e74c3c', color: '#fff', border: 'none',
+                    borderRadius: '6px', padding: '0.35rem 0.75rem', fontSize: '0.8rem',
+                    cursor: 'pointer', opacity: domainSaving ? 0.6 : 1,
+                  }}
+                >
+                  Eliminar
+                </button>
+              </div>
+            )}
+
+            {/* Domain input + save */}
+            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+              <input
+                type="text"
+                value={domainInput}
+                onChange={(e) => setDomainInput(e.target.value)}
+                placeholder="mitienda.com"
+                style={{
+                  flex: 1, padding: '0.6rem 0.75rem', border: '1px solid #ccc',
+                  borderRadius: '6px', fontSize: '0.9rem',
+                }}
+              />
+              <button
+                onClick={handleSaveDomain}
+                disabled={domainSaving || !domainInput.trim()}
+                style={{
+                  padding: '0.6rem 1.2rem', background: '#4f46e5', color: '#fff',
+                  border: 'none', borderRadius: '6px', fontWeight: 600, cursor: 'pointer',
+                  opacity: domainSaving || !domainInput.trim() ? 0.6 : 1,
+                }}
+              >
+                {domainSaving ? '...' : 'Guardar'}
+              </button>
+            </div>
+
+            {/* DNS instructions */}
+            {domainData?.dns_instructions && (
+              <div style={{
+                background: '#f8f9fa', borderRadius: '8px', padding: '1rem',
+                fontSize: '0.85rem', color: '#555',
+              }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.5rem' }}>📋 Configuración DNS requerida:</div>
+                <div style={{ fontFamily: 'monospace', background: '#fff', padding: '0.5rem 0.75rem', borderRadius: '4px', border: '1px solid #e0e0e0' }}>
+                  {domainData.dns_instructions.type} → <strong>{domainData.dns_instructions.value}</strong>
+                </div>
+                <p style={{ margin: '0.5rem 0 0', color: '#888', fontSize: '0.8rem' }}>
+                  Agrega este registro en tu proveedor de DNS. Los cambios pueden tardar hasta 48 horas.
+                </p>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Plan comparison modal */}

@@ -202,4 +202,116 @@ router.get('/plans', async (_req, res) => {
   }
 });
 
+/**
+ * GET /api/subscription/custom-domain
+ * Get current custom domain config for this tenant
+ */
+router.get('/custom-domain', async (req, res) => {
+  try {
+    if (!req.tenant) {
+      return res.status(400).json({ message: 'No tenant context' });
+    }
+    const result = await pool.query(
+      'SELECT custom_domain FROM public.tenants WHERE id = $1',
+      [req.tenant.id]
+    );
+    const domain = result.rows[0]?.custom_domain || null;
+    res.json({
+      custom_domain: domain,
+      slug: req.tenant.slug,
+      // DNS instructions for the tenant admin
+      dns_instructions: domain ? {
+        type: 'CNAME',
+        name: '@',
+        value: `${req.tenant.slug}.eonsclover.com`,
+        note: 'Agrega este registro CNAME en tu proveedor de DNS. Los cambios pueden tardar hasta 48h en propagarse.'
+      } : null
+    });
+  } catch (err) {
+    console.error('[subscription/custom-domain GET]', err);
+    res.status(500).json({ message: 'Error al obtener dominio' });
+  }
+});
+
+/**
+ * PUT /api/subscription/custom-domain
+ * Set or remove custom domain (Pro/Premium plans only)
+ */
+router.put('/custom-domain', async (req, res) => {
+  try {
+    if (!req.tenant) {
+      return res.status(400).json({ message: 'No tenant context' });
+    }
+
+    // Check plan supports custom domains
+    const planResult = await pool.query(
+      'SELECT features FROM public.plans WHERE id = $1',
+      [req.tenant.plan_id]
+    );
+    const features = planResult.rows[0]?.features || [];
+    if (!features.includes('custom_domain') && !features.includes('all')) {
+      return res.status(403).json({ message: 'Tu plan no incluye dominio personalizado. Actualiza a Pro o Premium.' });
+    }
+
+    const { domain } = req.body;
+
+    // Allow removing domain (null)
+    if (domain === null || domain === '') {
+      await pool.query(
+        'UPDATE public.tenants SET custom_domain = NULL, updated_at = NOW() WHERE id = $1',
+        [req.tenant.id]
+      );
+      // Invalidate cache
+      const { invalidateTenantCache } = require('../../middleware');
+      invalidateTenantCache(req.tenant.slug);
+      return res.json({ message: 'Dominio personalizado eliminado', custom_domain: null });
+    }
+
+    // Validate domain format
+    const domainRegex = /^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+    if (!domainRegex.test(domain) || domain.length > 253) {
+      return res.status(400).json({ message: 'Formato de dominio inválido' });
+    }
+
+    // Ensure domain is not already used by another tenant
+    const existing = await pool.query(
+      'SELECT id FROM public.tenants WHERE custom_domain = $1 AND id != $2',
+      [domain.toLowerCase(), req.tenant.id]
+    );
+    if (existing.rows.length > 0) {
+      return res.status(409).json({ message: 'Este dominio ya está en uso por otra tienda' });
+    }
+
+    // Save domain
+    await pool.query(
+      'UPDATE public.tenants SET custom_domain = $1, updated_at = NOW() WHERE id = $2',
+      [domain.toLowerCase(), req.tenant.id]
+    );
+
+    // Audit log
+    await pool.query(
+      `INSERT INTO public.audit_log (tenant_id, action, actor, details) VALUES ($1, $2, $3, $4)`,
+      [req.tenant.id, 'custom_domain.set', req.user?.email || 'admin', JSON.stringify({ domain: domain.toLowerCase() })]
+    );
+
+    // Invalidate cache so tenant middleware picks up the new domain
+    const { invalidateTenantCache } = require('../../middleware');
+    invalidateTenantCache(req.tenant.slug);
+
+    res.json({
+      message: 'Dominio personalizado configurado',
+      custom_domain: domain.toLowerCase(),
+      dns_instructions: {
+        type: 'CNAME',
+        name: '@',
+        value: `${req.tenant.slug}.eonsclover.com`,
+        note: 'Agrega este registro CNAME en tu proveedor de DNS. Los cambios pueden tardar hasta 48h en propagarse.'
+      }
+    });
+  } catch (err) {
+    console.error('[subscription/custom-domain PUT]', err);
+    res.status(500).json({ message: 'Error al configurar dominio' });
+  }
+});
+
 module.exports = router;
