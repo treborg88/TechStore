@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import { useSeo } from '../../hooks/useSeo';
 import './UserProfile.css';
 
 function UserProfile({ onClose, onLogout, onUpdate, user }) {
+    const navigate = useNavigate();
     // SEO dinámico para perfil
     useSeo('profile');
     const [loading, setLoading] = useState(true);
@@ -190,6 +192,15 @@ function UserProfile({ onClose, onLogout, onUpdate, user }) {
                             <button type="button" onClick={onLogout} className="profile-btn profile-btn-outline">
                                 Cerrar sesión
                             </button>
+                            {user && user.role === 'admin' && (
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/admin/subscription')}
+                                    className="profile-btn profile-btn-secondary"
+                                >
+                                    Suscripción
+                                </button>
+                            )}
                             <button type="button" onClick={onClose} className="profile-btn">
                                 Volver
                             </button>

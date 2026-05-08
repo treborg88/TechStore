@@ -54,7 +54,8 @@ function validateSlug(slug) {
  * @returns {Promise<{ tenantId: string, schemaName: string }>}
  */
 async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, planId = 'trial', trialDays = 14 }) {
-    // Validate slug format
+    // Normalize email and validate slug format
+    const normalizedEmail = (ownerEmail || '').trim().toLowerCase();
     const slugCheck = validateSlug(slug);
     if (!slugCheck.valid) {
         throw new Error(slugCheck.error);
@@ -68,12 +69,21 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
         await client.query('BEGIN');
 
         // 1. Check slug availability
-        const existing = await client.query(
+        const existingSlug = await client.query(
             'SELECT id FROM public.tenants WHERE slug = $1',
             [slug]
         );
-        if (existing.rows.length > 0) {
+        if (existingSlug.rows.length > 0) {
             throw new Error(`El subdominio "${slug}" ya está en uso`);
+        }
+
+        // 2. Check owner email uniqueness across tenants
+        const existingEmail = await client.query(
+            'SELECT id FROM public.tenants WHERE LOWER(owner_email) = LOWER($1)',
+            [normalizedEmail]
+        );
+        if (existingEmail.rows.length > 0) {
+            throw new Error('El correo electrónico ya está registrado en otra tienda');
         }
 
         // 2. Create schema (name is validated by SLUG_REGEX → safe for identifier)
@@ -101,7 +111,7 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
              VALUES ($1, $2, $3, 'admin', true)
              ON CONFLICT (email) DO UPDATE SET
                password = EXCLUDED.password, name = EXCLUDED.name`,
-            [name, ownerEmail, hashedPassword]
+            [name, normalizedEmail, hashedPassword]
         );
 
         // 5. Register in SaaS system tables (public schema)
@@ -111,7 +121,7 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
             `INSERT INTO public.tenants (slug, name, owner_email, plan_id, trial_ends_at)
              VALUES ($1, $2, $3, $4, NOW() + $5 * INTERVAL '1 day')
              RETURNING id`,
-            [slug, name, ownerEmail, planId, trialDays]
+            [slug, name, normalizedEmail, planId, trialDays]
         );
         const tenantId = tenantResult.rows[0].id;
 
@@ -124,7 +134,7 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
         await client.query(
             `INSERT INTO public.audit_log (tenant_id, action, actor, details)
              VALUES ($1, 'tenant.created', $2, $3)`,
-            [tenantId, ownerEmail, JSON.stringify({ slug, plan: planId })]
+            [tenantId, normalizedEmail, JSON.stringify({ slug, plan: planId })]
         );
 
         await client.query('COMMIT');

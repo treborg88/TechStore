@@ -3,8 +3,31 @@ require('dotenv').config();
 require('dotenv').config({ path: require('path').join(__dirname, '..', '.env.local'), override: true });
 
 const { Pool } = require('pg');
+const { AsyncLocalStorage } = require('node:async_hooks');
 const path = require('path');
 const fs = require('fs');
+
+// --- Tenant-aware query routing via AsyncLocalStorage ---
+// When dbContext middleware wraps a request, pool.query() calls are automatically
+// routed to the tenant-scoped client (with SET LOCAL search_path).
+const tenantContext = new AsyncLocalStorage();
+
+/**
+ * Patch pool.query to check AsyncLocalStorage for a tenant-scoped DB client.
+ * If a tenant client exists in the async context, queries use it instead of
+ * the generic pool (ensuring tenant schema isolation).
+ */
+const wrapPoolForTenantContext = (p) => {
+  const originalQuery = p.query.bind(p);
+  p.query = function (...args) {
+    const store = tenantContext.getStore();
+    if (store?.client) {
+      return store.client.query(...args);
+    }
+    return originalQuery(...args);
+  };
+  return p;
+};
 
 // --- Connection pool (nullable — app runs in "setup mode" without credentials) ---
 let pool = null;
@@ -39,7 +62,7 @@ const initPool = (connectionString) => {
   if (!connectionString) return false;
   try {
     // Start pool without SSL by default; async detection upgrades if available
-    pool = new Pool({ connectionString, max: 20, ssl: false });
+    pool = wrapPoolForTenantContext(new Pool({ connectionString, max: 20, ssl: false }));
     pool.on('error', (err) => console.error('PG Pool error:', err.message));
     dbConfigured = true;
 
@@ -47,7 +70,7 @@ const initPool = (connectionString) => {
     detectSslConfig(connectionString).then(sslConfig => {
       if (sslConfig !== false) {
         const oldPool = pool;
-        pool = new Pool({ connectionString, max: 20, ssl: sslConfig });
+        pool = wrapPoolForTenantContext(new Pool({ connectionString, max: 20, ssl: sslConfig }));
         pool.on('error', (err) => console.error('PG Pool error:', err.message));
         oldPool.end().catch(() => {});
         console.log('🔒 PostgreSQL SSL enabled');
@@ -1004,5 +1027,6 @@ module.exports = {
   disconnectDb,
   testConnection,
   withTenantSchema,
+  tenantContext,                                // AsyncLocalStorage for tenant-scoped queries
   UPLOADS_DIR
 };

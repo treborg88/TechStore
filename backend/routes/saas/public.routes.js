@@ -2,6 +2,7 @@
 // Plans listing, slug availability, and tenant registration.
 const { Router } = require('express');
 const { pool } = require('../../database');
+const config = require('../../config');
 const { provisionTenant, validateSlug } = require('../../services/tenant/provisioner');
 
 const router = Router();
@@ -45,7 +46,7 @@ router.get('/check-slug/:slug', async (req, res) => {
 
 // POST /api/saas/register — Create a new tenant (store)
 router.post('/register', async (req, res) => {
-  const { slug, businessName, ownerEmail, ownerPassword, planId = 'trial' } = req.body;
+  const { slug, businessName, ownerEmail, ownerPassword, planId = 'trial', trialDays = 14 } = req.body;
 
   // Required fields
   if (!slug || !businessName || !ownerEmail || !ownerPassword) {
@@ -64,16 +65,18 @@ router.post('/register', async (req, res) => {
       ownerEmail,
       ownerPassword,
       planId,
+      trialDays: Number(trialDays)
     });
 
     res.status(201).json({
       message: 'Tienda creada exitosamente',
-      storeUrl: `https://${slug}.eonsclover.com`,
+      // Use request protocol so local HTTP and production HTTPS both work
+      storeUrl: `${req.protocol}://${slug}.${config.PLATFORM_DOMAIN}`,
       tenantId,
     });
   } catch (err) {
-    // Duplicate slug → 409
-    if (err.message.includes('ya está en uso')) {
+    // Duplicate slug or duplicate email → 409
+    if (err.message.includes('ya está en uso') || err.message.includes('correo electrónico ya está registrado')) {
       return res.status(409).json({ message: err.message });
     }
     console.error('[saas/register]', err);

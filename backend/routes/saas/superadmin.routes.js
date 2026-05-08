@@ -223,7 +223,7 @@ router.post('/tenants/:id/impersonate', async (req, res) => {
         // Generate short-lived impersonation token (1h)
         const token = jwt.sign(
             {
-                userId: adminUser.id,
+                id: adminUser.id,
                 role: 'admin',
                 tenantId: tenant.id,
                 tenantSlug: tenant.slug,
@@ -242,7 +242,7 @@ router.post('/tenants/:id/impersonate', async (req, res) => {
 
         res.json({
             token,
-            redirectUrl: `https://${tenant.slug}.eonsclover.com/admin?token=${token}`,
+            redirectUrl: `https://${tenant.slug}.${config.PLATFORM_DOMAIN}/admin?token=${token}`,
             admin: { id: adminUser.id, email: adminUser.email, name: adminUser.name }
         });
     } catch (err) {
@@ -267,7 +267,11 @@ router.delete('/tenants/:id', async (req, res) => {
         }
 
         const { deprovisionTenant } = require('../../services/tenant');
-        await deprovisionTenant(id);
+        const db = require('../../database');
+        await deprovisionTenant(db.pool, { 
+            slug: tenantResult.rows[0].slug, 
+            confirm: `DELETE_${tenantResult.rows[0].slug.toUpperCase()}` 
+        });
 
         // Invalidate cache
         const { invalidateTenantCache } = require('../../middleware');
@@ -276,7 +280,11 @@ router.delete('/tenants/:id', async (req, res) => {
         res.json({ message: 'Tenant eliminado' });
     } catch (err) {
         console.error('SuperAdmin delete tenant error:', err);
-        res.status(500).json({ message: 'Error al eliminar tenant' });
+        res.status(500).json({ 
+            message: 'Error al eliminar tenant',
+            error: err.message,
+            stack: err.stack
+        });
     }
 });
 

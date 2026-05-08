@@ -1,9 +1,12 @@
-// SaaSLanding.jsx - Public marketing landing page (eonsclover.com)
+// SaaSLanding.jsx - Public marketing landing page (platform root domain)
 // Hero, features, pricing, social proof, login, and pricing page routes
 
 import { useState, useEffect } from 'react';
 import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
-import { API_URL } from '../../config';
+import { API_URL, PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
+
+// Dynamic URL helpers — no hardcoded domains
+const registerUrl = `${PLATFORM_PROTOCOL}//app.${PLATFORM_DOMAIN}/register`;
 
 // ── Shared Styles ─────────────────────────────────────────────────────────────
 const colors = { primary: '#4f46e5', primaryDark: '#4338ca', accent: '#10b981', bg: '#f8fafc', dark: '#1a1a2e', text: '#334155', light: '#f1f5f9' };
@@ -34,7 +37,7 @@ function Navbar() {
                 <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
                     <Link to="/pricing" style={{ color: colors.text, textDecoration: 'none', fontWeight: 500 }}>Planes</Link>
                     <Link to="/login" style={{ color: colors.text, textDecoration: 'none', fontWeight: 500 }}>Iniciar sesión</Link>
-                    <a href="https://app.eonsclover.com/register" style={{ ...s.btn, ...s.btnPrimary, padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>
+                    <a href={registerUrl} style={{ ...s.btn, ...s.btnPrimary, padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>
                         Comenzar gratis
                     </a>
                 </nav>
@@ -53,7 +56,7 @@ function Footer() {
                 <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '1.5rem', fontSize: '0.85rem' }}>
                     <Link to="/pricing" style={{ color: '#94a3b8', textDecoration: 'none' }}>Planes</Link>
                     <Link to="/login" style={{ color: '#94a3b8', textDecoration: 'none' }}>Iniciar sesión</Link>
-                    <a href="https://app.eonsclover.com/register" style={{ color: '#94a3b8', textDecoration: 'none' }}>Registro</a>
+                    <a href={registerUrl} style={{ color: '#94a3b8', textDecoration: 'none' }}>Registro</a>
                 </div>
                 <p style={{ fontSize: '0.75rem', marginTop: '2rem', color: '#64748b' }}>© {new Date().getFullYear()} EonsClover. Todos los derechos reservados.</p>
             </div>
@@ -102,7 +105,7 @@ function PlanCard({ plan, highlighted }) {
                     </li>
                 ))}
             </ul>
-            <a href="https://app.eonsclover.com/register" style={{
+            <a href={registerUrl} style={{
                 ...s.btn,
                 ...(highlighted ? s.btnPrimary : s.btnOutline),
                 textAlign: 'center', width: '100%', boxSizing: 'border-box'
@@ -152,7 +155,7 @@ function SaaSHome() {
                         Plataforma e-commerce completa con ERP integrado. Sin código, sin complicaciones. Empieza a vender hoy.
                     </p>
                     <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <a href="https://app.eonsclover.com/register" style={{ ...s.btn, background: '#fff', color: colors.primary, fontWeight: 700 }}>
+                        <a href={registerUrl} style={{ ...s.btn, background: '#fff', color: colors.primary, fontWeight: 700 }}>
                             Comenzar gratis →
                         </a>
                         <Link to="/pricing" style={{ ...s.btn, background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}>
@@ -242,7 +245,7 @@ function SaaSHome() {
                     <p style={{ fontSize: '1.1rem', opacity: 0.8, marginBottom: '2rem' }}>
                         Prueba gratis por 14 días. Sin tarjeta de crédito.
                     </p>
-                    <a href="https://app.eonsclover.com/register" style={{ ...s.btn, background: colors.primary, color: '#fff', fontSize: '1.1rem', padding: '1rem 2.5rem' }}>
+                    <a href={registerUrl} style={{ ...s.btn, background: colors.primary, color: '#fff', fontSize: '1.1rem', padding: '1rem 2.5rem' }}>
                         Crear mi tienda gratis →
                     </a>
                 </div>
@@ -347,7 +350,7 @@ function LoginPage() {
             return;
         }
         // Redirect to tenant subdomain login
-        window.location.href = `https://${cleanSlug}.eonsclover.com/login`;
+        window.location.href = `${PLATFORM_PROTOCOL}//${cleanSlug}.${PLATFORM_DOMAIN}/login`;
     };
 
     return (
@@ -372,7 +375,7 @@ function LoginPage() {
                                     autoFocus
                                 />
                                 <span style={{ padding: '0.75rem 1rem', background: colors.light, border: '1px solid #d1d5db', borderLeft: 'none', borderTopRightRadius: '8px', borderBottomRightRadius: '8px', fontSize: '0.85rem', color: '#64748b', whiteSpace: 'nowrap' }}>
-                                    .eonsclover.com
+                                    .{PLATFORM_DOMAIN}
                                 </span>
                             </div>
                             {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
@@ -383,7 +386,7 @@ function LoginPage() {
                         <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
                             <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
                                 ¿No tienes tienda?{' '}
-                                <a href="https://app.eonsclover.com/register" style={{ color: colors.primary, textDecoration: 'none', fontWeight: 500 }}>
+                                <a href={registerUrl} style={{ color: colors.primary, textDecoration: 'none', fontWeight: 500 }}>
                                     Crear una gratis
                                 </a>
                             </p>
@@ -406,7 +409,7 @@ function LandingLayout({ children }) {
     );
 }
 
-/** Routes shown on the root domain (eonsclover.com) */
+/** Routes shown on the root domain (SaaS landing) */
 export default function SaaSLandingRoutes() {
     return (
         <Routes>
@@ -414,7 +417,7 @@ export default function SaaSLandingRoutes() {
             <Route path="/pricing" element={<LandingLayout><PricingPage /></LandingLayout>} />
             <Route path="/login" element={<LandingLayout><LoginPage /></LandingLayout>} />
             {/* /register redirects to onboarding subdomain */}
-            <Route path="/register" element={<Navigate to="https://app.eonsclover.com/register" replace />} />
+            <Route path="/register" element={<Navigate to={registerUrl} replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

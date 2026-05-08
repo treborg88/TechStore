@@ -45,7 +45,7 @@ export default function SubscriptionBanner() {
       {/* Order usage */}
       {plan.max_orders_month != null && (
         <span style={{ color: '#555' }}>
-          Órdenes/mes: {usage.orders ?? 0}/{plan.max_orders_month === -1 ? '∞' : plan.max_orders_month}
+          Órdenes/mes: {usage.orders_month ?? usage.orders ?? 0}/{plan.max_orders_month === -1 ? '∞' : plan.max_orders_month}
         </span>
       )}
 

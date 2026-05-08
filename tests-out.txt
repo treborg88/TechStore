@@ -1,0 +1,7 @@
+techstore-proxy=Up 1 second
+techstore-backend=Up 2 seconds (health: starting)
+techstore-db=Up 8 seconds (healthy)
+techstore-frontend=Up 12 seconds (healthy)
+===  
+{"status":"ok","version":"1.0.0","uptime":1,"database":"connected","saas":true,"message":"All systems operational"}  
+{"message":"El subdominio \"tienda5\" ya está en uso"}

@@ -4,6 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { useTenant } from '../../hooks/useTenant.jsx';
+import { PLATFORM_DOMAIN } from '../../config';
 
 // Usage bar component
 function UsageBar({ label, used, max, icon }) {
@@ -53,10 +54,27 @@ export default function SubscriptionPanel() {
     try {
       const res = await apiFetch(apiUrl('/subscription'));
       if (res.ok) {
-        setData(await res.json());
+        const subscriptionData = await res.json();
+        setData((prev) => ({ ...prev, ...subscriptionData }));
       }
     } catch { /* non-critical */ }
-    setLoading(false);
+  }, []);
+
+  const loadUsage = useCallback(async () => {
+    try {
+      const res = await apiFetch(apiUrl('/subscription/usage'));
+      if (res.ok) {
+        const usageData = await res.json();
+        setData((prev) => ({
+          ...prev,
+          usage: usageData.usage,
+          plan: {
+            ...prev?.plan,
+            ...usageData.limits,
+          },
+        }));
+      }
+    } catch { /* non-critical */ }
   }, []);
 
   // Fetch available plans
@@ -82,9 +100,8 @@ export default function SubscriptionPanel() {
   }, []);
 
   useEffect(() => {
-    loadSubscription();
-    loadDomain();
-  }, [loadSubscription, loadDomain]);
+    Promise.all([loadSubscription(), loadUsage(), loadDomain()]).finally(() => setLoading(false));
+  }, [loadSubscription, loadUsage, loadDomain]);
 
   // Change plan handler
   const handleChangePlan = async (planId) => {
@@ -104,8 +121,8 @@ export default function SubscriptionPanel() {
       } else {
         setSuccessMsg(result.message);
         setShowPlans(false);
-        // Reload subscription data + refresh tenant context
-        await loadSubscription();
+        // Reload subscription data + usage counts, then refresh tenant context
+        await Promise.all([loadSubscription(), loadUsage()]);
         tenantCtx?.refreshSubscription?.();
       }
     } catch {
@@ -187,7 +204,7 @@ export default function SubscriptionPanel() {
     );
   }
 
-  const { plan, usage, subscription, tenant } = data;
+  const { plan, usage = {}, subscription, tenant } = data;
   const isTrialExpiring = subscription.trial_ends_at
     && new Date(subscription.trial_ends_at) - Date.now() < 3 * 24 * 60 * 60 * 1000
     && subscription.status === 'trial';
@@ -256,9 +273,9 @@ export default function SubscriptionPanel() {
         </div>
 
         {/* Usage bars */}
-        <UsageBar label="Productos" used={usage.products} max={plan.max_products} icon="📦" />
-        <UsageBar label="Órdenes este mes" used={usage.orders_month} max={plan.max_orders_month} icon="📋" />
-        <UsageBar label="Storage (MB)" used={0} max={plan.max_storage_mb} icon="💾" />
+        <UsageBar label="Productos" used={usage.products || 0} max={plan.max_products} icon="📦" />
+        <UsageBar label="Órdenes este mes" used={usage.orders_month || 0} max={plan.max_orders_month} icon="📋" />
+        <UsageBar label="Storage (MB)" used={usage.storage_mb || 0} max={plan.max_storage_mb} icon="💾" />
 
         <button
           onClick={handleShowPlans}
@@ -278,7 +295,7 @@ export default function SubscriptionPanel() {
         fontSize: '0.9rem', color: '#555',
       }}>
         <div style={{ marginBottom: '0.4rem' }}><strong>Tienda:</strong> {tenant.name}</div>
-        <div style={{ marginBottom: '0.4rem' }}><strong>Subdominio:</strong> {tenant.slug}.eonsclover.com</div>
+        <div style={{ marginBottom: '0.4rem' }}><strong>Subdominio:</strong> {tenant.slug}.{PLATFORM_DOMAIN}</div>
         <div><strong>Estado:</strong> {tenant.status}</div>
       </div>
 

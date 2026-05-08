@@ -24,8 +24,8 @@ function createTenantMiddleware(pool) {
         const host = req.hostname || req.headers.host?.split(':')[0] || '';
         const parts = host.split('.');
 
-        // Determine if this is a known platform domain (*.eonsclover.com or localhost)
-        const platformDomain = process.env.PLATFORM_DOMAIN || 'eonsclover.com';
+        // Determine if this is a known platform domain (*.techstore.local or localhost)
+        const platformDomain = config.PLATFORM_DOMAIN;
         const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain || host === 'localhost';
 
         // Extract subdomain for platform hosts: {slug}.eonsclover.com → slug
@@ -94,7 +94,7 @@ function createTenantMiddleware(pool) {
             if (tenant.status === 'trial' && new Date() > new Date(tenant.trial_ends_at)) {
                 return res.status(402).json({
                     message: 'Período de prueba expirado. Activa un plan.',
-                    upgrade_url: 'https://app.eonsclover.com/pricing'
+                    upgrade_url: `https://app.${config.PLATFORM_DOMAIN}/pricing`
                 });
             }
 

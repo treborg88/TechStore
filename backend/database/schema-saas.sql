@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS public.schema_migrations (
 -- ── INDEXES ───────────────────────────────────────────────────────────────────
 CREATE INDEX IF NOT EXISTS idx_tenants_slug    ON public.tenants(slug);
 CREATE INDEX IF NOT EXISTS idx_tenants_status  ON public.tenants(status);
+CREATE INDEX IF NOT EXISTS idx_tenants_owner_email ON public.tenants(owner_email);
 CREATE INDEX IF NOT EXISTS idx_tenants_domain  ON public.tenants(custom_domain)
     WHERE custom_domain IS NOT NULL;
 

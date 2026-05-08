@@ -32,9 +32,10 @@ services:
     volumes:
       # Persist data between rebuilds
       - pgdata:/var/lib/postgresql/data
-      # Auto-run schema + seed on first boot
+      # Auto-run schema + seed on first boot (order matters: 01→02→03)
       - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
+      - ./backend/database/schema-saas.sql:/docker-entrypoint-initdb.d/03-schema-saas.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-techstore}"]
       interval: 5s
@@ -57,8 +58,15 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # Docker-internal defaults (overridden by .env if set)
-      DATABASE_URL: ${DATABASE_URL:-postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}}
+      # Docker-internal default — 'database' is the Docker service hostname
+      DATABASE_URL: postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}
+      # SaaS mode (inherits from .env, defaults to false)
+      SAAS_MODE: ${SAAS_MODE:-false}
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-eonsclover.com}
+      SUPER_ADMIN_SECRET: ${SUPER_ADMIN_SECRET:-}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      TRIAL_DAYS: ${TRIAL_DAYS:-14}
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
     depends_on:
       database:
         condition: service_healthy

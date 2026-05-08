@@ -241,7 +241,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 
 			toast.success('Producto creado correctamente.');
 			resetForm();
-			await onRefresh();
+			if (onForceRefresh) {
+				await onForceRefresh();
+			} else {
+				await onRefresh();
+			}
 		} catch (error) {
 			toast.error(error.message);
 		} finally {

@@ -2,10 +2,31 @@
 // Requires tenant middleware + auth. Returns plan info, usage, and plan changes.
 
 const { Router } = require('express');
-const { pool, withTenantSchema } = require('../../database');
+const path = require('path');
+const fs = require('fs').promises;
+const { pool, withTenantSchema, UPLOADS_DIR } = require('../../database');
+const config = require('../../config');
 const { authenticateToken, requireAdmin } = require('../../middleware/auth');
 
 const router = Router();
+
+async function calculateStorageMb(imageRows = []) {
+  let totalBytes = 0;
+  for (const row of imageRows) {
+    const imagePath = String(row.image_path || '').trim();
+    if (!imagePath || imagePath.startsWith('http')) continue;
+    const normalizedPath = imagePath.replace(/^\//, '');
+    const filePath = path.join(UPLOADS_DIR, normalizedPath);
+    if (!filePath.startsWith(UPLOADS_DIR)) continue;
+    try {
+      const stats = await fs.stat(filePath);
+      if (stats.isFile()) totalBytes += stats.size;
+    } catch (err) {
+      // Ignore missing files; storage usage is best-effort.
+    }
+  }
+  return Math.round(totalBytes / 1024 / 1024);
+}
 
 // All subscription routes require tenant admin
 router.use(authenticateToken, requireAdmin);
@@ -41,13 +62,16 @@ router.get('/', async (req, res) => {
 
     // Count usage inside tenant schema
     const usage = await withTenantSchema(req.tenant.schema_name, async (client) => {
-      const [prodRes, ordRes] = await Promise.all([
+      const [prodRes, ordRes, imagesRes] = await Promise.all([
         client.query('SELECT COUNT(*) FROM products'),
         client.query(`SELECT COUNT(*) FROM orders WHERE created_at >= date_trunc('month', NOW())`),
+        client.query('SELECT image_path FROM product_images'),
       ]);
+      const storage_mb = await calculateStorageMb(imagesRes.rows);
       return {
         products: parseInt(prodRes.rows[0].count, 10),
         orders_month: parseInt(ordRes.rows[0].count, 10),
+        storage_mb,
       };
     });
 
@@ -91,15 +115,17 @@ router.get('/usage', async (req, res) => {
     }
 
     const usage = await withTenantSchema(req.tenant.schema_name, async (client) => {
-      const [prodRes, ordRes, imgRes] = await Promise.all([
+      const [prodRes, ordRes, imagesRes] = await Promise.all([
         client.query('SELECT COUNT(*) FROM products'),
         client.query(`SELECT COUNT(*) FROM orders WHERE created_at >= date_trunc('month', NOW())`),
-        client.query('SELECT COUNT(*) FROM product_images'),
+        client.query('SELECT image_path FROM product_images'),
       ]);
+      const storage_mb = await calculateStorageMb(imagesRes.rows);
       return {
         products: parseInt(prodRes.rows[0].count, 10),
         orders_month: parseInt(ordRes.rows[0].count, 10),
-        total_images: parseInt(imgRes.rows[0].count, 10),
+        storage_mb,
+        total_images: imagesRes.rows.length,
       };
     });
 
@@ -223,7 +249,7 @@ router.get('/custom-domain', async (req, res) => {
       dns_instructions: domain ? {
         type: 'CNAME',
         name: '@',
-        value: `${req.tenant.slug}.eonsclover.com`,
+        value: `${req.tenant.slug}.${config.PLATFORM_DOMAIN}`,
         note: 'Agrega este registro CNAME en tu proveedor de DNS. Los cambios pueden tardar hasta 48h en propagarse.'
       } : null
     });
@@ -304,7 +330,7 @@ router.put('/custom-domain', async (req, res) => {
       dns_instructions: {
         type: 'CNAME',
         name: '@',
-        value: `${req.tenant.slug}.eonsclover.com`,
+        value: `${req.tenant.slug}.${config.PLATFORM_DOMAIN}`,
         note: 'Agrega este registro CNAME en tu proveedor de DNS. Los cambios pueden tardar hasta 48h en propagarse.'
       }
     });

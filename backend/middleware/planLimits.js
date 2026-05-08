@@ -2,6 +2,7 @@
 // Usage: router.post('/', checkLimit('products'), handler)
 // Skip: when not in SaaS mode or when plan limit is -1 (unlimited).
 
+const config = require('../config');
 const { withTenantSchema } = require('../database');
 const { pool } = require('../database');
 
@@ -51,7 +52,7 @@ function checkLimit(resource) {
       if (usage >= limit) {
         return res.status(403).json({
           message: `Límite de ${resource} alcanzado (${usage}/${limit} en plan ${plan.name})`,
-          upgrade_url: `https://${req.tenant.slug}.eonsclover.com/admin/subscription`,
+          upgrade_url: `https://${req.tenant.slug}.${config.PLATFORM_DOMAIN}/admin/subscription`,
         });
       }
 

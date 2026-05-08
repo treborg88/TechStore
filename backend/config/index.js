@@ -41,6 +41,7 @@ module.exports = {
 
     // SaaS multi-tenant config (SAAS_MODE=false preserves single-tenant behavior)
     SAAS_MODE: process.env.SAAS_MODE || 'false',
+    PLATFORM_DOMAIN: process.env.PLATFORM_DOMAIN || 'localhost',
     SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL,
     SUPER_ADMIN_SECRET: process.env.SUPER_ADMIN_SECRET,
     TRIAL_DAYS: parseInt(process.env.TRIAL_DAYS) || 14,

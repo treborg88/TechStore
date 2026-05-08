@@ -5,6 +5,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
+import { PLATFORM_DOMAIN } from '../../config';
 
 // Auto-generate slug from business name
 function slugify(name) {
@@ -312,7 +313,7 @@ export default function OnboardingWizard() {
               {/* Live preview */}
               {slug && (
                 <div style={styles.preview}>
-                  Tu tienda: <strong>{slug}.eonsclover.com</strong>
+                  Tu tienda: <strong>{slug}.{PLATFORM_DOMAIN}</strong>
                 </div>
               )}
             </div>
@@ -416,7 +417,7 @@ export default function OnboardingWizard() {
               </div>
               <div style={{ marginBottom: '0.75rem' }}>
                 <span style={{ color: '#888', fontSize: '0.85rem' }}>URL de tu tienda</span>
-                <div style={{ fontWeight: 600 }}>{slug}.eonsclover.com</div>
+                <div style={{ fontWeight: 600 }}>{slug}.{PLATFORM_DOMAIN}</div>
               </div>
               <div>
                 <span style={{ color: '#888', fontSize: '0.85rem' }}>Email del admin</span>

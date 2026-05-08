@@ -1,0 +1,22 @@
+techstore-proxy=Up Less than a second
+techstore-backend=Up 1 second (health: starting)
+techstore-db=Up 7 seconds (healthy)
+techstore-frontend=Up 11 seconds (healthy)
+"==="  
+<html>
+<head><title>502 Bad Gateway</title></head>
+<body>
+<center><h1>502 Bad Gateway</h1></center>
+<hr><center>nginx/1.29.8</center>
+</body>
+</html>
+""  
+"==="  
+[dotenv@17.2.3] injecting env (0) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (1) from .env.local -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (1) from .env.local -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+[dotenv@17.2.3] injecting env (0) from .env -- tip: 🔐 encrypt with Dotenvx: https://dotenvx.com
+[dotenv@17.2.3] injecting env (1) from .env.local -- tip: 🔐 prevent building .env in docker: https://dotenvx.com/prebuild
+🐘 Database provider: PostgreSQL

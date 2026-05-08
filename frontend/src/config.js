@@ -20,6 +20,15 @@ export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0]
 export const IS_ONBOARDING = hostParts[0] === 'app' && !isLocalhost;
 export const IS_SUPER_ADMIN = hostParts[0] === 'admin' && !isLocalhost;
 
+// Platform domain derived from hostname (e.g. "techstore.local" from "app.techstore.local")
+// Used to build subdomain URLs dynamically — no hardcoded domain strings needed
+export const PLATFORM_DOMAIN = hostParts.length >= 3
+  ? hostParts.slice(1).join('.')
+  : hostParts.join('.');
+
+// Protocol derived from current page (http on local, https on production)
+export const PLATFORM_PROTOCOL = typeof window !== 'undefined' ? window.location.protocol : 'https:';
+
 // Production defaults: relative /api (Nginx proxy) + auto-detect origin
 // No hardcoded domains — works on any domain behind Nginx
 const DEFAULT_API_URL = isLocalhost 

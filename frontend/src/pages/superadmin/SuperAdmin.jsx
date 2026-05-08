@@ -1,9 +1,9 @@
-// SuperAdmin.jsx - Platform super admin panel (admin.eonsclover.com)
+// SuperAdmin.jsx - Platform super admin panel (admin subdomain)
 // Full dashboard: KPIs, tenant list, detail, actions
 
 import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { API_URL } from '../../config';
+import { API_URL, PLATFORM_DOMAIN } from '../../config';
 
 // ── Styles ────────────────────────────────────────────────────────────────────
 const styles = {
@@ -150,15 +150,33 @@ function TenantDetailModal({ tenantId, onClose, onRefresh }) {
     const [tenant, setTenant] = useState(null);
     const [loading, setLoading] = useState(true);
     const [actionLoading, setActionLoading] = useState('');
+    const [selectedPlan, setSelectedPlan] = useState('');
 
     useEffect(() => {
         if (!tenantId) return;
         setLoading(true);
         superAdminFetch(`/tenants/${tenantId}`)
-            .then(setTenant)
+            .then(t => { setTenant(t); setSelectedPlan(t.plan_id || ''); })
             .catch(() => {})
             .finally(() => setLoading(false));
     }, [tenantId]);
+
+    // Plan change handler
+    const handlePlanChange = async () => {
+        if (!selectedPlan || selectedPlan === tenant.plan_id) return;
+        if (!window.confirm(`¿Cambiar plan a "${selectedPlan}"?`)) return;
+        setActionLoading('plan');
+        try {
+            await superAdminFetch(`/tenants/${tenantId}/plan`, {
+                method: 'PUT', body: { plan_id: selectedPlan }
+            });
+            onRefresh();
+            const updated = await superAdminFetch(`/tenants/${tenantId}`);
+            setTenant(updated);
+            setSelectedPlan(updated.plan_id || '');
+        } catch { /* error */ }
+        finally { setActionLoading(''); }
+    };
 
     // Status change handler
     const handleStatusChange = async (newStatus) => {
@@ -213,7 +231,7 @@ function TenantDetailModal({ tenantId, onClose, onRefresh }) {
                         <div style={{ ...styles.flex, justifyContent: 'space-between', marginBottom: '1.5rem' }}>
                             <div>
                                 <h2 style={{ margin: 0 }}>{tenant.name}</h2>
-                                <span style={{ color: '#666' }}>{tenant.slug}.eonsclover.com</span>
+                                <span style={{ color: '#666' }}>{tenant.slug}.{PLATFORM_DOMAIN}</span>
                             </div>
                             <span style={{
                                 ...styles.badge,
@@ -227,6 +245,30 @@ function TenantDetailModal({ tenantId, onClose, onRefresh }) {
                             <div><strong>Plan:</strong> {tenant.plan_name} (${tenant.price_monthly}/mes)</div>
                             <div><strong>Creado:</strong> {new Date(tenant.created_at).toLocaleDateString()}</div>
                             <div><strong>Trial expira:</strong> {tenant.trial_ends_at ? new Date(tenant.trial_ends_at).toLocaleDateString() : '—'}</div>
+                        </div>
+
+                        {/* Plan change */}
+                        <div style={{ ...styles.flex, marginBottom: '1.5rem' }}>
+                            <label htmlFor="plan-select" style={{ fontWeight: 600, fontSize: '0.9rem' }}>Cambiar plan:</label>
+                            <select
+                                id="plan-select"
+                                value={selectedPlan}
+                                onChange={e => setSelectedPlan(e.target.value)}
+                                style={styles.select}
+                                disabled={!!actionLoading}
+                            >
+                                <option value="trial">Trial</option>
+                                <option value="basic">Básico</option>
+                                <option value="pro">Profesional</option>
+                                <option value="premium">Premium</option>
+                            </select>
+                            <button
+                                style={{ ...styles.btn, ...styles.btnPrimary }}
+                                onClick={handlePlanChange}
+                                disabled={!!actionLoading || selectedPlan === tenant.plan_id}
+                            >
+                                {actionLoading === 'plan' ? '…' : 'Aplicar'}
+                            </button>
                         </div>
 
                         {/* Usage */}
@@ -398,7 +440,7 @@ function TenantList({ onSelectTenant }) {
                                 <tr key={t.id} style={{ cursor: 'pointer' }} onClick={() => onSelectTenant(t.id)}>
                                     <td style={styles.td}>
                                         <div style={{ fontWeight: 600 }}>{t.name}</div>
-                                        <div style={{ fontSize: '0.8rem', color: '#666' }}>{t.slug}.eonsclover.com</div>
+                                        <div style={{ fontSize: '0.8rem', color: '#666' }}>{t.slug}.{PLATFORM_DOMAIN}</div>
                                     </td>
                                     <td style={styles.td}>{t.plan_name || t.plan_id}</td>
                                     <td style={styles.td}>
@@ -544,7 +586,7 @@ function SuperAdminDashboard() {
     );
 }
 
-/** Routes shown on admin.eonsclover.com (super admin subdomain) */
+/** Routes shown on admin.{PLATFORM_DOMAIN} (super admin subdomain) */
 export default function SuperAdminRoutes() {
     return (
         <Routes>

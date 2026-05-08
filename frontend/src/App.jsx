@@ -4,7 +4,10 @@ import './App.css';
 import './components/auth/LoginPage.css';
 import { getCurrentUser, logout, isSessionExpired } from './services/authService';
 import { Toaster } from 'react-hot-toast';
-import { API_URL } from './config';
+import { API_URL, IS_LANDING, IS_ONBOARDING, IS_SUPER_ADMIN, IS_TENANT } from './config';
+
+// SaaS system subdomains (landing, onboarding, admin) use their own layout — skip store shell
+const IS_SAAS_PLATFORM_PAGE = (IS_LANDING && !IS_TENANT) || IS_ONBOARDING || IS_SUPER_ADMIN;
 
 // Common components
 import LoadingSpinner from './components/common/LoadingSpinner';
@@ -110,25 +113,27 @@ function App() {
       )}
 
       <div className={`app-container ${headerSettings.transparency < 100 ? 'has-transparent-header' : ''}`}>
-        {/* Header global */}
-        <Header
-          siteName={siteName}
-          siteIcon={siteIcon}
-          siteLogo={siteLogo}
-          siteLogoSize={siteLogoSize}
-          siteNameImage={siteNameImage}
-          siteNameImageSize={siteNameImageSize}
-          headerSettings={headerSettings}
-          navigationConfig={navigationConfig}
-          storeModuleConfig={storeModuleConfig}
-          cartItems={cartItems}
-          user={user}
-          onCartOpen={() => navigate('/cart')}
-          onProfileOpen={() => navigate('/profile')}
-          onOrdersOpen={() => navigate('/orders')}
-          onLogout={handleLogout}
-          onAdminNav={handleAdminNav}
-        />
+        {/* Header global — oculto en páginas SaaS de plataforma (landing, onboarding, admin) */}
+        {!IS_SAAS_PLATFORM_PAGE && (
+          <Header
+            siteName={siteName}
+            siteIcon={siteIcon}
+            siteLogo={siteLogo}
+            siteLogoSize={siteLogoSize}
+            siteNameImage={siteNameImage}
+            siteNameImageSize={siteNameImageSize}
+            headerSettings={headerSettings}
+            navigationConfig={navigationConfig}
+            storeModuleConfig={storeModuleConfig}
+            cartItems={cartItems}
+            user={user}
+            onCartOpen={() => navigate('/cart')}
+            onProfileOpen={() => navigate('/profile')}
+            onOrdersOpen={() => navigate('/orders')}
+            onLogout={handleLogout}
+            onAdminNav={handleAdminNav}
+          />
+        )}
 
         {/* Rutas de la aplicación */}
         <AppRoutes
@@ -165,13 +170,15 @@ function App() {
           navigate={navigate}
         />
 
-        {/* Footer global */}
-        <Footer />
-
-        {/* Chatbot widget - se renderiza globalmente, gestiona su propia visibilidad */}
-        <Suspense fallback={null}>
-          <ChatBot />
-        </Suspense>
+        {/* Footer y ChatBot — solo en tienda, no en páginas SaaS de plataforma */}
+        {!IS_SAAS_PLATFORM_PAGE && (
+          <>
+            <Footer />
+            <Suspense fallback={null}>
+              <ChatBot />
+            </Suspense>
+          </>
+        )}
       </div>
     </>
   );

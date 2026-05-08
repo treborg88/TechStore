@@ -2,6 +2,7 @@
 // When SAAS_MODE=true and req.tenant exists, acquires a client from pool,
 // sets search_path to the tenant schema, and auto-releases on response end.
 // When SAAS_MODE=false, req.dbClient is not set (routes use pool directly).
+// Uses AsyncLocalStorage so pool.query() automatically routes to the tenant client.
 
 const config = require('../config');
 
@@ -11,6 +12,9 @@ const config = require('../config');
  * @returns {Function} Express middleware
  */
 function createDbContext(pool) {
+    // Import tenantContext from the database module (AsyncLocalStorage instance)
+    const { tenantContext } = require('../database');
+
     return async (req, res, next) => {
         // Only wire tenant schema in SaaS mode with a resolved tenant
         if (config.SAAS_MODE !== 'true' || !req.tenant) {
@@ -46,7 +50,9 @@ function createDbContext(pool) {
             res.on('finish', () => releaseClient('COMMIT'));
             res.on('close', () => releaseClient('ROLLBACK'));
 
-            next();
+            // Run downstream middleware/routes inside AsyncLocalStorage context
+            // so pool.query() calls are auto-routed to this tenant-scoped client
+            tenantContext.run({ client }, () => next());
         } catch (err) {
             if (client && !released) {
                 released = true;

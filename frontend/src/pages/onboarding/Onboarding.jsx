@@ -1,10 +1,10 @@
-// Onboarding.jsx - Tenant registration and setup flow (app.eonsclover.com)
+// Onboarding.jsx - Tenant registration and setup flow (app subdomain)
 // Routes the user through the OnboardingWizard for tenant creation.
 
 import { Routes, Route, Navigate } from 'react-router-dom';
 import OnboardingWizard from './OnboardingWizard';
 
-/** Routes shown on app.eonsclover.com (onboarding subdomain) */
+/** Routes shown on app.{PLATFORM_DOMAIN} (onboarding subdomain) */
 export default function OnboardingRoutes() {
   return (
     <Routes>
