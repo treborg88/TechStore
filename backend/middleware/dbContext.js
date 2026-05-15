@@ -46,9 +46,15 @@ function createDbContext(pool) {
             await client.query(`SET LOCAL search_path TO "${schemaName}", public`);
             req.dbClient = client;
 
-            // Auto-cleanup: COMMIT on success, ROLLBACK on premature close
-            res.on('finish', () => releaseClient('COMMIT'));
-            res.on('close', () => releaseClient('ROLLBACK'));
+            // Auto-cleanup: commit successful responses and rollback aborted ones.
+            // In proxied environments, `close` can race with `finish`, so choose
+            // the action from the response state instead of assuming event order.
+            res.once('finish', () => releaseClient('COMMIT'));
+            res.once('close', () => {
+                if (released) return;
+                const action = (res.writableEnded || res.finished) ? 'COMMIT' : 'ROLLBACK';
+                releaseClient(action);
+            });
 
             // Run downstream middleware/routes inside AsyncLocalStorage context
             // so pool.query() calls are auto-routed to this tenant-scoped client

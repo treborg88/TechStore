@@ -66,6 +66,26 @@ app.use(express.urlencoded({ extended: true }));
 // --- CSRF Protection ---
 app.use(csrfProtection);
 
+// --- Health Check (BEFORE tenant middleware — must work without tenant context) ---
+app.get('/api/health', (req, res) => {
+    const db = dbConfigured();
+    res.status(db ? 200 : 503).json({
+        status: db ? 'ok' : 'setup',
+        version: pkg.version || '1.0.0',
+        uptime: Math.floor(process.uptime()),
+        database: db ? 'connected' : 'not_configured',
+        saas: config.SAAS_MODE === 'true',
+        message: db ? 'All systems operational' : 'Configura DATABASE_URL para activar la app'
+    });
+});
+
+// --- Prevent browser HTTP caching on all API responses ---
+// Avoids stale 304 responses after mutations (product add/edit/delete, etc.)
+app.use('/api', (_req, res, next) => {
+    res.set('Cache-Control', 'no-store');
+    next();
+});
+
 // --- SaaS Public Routes (before tenant middleware — system-level) ---
 if (config.SAAS_MODE === 'true') {
     const saasPublicRoutes = require('./routes/saas/public.routes');
@@ -81,19 +101,6 @@ if (config.SAAS_MODE === 'true') {
     app.use(createDbContext(pool));
     console.log('🏢 SaaS multi-tenant mode enabled');
 }
-
-// --- Health Check (works with or without DB) ---
-app.get('/api/health', (req, res) => {
-    const db = dbConfigured();
-    res.status(db ? 200 : 503).json({
-        status: db ? 'ok' : 'setup',
-        version: pkg.version || '1.0.0',
-        uptime: Math.floor(process.uptime()),
-        database: db ? 'connected' : 'not_configured',
-        saas: config.SAAS_MODE === 'true',
-        message: db ? 'All systems operational' : 'Configura DATABASE_URL para activar la app'
-    });
-});
 
 // --- API Routes ---
 // Setup wizard disabled in SaaS mode (tenants provisioned via super-admin)
@@ -297,6 +304,16 @@ app.listen(PORT, '0.0.0.0', async () => {
 process.on('SIGINT', () => {
     console.log('Cerrando servidor...');
     process.exit(0);
+});
+
+// Prevent silent crashes from unhandled rejections / uncaught exceptions
+process.on('unhandledRejection', (reason) => {
+    console.error('⚠️  Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+    console.error('💥 Uncaught exception:', err);
+    process.exit(1);
 });
 
 // Export app for testing

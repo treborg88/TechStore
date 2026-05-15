@@ -29,7 +29,7 @@ const SuperAdminRoutes = lazy(() => import('../pages/superadmin/SuperAdmin'));
  */
 function AppRoutes({
   // Productos
-  products, loading, error, fetchProducts, pagination,
+  products, loading, error, fetchProducts, forceRefreshProducts, pagination,
   // Carrito
   cartItems, isCartLoading, addToCart, removeFromCart, setCartQuantity, clearFromCart, clearAllCart, handleOrderCompleted,
   // Auth
@@ -249,6 +249,7 @@ function AppRoutes({
                 <AdminDashboard
                   products={products}
                   onRefresh={fetchProducts}
+                  onForceRefresh={forceRefreshProducts}
                   isLoading={loading}
                   pagination={pagination}
                   currencyCode={productCardSettings.currency}

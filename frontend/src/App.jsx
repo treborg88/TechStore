@@ -53,7 +53,7 @@ function App() {
   // Hook de productos: estado, fetch con caché, stock
   const {
     products, pagination, loading, error,
-    fetchProducts, updateProductStock, syncProductsFromCartData, handleOrderCompleted
+    fetchProducts, forceRefreshProducts, updateProductStock, syncProductsFromCartData, handleOrderCompleted
   } = useProducts();
 
   // Hook de settings visuales: sitio, hero, header, tema, product detail, filtros, cards
@@ -141,6 +141,7 @@ function App() {
           loading={loading}
           error={error}
           fetchProducts={fetchProducts}
+          forceRefreshProducts={forceRefreshProducts}
           pagination={pagination}
           cartItems={cartItems}
           isCartLoading={isCartLoading}

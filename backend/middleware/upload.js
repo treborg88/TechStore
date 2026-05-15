@@ -1,5 +1,6 @@
 // middleware/upload.js - Multer file upload configuration
 const multer = require('multer');
+const { tenantContext } = require('../database');
 
 // Memory storage for file uploads
 const storage = multer.memoryStorage();
@@ -25,11 +26,23 @@ const upload = multer({
     fileFilter: imageFilter
 });
 
+// Wrap Multer middleware to preserve tenant DB async context.
+// Some callback-based middleware can drop AsyncLocalStorage state.
+const preserveTenantContext = (multerMiddleware) => (req, res, next) => {
+    const store = tenantContext.getStore();
+    multerMiddleware(req, res, (err) => {
+        if (!store || !store.client) {
+            return next(err);
+        }
+        tenantContext.run(store, () => next(err));
+    });
+};
+
 // Upload middleware for product images
-const productImagesUpload = upload.array('images', 10);
+const productImagesUpload = preserveTenantContext(upload.array('images', 10));
 
 // Upload middleware for single image
-const singleImageUpload = upload.single('image');
+const singleImageUpload = preserveTenantContext(upload.single('image'));
 
 module.exports = {
     upload,

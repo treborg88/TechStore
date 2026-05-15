@@ -831,11 +831,12 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 					<span className="collapsible-icon">{showAddForm ? '−' : '+'}</span>
 				</button>
 				{showAddForm && (
-					<form className="admin-form" onSubmit={handleCreate}>
+					<form className="admin-form" onSubmit={handleCreate} autoComplete="off">
 						<div className="form-row">
 							<label>Nombre
 								<input
 									type="text"
+									autoComplete="off"
 									value={newProduct.name}
 									onChange={(event) => handleFieldChange('name', event.target.value)}
 									required
@@ -858,6 +859,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 							<label>Nueva categoría (opcional)
 								<input
 									type="text"
+									autoComplete="off"
 									value={customCategory}
 									onChange={(event) => handleCustomCategoryChange(event.target.value)}
 									placeholder="Escribe para crear una nueva categoría"

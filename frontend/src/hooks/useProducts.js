@@ -155,6 +155,17 @@ export function useProducts() {
     }
   }, []);
 
+  // Fuerza recarga completa: limpia caché localStorage y vuelve a buscar desde todos/página 1
+  const forceRefreshProducts = useCallback(async () => {
+    // Remove all products cache entries (all categories/pages/search combinations)
+    const prefix = 'products_cache_v3_';
+    Object.keys(localStorage)
+      .filter((k) => k.startsWith(prefix))
+      .forEach((k) => localStorage.removeItem(k));
+    // Always reset to all-products view so admin CRUD changes are immediately visible
+    await fetchProducts('todos', 1, { force: true });
+  }, [fetchProducts]);
+
   // Fetch inicial de productos
   useEffect(() => {
     fetchProducts('todos');
@@ -188,6 +199,7 @@ export function useProducts() {
     loading,
     error,
     fetchProducts,
+    forceRefreshProducts,
     updateProductStock,
     syncProductsFromCartData,
     handleOrderCompleted

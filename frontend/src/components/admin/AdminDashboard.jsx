@@ -11,7 +11,7 @@ import { playNotificationSound } from '../../utils/notificationSound';
 import SubscriptionBanner from '../saas/SubscriptionBanner';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
-export default function AdminDashboard({ products, onRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️', categoryFilterSettings }) {
+export default function AdminDashboard({ products, onRefresh, onForceRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️', categoryFilterSettings }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
 	
@@ -648,7 +648,7 @@ export default function AdminDashboard({ products, onRefresh, isLoading, paginat
 					isLoading={isLoading} 
 					pagination={pagination} 
 					currencyCode={currencyCode}
-					onForceRefresh={() => onRefresh('todos', 1, { force: true })}
+					onForceRefresh={onForceRefresh || (() => onRefresh('todos', 1, { force: true }))}
 					categoryFilterSettings={categoryFilterSettings}
 				/>)}
 
