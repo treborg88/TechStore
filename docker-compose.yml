@@ -58,15 +58,12 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # Docker-internal default — 'database' is the Docker service hostname
+      # Docker-internal override — must use 'database' service hostname, not localhost
       DATABASE_URL: postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}
-      # SaaS mode (inherits from .env, defaults to false)
-      SAAS_MODE: ${SAAS_MODE:-false}
-      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-eonsclover.com}
-      SUPER_ADMIN_SECRET: ${SUPER_ADMIN_SECRET:-}
-      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
-      TRIAL_DAYS: ${TRIAL_DAYS:-14}
-      CORS_ORIGIN: ${CORS_ORIGIN:-}
+      # CORS wildcard for all subdomains (local dev)
+      CORS_ORIGIN: ${CORS_ORIGIN:-*.techstore.local}
+      # All other SaaS vars (SAAS_MODE, PLATFORM_DOMAIN, SUPER_ADMIN_SECRET, etc.)
+      # come from env_file: ./backend/.env — do not override here
     depends_on:
       database:
         condition: service_healthy

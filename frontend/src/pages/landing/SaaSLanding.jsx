@@ -1,332 +1,696 @@
-// SaaSLanding.jsx - Public marketing landing page (platform root domain)
-// Hero, features, pricing, social proof, login, and pricing page routes
+﻿// SaaSLanding.jsx - Public marketing landing page (platform root domain)
+// Dark theme with glassmorphism, trefoil animation — matches EonClover HTML design
 
-import { useState, useEffect } from 'react';
-import { Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
-import { API_URL, PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
+import { useState, useEffect, useRef } from 'react';
+import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
 
-// Dynamic URL helpers — no hardcoded domains
 const registerUrl = `${PLATFORM_PROTOCOL}//app.${PLATFORM_DOMAIN}/register`;
 
-// ── Shared Styles ─────────────────────────────────────────────────────────────
-const colors = { primary: '#4f46e5', primaryDark: '#4338ca', accent: '#10b981', bg: '#f8fafc', dark: '#1a1a2e', text: '#334155', light: '#f1f5f9' };
-const s = {
-    page: { fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', color: colors.text },
-    container: { maxWidth: '1200px', margin: '0 auto', padding: '0 1.5rem' },
-    btn: { display: 'inline-block', padding: '0.85rem 2rem', borderRadius: '8px', textDecoration: 'none', fontWeight: 600, fontSize: '1rem', border: 'none', cursor: 'pointer', transition: 'all 0.2s' },
-    btnPrimary: { background: colors.primary, color: '#fff' },
-    btnOutline: { background: 'transparent', color: colors.primary, border: `2px solid ${colors.primary}` },
-    section: { padding: '5rem 0' },
-    sectionTitle: { fontSize: '2.2rem', fontWeight: 700, color: colors.dark, textAlign: 'center', marginBottom: '1rem' },
-    sectionSub: { fontSize: '1.1rem', color: '#64748b', textAlign: 'center', maxWidth: '600px', margin: '0 auto 3rem' },
-    card: { background: '#fff', borderRadius: '16px', padding: '2rem', boxShadow: '0 1px 3px rgba(0,0,0,0.08)', border: '1px solid #e2e8f0' },
-    grid3: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' },
-    input: { width: '100%', padding: '0.75rem 1rem', borderRadius: '8px', border: '1px solid #d1d5db', fontSize: '0.95rem', boxSizing: 'border-box' },
-    badge: { display: 'inline-block', padding: '4px 12px', borderRadius: '20px', fontSize: '0.75rem', fontWeight: 600 },
-    nav: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 0' },
+// ── Global styles injector (font + CSS helpers not expressible inline) ─────────
+function GlobalStyles() {
+    useEffect(() => {
+        // Inter font
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap';
+        link.id = 'saas-inter-font';
+        if (!document.getElementById('saas-inter-font')) document.head.appendChild(link);
+
+        // Utility classes (hover effects, gradient text)
+        const style = document.createElement('style');
+        style.id = 'saas-landing-global';
+        style.textContent = `
+            .saas-root * { box-sizing: border-box; }
+            .saas-root a { text-decoration: none; }
+            .gradient-text {
+                background: linear-gradient(to right, #22d3ee, #8b5cf6);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+                background-clip: text;
+            }
+            .hover-lift { transition: transform 0.3s; }
+            .hover-lift:hover { transform: translateY(-8px); }
+        `;
+        if (!document.getElementById('saas-landing-global')) document.head.appendChild(style);
+
+        return () => { document.getElementById('saas-landing-global')?.remove(); };
+    }, []);
+    return null;
+}
+
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const glass = {
+    background: 'rgba(255,255,255,0.05)',
+    backdropFilter: 'blur(14px)',
+    border: '1px solid rgba(255,255,255,0.08)',
 };
 
-// ── Navbar ────────────────────────────────────────────────────────────────────
+// ── EonClover SVG Logo ─────────────────────────────────────────────────────────
+function LogoSvg() {
+    return (
+        <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="19" stroke="#22d3ee" strokeWidth="1.5" fill="none" opacity="0.6" />
+            <path d="M20 20 Q10 18 10 10 Q10 2 18 4 Q22 5 20 12Z" fill="url(#lg1)" opacity="0.9" />
+            <path d="M20 20 Q22 10 30 10 Q38 10 36 18 Q35 22 28 20Z" fill="url(#lg2)" opacity="0.9" />
+            <path d="M20 20 Q10 22 10 30 Q10 38 18 36 Q22 35 20 28Z" fill="url(#lg1)" opacity="0.9" />
+            <path d="M20 20 Q22 30 30 30 Q38 30 36 22 Q35 18 28 20Z" fill="url(#lg2)" opacity="0.9" />
+            <path d="M20 30 Q19 35 17 37" stroke="#22d3ee" strokeWidth="1.5" strokeLinecap="round" fill="none" opacity="0.7" />
+            <defs>
+                <linearGradient id="lg1" x1="10" y1="10" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#22d3ee" />
+                    <stop offset="100%" stopColor="#8b5cf6" />
+                </linearGradient>
+                <linearGradient id="lg2" x1="30" y1="10" x2="20" y2="20" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#22d3ee" />
+                </linearGradient>
+            </defs>
+        </svg>
+    );
+}
+
+// ── Trefoil knot canvas animation ─────────────────────────────────────────────
+function TrefoilCanvas() {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = canvas.parentElement?.offsetHeight || 600;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        function drawTrefoil(cx, cy, scale, rotation, alpha, color) {
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(rotation);
+            ctx.beginPath();
+            for (let i = 0; i <= 240; i++) {
+                const t = (i / 240) * Math.PI * 2;
+                const x = (Math.sin(t) + 2 * Math.sin(2 * t)) * scale;
+                const y = (Math.cos(t) - 2 * Math.cos(2 * t)) * scale;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            }
+            ctx.closePath();
+            ctx.strokeStyle = color;
+            ctx.globalAlpha = alpha;
+            ctx.lineWidth = 1.8;
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        const COLORS = ['#22d3ee', '#8b5cf6', '#a78bfa', '#67e8f9'];
+        const particles = Array.from({ length: 22 }, () => ({
+            x: Math.random() * (canvas.width || 1400),
+            y: Math.random() * (canvas.height || 600),
+            scale: Math.random() * 80 + 30,
+            rotation: Math.random() * Math.PI * 2,
+            rotSpeed: (Math.random() - 0.5) * 0.005,
+            dx: (Math.random() - 0.5) * 0.28,
+            dy: (Math.random() - 0.5) * 0.28,
+            alpha: Math.random() * 0.22 + 0.12,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+        }));
+
+        let animId;
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            for (const p of particles) {
+                drawTrefoil(p.x, p.y, p.scale, p.rotation, p.alpha, p.color);
+                p.x += p.dx; p.y += p.dy; p.rotation += p.rotSpeed;
+                const pad = p.scale * 3;
+                if (p.x < -pad) p.x = canvas.width + pad;
+                if (p.x > canvas.width + pad) p.x = -pad;
+                if (p.y < -pad) p.y = canvas.height + pad;
+                if (p.y > canvas.height + pad) p.y = -pad;
+            }
+            animId = requestAnimationFrame(animate);
+        }
+        animate();
+
+        return () => {
+            cancelAnimationFrame(animId);
+            window.removeEventListener('resize', resize);
+        };
+    }, []);
+
+    return (
+        <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', zIndex: 0, pointerEvents: 'none' }} />
+    );
+}
+
+// ── Navbar ─────────────────────────────────────────────────────────────────────
 function Navbar() {
     return (
-        <header style={{ background: '#fff', borderBottom: '1px solid #e2e8f0', position: 'sticky', top: 0, zIndex: 100 }}>
-            <div style={{ ...s.container, ...s.nav }}>
-                <Link to="/" style={{ fontSize: '1.4rem', fontWeight: 800, color: colors.primary, textDecoration: 'none' }}>
-                    🏪 EonsClover
-                </Link>
-                <nav style={{ display: 'flex', gap: '1.5rem', alignItems: 'center' }}>
-                    <Link to="/pricing" style={{ color: colors.text, textDecoration: 'none', fontWeight: 500 }}>Planes</Link>
-                    <Link to="/login" style={{ color: colors.text, textDecoration: 'none', fontWeight: 500 }}>Iniciar sesión</Link>
-                    <a href={registerUrl} style={{ ...s.btn, ...s.btnPrimary, padding: '0.6rem 1.5rem', fontSize: '0.9rem' }}>
-                        Comenzar gratis
-                    </a>
+        <header style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 50, borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(5,8,22,0.8)', backdropFilter: 'blur(20px)' }}>
+            <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                {/* Logo */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <LogoSvg />
+                    <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>EonClover</span>
+                </div>
+                {/* Nav links */}
+                <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem', fontSize: '0.95rem' }}>
+                    <a href="#hero" style={{ color: 'rgba(255,255,255,0.7)' }}>Dashboard</a>
+                    <a href="#features" style={{ color: 'rgba(255,255,255,0.7)' }}>Características</a>
+                    <a href="#pricing" style={{ color: 'rgba(255,255,255,0.7)' }}>Precios</a>
+                    <a href="#faq" style={{ color: 'rgba(255,255,255,0.7)' }}>FAQ</a>
                 </nav>
+                {/* CTA buttons */}
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <Link to="/login" style={{ padding: '0.5rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', background: 'transparent', fontSize: '0.9rem' }}>
+                        Iniciar Sesión
+                    </Link>
+                    <a href={registerUrl} style={{ padding: '0.5rem 1.25rem', borderRadius: '12px', background: '#22d3ee', color: '#000', fontWeight: 600, fontSize: '0.9rem' }}>
+                        Prueba Gratuita
+                    </a>
+                </div>
             </div>
         </header>
     );
 }
 
-// ── Footer ────────────────────────────────────────────────────────────────────
+// ── Footer ─────────────────────────────────────────────────────────────────────
 function Footer() {
     return (
-        <footer style={{ background: colors.dark, color: '#94a3b8', padding: '3rem 0', marginTop: '4rem' }}>
-            <div style={{ ...s.container, textAlign: 'center' }}>
-                <p style={{ fontWeight: 600, color: '#fff', fontSize: '1.1rem', marginBottom: '0.5rem' }}>EonsClover</p>
-                <p style={{ fontSize: '0.85rem' }}>Tu tienda online profesional en minutos.</p>
-                <div style={{ display: 'flex', gap: '1.5rem', justifyContent: 'center', marginTop: '1.5rem', fontSize: '0.85rem' }}>
-                    <Link to="/pricing" style={{ color: '#94a3b8', textDecoration: 'none' }}>Planes</Link>
-                    <Link to="/login" style={{ color: '#94a3b8', textDecoration: 'none' }}>Iniciar sesión</Link>
-                    <a href={registerUrl} style={{ color: '#94a3b8', textDecoration: 'none' }}>Registro</a>
+        <footer style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '2.5rem 1.5rem', color: 'rgba(255,255,255,0.5)' }}>
+            <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2rem' }}>
+                <div>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', margin: '0 0 0.75rem' }}>EonClover</h3>
+                    <p style={{ maxWidth: '28rem', margin: 0, lineHeight: 1.6 }}>Plataforma SaaS moderna para ecommerce y gestión de negocios tecnológicos.</p>
                 </div>
-                <p style={{ fontSize: '0.75rem', marginTop: '2rem', color: '#64748b' }}>© {new Date().getFullYear()} EonsClover. Todos los derechos reservados.</p>
+                <div style={{ display: 'flex', gap: '2.5rem' }}>
+                    <div>
+                        <h4 style={{ color: '#fff', fontWeight: 600, marginBottom: '1rem' }}>Producto</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                            <span>Características</span>
+                            <span>Precios</span>
+                            <span>Integraciones</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h4 style={{ color: '#fff', fontWeight: 600, marginBottom: '1rem' }}>Empresa</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
+                            <span>Acerca de</span>
+                            <span>Contacto</span>
+                            <span>Soporte</span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </footer>
     );
 }
 
-// ── Plan Card (Reusable for pricing sections) ─────────────────────────────────
-const FEATURE_LABELS = {
-    products: 'Catálogo de productos',
-    orders: 'Gestión de pedidos',
-    chatbot: 'Chatbot IA',
-    email_invoices: 'Facturas por email',
-    tracking: 'Seguimiento de envíos',
-    variants: 'Variantes de producto',
-    custom_domain: 'Dominio personalizado',
-    all: 'Todas las funcionalidades'
-};
+// ── Image Carousel ─────────────────────────────────────────────────────────────
+const CAROUSEL_SLIDES = [
+    { img: '/imagenes/Site home page.png', alt: 'Página principal de la tienda', icon: '🏪', title: 'Página Principal', desc: 'Catálogo, categorías y búsqueda — lista para vender.', border: 'rgba(34,211,238,0.2)' },
+    { img: '/imagenes/Admin dashboard.png', alt: 'Panel de administración', icon: '📊', title: 'Panel de Administración', desc: 'KPIs en tiempo real: ingresos, órdenes e inventario.', border: 'rgba(139,92,246,0.2)' },
+    { img: '/imagenes/product page.png', alt: 'Página de producto', icon: '📦', title: 'Página de Producto', desc: 'Galería, variantes y precio con botón de compra destacado.', border: 'rgba(34,211,238,0.2)' },
+    { img: '/imagenes/proceso de checkout paso 2 informacion de envio.png', alt: 'Proceso de checkout', icon: '🛒', title: 'Checkout — Envío', desc: 'Dirección y opciones de entrega en un paso claro.', border: 'rgba(74,222,128,0.2)' },
+    { img: '/imagenes/metodos de pagos.png', alt: 'Métodos de pago', icon: '💳', title: 'Métodos de Pago', desc: 'Stripe, PayPal, transferencia y contra entrega.', border: 'rgba(250,204,21,0.2)' },
+    { img: '/imagenes/confirmacion de pedidos.png', alt: 'Confirmación de pedido', icon: '✅', title: 'Confirmación de Pedido', desc: 'Resumen del pedido y factura PDF enviada al cliente.', border: 'rgba(74,222,128,0.2)' },
+    { img: '/imagenes/order tracking.png', alt: 'Seguimiento de pedido', icon: '🚚', title: 'Seguimiento de Envío', desc: 'Rastreo en tiempo real con notificaciones automáticas.', border: 'rgba(34,211,238,0.2)' },
+    { img: '/imagenes/revision de pedido.png', alt: 'Revisión de pedido', icon: '🔍', title: 'Revisión del Pedido', desc: 'Productos, descuentos y total antes de confirmar.', border: 'rgba(139,92,246,0.2)' },
+    { img: '/imagenes/order page.png', alt: 'Gestión de órdenes', icon: '📋', title: 'Gestión de Órdenes', desc: 'Filtra, actualiza y gestiona todos tus pedidos.', border: 'rgba(250,204,21,0.2)' },
+    { img: '/imagenes/site setting.png', alt: 'Configuración del sitio', icon: '⚙️', title: 'Configuración de la Tienda', desc: 'Logo, colores, dominio y opciones desde un panel intuitivo.', border: 'rgba(236,72,153,0.2)' },
+];
 
-function PlanCard({ plan, highlighted }) {
-    const borderStyle = highlighted ? `2px solid ${colors.primary}` : '1px solid #e2e8f0';
+function Carousel() {
+    const [idx, setIdx] = useState(0);
+    const [visible, setVisible] = useState(1);
+    const timerRef = useRef(null);
+    const n = CAROUSEL_SLIDES.length;
+
+    useEffect(() => {
+        const update = () => setVisible(window.innerWidth >= 768 ? 2 : 1);
+        update();
+        window.addEventListener('resize', update);
+        return () => window.removeEventListener('resize', update);
+    }, []);
+
+    const maxIdx = n - visible;
+
+    const startTimer = () => {
+        clearInterval(timerRef.current);
+        timerRef.current = setInterval(() => setIdx(prev => prev >= maxIdx ? 0 : prev + 1), 5000);
+    };
+
+    useEffect(() => {
+        startTimer();
+        return () => clearInterval(timerRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [maxIdx]);
+
+    const move = (dir) => {
+        setIdx(prev => {
+            const next = prev + dir;
+            if (next > maxIdx) return 0;
+            if (next < 0) return maxIdx;
+            return next;
+        });
+        startTimer();
+    };
+
+    const goTo = (i) => {
+        setIdx(Math.min(i, maxIdx));
+        startTimer();
+    };
+
+    // translateX % is relative to track; track = n * (100/visible)% of container
+    // moving 1 slide = (100/visible)% of container = 100/n % of track
+    const translatePct = idx * (100 / n);
+
     return (
-        <div style={{ ...s.card, border: borderStyle, position: 'relative', display: 'flex', flexDirection: 'column' }}>
-            {/* Popular badge */}
-            {highlighted && (
-                <div style={{ ...s.badge, background: colors.primary, color: '#fff', position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)' }}>
-                    Más popular
+        <div style={{ position: 'relative', marginTop: '5rem' }}>
+            <div style={{ overflow: 'hidden' }}>
+                <div style={{ display: 'flex', transform: `translateX(-${translatePct}%)`, transition: 'transform 0.7s ease-in-out' }}>
+                    {CAROUSEL_SLIDES.map((slide, i) => (
+                        <div key={i} style={{ minWidth: `${100 / visible}%`, padding: visible === 2 ? '0 26px' : '0', flex: 'none' }}>
+                            <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden', border: `1px solid ${slide.border}` }}>
+                                <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: '208px', objectFit: 'cover', objectPosition: 'top' }} />
+                                <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                    <span style={{ fontSize: '1.5rem' }}>{slide.icon}</span>
+                                    <div>
+                                        <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: '#fff' }}>{slide.title}</h3>
+                                        <p style={{ margin: '0.25rem 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem' }}>{slide.desc}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </div>
-            )}
-            <h3 style={{ fontSize: '1.3rem', fontWeight: 700, color: colors.dark, marginBottom: '0.5rem' }}>{plan.name}</h3>
-            <div style={{ marginBottom: '1.5rem' }}>
-                <span style={{ fontSize: '2.5rem', fontWeight: 800, color: colors.dark }}>${plan.price_monthly}</span>
-                <span style={{ color: '#94a3b8', fontSize: '0.9rem' }}>/mes</span>
             </div>
-            {/* Limits */}
-            <div style={{ marginBottom: '1.5rem', fontSize: '0.9rem', color: '#64748b' }}>
-                <div>📦 {plan.max_products === -1 ? 'Productos ilimitados' : `${plan.max_products} productos`}</div>
-                <div>🛒 {plan.max_orders_month === -1 ? 'Órdenes ilimitadas' : `${plan.max_orders_month} órdenes/mes`}</div>
-                <div>💾 {plan.max_storage_mb === -1 ? 'Almacenamiento ilimitado' : `${plan.max_storage_mb} MB almacenamiento`}</div>
+
+            {/* Prev/Next */}
+            <button onClick={() => move(-1)} style={{ position: 'absolute', left: '1rem', top: '10rem', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)' }}>‹</button>
+            <button onClick={() => move(1)} style={{ position: 'absolute', right: '1rem', top: '10rem', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)' }}>›</button>
+
+            {/* Dots */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+                {CAROUSEL_SLIDES.map((_, i) => {
+                    const active = visible === 2 ? (i === idx || i === idx + 1) : i === idx;
+                    return (
+                        <button key={i} onClick={() => goTo(i)} style={{ width: active ? '24px' : '10px', height: '10px', borderRadius: '9999px', background: active ? '#22d3ee' : 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
+                    );
+                })}
             </div>
-            {/* Features */}
-            <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 1.5rem', flex: 1 }}>
-                {(plan.features || []).map(f => (
-                    <li key={f} style={{ padding: '0.3rem 0', fontSize: '0.9rem' }}>
-                        ✅ {FEATURE_LABELS[f] || f}
-                    </li>
-                ))}
-            </ul>
-            <a href={registerUrl} style={{
-                ...s.btn,
-                ...(highlighted ? s.btnPrimary : s.btnOutline),
-                textAlign: 'center', width: '100%', boxSizing: 'border-box'
-            }}>
-                {plan.price_monthly === 0 ? 'Empezar gratis' : 'Elegir plan'}
-            </a>
         </div>
     );
 }
 
-// ── usePlans hook ─────────────────────────────────────────────────────────────
-function usePlans() {
-    const [plans, setPlans] = useState([]);
-    const [loading, setLoading] = useState(true);
-    useEffect(() => {
-        fetch(`${API_URL}/saas/plans`)
-            .then(r => r.ok ? r.json() : [])
-            .then(data => setPlans(Array.isArray(data) ? data : []))
-            .catch(() => {})
-            .finally(() => setLoading(false));
-    }, []);
-    return { plans, loading };
-}
+// ── Static pricing plans ───────────────────────────────────────────────────────
+const PLANS = [
+    { name: 'Trial', subtitle: 'Prueba gratuita', price: '$0', items: ['📦 20 Productos', '🛒 50 Órdenes/mes', '💾 200 MB Almacenamiento', '✅ Funcionalidades Básicas'], btnText: 'Comenzar Prueba', featured: false, dark: false },
+    { name: 'Básico', subtitle: 'Para comenzar', price: '$19', items: ['📦 100 Productos', '🛒 500 Órdenes/mes', '💾 1000 MB Almacenamiento', '✅ Funcionalidades Estándar'], btnText: 'Elegir Plan', featured: false, dark: true },
+    { name: 'Profesional', subtitle: 'Para negocios en crecimiento', price: '$49', items: ['📦 500 Productos', '🛒 2000 Órdenes/mes', '💾 5000 MB Almacenamiento', '✅ Funcionalidades Avanzadas'], btnText: 'Elegir Plan', featured: true, dark: true },
+    { name: 'Premium', subtitle: 'Todo incluido', price: '$99', items: ['📦 Productos Ilimitados', '🛒 Órdenes Ilimitadas', '💾 20000 MB Almacenamiento', '✅ Todas las Funcionalidades'], btnText: 'Elegir Plan', featured: false, dark: true },
+];
 
-// ── Home Page ─────────────────────────────────────────────────────────────────
+const COMPARISON_ROWS = [
+    ['Productos', '20', '100', '500', '∞'],
+    ['Órdenes/mes', '50', '500', '2000', '∞'],
+    ['Almacenamiento', '200 MB', '1000 MB', '5000 MB', '20000 MB'],
+    ['Catálogo de productos', '✅', '✅', '✅', '✅'],
+    ['Gestión de pedidos', '✅', '✅', '✅', '✅'],
+    ['Chatbot IA', '✅', '✅', '✅', '✅'],
+    ['Facturas por email', '—', '✅', '✅', '✅'],
+    ['Seguimiento de envíos', '—', '—', '✅', '✅'],
+    ['Variantes de producto', '—', '—', '✅', '✅'],
+    ['Dominio personalizado', '—', '—', '✅', '✅'],
+    ['Todas las funcionalidades', '—', '—', '—', '✅'],
+];
+
+const FAQ_ITEMS = [
+    { q: '¿Cómo funciona el respaldo de base de datos?', a: 'Desde el panel de administración puedes generar un respaldo completo de tu base de datos con un solo clic y descargarlo al instante. También puedes programar copias automáticas diarias o semanales, y restaurar cualquier respaldo anterior en caso de necesitarlo.' },
+    { q: '¿Mis clientes pueden rastrear su pedido sin tener una cuenta?', a: 'Sí. El módulo de trackeo permite consultar el estado de una orden ingresando únicamente el número de orden o los datos del comprador (nombre, email o teléfono). No es necesario estar registrado, lo que reduce la fricción y mejora la experiencia de compra.' },
+    { q: '¿Cómo funciona el mapa de rutas de envío?', a: 'Cada envío activo puede visualizarse en un mapa interactivo con la ruta desde tu bodega hasta la dirección del cliente. La plataforma integra Google Maps y Leaflet, permitiéndote ver la ubicación estimada del paquete y compartir el enlace de seguimiento con tu cliente en tiempo real.' },
+    { q: '¿Qué métodos de pago puedo aceptar?', a: 'TechStore soporta Stripe, PayPal, transferencia bancaria y pago contra entrega. Puedes activar o desactivar cada método desde la configuración de tu tienda sin necesidad de código, y todos los pagos en línea están cifrados y cumplen con el estándar PCI DSS.' },
+    { q: '¿El chatbot de IA requiere configuración técnica?', a: 'No. Solo debes elegir uno de los 5 proveedores de IA compatibles (como OpenAI, Gemini u otros), ingresar tu clave de API desde el panel y activarlo. El chatbot comienza a responder preguntas de tus clientes automáticamente las 24 horas del día, sin necesidad de programación.' },
+    { q: '¿Las facturas se generan solas con cada venta?', a: 'Sí. Al confirmarse un pago, el sistema genera automáticamente una factura en PDF y la envía por email al cliente junto con el resumen del pedido. Tú también puedes descargar o reenviar cualquier factura desde el historial de órdenes en el panel de administración.' },
+    { q: '¿Cómo manejo el stock cuando un producto tiene variantes?', a: 'Cada variante (talla, color, modelo, etc.) lleva su propio contador de inventario. El sistema descuenta el stock automáticamente con cada venta y te notifica cuando una variante alcanza el umbral mínimo que tú defines, evitando sobrevender productos agotados.' },
+];
+
+// ── Home page (all sections) ───────────────────────────────────────────────────
 function SaaSHome() {
-    const { plans, loading: plansLoading } = usePlans();
-    const [tenantCount, setTenantCount] = useState(null);
-
-    // Fetch active tenant count for social proof
-    useEffect(() => {
-        fetch(`${API_URL}/superadmin/metrics`, { headers: { 'x-super-admin-secret': '__public__' } })
-            .catch(() => {}); // Silently fail — count is optional
-        // Use a simpler approach: just show a generic message if we can't get the count
-        setTenantCount(null);
-    }, []);
-
     return (
-        <div style={s.page}>
-            {/* Hero */}
-            <section style={{ background: `linear-gradient(135deg, ${colors.primary} 0%, ${colors.primaryDark} 100%)`, color: '#fff', padding: '6rem 0 5rem', textAlign: 'center' }}>
-                <div style={s.container}>
-                    <h1 style={{ fontSize: 'clamp(2rem, 5vw, 3.2rem)', fontWeight: 800, marginBottom: '1.5rem', lineHeight: 1.2 }}>
-                        Tu tienda online profesional<br />en minutos
-                    </h1>
-                    <p style={{ fontSize: '1.2rem', opacity: 0.9, maxWidth: '600px', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
-                        Plataforma e-commerce completa con ERP integrado. Sin código, sin complicaciones. Empieza a vender hoy.
-                    </p>
-                    <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                        <a href={registerUrl} style={{ ...s.btn, background: '#fff', color: colors.primary, fontWeight: 700 }}>
-                            Comenzar gratis →
-                        </a>
-                        <Link to="/pricing" style={{ ...s.btn, background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}>
-                            Ver planes
-                        </Link>
-                    </div>
-                    {/* Social proof */}
-                    {tenantCount !== null && (
-                        <p style={{ marginTop: '2rem', fontSize: '0.9rem', opacity: 0.8 }}>
-                            🚀 {tenantCount}+ tiendas activas en la plataforma
+        <div>
+            {/* ── Hero ──────────────────────────────────────────────────────── */}
+            <section id="hero" style={{ position: 'relative', overflow: 'hidden', padding: '9rem 1.5rem 6rem' }}>
+                <TrefoilCanvas />
+                {/* Glow blob */}
+                <div style={{ position: 'absolute', width: '500px', height: '500px', background: 'rgba(34,211,238,0.18)', filter: 'blur(120px)', borderRadius: '999px', zIndex: 0, top: '2.5rem', left: '5rem' }} />
+
+                <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
+                    <div>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px', ...glass, fontSize: '0.875rem', color: '#22d3ee', marginBottom: '1.5rem' }}>
+                            Plataforma Todo-en-Uno de Ecommerce para Tecnología
+                        </div>
+                        <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, lineHeight: 1.2, margin: '0 0 2rem', color: '#fff' }}>
+                            Crea Tu{' '}
+                            <span className="gradient-text">Tienda Online</span>
+                            {' '}y Administra Tu Negocio Desde Cualquier Dispositivo
+                        </h2>
+                        <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, margin: '0 0 2.5rem' }}>
+                            Crea tu tienda online, automatiza tu tienda, recibe pedidos en línea y controla tu negocio desde cualquier lugar.
                         </p>
-                    )}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
+                            <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700, fontSize: '1.125rem' }}>
+                                Iniciar Prueba Gratuita
+                            </a>
+                            <button style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '1rem' }}>
+                                Ver Demo
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Hero image */}
+                    <div style={{ position: 'relative' }}>
+                        <div style={{ position: 'absolute', top: '-2.5rem', right: '-2.5rem', width: '18rem', height: '18rem', background: 'rgba(168,85,247,0.2)', filter: 'blur(120px)', borderRadius: '9999px' }} />
+                        <div style={{ position: 'absolute', bottom: '-2.5rem', left: '-2.5rem', width: '15rem', height: '15rem', background: 'rgba(34,211,238,0.15)', filter: 'blur(100px)', borderRadius: '9999px' }} />
+                        <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+                            <img src="/imagenes/landing image.png" alt="Vista de la tienda online TechStore" style={{ width: '100%', objectFit: 'cover', objectPosition: 'top' }} />
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            {/* Features — 5 key capabilities */}
-            <section style={{ ...s.section, background: '#fff' }}>
-                <div style={s.container}>
-                    <h2 style={s.sectionTitle}>Todo lo que necesitas para vender online</h2>
-                    <p style={s.sectionSub}>Funcionalidades profesionales incluidas desde el primer día.</p>
+            {/* ── Features ──────────────────────────────────────────────────── */}
+            <section id="features" style={{ padding: '6rem 1.5rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', maxWidth: '48rem', margin: '0 auto 3rem' }}>
+                        <h2 style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1.5rem', color: '#fff' }}>Todo lo que necesitas para vender online</h2>
+                        <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
+                            Potentes herramientas de ecommerce diseñadas para simplificar tus operaciones y aumentar la productividad.
+                        </p>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+                        {/* Catálogo */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🛍️</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Catálogo Completo</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Productos con variantes, imágenes múltiples, categorías y búsqueda avanzada para tus clientes.</p>
+                        </div>
+                        {/* Checkout */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(74,222,128,0.2)' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🛒</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Checkout Completo y Moderno</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Flujo de compra optimizado: carrito, dirección de envío, métodos de pago y confirmación — todo en pasos claros que aumentan la conversión.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', flexWrap: 'wrap' }}>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(74,222,128,0.2)', color: '#86efac' }}>Carrito</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(34,211,238,0.2)', color: '#67e8f9' }}>Dirección</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>Pago</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(250,204,21,0.2)', color: '#fde047' }}>Confirmado</span>
+                            </div>
+                        </div>
+                        {/* Pagos */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>💳</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Pagos Integrados</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Stripe, PayPal, transferencia bancaria y contra entrega. Acepta pagos de forma segura desde el primer día.</p>
+                        </div>
+                        {/* Inventario */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>📦</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Gestión de Inventario</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Rastrea stock automáticamente con alertas de inventario bajo y herramientas completas de gestión de productos.</p>
+                        </div>
+                        {/* Chatbot */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🤖</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Chatbot IA</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Asistente inteligente para tus clientes disponible 24/7, con soporte para 5 proveedores de inteligencia artificial.</p>
+                        </div>
+                        {/* Facturas */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>📧</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Facturas y Seguimiento</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Facturas PDF automáticas, emails de confirmación y tracking de envíos en tiempo real para tus clientes.</p>
+                        </div>
+                        {/* DB backup */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(96,165,250,0.2)' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🗄️</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Respaldo de Base de Datos</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Realiza copias de seguridad de tu base de datos con un solo clic. Descarga, restaura o programa respaldos automáticos para proteger tu negocio en todo momento.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(96,165,250,0.2)', color: '#93c5fd' }}>Un clic</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc' }}>Automático</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(34,211,238,0.2)', color: '#67e8f9' }}>Restauración</span>
+                            </div>
+                        </div>
+                        {/* Map */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(52,211,153,0.2)' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🗺️</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Rutas de Envío con Mapa</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Visualiza la ubicación de los envíos en tiempo real con rutas interactivas usando Google Maps y Leaflet. Optimiza las entregas y mantén a tus clientes informados.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem' }}>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(52,211,153,0.2)', color: '#6ee7b7' }}>📍 Google Maps</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(74,222,128,0.2)', color: '#86efac' }}>🌿 Leaflet</span>
+                            </div>
+                        </div>
+                        {/* Order tracking */}
+                        <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(251,146,60,0.2)' }}>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🔍</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Trackeo de Órdenes</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Consulta el estado de cualquier pedido por número de orden o datos del usuario. Seguimiento claro y transparente para ti y tus clientes en cada etapa del proceso.</p>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(251,146,60,0.2)', color: '#fdba74' }}># Nº de Orden</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(250,204,21,0.2)', color: '#fde047' }}>👤 Datos Usuario</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Workflow ───────────────────────────────────────────────────── */}
+            <section style={{ padding: '6rem 1.5rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                    <h2 style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '4rem', color: '#fff' }}>Lanza Tu Negocio En Minutos</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem' }}>
                         {[
-                            { icon: '🛍️', title: 'Catálogo completo', desc: 'Productos con variantes, imágenes múltiples, categorías y búsqueda.' },
-                            { icon: '📊', title: 'Panel de administración', desc: 'Dashboard con KPIs, ventas, inventario y gestión de usuarios.' },
-                            { icon: '💳', title: 'Pagos integrados', desc: 'Stripe, PayPal, transferencia bancaria y contra entrega.' },
-                            { icon: '🤖', title: 'Chatbot IA', desc: 'Asistente inteligente para tus clientes con 5 proveedores IA.' },
-                            { icon: '📧', title: 'Facturas y seguimiento', desc: 'Facturas PDF, emails automáticos y tracking de envíos.' },
-                        ].map(f => (
-                            <div key={f.title} style={{ textAlign: 'center', padding: '1.5rem' }}>
-                                <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>{f.icon}</div>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: colors.dark, marginBottom: '0.5rem' }}>{f.title}</h3>
-                                <p style={{ fontSize: '0.9rem', color: '#64748b', lineHeight: 1.5 }}>{f.desc}</p>
+                            { n: '1', title: 'Crear Tienda', desc: 'Configura tu perfil de negocio, productos y categorías.' },
+                            { n: '2', title: 'Subir Productos', desc: 'Agrega inventario, imágenes, descripciones y precios.' },
+                            { n: '3', title: 'Recibir Pedidos', desc: 'Gestiona compras, pagos y solicitudes de clientes.' },
+                            { n: '4', title: 'Analizar Crecimiento', desc: 'Monitorea reportes de ventas y optimiza el rendimiento de tu negocio.' },
+                        ].map(item => (
+                            <div key={item.n} className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', textAlign: 'center' }}>
+                                <div style={{ width: '4rem', height: '4rem', borderRadius: '9999px', background: '#22d3ee', color: '#000', fontWeight: 700, fontSize: '1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                                    {item.n}
+                                </div>
+                                <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>{item.title}</h3>
+                                <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, margin: 0 }}>{item.desc}</p>
                             </div>
                         ))}
                     </div>
                 </div>
             </section>
 
-            {/* Pricing preview */}
-            <section style={{ ...s.section, background: colors.light }} id="pricing">
-                <div style={s.container}>
-                    <h2 style={s.sectionTitle}>Planes simples y transparentes</h2>
-                    <p style={s.sectionSub}>Empieza gratis. Escala cuando crezcas.</p>
-                    {plansLoading ? (
-                        <p style={{ textAlign: 'center' }}>Cargando planes…</p>
-                    ) : (
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '1100px', margin: '0 auto' }}>
-                            {plans.map(p => (
-                                <PlanCard key={p.id} plan={p} highlighted={p.id === 'pro'} />
+            {/* ── Demo Images ───────────────────────────────────────────────── */}
+            <section style={{ padding: '6rem 1.5rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                        <h2 style={{ fontSize: '3rem', fontWeight: 700, marginBottom: '1.5rem', color: '#fff' }}>Así se vería tu tienda online</h2>
+                        <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.65)' }}>Una interfaz moderna y profesional que impresiona a tus clientes</p>
+                        <div style={{ marginTop: '2.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem' }}>
+                            {[
+                                { icon: '🎨', text: 'Colores personalizables' },
+                                { icon: '🖼️', text: 'Tu propio logo' },
+                                { icon: '🔤', text: 'Tipografías a tu estilo' },
+                                { icon: '🌐', text: 'Dominio propio' },
+                                { icon: '✏️', text: 'Textos y banners editables' },
+                            ].map(b => (
+                                <div key={b.text} style={{ ...glass, padding: '0.75rem 1.25rem', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.8)' }}>
+                                    <span style={{ fontSize: '1.25rem' }}>{b.icon}</span> {b.text}
+                                </div>
                             ))}
                         </div>
-                    )}
-                    <div style={{ textAlign: 'center', marginTop: '2rem' }}>
-                        <Link to="/pricing" style={{ color: colors.primary, fontWeight: 600, textDecoration: 'none' }}>
-                            Ver comparación detallada →
-                        </Link>
+                    </div>
+
+                    {/* Store screenshot */}
+                    <div style={{ marginBottom: '4rem' }}>
+                        <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)' }}>
+                                <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#f87171' }} />
+                                <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#facc15' }} />
+                                <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#4ade80' }} />
+                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tu Tienda Online — eonclover.com</span>
+                            </div>
+                            <img src="/imagenes/Site home page.png" alt="Vista de la tienda online con versión desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
+                            <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                <div>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>🛍️ Tienda Profesional</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Homepage moderna con catálogo de productos, categorías, búsqueda y carrito de compras.</p>
+                                </div>
+                                <div>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>📱 100% Responsive</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Diseño adaptativo perfecto para desktop, tablet y móvil. Tus clientes compran desde cualquier dispositivo.</p>
+                                </div>
+                                <div>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>⚡ Lista al Instante</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Configura tu tienda en minutos con tu logo, colores, productos y comienza a vender de inmediato.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Admin screenshot */}
+                    <div>
+                        <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.1)' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '1rem 1.5rem', borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)' }}>
+                                <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#f87171' }} />
+                                <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#facc15' }} />
+                                <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#4ade80' }} />
+                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Panel de Administración — admin.eonclover.com</span>
+                            </div>
+                            <img src="/imagenes/Admin dashboard.png" alt="Panel de administración con vista desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
+                            <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                                <div>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>📊 Dashboard Completo</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Visualiza ingresos totales, órdenes pendientes, productos en stock y usuarios registrados en tiempo real.</p>
+                                </div>
+                                <div>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>📈 Ventas por Período</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Gráficos de ventas por día, semana, mes y año. Identifica tendencias y optimiza tu estrategia comercial.</p>
+                                </div>
+                                <div>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>🏆 Productos Más Vendidos</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Ranking en tiempo real de tus mejores productos para enfocar tus esfuerzos donde más genera.</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>
 
-            {/* How It Works */}
-            <section style={{ ...s.section, background: '#fff' }}>
-                <div style={s.container}>
-                    <h2 style={s.sectionTitle}>Listo en 3 pasos</h2>
-                    <div style={{ ...s.grid3, maxWidth: '900px', margin: '2rem auto 0' }}>
-                        {[
-                            { step: '1', title: 'Regístrate', desc: 'Elige el nombre de tu tienda y crea tu cuenta en segundos.' },
-                            { step: '2', title: 'Configura', desc: 'Agrega tus productos, personaliza tu marca y configura pagos.' },
-                            { step: '3', title: 'Vende', desc: 'Comparte tu link y empieza a recibir pedidos inmediatamente.' },
-                        ].map(item => (
-                            <div key={item.step} style={{ ...s.card, textAlign: 'center' }}>
-                                <div style={{ width: '48px', height: '48px', borderRadius: '50%', background: colors.primary, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', fontWeight: 700, margin: '0 auto 1rem' }}>
-                                    {item.step}
+            {/* ── Carousel ──────────────────────────────────────────────────── */}
+            <section style={{ padding: '4rem 1.5rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                    <Carousel />
+                </div>
+            </section>
+
+            {/* ── Pricing ───────────────────────────────────────────────────── */}
+            <section id="pricing" style={{ padding: '6rem 1.5rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
+                        <p style={{ color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600 }}>Precios</p>
+                        <h2 style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Precios Asequibles Siempre</h2>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem', alignItems: 'center' }}>
+                        {PLANS.map((plan, i) => (
+                            <div key={i} style={plan.featured ? {
+                                borderRadius: '32px', padding: '2rem',
+                                background: 'linear-gradient(to bottom, #22d3ee, #8b5cf6)',
+                                color: '#000', transform: 'scale(1.05)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+                                display: 'flex', flexDirection: 'column',
+                            } : {
+                                ...glass, borderRadius: '32px', padding: '2rem', display: 'flex', flexDirection: 'column',
+                            }}>
+                                <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem', color: plan.featured ? '#000' : '#fff' }}>{plan.name}</h3>
+                                <p style={{ fontSize: '0.875rem', margin: '0 0 1.5rem', color: plan.featured ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.6)' }}>{plan.subtitle}</p>
+                                <div style={{ fontSize: '3rem', fontWeight: 900, margin: '0 0 2rem', color: plan.featured ? '#000' : '#fff' }}>
+                                    {plan.price}<span style={{ fontSize: '1.125rem', fontWeight: 400, color: plan.featured ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)' }}>/mes</span>
                                 </div>
-                                <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: colors.dark, marginBottom: '0.5rem' }}>{item.title}</h3>
-                                <p style={{ fontSize: '0.9rem', color: '#64748b' }}>{item.desc}</p>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', flex: 1 }}>
+                                    {plan.items.map((item, j) => (
+                                        <li key={j} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: plan.featured ? '#000' : 'rgba(255,255,255,0.7)' }}>{item}</li>
+                                    ))}
+                                </ul>
+                                <button onClick={() => { window.location.href = registerUrl; }} style={{
+                                    width: '100%', marginTop: '2rem', padding: '0.75rem', borderRadius: '16px',
+                                    background: plan.dark ? '#000' : 'rgba(255,255,255,0.1)',
+                                    color: '#fff',
+                                    border: plan.dark ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                                    fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem',
+                                }}>
+                                    {plan.btnText}
+                                </button>
                             </div>
                         ))}
                     </div>
-                </div>
-            </section>
 
-            {/* CTA */}
-            <section style={{ background: colors.dark, color: '#fff', padding: '5rem 0', textAlign: 'center' }}>
-                <div style={s.container}>
-                    <h2 style={{ fontSize: '2rem', fontWeight: 700, marginBottom: '1rem' }}>¿Listo para empezar?</h2>
-                    <p style={{ fontSize: '1.1rem', opacity: 0.8, marginBottom: '2rem' }}>
-                        Prueba gratis por 14 días. Sin tarjeta de crédito.
-                    </p>
-                    <a href={registerUrl} style={{ ...s.btn, background: colors.primary, color: '#fff', fontSize: '1.1rem', padding: '1rem 2.5rem' }}>
-                        Crear mi tienda gratis →
-                    </a>
-                </div>
-            </section>
-        </div>
-    );
-}
-
-// ── Pricing Page (detailed comparison) ────────────────────────────────────────
-function PricingPage() {
-    const { plans, loading } = usePlans();
-
-    return (
-        <div style={s.page}>
-            <section style={{ ...s.section, background: colors.light }}>
-                <div style={s.container}>
-                    <h1 style={{ ...s.sectionTitle, fontSize: '2.5rem' }}>Planes y Precios</h1>
-                    <p style={s.sectionSub}>Elige el plan perfecto para tu negocio. Actualiza o cancela en cualquier momento.</p>
-
-                    {loading ? (
-                        <p style={{ textAlign: 'center' }}>Cargando…</p>
-                    ) : (
-                        <>
-                            {/* Plan cards */}
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1.5rem', maxWidth: '1100px', margin: '0 auto 3rem' }}>
-                                {plans.map(p => (
-                                    <PlanCard key={p.id} plan={p} highlighted={p.id === 'pro'} />
-                                ))}
-                            </div>
-
-                            {/* Feature comparison table */}
-                            <div style={{ ...s.card, maxWidth: '900px', margin: '0 auto', overflowX: 'auto' }}>
-                                <h3 style={{ fontSize: '1.2rem', fontWeight: 600, marginBottom: '1.5rem', color: colors.dark }}>Comparación detallada</h3>
-                                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
+                    {/* Comparison table */}
+                    <div style={{ marginTop: '6rem' }}>
+                        <h3 style={{ fontSize: '2.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#fff' }}>Comparación Detallada</h3>
+                        <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden' }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
-                                        <tr style={{ borderBottom: '2px solid #e2e8f0' }}>
-                                            <th style={{ textAlign: 'left', padding: '0.75rem', color: '#64748b' }}>Característica</th>
-                                            {plans.map(p => (
-                                                <th key={p.id} style={{ textAlign: 'center', padding: '0.75rem', color: colors.dark, fontWeight: 600 }}>{p.name}</th>
+                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                                            {['Característica', 'Trial', 'Básico', 'Profesional', 'Premium'].map((h, i) => (
+                                                <th key={i} style={{ padding: '1.5rem', textAlign: i === 0 ? 'left' : 'center', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {[
-                                            { label: 'Productos', key: 'max_products' },
-                                            { label: 'Órdenes/mes', key: 'max_orders_month' },
-                                            { label: 'Almacenamiento', key: 'max_storage_mb', suffix: ' MB' },
-                                            ...Object.entries(FEATURE_LABELS).map(([k, v]) => ({ label: v, feature: k }))
-                                        ].map(row => (
-                                            <tr key={row.label} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                                                <td style={{ padding: '0.75rem', fontWeight: 500 }}>{row.label}</td>
-                                                {plans.map(p => (
-                                                    <td key={p.id} style={{ textAlign: 'center', padding: '0.75rem' }}>
-                                                        {row.key
-                                                            ? (p[row.key] === -1 ? '∞' : `${p[row.key]}${row.suffix || ''}`)
-                                                            : row.feature
-                                                                ? ((p.features || []).includes(row.feature) || (p.features || []).includes('all') ? '✅' : '—')
-                                                                : '—'
-                                                        }
-                                                    </td>
+                                        {COMPARISON_ROWS.map((row, ri) => (
+                                            <tr key={ri} style={{ borderBottom: ri < COMPARISON_ROWS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
+                                                {row.map((cell, ci) => (
+                                                    <td key={ci} style={{
+                                                        padding: '1.5rem',
+                                                        textAlign: ci === 0 ? 'left' : 'center',
+                                                        color: cell === '✅' ? '#4ade80' : cell === '—' ? '#f87171' : ci === 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.7)',
+                                                        whiteSpace: 'nowrap',
+                                                    }}>{cell}</td>
                                                 ))}
                                             </tr>
                                         ))}
                                     </tbody>
                                 </table>
                             </div>
-                        </>
-                    )}
+                        </div>
+                    </div>
+                </div>
+            </section>
 
-                    {/* FAQ */}
-                    <div style={{ maxWidth: '700px', margin: '3rem auto 0' }}>
-                        <h3 style={{ ...s.sectionTitle, fontSize: '1.5rem' }}>Preguntas frecuentes</h3>
-                        {[
-                            { q: '¿Puedo cambiar de plan después?', a: 'Sí, puedes actualizar o reducir tu plan en cualquier momento desde tu panel de administración.' },
-                            { q: '¿Qué pasa cuando termina el trial?', a: 'Tu tienda se pausa hasta que elijas un plan de pago. No pierdes ningún dato.' },
-                            { q: '¿Necesito tarjeta de crédito para empezar?', a: 'No, el trial de 14 días es completamente gratis sin compromiso.' },
-                            { q: '¿Puedo usar mi propio dominio?', a: 'Sí, los planes Pro y Premium incluyen dominio personalizado.' },
-                        ].map(faq => (
-                            <div key={faq.q} style={{ ...s.card, marginBottom: '1rem' }}>
-                                <h4 style={{ fontSize: '1rem', fontWeight: 600, color: colors.dark, marginBottom: '0.5rem' }}>{faq.q}</h4>
-                                <p style={{ fontSize: '0.9rem', color: '#64748b', margin: 0 }}>{faq.a}</p>
+            {/* ── CTA ───────────────────────────────────────────────────────── */}
+            <section style={{ padding: '0 1.5rem 6rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto', borderRadius: '40px', overflow: 'hidden', position: 'relative', background: 'linear-gradient(to right, rgba(6,182,212,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(255,255,255,0.1)' }}>
+                    <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} />
+                    <div style={{ position: 'relative', zIndex: 10, padding: '6rem 2.5rem', textAlign: 'center' }}>
+                        <h2 style={{ fontSize: '3rem', fontWeight: 700, maxWidth: '64rem', margin: '0 auto 2rem', lineHeight: 1.2, color: '#fff' }}>
+                            Comienza a Gestionar Tu Negocio de Tecnología Más Inteligente Hoy
+                        </h2>
+                        <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', maxWidth: '48rem', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
+                            Únete a miles de negocios modernos usando EonClover para automatizar operaciones y crecer más rápido.
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
+                            <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700 }}>
+                                Iniciar Prueba Gratuita
+                            </a>
+                            <button style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+                                Programar Demo
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* ── FAQ ───────────────────────────────────────────────────────── */}
+            <section id="faq" style={{ padding: '6rem 1.5rem' }}>
+                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                    <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                        <p style={{ color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600 }}>Preguntas Frecuentes</p>
+                        <h2 style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Todo Lo Que Necesitas Saber</h2>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                        {FAQ_ITEMS.map((faq, i) => (
+                            <div key={i} style={{ ...glass, borderRadius: '16px', padding: '2rem' }}>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>{faq.q}</h3>
+                                <p style={{ color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, margin: 0 }}>{faq.a}</p>
                             </div>
                         ))}
                     </div>
@@ -336,74 +700,63 @@ function PricingPage() {
     );
 }
 
-// ── Login Page (centralized, redirects to tenant subdomain) ───────────────────
+// ── Login page (redirect to tenant subdomain) ──────────────────────────────────
 function LoginPage() {
     const [slug, setSlug] = useState('');
     const [error, setError] = useState('');
-    const navigate = useNavigate();
 
     const handleSubmit = (e) => {
         e.preventDefault();
         const cleanSlug = slug.trim().toLowerCase();
-        if (!cleanSlug) {
-            setError('Ingresa el nombre de tu tienda');
-            return;
-        }
-        // Redirect to tenant subdomain login
+        if (!cleanSlug) { setError('Ingresa el nombre de tu tienda'); return; }
         window.location.href = `${PLATFORM_PROTOCOL}//${cleanSlug}.${PLATFORM_DOMAIN}/login`;
     };
 
     return (
-        <div style={s.page}>
-            <section style={{ ...s.section, minHeight: '60vh', display: 'flex', alignItems: 'center' }}>
-                <div style={{ ...s.container, maxWidth: '440px' }}>
-                    <div style={s.card}>
-                        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, color: colors.dark, textAlign: 'center', marginBottom: '0.5rem' }}>
-                            Iniciar sesión
-                        </h2>
-                        <p style={{ textAlign: 'center', color: '#64748b', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                            Ingresa el nombre de tu tienda para acceder.
-                        </p>
-                        <form onSubmit={handleSubmit}>
-                            <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
-                                <input
-                                    type="text"
-                                    value={slug}
-                                    onChange={e => { setSlug(e.target.value); setError(''); }}
-                                    placeholder="mi-tienda"
-                                    style={{ ...s.input, borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
-                                    autoFocus
-                                />
-                                <span style={{ padding: '0.75rem 1rem', background: colors.light, border: '1px solid #d1d5db', borderLeft: 'none', borderTopRightRadius: '8px', borderBottomRightRadius: '8px', fontSize: '0.85rem', color: '#64748b', whiteSpace: 'nowrap' }}>
-                                    .{PLATFORM_DOMAIN}
-                                </span>
-                            </div>
-                            {error && <p style={{ color: '#ef4444', fontSize: '0.85rem', marginBottom: '0.75rem' }}>{error}</p>}
-                            <button type="submit" style={{ ...s.btn, ...s.btnPrimary, width: '100%', textAlign: 'center' }}>
-                                Ir a mi tienda →
-                            </button>
-                        </form>
-                        <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
-                            <p style={{ fontSize: '0.85rem', color: '#94a3b8' }}>
-                                ¿No tienes tienda?{' '}
-                                <a href={registerUrl} style={{ color: colors.primary, textDecoration: 'none', fontWeight: 500 }}>
-                                    Crear una gratis
-                                </a>
-                            </p>
+        <section style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem' }}>
+            <div style={{ width: '100%', maxWidth: '440px' }}>
+                <div style={{ ...glass, borderRadius: '24px', padding: '2.5rem' }}>
+                    <h2 style={{ fontSize: '1.75rem', fontWeight: 700, textAlign: 'center', margin: '0 0 0.5rem', color: '#fff' }}>Iniciar sesión</h2>
+                    <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', fontSize: '0.9rem' }}>
+                        Ingresa el nombre de tu tienda para acceder.
+                    </p>
+                    <form onSubmit={handleSubmit}>
+                        <div style={{ display: 'flex', alignItems: 'center', marginBottom: '1rem' }}>
+                            <input
+                                type="text"
+                                value={slug}
+                                onChange={e => { setSlug(e.target.value); setError(''); }}
+                                placeholder="mi-tienda"
+                                style={{ flex: 1, padding: '0.75rem 1rem', borderRadius: '8px 0 0 8px', border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.08)', color: '#fff', fontSize: '0.95rem', outline: 'none' }}
+                                autoFocus
+                            />
+                            <span style={{ padding: '0.75rem 1rem', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderLeft: 'none', borderRadius: '0 8px 8px 0', fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>
+                                .{PLATFORM_DOMAIN}
+                            </span>
                         </div>
+                        {error && <p style={{ color: '#f87171', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>{error}</p>}
+                        <button type="submit" style={{ width: '100%', padding: '0.85rem', borderRadius: '12px', background: '#22d3ee', color: '#000', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: '1rem' }}>
+                            Ir a mi tienda →
+                        </button>
+                    </form>
+                    <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+                        <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
+                            ¿No tienes tienda?{' '}
+                            <a href={registerUrl} style={{ color: '#22d3ee', fontWeight: 500 }}>Crear una gratis</a>
+                        </p>
                     </div>
                 </div>
-            </section>
-        </div>
+            </div>
+        </section>
     );
 }
 
-// ── Route wrapper with layout ──────────────────────────────────────────────────
+// ── Layout with nav + footer ───────────────────────────────────────────────────
 function LandingLayout({ children }) {
     return (
         <>
             <Navbar />
-            {children}
+            <main style={{ paddingTop: '72px' }}>{children}</main>
             <Footer />
         </>
     );
@@ -412,13 +765,15 @@ function LandingLayout({ children }) {
 /** Routes shown on the root domain (SaaS landing) */
 export default function SaaSLandingRoutes() {
     return (
-        <Routes>
-            <Route path="/" element={<LandingLayout><SaaSHome /></LandingLayout>} />
-            <Route path="/pricing" element={<LandingLayout><PricingPage /></LandingLayout>} />
-            <Route path="/login" element={<LandingLayout><LoginPage /></LandingLayout>} />
-            {/* /register redirects to onboarding subdomain */}
-            <Route path="/register" element={<Navigate to={registerUrl} replace />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <div className="saas-root" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: '#050816', color: '#fff', minHeight: '100vh' }}>
+            <GlobalStyles />
+            <Routes>
+                <Route path="/" element={<LandingLayout><SaaSHome /></LandingLayout>} />
+                <Route path="/login" element={<LandingLayout><LoginPage /></LandingLayout>} />
+                <Route path="/pricing" element={<Navigate to="/" replace />} />
+                <Route path="/register" element={<Navigate to={registerUrl} replace />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+        </div>
     );
 }
