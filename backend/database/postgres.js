@@ -61,11 +61,17 @@ const detectSslConfig = async (connectionString) => {
 const initPool = (connectionString) => {
   if (!connectionString) return false;
   try {
-    // Start pool without SSL by default; async detection upgrades if available
-    pool = wrapPoolForTenantContext(new Pool({ connectionString, max: 20, ssl: false }));
-    pool.on('error', (err) => console.error('PG Pool error:', err.message));
-    dbConfigured = true;
-
+        // Start pool without SSL by default; async detection upgrades if available
+        pool = wrapPoolForTenantContext(new Pool({
+            connectionString,
+            max: 25,
+            ssl: false,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000,
+            allowExitOnIdle: true,
+        }));
+        pool.on('error', (err) => console.error('PG Pool error:', err.message));
+        dbConfigured = true;
     // Async: detect SSL support and recreate pool if needed
     detectSslConfig(connectionString).then(sslConfig => {
       if (sslConfig !== false) {

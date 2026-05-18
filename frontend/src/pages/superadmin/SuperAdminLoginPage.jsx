@@ -176,7 +176,7 @@ export default function SuperAdminLoginPage({ onLogin }) {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', zIndex: 1 }}>
                         <LogoSvg />
                         <div>
-                            <div style={{ fontSize: '1.125rem', fontWeight: 800, lineHeight: 1 }}>EonClover</div>
+                            <div style={{ fontSize: '1.125rem', fontWeight: 800, lineHeight: 1 }}>EonsClover</div>
                             <div style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 500, marginTop: '2px' }}>Plataforma SaaS</div>
                         </div>
                     </div>
@@ -216,7 +216,7 @@ export default function SuperAdminLoginPage({ onLogin }) {
                                     type="email"
                                     value={email}
                                     onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="admin@eonclover.com"
+                                    placeholder="admin@eonsclover.com"
                                     style={inputBase}
                                     autoComplete="username"
                                 />

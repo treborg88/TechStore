@@ -29,15 +29,31 @@ function createDbContext(pool) {
 
         let client;
         let released = false;
+        let releaseTimer = null;
 
-        // Safe release helper (prevents double-release)
-        const releaseClient = async (action) => {
+        const cleanupClient = async (action) => {
             if (released) return;
             released = true;
+            if (releaseTimer) {
+                clearTimeout(releaseTimer);
+                releaseTimer = null;
+            }
+
             try {
-                await client.query(action);
-            } catch (_) { /* ignore */ }
-            client.release();
+                if (client) {
+                    await client.query(action);
+                }
+            } catch (_) {
+                /* ignore cleanup errors */
+            }
+
+            try {
+                if (client) {
+                    client.release();
+                }
+            } catch (_) {
+                /* ignore release errors */
+            }
         };
 
         try {
@@ -46,15 +62,17 @@ function createDbContext(pool) {
             await client.query(`SET LOCAL search_path TO "${schemaName}", public`);
             req.dbClient = client;
 
-            // Auto-cleanup: commit successful responses and rollback aborted ones.
-            // In proxied environments, `close` can race with `finish`, so choose
-            // the action from the response state instead of assuming event order.
-            res.once('finish', () => releaseClient('COMMIT'));
-            res.once('close', () => {
-                if (released) return;
+            const onClose = () => {
                 const action = (res.writableEnded || res.finished) ? 'COMMIT' : 'ROLLBACK';
-                releaseClient(action);
-            });
+                cleanupClient(action);
+            };
+
+            res.once('finish', () => cleanupClient('COMMIT'));
+            res.once('close', onClose);
+            res.once('error', () => cleanupClient('ROLLBACK'));
+            req.once('aborted', () => cleanupClient('ROLLBACK'));
+
+            releaseTimer = setTimeout(() => cleanupClient('ROLLBACK'), 120000);
 
             // Run downstream middleware/routes inside AsyncLocalStorage context
             // so pool.query() calls are auto-routed to this tenant-scoped client

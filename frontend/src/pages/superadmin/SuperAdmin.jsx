@@ -549,7 +549,7 @@ function Sidebar({ onLogout, totalTenants }) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                     <LogoSvg />
                     <div>
-                        <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>EonClover</div>
+                        <div style={{ fontSize: '0.875rem', fontWeight: 700 }}>EonsClover</div>
                         <div style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.35)', fontWeight: 500, letterSpacing: '0.1em', textTransform: 'uppercase' }}>Super Admin</div>
                     </div>
                 </div>
@@ -569,7 +569,7 @@ function Sidebar({ onLogout, totalTenants }) {
                     <div style={{ width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0, background: 'linear-gradient(135deg,#22d3ee,#8b5cf6)' }}>SA</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>Super Admin</div>
-                        <div style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>admin@eonclover.com</div>
+                        <div style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.35)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>admin@eonsclover.com</div>
                     </div>
                     <button onClick={onLogout} title="Cerrar sesión" style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', fontSize: '1rem', padding: '2px', lineHeight: 1 }}>⏻</button>
                 </div>

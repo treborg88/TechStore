@@ -1,12 +1,12 @@
-// middleware/tenant.js — Resolve tenant from Host header (SaaS multi-tenant)
+﻿// middleware/tenant.js â€” Resolve tenant from Host header (SaaS multi-tenant)
 // Sets req.tenant with tenant data when a valid subdomain is detected.
 // Bypasses system subdomains (app, admin, www, staging) and localhost.
 
 const config = require('../config');
 
-// In-memory cache: slug → { tenant, expiresAt }
+// In-memory cache: slug â†’ { tenant, expiresAt }
 const tenantCache = new Map();
-// Custom domain → slug reverse map for cache lookups
+// Custom domain â†’ slug reverse map for cache lookups
 const domainToSlugCache = new Map();
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 
@@ -24,11 +24,11 @@ function createTenantMiddleware(pool) {
         const host = req.hostname || req.headers.host?.split(':')[0] || '';
         const parts = host.split('.');
 
-        // Determine if this is a known platform domain (*.techstore.local or localhost)
+        // Determine if this is a known platform domain (*.eonsclover.local or localhost)
         const platformDomain = config.PLATFORM_DOMAIN;
         const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain || host === 'localhost';
 
-        // Extract subdomain for platform hosts: {slug}.eonsclover.com → slug
+        // Extract subdomain for platform hosts: {slug}.eonsclover.com â†’ slug
         const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
 
         // Bypass: system subdomains and root/localhost on platform domain
@@ -93,7 +93,7 @@ function createTenantMiddleware(pool) {
             }
             if (tenant.status === 'trial' && new Date() > new Date(tenant.trial_ends_at)) {
                 return res.status(402).json({
-                    message: 'Período de prueba expirado. Activa un plan.',
+                    message: 'PerÃ­odo de prueba expirado. Activa un plan.',
                     upgrade_url: `https://app.${config.PLATFORM_DOMAIN}/pricing`
                 });
             }

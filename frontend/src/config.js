@@ -1,6 +1,6 @@
-// config.js - Configuración centralizada de la aplicación
+﻿// config.js - ConfiguraciÃ³n centralizada de la aplicaciÃ³n
 // URLs loaded from env vars (see .env.example)
-// Production: Nginx proxies /api → backend:5001, so relative paths work on any domain
+// Production: Nginx proxies /api â†’ backend:5001, so relative paths work on any domain
 // Dev: explicit localhost URLs (no Nginx)
 
 const isLocalhost = typeof window !== 'undefined' && 
@@ -20,8 +20,8 @@ export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0]
 export const IS_ONBOARDING = hostParts[0] === 'app' && !isLocalhost;
 export const IS_SUPER_ADMIN = hostParts[0] === 'admin' && !isLocalhost;
 
-// Platform domain derived from hostname (e.g. "techstore.local" from "app.techstore.local")
-// Used to build subdomain URLs dynamically — no hardcoded domain strings needed
+// Platform domain derived from hostname (e.g. "eonsclover.local" from "app.eonsclover.local")
+// Used to build subdomain URLs dynamically â€” no hardcoded domain strings needed
 export const PLATFORM_DOMAIN = hostParts.length >= 3
   ? hostParts.slice(1).join('.')
   : hostParts.join('.');
@@ -30,7 +30,7 @@ export const PLATFORM_DOMAIN = hostParts.length >= 3
 export const PLATFORM_PROTOCOL = typeof window !== 'undefined' ? window.location.protocol : 'https:';
 
 // Production defaults: relative /api (Nginx proxy) + auto-detect origin
-// No hardcoded domains — works on any domain behind Nginx
+// No hardcoded domains â€” works on any domain behind Nginx
 const DEFAULT_API_URL = isLocalhost 
     ? 'http://localhost:5001/api' 
     : '/api';
@@ -45,13 +45,13 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 export const DEFAULT_CATEGORY_FILTERS_CONFIG = {
     useDefault: true,
     categories: [
-        { id: 'todos', name: 'Todos', icon: '🏪', slug: 'todos', image: '' },
-        { id: 'smartphones', name: 'Smartphones', icon: '📱', slug: 'Smartphones', image: '' },
-        { id: 'luces-led', name: 'Luces LED', icon: '🔅', slug: 'Luces LED', image: '' },
-        { id: 'casa-inteligente', name: 'Casa Inteligente', icon: '🏠', slug: 'Casa Inteligente', image: '' },
-        { id: 'auriculares', name: 'Auriculares', icon: '🎧', slug: 'Auriculares', image: '' },
-        { id: 'accesorios', name: 'Accesorios', icon: '🔌', slug: 'Accesorios', image: '' },
-        { id: 'estilo-vida', name: 'Estilo de Vida', icon: '✨', slug: 'Estilo de Vida', image: '' }
+        { id: 'todos', name: 'Todos', icon: 'ðŸª', slug: 'todos', image: '' },
+        { id: 'smartphones', name: 'Smartphones', icon: 'ðŸ“±', slug: 'Smartphones', image: '' },
+        { id: 'luces-led', name: 'Luces LED', icon: 'ðŸ”…', slug: 'Luces LED', image: '' },
+        { id: 'casa-inteligente', name: 'Casa Inteligente', icon: 'ðŸ ', slug: 'Casa Inteligente', image: '' },
+        { id: 'auriculares', name: 'Auriculares', icon: 'ðŸŽ§', slug: 'Auriculares', image: '' },
+        { id: 'accesorios', name: 'Accesorios', icon: 'ðŸ”Œ', slug: 'Accesorios', image: '' },
+        { id: 'estilo-vida', name: 'Estilo de Vida', icon: 'âœ¨', slug: 'Estilo de Vida', image: '' }
     ],
     styles: {
         cardWidth: '',

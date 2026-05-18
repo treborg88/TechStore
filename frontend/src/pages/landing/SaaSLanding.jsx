@@ -1,5 +1,5 @@
 ﻿// SaaSLanding.jsx - Public marketing landing page (platform root domain)
-// Dark theme with glassmorphism, trefoil animation — matches EonClover HTML design
+// Dark theme with glassmorphism, trefoil animation — matches EonsClover HTML design
 
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
@@ -46,7 +46,7 @@ const glass = {
     border: '1px solid rgba(255,255,255,0.08)',
 };
 
-// ── EonClover SVG Logo ─────────────────────────────────────────────────────────
+// ── EonsClover SVG Logo ─────────────────────────────────────────────────────────
 function LogoSvg() {
     return (
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -153,7 +153,7 @@ function Navbar() {
                 {/* Logo */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                     <LogoSvg />
-                    <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>EonClover</span>
+                    <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>EonsClover</span>
                 </div>
                 {/* Nav links */}
                 <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem', fontSize: '0.95rem' }}>
@@ -182,7 +182,7 @@ function Footer() {
         <footer style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '2.5rem 1.5rem', color: 'rgba(255,255,255,0.5)' }}>
             <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2rem' }}>
                 <div>
-                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', margin: '0 0 0.75rem' }}>EonClover</h3>
+                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', margin: '0 0 0.75rem' }}>EonsClover</h3>
                     <p style={{ maxWidth: '28rem', margin: 0, lineHeight: 1.6 }}>Plataforma SaaS moderna para ecommerce y gestión de negocios tecnológicos.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '2.5rem' }}>
@@ -525,7 +525,7 @@ function SaaSHome() {
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#f87171' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#facc15' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#4ade80' }} />
-                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tu Tienda Online — eonclover.com</span>
+                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tu Tienda Online — eonsclover.com</span>
                             </div>
                             <img src="/imagenes/Site home page.png" alt="Vista de la tienda online con versión desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
                             <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
@@ -552,7 +552,7 @@ function SaaSHome() {
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#f87171' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#facc15' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#4ade80' }} />
-                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Panel de Administración — admin.eonclover.com</span>
+                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Panel de Administración — admin.eonsclover.com</span>
                             </div>
                             <img src="/imagenes/Admin dashboard.png" alt="Panel de administración con vista desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
                             <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
@@ -665,7 +665,7 @@ function SaaSHome() {
                             Comienza a Gestionar Tu Negocio de Tecnología Más Inteligente Hoy
                         </h2>
                         <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', maxWidth: '48rem', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
-                            Únete a miles de negocios modernos usando EonClover para automatizar operaciones y crecer más rápido.
+                            Únete a miles de negocios modernos usando EonsClover para automatizar operaciones y crecer más rápido.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
                             <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700 }}>

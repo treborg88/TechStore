@@ -150,7 +150,7 @@ function PageShell({ step, loginUrl, children }) {
                 <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#fff', textDecoration: 'none' }}>
                         <LogoSvg />
-                        <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>EonClover</span>
+                        <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>EonsClover</span>
                     </a>
                     <a href={loginUrl} style={{ fontSize: '0.875rem', color: 'rgba(255,255,255,0.55)', textDecoration: 'none' }}>
                         ¿Ya tienes cuenta? <span style={{ color: '#22d3ee', fontWeight: 500 }}>Inicia sesión</span>
@@ -415,7 +415,7 @@ export default function OnboardingWizard() {
                             style={{ marginTop: '2px', width: '16px', height: '16px', flexShrink: 0, cursor: 'pointer', accentColor: '#22d3ee' }} />
                         <label htmlFor="onb-terms" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.50)', lineHeight: 1.6, cursor: 'pointer' }}>
                             Acepto los <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Términos de Servicio</a> y la{' '}
-                            <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Política de Privacidad</a> de EonClover.
+                            <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Política de Privacidad</a> de EonsClover.
                         </label>
                     </div>
 
@@ -493,7 +493,7 @@ export default function OnboardingWizard() {
                                 onBlur={() => setDomainFocused(false)}
                             />
                             <div style={{ background: 'rgba(34,211,238,0.08)', border: `1px solid ${domainFocused ? 'rgba(34,211,238,0.6)' : 'rgba(34,211,238,0.2)'}`, borderLeft: 'none', color: 'rgba(34,211,238,0.8)', fontSize: '0.875rem', padding: '0 14px', borderRadius: '0 12px 12px 0', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', userSelect: 'none', transition: 'border-color 0.2s' }}>
-                                .eonclover.com
+                                .eonsclover.com
                             </div>
                         </div>
                         <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
@@ -506,7 +506,7 @@ export default function OnboardingWizard() {
                         <div style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)', marginBottom: '2rem' }}>
                             Tu tienda estará en:{' '}
                             <span style={{ color: '#c4b5fd', fontWeight: 600 }}>
-                                {domain || 'tu-tienda'}.eonclover.com
+                                {domain || 'tu-tienda'}.eonsclover.com
                             </span>
                         </div>
                     )}
