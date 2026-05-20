@@ -1,5 +1,5 @@
-﻿# =============================================================================
-# TechStore â€” Docker Compose (Full Stack with PostgreSQL)
+# =============================================================================
+# TechStore — Docker Compose (Full Stack with PostgreSQL)
 # =============================================================================
 # Runs the full stack: PostgreSQL + backend (Express) + frontend (Nginx/Vite)
 # behind an Nginx reverse proxy on port 80.
@@ -18,9 +18,9 @@
 # =============================================================================
 
 services:
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   # Database: PostgreSQL 14
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   database:
     image: postgres:14-alpine
     container_name: techstore-db
@@ -32,7 +32,7 @@ services:
     volumes:
       # Persist data between rebuilds
       - pgdata:/var/lib/postgresql/data
-      # Auto-run schema + seed on first boot (order matters: 01â†’02â†’03)
+      # Auto-run schema + seed on first boot (order matters: 01→02→03)
       - ./backend/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
       - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./backend/database/schema-saas.sql:/docker-entrypoint-initdb.d/03-schema-saas.sql:ro
@@ -46,9 +46,9 @@ services:
     networks:
       - techstore
 
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   # Backend: Express API on port 5001
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   backend:
     build:
       context: .
@@ -58,12 +58,12 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      # Docker-internal override â€” must use 'database' service hostname, not localhost
+      # Docker-internal override — must use 'database' service hostname, not localhost
       DATABASE_URL: postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}
       # CORS wildcard for all subdomains (local dev)
       CORS_ORIGIN: ${CORS_ORIGIN:-*.eonsclover.local}
       # All other SaaS vars (SAAS_MODE, PLATFORM_DOMAIN, SUPER_ADMIN_SECRET, etc.)
-      # come from env_file: ./backend/.env â€” do not override here
+      # come from env_file: ./backend/.env — do not override here
     depends_on:
       database:
         condition: service_healthy
@@ -77,29 +77,42 @@ services:
     networks:
       - techstore
 
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   # Frontend: Vite build served by Nginx on port 3000
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   frontend:
     build:
       context: .
       dockerfile: docker/Dockerfile.frontend
       args:
-        # /api is relative â€” the proxy container handles routing
+        # /api is relative — the proxy container handles routing
         VITE_API_URL: /api
     container_name: techstore-frontend
     restart: unless-stopped
     networks:
       - techstore
 
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   # Proxy: Nginx reverse proxy (entry point)
-  # â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  # ─────────────────────────────────────────────
   # Unifies frontend + backend on a single port.
-  # - /api/*      â†’ backend:5001
-  # - /storage/*  â†’ backend:5001  (images proxy)
-  # - /p/*        â†’ backend:5001  (social sharing OG meta)
-  # - /*          â†’ frontend:80   (SPA)
+  # - /api/*      → backend:5001
+  # - /storage/*  → backend:5001  (images proxy)
+  # - /p/*        → backend:5001  (social sharing OG meta)
+  # - /*          → frontend:80   (SPA)
+
+  # Adminer: lightweight DB web UI (localhost:8080)
+  adminer:
+    image: adminer:latest
+    container_name: techstore-adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - techstore
   proxy:
     image: nginx:alpine
     container_name: techstore-proxy

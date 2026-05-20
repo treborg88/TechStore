@@ -8,17 +8,21 @@ const isLocalhost = typeof window !== 'undefined' &&
 
 // --- SaaS context detection ---
 const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
+const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
 const hostParts = hostname.split('.');
 const SYSTEM_SLUGS = ['app', 'admin', 'www', 'staging'];
+
+const isAdminPath = !isLocalhost && pathname.startsWith('/admin');
+const isAppPath = !isLocalhost && pathname.startsWith('/app');
 
 // Tenant subdomain: {slug}.domain.com (3+ parts, not a system slug, not localhost)
 export const IS_TENANT = hostParts.length >= 3 && !SYSTEM_SLUGS.includes(hostParts[0]) && !isLocalhost;
 export const TENANT_SLUG = IS_TENANT ? hostParts[0] : null;
 
 // System contexts (SaaS platform pages)
-export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0] === 'www');
-export const IS_ONBOARDING = hostParts[0] === 'app' && !isLocalhost;
-export const IS_SUPER_ADMIN = hostParts[0] === 'admin' && !isLocalhost;
+export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0] === 'www') && !isAdminPath && !isAppPath;
+export const IS_ONBOARDING = !isLocalhost && (hostParts[0] === 'app' || isAppPath);
+export const IS_SUPER_ADMIN = !isLocalhost && (hostParts[0] === 'admin' || isAdminPath);
 
 // Platform domain derived from hostname (e.g. "eonsclover.local" from "app.eonsclover.local")
 // Used to build subdomain URLs dynamically â€” no hardcoded domain strings needed
@@ -45,13 +49,13 @@ export const BASE_URL = import.meta.env.VITE_BASE_URL || DEFAULT_BASE_URL;
 export const DEFAULT_CATEGORY_FILTERS_CONFIG = {
     useDefault: true,
     categories: [
-        { id: 'todos', name: 'Todos', icon: 'ðŸª', slug: 'todos', image: '' },
-        { id: 'smartphones', name: 'Smartphones', icon: 'ðŸ“±', slug: 'Smartphones', image: '' },
-        { id: 'luces-led', name: 'Luces LED', icon: 'ðŸ”…', slug: 'Luces LED', image: '' },
-        { id: 'casa-inteligente', name: 'Casa Inteligente', icon: 'ðŸ ', slug: 'Casa Inteligente', image: '' },
-        { id: 'auriculares', name: 'Auriculares', icon: 'ðŸŽ§', slug: 'Auriculares', image: '' },
-        { id: 'accesorios', name: 'Accesorios', icon: 'ðŸ”Œ', slug: 'Accesorios', image: '' },
-        { id: 'estilo-vida', name: 'Estilo de Vida', icon: 'âœ¨', slug: 'Estilo de Vida', image: '' }
+        { id: 'todos', name: 'Todos', icon: '🏪', slug: 'todos', image: '' },
+        { id: 'smartphones', name: 'Smartphones', icon: '📱', slug: 'Smartphones', image: '' },
+        { id: 'luces-led', name: 'Luces LED', icon: '🔅', slug: 'Luces LED', image: '' },
+        { id: 'casa-inteligente', name: 'Casa Inteligente', icon: '🏠', slug: 'Casa Inteligente', image: '' },
+        { id: 'auriculares', name: 'Auriculares', icon: '🎧', slug: 'Auriculares', image: '' },
+        { id: 'accesorios', name: 'Accesorios', icon: '🔌', slug: 'Accesorios', image: '' },
+        { id: 'estilo-vida', name: 'Estilo de Vida', icon: '✨', slug: 'Estilo de Vida', image: '' }
     ],
     styles: {
         cardWidth: '',

@@ -93,7 +93,7 @@ function createTenantMiddleware(pool) {
             }
             if (tenant.status === 'trial' && new Date() > new Date(tenant.trial_ends_at)) {
                 return res.status(402).json({
-                    message: 'PerÃ­odo de prueba expirado. Activa un plan.',
+                    message: 'Período de prueba expirado. Activa un plan.',
                     upgrade_url: `https://app.${config.PLATFORM_DOMAIN}/pricing`
                 });
             }

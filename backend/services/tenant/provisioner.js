@@ -63,10 +63,17 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
 
     // Schema name derived from slug (hyphens → underscores)
     const schemaName = 'tenant_' + slug.replace(/-/g, '_');
+
+    // Hash password BEFORE acquiring a DB client — bcrypt is CPU-intensive
+    // and should not hold a connection during computation
+    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
+
     const client = await pool.connect();
 
     try {
         await client.query('BEGIN');
+        // Ensure UTF-8 encoding for the session so emojis in seed.sql are stored correctly
+        await client.query("SET LOCAL client_encoding = 'UTF8'");
 
         // 1. Check slug availability
         const existingSlug = await client.query(
@@ -105,7 +112,6 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
         await client.query(seedSQL);
 
         // 4. Create tenant admin (overwrite the generic admin from seed.sql)
-        const hashedPassword = await bcrypt.hash(ownerPassword, 10);
         await client.query(
             `INSERT INTO users (name, email, password, role, is_active)
              VALUES ($1, $2, $3, 'admin', true)

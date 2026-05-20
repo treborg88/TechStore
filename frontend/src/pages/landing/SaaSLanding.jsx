@@ -151,10 +151,10 @@ function Navbar() {
         <header style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 50, borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(5,8,22,0.8)', backdropFilter: 'blur(20px)' }}>
             <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 {/* Logo */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}>
                     <LogoSvg />
                     <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>EonsClover</span>
-                </div>
+                </Link>
                 {/* Nav links */}
                 <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem', fontSize: '0.95rem' }}>
                     <a href="#hero" style={{ color: 'rgba(255,255,255,0.7)' }}>Dashboard</a>
@@ -751,6 +751,30 @@ function LoginPage() {
     );
 }
 
+// ── Login page wrapper for SaaS dark theme ──────────────────────────────────────
+function SaaSLoginPage() {
+    return (
+        <div>
+            {/* Styled back link for dark theme */}
+            <div style={{ maxWidth: '512px', margin: '1.5rem auto 0', padding: '0 1.5rem' }}>
+                <a
+                    href="/"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.45)', fontSize: '0.8125rem', textDecoration: 'none', transition: 'color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.85)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.45)'}
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                    Volver al inicio
+                </a>
+            </div>
+            {/* embedded hides the store-themed header/logo inside LoginPage */}
+            <LoginPage embedded={true} onBackToHome={() => window.location.href = '/'} />
+        </div>
+    );
+}
+
 // ── Layout with nav + footer ───────────────────────────────────────────────────
 function LandingLayout({ children }) {
     return (
@@ -769,7 +793,7 @@ export default function SaaSLandingRoutes() {
             <GlobalStyles />
             <Routes>
                 <Route path="/" element={<LandingLayout><SaaSHome /></LandingLayout>} />
-                <Route path="/login" element={<LandingLayout><LoginPage /></LandingLayout>} />
+                <Route path="/login" element={<LandingLayout><SaaSLoginPage /></LandingLayout>} />
                 <Route path="/pricing" element={<Navigate to="/" replace />} />
                 <Route path="/register" element={<Navigate to={registerUrl} replace />} />
                 <Route path="*" element={<Navigate to="/" replace />} />

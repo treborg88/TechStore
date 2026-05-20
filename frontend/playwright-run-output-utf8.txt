@@ -1,0 +1,489 @@
+﻿
+[global-setup] Checking test data for tienda1.eonsclover.local...
+node.exe : [global-setup] Cannot authenticate ΓÇö skipping seed. Global setup login failed: 404 {"message":"Tienda no encontrada"}
+En C:\Program Files\nodejs\npx.ps1: 29 Carácter: 3
++   & $NODE_EXE $NPX_CLI_JS $args
++   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: ([global-setup] ...no encontrada"}:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+
+Running 52 tests using 1 worker
+
+  Γ£ô   1 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:169:5 ΓÇ║ HP1 - SaaS Platform Landing Page ΓÇ║ HP1.1: SaaS Landing loads with hero, features, and pricing (1.8s)
+  Γ£ô   2 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:202:5 ΓÇ║ HP1 - SaaS Platform Landing Page ΓÇ║ HP1.2: Plans display correct names and prices (2.1s)
+  Γ£ô   3 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:225:5 ΓÇ║ HP1 - SaaS Platform Landing Page ΓÇ║ HP1.3: "Comenzar gratis" links point to register page (1.6s)
+  Γ£ô   4 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:245:5 ΓÇ║ HP1 - SaaS Platform Landing Page ΓÇ║ HP1.4: Super Admin login page loads cleanly (797ms)
+  Γ£ô   5 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:269:5 ΓÇ║ HP1 - SaaS Platform Landing Page ΓÇ║ HP1.5: Registration page loads (1.8s)
+  Γ£ô   6 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:319:5 ΓÇ║ HP2 - Tenant Registration Happy Path ΓÇ║ HP2.1: Tenant registration page loads (704ms)
+  Γ£ô   7 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:337:5 ΓÇ║ HP2 - Tenant Registration Happy Path ΓÇ║ HP2.2: Tenant registration works (1.4s)
+  Γ£ô   8 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:363:5 ΓÇ║ HP2 - Tenant Registration Happy Path ΓÇ║ HP2.3: Submit registration (3.2s)
+  Γ£ÿ   9 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:406:5 ΓÇ║ HP2 - Tenant Registration Happy Path ΓÇ║ HP2.4: Redirect to tenant store (21.9s)
+  Γ£ô  10 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:476:5 ΓÇ║ HP3 - Super Admin Dashboard ΓÇ║ HP3.1: Login super admin loads dashboard with KPIs (1.6s)
+  Γ£ô  11 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:507:5 ΓÇ║ HP3 - Super Admin Dashboard ΓÇ║ HP3.2: Tenant list shows registered tenants (1.6s)
+  Γ£ô  12 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:552:5 ΓÇ║ HP3 - Super Admin Dashboard ΓÇ║ HP3.3: Tenant detail modal shows plan, status, trial date, and usage (1.8s)
+  Γ£ô  13 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:645:5 ΓÇ║ HP3 - Super Admin Dashboard ΓÇ║ HP3.4: Change tenant plan to B├ísico and verify new limits (2.1s)
+  Γ£ô  14 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:711:5 ΓÇ║ HP3 - Super Admin Dashboard ΓÇ║ HP3.5: M├⌐tricas actualizadas | Volver al dashboard | MRR incrementa en $29, conteo por plan refleja cambio (2.9s)
+  Γ£ô  15 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:821:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.1: Tenant store home loads with header and footer (966ms)
+  Γ£ÿ  16 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:850:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.2: Tenant admin login works with registered credentials (20.9s)
+  Γ£ÿ  17 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:884:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.3: Tenant admin can create a product and see it in the admin grid (21.1s)
+  Γ£ÿ  18 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:978:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.4: Tenant can view created product detail with correct info (15.5s)
+  Γ£ÿ  19 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1016:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.5: Tenant can add a product to the cart and see the header badge update (15.4s)
+  Γ£ÿ  20 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1051:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.6: Tenant admin can complete COD checkout and see a pending payment order (21.1s)
+  Γ£ÿ  21 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1135:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.7: Tenant admin can see the new order in admin orders and use the status stepper (20.8s)
+  Γ£ÿ  22 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1223:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.8: Tenant admin can change order status to paid and see the stepper update (20.8s)
+  Γ£ÿ  23 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1314:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.1: Tenant admin subscription panel shows current plan and usage bars (16.5s)
+  Γ£ÿ  24 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1346:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.2: Tenant subscription panel shows correct product and order usage values (17.1s)
+  Γ£ÿ  25 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1399:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.3: Tenant can open change plan modal and see the current plan highlighted (16.8s)
+  Γ£ÿ  26 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1445:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.4: Tenant can upgrade to Profesional and see updated limits (17.1s)
+  Γ£ô  27 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1545:9 ΓÇ║ HP6 - Tenant Isolation ΓÇ║ HP6.1: Register second tenant via onboarding and verify unique tenant schema (3.1s)
+  Γ£ô  28 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1586:9 ΓÇ║ HP6 - Tenant Isolation ΓÇ║ HP6.2: Tenant tienda-dos does not show products from mitienda-test (1.1s)
+  Γ£ô  29 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1604:9 ΓÇ║ HP6 - Tenant Isolation ΓÇ║ HP6.3: Tenant API returns only its own products (57ms)
+  Γ£ô  30 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1659:9 ΓÇ║ HP7 - SEO and Public Routes ΓÇ║ HP7.1: Health check returns SaaS status (19ms)
+  Γ£ô  31 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1673:9 ΓÇ║ HP7 - SEO and Public Routes ΓÇ║ HP7.2: SaaS plans API returns 4 plans with limits (42ms)
+  Γ£ô  32 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1755:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.1: Valid tenant subdomain resolves and returns products JSON (504ms)
+  Γ£ô  33 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1788:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.2: Invalid tenant subdomain returns 404 Tenant not found (16ms)
+  Γ£ô  34 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1808:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.3: Suspended tenant subdomain returns 403 Tenant suspended (2.2s)
+  Γ£ô  35 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1863:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.4: Cancelled tenant subdomain returns 410 Tenant cancelled (2.2s)
+  Γ£ô  36 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1918:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.5: Expired trial tenant returns 402 with upgradeUrl (737ms)
+  Γ£ÿ  37 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1957:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.6 - Crear tienda, eliminarla desde Super Admin y verificar que no es accesible (13.7s)
+  Γ£ô  38 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2012:9 ΓÇ║ C - Slug availability ΓÇ║ C1 - Verify slug availability during registration (1.0s)
+  Γ£ÿ  39 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2025:9 ΓÇ║ C - Slug availability ΓÇ║ C2 - Verify slug unavailability during registration (757ms)
+  Γ£ô  40 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2059:9 ΓÇ║ C - Slug availability ΓÇ║ C3 - Verificar entrada de audit log tenant_created (3.3s)
+  Γ£ô  41 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2097:9 ΓÇ║ C - Slug availability ΓÇ║ C4 - Probar registro duplicado con mismo correo electr├│nico (3.2s)
+  Γ£ô  42 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2157:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D1: Login correcto carga dashboard con KPIs y lista de tenants (1.7s)
+  Γ£ô  43 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2186:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D2: Login incorrecto muestra error y no permite acceder (1.3s)
+  Γ£ô  44 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2210:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3: API superadmin sin secret devuelve 403 (46ms)
+  Γ£ô  45 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2238:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D4: Session persiste en sessionStorage tras recargar (2.0s)
+  Γ£ô  46 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2269:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D2.1+D2.2: KPIs del dashboard coinciden con API /metrics (1.5s)
+  Γ£ô  47 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2317:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D2.3: Audit log global devuelve eventos con tenant info (31ms)
+  Γ£ÿ  48 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2347:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.1+D3.2+D3.3+D3.4: Lista de tenants paginada con filtros de estado, plan y b├║squeda (10.9s)
+  Γ£ÿ  49 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2456:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.5: Detalle de tenant muestra info completa, plan, status, fechas y audit log (10.8s)
+  Γ£ô  50 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2517:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.10+D3.11: Eliminar tenant requiere confirmaci├│n; sin ella es rechazado (617ms)
+  Γ£ô  51 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2592:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.12: Impersonar tenant genera token v├ílido y redirectUrl al subdominio (115ms)
+  Γ£ô  52 [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2660:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.13: Token de impersonaci├│n expira en ~1h y token alterado es rechazado (69ms)
+
+
+  1) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:406:5 ΓÇ║ HP2 - Tenant Registration Happy Path ΓÇ║ HP2.4: Redirect to tenant store 
+
+    Error: [2mexpect([22m[31mpage[39m[2m).[22mtoHaveURL[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Expected pattern: [32m/mitienda-test\.techstore\.local/[39m
+    Received string:  [31m"chrome-error://chromewebdata/"[39m
+    Timeout: 20000ms
+
+    Call log:
+    [2m  - Expect "toHaveURL" with timeout 20000ms[22m
+    [2m    23 ├ù unexpected value "chrome-error://chromewebdata/"[22m
+
+
+      454 |         await storeLink.click();
+      455 |
+    > 456 |         await expect(page).toHaveURL(new RegExp(`${FIXED_TEST_SLUG}\\.techstore\\.local`), { timeout: 20000 });
+          |                            ^
+      457 |     });
+      458 |
+      459 |     test.afterAll(async ({ request }) => {
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:456:28
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--d430e--4-Redirect-to-tenant-store-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+  2) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:850:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.2: Tenant admin login works with registered credentials 
+
+    TimeoutError: page.waitForResponse: Timeout 20000ms exceeded while waiting for event "response"
+
+      862 |             await page.fill('input[name="password"]', TENANT_LOGIN_PASSWORD);
+      863 |             await Promise.all([
+    > 864 |                 page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST' && resp.status() === 200, { timeout: 20000 }),
+          |                      ^
+      865 |                 page.locator('form.login-form button.submit-button').click(),
+      866 |             ]);
+      867 |
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:864:22
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--4773e-with-registered-credentials-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--4773e-with-registered-credentials-chromium\error-context.md
+
+  3) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:884:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.3: Tenant admin can create a product and see it in the admin grid 
+
+    TimeoutError: page.waitForResponse: Timeout 20000ms exceeded while waiting for event "response"
+
+      896 |             await page.fill('input[name="password"]', TENANT_LOGIN_PASSWORD);
+      897 |             await Promise.all([
+    > 898 |                 page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST' && resp.status() === 200, { timeout: 20000 }),
+          |                      ^
+      899 |                 page.locator('form.login-form button.submit-button').click(),
+      900 |             ]);
+      901 |
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:898:22
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--f28ed-nd-see-it-in-the-admin-grid-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--f28ed-nd-see-it-in-the-admin-grid-chromium\error-context.md
+
+  4) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:978:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.4: Tenant can view created product detail with correct info 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('.products-grid .product-card').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for locator('.products-grid .product-card').first()[22m
+
+
+      982 |
+      983 |             const productCard = page.locator('.products-grid .product-card').first();
+    > 984 |             await expect(productCard).toBeVisible({ timeout: 15000 });
+          |                                       ^
+      985 |
+      986 |             const productTitleLink = productCard.locator('h3.product-title');
+      987 |             await expect(productTitleLink).toHaveText('Producto prueba', { timeout: 15000 });
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:984:39
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--75142-ct-detail-with-correct-info-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--75142-ct-detail-with-correct-info-chromium\error-context.md
+
+  5) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1016:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.5: Tenant can add a product to the cart and see the header badge update 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('.products-grid .product-card').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for locator('.products-grid .product-card').first()[22m
+
+
+      1020 |
+      1021 |             const productCard = page.locator('.products-grid .product-card').first();
+    > 1022 |             await expect(productCard).toBeVisible({ timeout: 15000 });
+           |                                       ^
+      1023 |
+      1024 |             const addToCartButton = productCard.locator('button.add-to-cart-button');
+      1025 |             await expect(addToCartButton).toBeVisible({ timeout: 10000 });
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1022:39
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--f1c8f-see-the-header-badge-update-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--f1c8f-see-the-header-badge-update-chromium\error-context.md
+
+  6) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1051:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.6: Tenant admin can complete COD checkout and see a pending payment order 
+
+    TimeoutError: page.waitForResponse: Timeout 20000ms exceeded while waiting for event "response"
+
+      1058 |             await page.fill('input[name="password"]', TENANT_LOGIN_PASSWORD);
+      1059 |             await Promise.all([
+    > 1060 |                 page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST' && resp.status() === 200, { timeout: 20000 }),
+           |                      ^
+      1061 |                 page.locator('form.login-form button.submit-button').click(),
+      1062 |             ]);
+      1063 |
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1060:22
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--31bf4-see-a-pending-payment-order-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--31bf4-see-a-pending-payment-order-chromium\error-context.md
+
+  7) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1135:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.7: Tenant admin can see the new order in admin orders and use the status stepper 
+
+    TimeoutError: page.waitForResponse: Timeout 20000ms exceeded while waiting for event "response"
+
+      1141 |             await page.fill('input[name="password"]', TENANT_LOGIN_PASSWORD);
+      1142 |             await Promise.all([
+    > 1143 |                 page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST' && resp.status() === 200, { timeout: 20000 }),
+           |                      ^
+      1144 |                 page.locator('form.login-form button.submit-button').click(),
+      1145 |             ]);
+      1146 |
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1143:22
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--90f27--and-use-the-status-stepper-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--90f27--and-use-the-status-stepper-chromium\error-context.md
+
+  8) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1223:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.8: Tenant admin can change order status to paid and see the stepper update 
+
+    TimeoutError: page.waitForResponse: Timeout 20000ms exceeded while waiting for event "response"
+
+      1229 |             await page.fill('input[name="password"]', TENANT_LOGIN_PASSWORD);
+      1230 |             await Promise.all([
+    > 1231 |                 page.waitForResponse(resp => resp.url().includes('/api/auth/login') && resp.request().method() === 'POST' && resp.status() === 200, { timeout: 20000 }),
+           |                      ^
+      1232 |                 page.locator('form.login-form button.submit-button').click(),
+      1233 |             ]);
+      1234 |
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1231:22
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--44ae1--and-see-the-stepper-update-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--44ae1--and-see-the-stepper-update-chromium\error-context.md
+
+  9) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1314:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.1: Tenant admin subscription panel shows current plan and usage bars 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('button.user-name-btn').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for locator('button.user-name-btn').first()[22m
+
+
+      1322 |
+      1323 |             const userButton = page.locator('button.user-name-btn').first();
+    > 1324 |             await expect(userButton).toBeVisible({ timeout: 15000 });
+           |                                      ^
+      1325 |
+      1326 |             await page.goto(`${RESOLVED_TENANT_BASE}/profile`);
+      1327 |             const subscriptionButton = page.locator('button', { hasText: 'Suscripci├│n' });
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1324:38
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--ad8f3-current-plan-and-usage-bars-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--ad8f3-current-plan-and-usage-bars-chromium\error-context.md
+
+  10) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1346:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.2: Tenant subscription panel shows correct product and order usage values 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('button.user-name-btn').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for locator('button.user-name-btn').first()[22m
+
+
+      1355 |
+      1356 |             const userButton = page.locator('button.user-name-btn').first();
+    > 1357 |             await expect(userButton).toBeVisible({ timeout: 15000 });
+           |                                      ^
+      1358 |
+      1359 |             // Get counts from the admin dashboard overview
+      1360 |             await page.goto(`${RESOLVED_TENANT_BASE}/admin`);
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1357:38
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--4a08c-duct-and-order-usage-values-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--4a08c-duct-and-order-usage-values-chromium\error-context.md
+
+  11) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1399:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.3: Tenant can open change plan modal and see the current plan highlighted 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('button.user-name-btn').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for locator('button.user-name-btn').first()[22m
+
+
+      1408 |
+      1409 |             const userButton = page.locator('button.user-name-btn').first();
+    > 1410 |             await expect(userButton).toBeVisible({ timeout: 15000 });
+           |                                      ^
+      1411 |
+      1412 |             // Open subscription page via profile
+      1413 |             await page.goto(`${RESOLVED_TENANT_BASE}/profile`);
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1410:38
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--0fa1b-he-current-plan-highlighted-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--0fa1b-he-current-plan-highlighted-chromium\error-context.md
+
+  12) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1445:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.4: Tenant can upgrade to Profesional and see updated limits 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('button.user-name-btn').first()
+    Expected: visible
+    Timeout: 15000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 15000ms[22m
+    [2m  - waiting for locator('button.user-name-btn').first()[22m
+
+
+      1453 |
+      1454 |             const userButton = page.locator('button.user-name-btn').first();
+    > 1455 |             await expect(userButton).toBeVisible({ timeout: 15000 });
+           |                                      ^
+      1456 |
+      1457 |             await page.goto(`${RESOLVED_TENANT_BASE}/profile`);
+      1458 |             const subscriptionButton = page.locator('button', { hasText: 'Suscripci├│n' });
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1455:38
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--34f25-onal-and-see-updated-limits-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--34f25-onal-and-see-updated-limits-chromium\error-context.md
+
+  13) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1957:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.6 - Crear tienda, eliminarla desde Super Admin y verificar que no es accesible 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoHaveCount[2m([22m[32mexpected[39m[2m)[22m failed
+
+    Locator:  locator('tbody tr').filter({ hasText: 'tienda1.eonsclover.local' })
+    Expected: [32m0[39m
+    Received: [31m1[39m
+    Timeout:  10000ms
+
+    Call log:
+    [2m  - Expect "toHaveCount" with timeout 10000ms[22m
+    [2m  - waiting for locator('tbody tr').filter({ hasText: 'tienda1.eonsclover.local' })[22m
+    [2m    13 ├ù locator resolved to 1 element[22m
+    [2m       - unexpected value "1"[22m
+
+
+      1988 |         await page.getByRole('button', { name: '≡ƒùæ Eliminar' }).click();
+      1989 |         const deletedTenantRow = page.locator('tbody tr', { hasText: `${tenantSlug}.eonsclover.local` });
+    > 1990 |         await expect(deletedTenantRow).toHaveCount(0);
+           |                                        ^
+      1991 |
+      1992 |         // --- Paso 3: Verificar que la tienda eliminada no es accesible ---
+      1993 |         await page.goto(`http://${tenantSlug}.eonsclover.local/`);
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:1990:40
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--bff3a-rificar-que-no-es-accesible-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--bff3a-rificar-que-no-es-accesible-chromium\error-context.md
+
+  14) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2025:9 ΓÇ║ C - Slug availability ΓÇ║ C2 - Verify slug unavailability during registration 
+
+    Error: [2mexpect([22m[31mreceived[39m[2m).[22mtoBe[2m([22m[32mexpected[39m[2m) // Object.is equality[22m
+
+    Expected: [32m400[39m
+    Received: [31m409[39m
+
+      2047 |                 })
+      2048 |             });
+    > 2049 |             expect(secondRes.status()).toBe(400);
+           |                                        ^
+      2050 |
+      2051 |             const body = await secondRes.json();
+      2052 |             expect(body.message).toMatch(/slug|disponible|ya existe|ya est├í registrado/i);
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:2049:40
+
+  15) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2347:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.1+D3.2+D3.3+D3.4: Lista de tenants paginada con filtros de estado, plan y b├║squeda 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('h1:has-text("Super Admin")')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('h1:has-text("Super Admin")')[22m
+
+
+      2358 |         await page.fill('input[type="password"]', SUPER_ADMIN_SECRET);
+      2359 |         await page.click('button:has-text("Acceder")');
+    > 2360 |         await expect(page.locator('h1:has-text("Super Admin")')).toBeVisible({ timeout: 10000 });
+           |                                                                  ^
+      2361 |
+      2362 |         // ΓöÇΓöÇ D3.1: Estructura de la tabla ΓöÇΓöÇ
+      2363 |         // 2. Encabezado de secci├│n
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:2360:66
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--4b1f2-s-de-estado-plan-y-b├║squeda-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--4b1f2-s-de-estado-plan-y-b├║squeda-chromium\error-context.md
+
+  16) [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2456:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.5: Detalle de tenant muestra info completa, plan, status, fechas y audit log 
+
+    Error: [2mexpect([22m[31mlocator[39m[2m).[22mtoBeVisible[2m([22m[2m)[22m failed
+
+    Locator: locator('h1:has-text("Super Admin")')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+    [2m  - Expect "toBeVisible" with timeout 10000ms[22m
+    [2m  - waiting for locator('h1:has-text("Super Admin")')[22m
+
+
+      2459 |         await page.fill('input[type="password"]', SUPER_ADMIN_SECRET);
+      2460 |         await page.click('button:has-text("Acceder")');
+    > 2461 |         await expect(page.locator('h1:has-text("Super Admin")')).toBeVisible({ timeout: 10000 });
+           |                                                                  ^
+      2462 |
+      2463 |         const tenantRow = page.locator('tr', { hasText: `${FIXED_TEST_SLUG}.techstore` }).first();
+      2464 |         await expect(tenantRow).toBeVisible();
+        at C:\Users\rober\TechStore\frontend\tests\specs\Saas-test\saas-happy-path.spec.js:2461:66
+
+    attachment #1: screenshot (image/png) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+    test-results\Saas-test-saas-happy-path--c590d-n-status-fechas-y-audit-log-chromium\test-failed-1.png
+    ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+
+    Error Context: test-results\Saas-test-saas-happy-path--c590d-n-status-fechas-y-audit-log-chromium\error-context.md
+
+  16 failed
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:406:5 ΓÇ║ HP2 - Tenant Registration Happy Path ΓÇ║ HP2.4: Redirect to tenant store 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:850:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.2: Tenant admin login works with registered credentials 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:884:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.3: Tenant admin can create a product and see it in the admin grid 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:978:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.4: Tenant can view created product detail with correct info 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1016:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.5: Tenant can add a product to the cart and see the header badge update 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1051:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.6: Tenant admin can complete COD checkout and see a pending payment order 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1135:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.7: Tenant admin can see the new order in admin orders and use the status stepper 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1223:9 ΓÇ║ HP4 - Tenant Store Access and Display ΓÇ║ HP4.8: Tenant admin can change order status to paid and see the stepper update 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1314:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.1: Tenant admin subscription panel shows current plan and usage bars 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1346:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.2: Tenant subscription panel shows correct product and order usage values 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1399:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.3: Tenant can open change plan modal and see the current plan highlighted 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1445:9 ΓÇ║ HP5 - Tenant Subscription and Limits ΓÇ║ HP5.4: Tenant can upgrade to Profesional and see updated limits 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:1957:5 ΓÇ║ B1 - Tenant Middleware ΓÇ║ B1.6 - Crear tienda, eliminarla desde Super Admin y verificar que no es accesible 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2025:9 ΓÇ║ C - Slug availability ΓÇ║ C2 - Verify slug unavailability during registration 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2347:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.1+D3.2+D3.3+D3.4: Lista de tenants paginada con filtros de estado, plan y b├║squeda 
+    [chromium] ΓÇ║ specs\Saas-test\saas-happy-path.spec.js:2456:5 ΓÇ║ D - Super Admin Tenant Management ΓÇ║ D3.5: Detalle de tenant muestra info completa, plan, status, fechas y audit log 
+  36 passed (5.8m)
+
+To open last HTML report run:
+[36m[39m
+[36m  npx playwright show-report playwright-report[39m
+[36m[39m

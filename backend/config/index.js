@@ -42,8 +42,17 @@ module.exports = {
     // SaaS multi-tenant config (SAAS_MODE=false preserves single-tenant behavior)
     SAAS_MODE: process.env.SAAS_MODE || 'false',
     PLATFORM_DOMAIN: process.env.PLATFORM_DOMAIN || 'localhost',
+    FRONTEND_APP_URL: process.env.FRONTEND_APP_URL || 'http://localhost:5173',
     SUPER_ADMIN_EMAIL: process.env.SUPER_ADMIN_EMAIL,
     SUPER_ADMIN_SECRET: process.env.SUPER_ADMIN_SECRET,
     TRIAL_DAYS: parseInt(process.env.TRIAL_DAYS) || 14,
     REDIS_URL: process.env.REDIS_URL || 'redis://localhost:6379',
+
+    // OAuth SSO providers
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET,
+    GOOGLE_REDIRECT_URI: process.env.GOOGLE_REDIRECT_URI,
+    FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
+    FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET,
+    FACEBOOK_REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI,
 };

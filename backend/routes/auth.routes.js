@@ -492,4 +492,169 @@ router.post('/logout', authenticateToken, async (req, res) => {
     res.json({ message: 'Logout exitoso' });
 });
 
+// ── OAuth SSO (Google + Facebook) ─────────────────────────────────────────────
+// Authorization Code flow: redirect → provider → callback → oauth_state JWT
+// The oauth_state JWT is short-lived (10 min) and carries email/name/oauthPassword
+// securely to the frontend so the user can complete tenant registration (step 2).
+
+/**
+ * GET /api/auth/oauth/google
+ * Redirect to Google's consent screen
+ */
+router.get('/oauth/google', (req, res) => {
+    const { GOOGLE_CLIENT_ID, GOOGLE_REDIRECT_URI } = config;
+    if (!GOOGLE_CLIENT_ID || !GOOGLE_REDIRECT_URI) {
+        return res.status(503).json({ message: 'Google OAuth no está configurado' });
+    }
+    const params = new URLSearchParams({
+        client_id: GOOGLE_CLIENT_ID,
+        redirect_uri: GOOGLE_REDIRECT_URI,
+        response_type: 'code',
+        scope: 'openid email profile',
+        prompt: 'select_account',
+        access_type: 'online',
+    });
+    res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+});
+
+/**
+ * GET /api/auth/oauth/google/callback
+ * Exchange auth code → user profile → signed oauth_state token → redirect to frontend
+ */
+router.get('/oauth/google/callback', async (req, res) => {
+    const { GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI, FRONTEND_APP_URL } = config;
+    const { code, error } = req.query;
+
+    if (error || !code) {
+        return res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=cancelled`);
+    }
+
+    try {
+        // Exchange authorization code for access token
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                code,
+                client_id: GOOGLE_CLIENT_ID,
+                client_secret: GOOGLE_CLIENT_SECRET,
+                redirect_uri: GOOGLE_REDIRECT_URI,
+                grant_type: 'authorization_code',
+            }),
+        });
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok || !tokenData.access_token) {
+            console.error('[oauth/google] Token exchange failed:', tokenData);
+            return res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=token`);
+        }
+
+        // Get user profile
+        const profileRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+        const profile = await profileRes.json();
+        if (!profileRes.ok || !profile.email) {
+            console.error('[oauth/google] Profile fetch failed:', profile);
+            return res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=profile`);
+        }
+
+        // Create a short-lived oauth_state token (10 min)
+        // oauthPassword is a random secret the provisioner will use — user never sees it
+        const oauthPassword = crypto.randomBytes(24).toString('base64url');
+        const oauthStateToken = jwt.sign(
+            { type: 'oauth_state', provider: 'google', email: profile.email, name: profile.name || '', oauthPassword },
+            JWT_SECRET,
+            { expiresIn: '10m' }
+        );
+
+        const params = new URLSearchParams({
+            oauth_token: oauthStateToken,
+            email: profile.email,
+            name: profile.name || '',
+        });
+        res.redirect(`${FRONTEND_APP_URL}/register?${params}`);
+
+    } catch (err) {
+        console.error('[oauth/google] Callback error:', err);
+        res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=server`);
+    }
+});
+
+/**
+ * GET /api/auth/oauth/facebook
+ * Redirect to Facebook's consent dialog
+ */
+router.get('/oauth/facebook', (req, res) => {
+    const { FACEBOOK_CLIENT_ID, FACEBOOK_REDIRECT_URI } = config;
+    if (!FACEBOOK_CLIENT_ID || !FACEBOOK_REDIRECT_URI) {
+        return res.status(503).json({ message: 'Facebook OAuth no está configurado' });
+    }
+    const params = new URLSearchParams({
+        client_id: FACEBOOK_CLIENT_ID,
+        redirect_uri: FACEBOOK_REDIRECT_URI,
+        scope: 'email,public_profile',
+        response_type: 'code',
+    });
+    res.redirect(`https://www.facebook.com/v20.0/dialog/oauth?${params}`);
+});
+
+/**
+ * GET /api/auth/oauth/facebook/callback
+ * Exchange auth code → user profile → signed oauth_state token → redirect to frontend
+ */
+router.get('/oauth/facebook/callback', async (req, res) => {
+    const { FACEBOOK_CLIENT_ID, FACEBOOK_CLIENT_SECRET, FACEBOOK_REDIRECT_URI, FRONTEND_APP_URL } = config;
+    const { code, error } = req.query;
+
+    if (error || !code) {
+        return res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=cancelled`);
+    }
+
+    try {
+        // Exchange authorization code for access token
+        const tokenRes = await fetch(
+            `https://graph.facebook.com/v20.0/oauth/access_token?${new URLSearchParams({
+                client_id: FACEBOOK_CLIENT_ID,
+                client_secret: FACEBOOK_CLIENT_SECRET,
+                redirect_uri: FACEBOOK_REDIRECT_URI,
+                code,
+            })}`
+        );
+        const tokenData = await tokenRes.json();
+        if (!tokenRes.ok || !tokenData.access_token) {
+            console.error('[oauth/facebook] Token exchange failed:', tokenData);
+            return res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=token`);
+        }
+
+        // Get user profile (name + email)
+        const profileRes = await fetch(
+            `https://graph.facebook.com/me?fields=id,name,email&access_token=${tokenData.access_token}`
+        );
+        const profile = await profileRes.json();
+        if (!profileRes.ok || !profile.email) {
+            console.error('[oauth/facebook] Profile fetch failed:', profile);
+            // Facebook may not return email if the user hasn't granted it
+            return res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=no_email`);
+        }
+
+        const oauthPassword = crypto.randomBytes(24).toString('base64url');
+        const oauthStateToken = jwt.sign(
+            { type: 'oauth_state', provider: 'facebook', email: profile.email, name: profile.name || '', oauthPassword },
+            JWT_SECRET,
+            { expiresIn: '10m' }
+        );
+
+        const params = new URLSearchParams({
+            oauth_token: oauthStateToken,
+            email: profile.email,
+            name: profile.name || '',
+        });
+        res.redirect(`${FRONTEND_APP_URL}/register?${params}`);
+
+    } catch (err) {
+        console.error('[oauth/facebook] Callback error:', err);
+        res.redirect(`${FRONTEND_APP_URL}/register?oauth_error=server`);
+    }
+});
+
 module.exports = router;

@@ -735,6 +735,8 @@ export default function SuperAdminRoutes() {
     return (
         <Routes>
             <Route path="/" element={<SuperAdminDashboard />} />
+            {/* Support path-based access: eonsclover.local/admin */}
+            <Route path="/admin" element={<SuperAdminDashboard />} />
             <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
     );

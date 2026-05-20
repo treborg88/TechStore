@@ -5,7 +5,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
-import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
+import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL, API_URL } from '../../config';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const glass = {
@@ -133,6 +133,8 @@ function StepDots({ step }) {
 
 // Shared page shell (blobs + navbar + centered main)
 function PageShell({ step, loginUrl, children }) {
+    const landingUrl = `${PLATFORM_PROTOCOL}//${PLATFORM_DOMAIN}`;
+
     // Blobs differ per step (step 1: purple top-right, step 2: cyan top-left)
     const blob1 = step === 1
         ? { width: '500px', height: '500px', background: 'rgba(139,92,246,0.13)', top: '-100px', right: '-120px' }
@@ -148,7 +150,7 @@ function PageShell({ step, loginUrl, children }) {
 
             <header style={{ position: 'relative', zIndex: 20, width: '100%', borderBottom: '1px solid rgba(255,255,255,0.10)', background: 'rgba(5,8,22,0.80)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}>
                 <div style={{ maxWidth: '1024px', margin: '0 auto', padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <a href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#fff', textDecoration: 'none' }}>
+                    <a href={landingUrl} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: '#fff', textDecoration: 'none' }}>
                         <LogoSvg />
                         <span style={{ fontSize: '1.25rem', fontWeight: 700 }}>EonsClover</span>
                     </a>
@@ -160,6 +162,17 @@ function PageShell({ step, loginUrl, children }) {
 
             <main style={{ position: 'relative', zIndex: 10, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '4rem 1.5rem' }}>
                 <div style={{ width: '100%', maxWidth: '512px' }}>
+                    {/* Back to landing page link — only on step 1; step 2 has its own back button */}
+                    {step === 1 && <a href={landingUrl}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'rgba(255,255,255,0.38)', fontSize: '0.8125rem', textDecoration: 'none', marginBottom: '1.75rem', fontFamily: 'Inter, sans-serif', transition: 'color 0.2s' }}
+                        onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.75)'}
+                        onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.38)'}
+                    >
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M19 12H5M12 5l-7 7 7 7" />
+                        </svg>
+                        Volver al inicio
+                    </a>}
                     {children}
                 </div>
             </main>
@@ -191,6 +204,20 @@ export default function OnboardingWizard() {
     const [submitting, setSubmitting]   = useState(false);
     const [success, setSuccess]         = useState(null);
 
+    // OAuth SSO state
+    const [oauthToken, setOauthToken]   = useState(null);
+    const [oauthError, setOauthError]   = useState('');
+    const [checkingEmail, setCheckingEmail] = useState(false);
+    const [termsError, setTermsError]   = useState(false);
+
+    // Email verification step (step 2)
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verifyError, setVerifyError]           = useState('');
+    const [verifying, setVerifying]               = useState(false);
+    const [countdown, setCountdown]               = useState(0);
+    const [savedCode, setSavedCode]               = useState('');
+    const [sendingCode, setSendingCode]           = useState(false);
+
     const strength = getStrength(password);
     const loginUrl = `${PLATFORM_PROTOCOL}//${PLATFORM_DOMAIN}/login`;
     const domainRef = useRef(null);
@@ -207,39 +234,161 @@ export default function OnboardingWizard() {
         }
     }, []);
 
-    // ── Step 1: advance ────────────────────────────────────────────────────────
-    const handleStep1 = (e) => {
+    // Handle OAuth callback: read URL params and skip to step 2
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const token    = params.get('oauth_token');
+        const errCode  = params.get('oauth_error');
+        const oEmail   = params.get('email');
+        const oName    = params.get('name');
+
+        if (errCode) {
+            const messages = {
+                cancelled: 'Inicio de sesión cancelado.',
+                token:     'Error al conectar con el proveedor. Intenta de nuevo.',
+                profile:   'No se pudo obtener tu perfil del proveedor.',
+                no_email:  'Tu cuenta de Facebook no tiene email asociado. Usa otro método.',
+                server:    'Error del servidor. Intenta de nuevo.',
+            };
+            setOauthError(messages[errCode] || 'Error inesperado con SSO.');
+            window.history.replaceState({}, '', window.location.pathname);
+            return;
+        }
+
+        if (token) {
+            setOauthToken(token);
+            if (oEmail) setEmail(decodeURIComponent(oEmail));
+            if (oName)  setStoreName(decodeURIComponent(oName));
+            // OAuth users skip email verification — go directly to store name step
+            window.history.replaceState({}, '', window.location.pathname);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setStep(3);
+        }
+    }, []);
+
+    // Countdown timer for the resend-code button
+    useEffect(() => {
+        if (countdown <= 0) return;
+        const timer = setTimeout(() => setCountdown(c => c - 1), 1000);
+        return () => clearTimeout(timer);
+    }, [countdown]);
+
+    // ── Step 1: validate + check email uniqueness → advance ───────────────────
+    const handleStep1 = async (e) => {
         e.preventDefault();
 
-        // TODO: re-enable validation before production
-        // let valid = true;
-        // if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        //     setEmailError('Ingresa un correo válido.');
-        //     valid = false;
-        // } else {
-        //     setEmailError('');
-        // }
-        // if (password.length < 8) {
-        //     setStep1Error('La contraseña debe tener al menos 8 caracteres.');
-        //     valid = false;
-        // } else if (password !== confirmPassword) {
-        //     setMatchError('Las contraseñas no coinciden.');
-        //     valid = false;
-        // } else {
-        //     setMatchError('');
-        //     setStep1Error('');
-        // }
-        // if (!termsAccepted) {
-        //     setStep1Error('Debes aceptar los términos y condiciones para continuar.');
-        //     valid = false;
-        // }
-        // if (!valid) return;
+        let valid = true;
 
+        // Email format
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            setEmailError('Ingresa un correo electrónico válido.');
+            valid = false;
+        } else {
+            setEmailError('');
+        }
+
+        // Password length
+        if (password.length < 8) {
+            setStep1Error('La contraseña debe tener al menos 8 caracteres.');
+            valid = false;
+        } else if (password !== confirmPassword) {
+            setMatchError('Las contraseñas no coinciden.');
+            valid = false;
+        } else {
+            setMatchError('');
+            setStep1Error('');
+        }
+
+        // Terms
+        if (!termsAccepted) {
+            setTermsError(true);
+            valid = false;
+        } else {
+            setTermsError(false);
+        }
+
+        if (!valid) return;
+
+        // Check if email is already registered as a tenant owner
+        setCheckingEmail(true);
+        try {
+            const res = await apiFetch(apiUrl(`/saas/check-email?email=${encodeURIComponent(email.trim())}`));
+            const data = await res.json();
+            if (data.taken) {
+                setEmailError('Este correo ya está registrado. ¿Quieres iniciar sesión?');
+                return;
+            }
+        } catch {
+            // Network error — let the user proceed; server will validate on submit
+        } finally {
+            setCheckingEmail(false);
+        }
+
+        // Send verification code before advancing to step 2
+        setSendingCode(true);
+        try {
+            await apiFetch(apiUrl('/verification/send-code'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), purpose: 'register' }),
+            });
+        } catch {
+            // Network error — still advance; backend will validate on final submit
+        } finally {
+            setSendingCode(false);
+        }
+        setCountdown(60);
         window.scrollTo({ top: 0, behavior: 'smooth' });
         setStep(2);
     };
 
-    // ── Step 2: store name auto-generates domain ───────────────────────────────
+    // ── Resend verification code ────────────────────────────────────────────
+    const handleResend = async () => {
+        if (countdown > 0 || sendingCode) return;
+        setSendingCode(true);
+        try {
+            await apiFetch(apiUrl('/verification/send-code'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), purpose: 'register' }),
+            });
+        } catch {}
+        setSendingCode(false);
+        setCountdown(60);
+        setVerifyError('');
+    };
+
+    // ── Step 2: verify the emailed code ────────────────────────────────────────
+    const handleVerifyCode = async (e) => {
+        e.preventDefault();
+        if (!verificationCode.trim()) {
+            setVerifyError('Ingresa el código de verificación.');
+            return;
+        }
+        setVerifying(true);
+        setVerifyError('');
+        try {
+            const res = await apiFetch(apiUrl('/verification/verify-code'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), code: verificationCode.trim(), purpose: 'register' }),
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                setVerifyError(data.message || 'Código inválido o expirado.');
+                return;
+            }
+            setSavedCode(verificationCode.trim());
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            setStep(3);
+        } catch {
+            setVerifyError('Error de conexión. Intenta de nuevo.');
+        } finally {
+            setVerifying(false);
+        }
+    };
+
+    // ── Step 3: store name auto-generates domain ───────────────────────────────
     const handleStoreNameChange = (value) => {
         setStoreName(value);
         if (!domainEdited) {
@@ -255,8 +404,12 @@ export default function OnboardingWizard() {
 
     const showPreview = storeName.trim() || domain;
 
-    // ── Step 2: submit to API ──────────────────────────────────────────────────
-    const handleStep2 = async (e) => {
+    // ── OAuth SSO handlers (redirect to backend initiation endpoints) ───────────
+    const handleOAuthGoogle   = () => { window.location.href = `${API_URL}/auth/oauth/google`; };
+    const handleOAuthFacebook = () => { window.location.href = `${API_URL}/auth/oauth/facebook`; };
+
+    // ── Step 3: submit to API ──────────────────────────────────────────────────
+    const handleStep3 = async (e) => {
         e.preventDefault();
 
         if (!storeName.trim() || storeName.trim().length < 3) {
@@ -271,15 +424,15 @@ export default function OnboardingWizard() {
         setSubmitting(true);
 
         try {
+            // Include oauth_token if coming from SSO; otherwise use email+password
+            const body = oauthToken
+                ? { oauth_token: oauthToken, businessName: storeName.trim(), slug: domain }
+                : { ownerEmail: email.trim(), ownerPassword: password, code: savedCode, businessName: storeName.trim(), slug: domain };
+
             const res = await apiFetch(apiUrl('/saas/register'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ownerEmail: email.trim(),
-                    ownerPassword: password,
-                    businessName: storeName.trim(),
-                    slug: domain,
-                }),
+                body: JSON.stringify(body),
             });
             const data = await res.json();
             if (!res.ok) { setStoreError(data.message || 'Error al crear la tienda'); setSubmitting(false); return; }
@@ -332,9 +485,16 @@ export default function OnboardingWizard() {
 
             <div style={{ ...glass, borderRadius: '24px', padding: '2rem', boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
 
+                {/* OAuth error (from redirect) */}
+                {oauthError && (
+                    <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                        {oauthError}
+                    </div>
+                )}
+
                 {/* OAuth buttons */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '0.5rem' }}>
-                    <button type="button" style={socialBtn}>
+                    <button type="button" style={socialBtn} onClick={handleOAuthGoogle}>
                         <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
                             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
                             <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
@@ -343,11 +503,11 @@ export default function OnboardingWizard() {
                         </svg>
                         Google
                     </button>
-                    <button type="button" style={socialBtn}>
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z" />
+                    <button type="button" style={socialBtn} onClick={handleOAuthFacebook}>
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="#1877F2">
+                            <path d="M24 12.073C24 5.405 18.627 0 12 0S0 5.405 0 12.073C0 18.1 4.388 23.094 10.125 24v-8.437H7.078v-3.49h3.047V9.41c0-3.025 1.792-4.697 4.533-4.697 1.312 0 2.686.236 2.686.236v2.97h-1.514c-1.491 0-1.956.93-1.956 1.886v2.267h3.328l-.532 3.49h-2.796V24C19.612 23.094 24 18.1 24 12.073z" />
                         </svg>
-                        GitHub
+                        Facebook
                     </button>
                 </div>
 
@@ -410,13 +570,27 @@ export default function OnboardingWizard() {
                     </div>
 
                     {/* Terms */}
-                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1.75rem' }}>
-                        <input id="onb-terms" type="checkbox" checked={termsAccepted} onChange={(e) => setTermsAccepted(e.target.checked)}
-                            style={{ marginTop: '2px', width: '16px', height: '16px', flexShrink: 0, cursor: 'pointer', accentColor: '#22d3ee' }} />
-                        <label htmlFor="onb-terms" style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.50)', lineHeight: 1.6, cursor: 'pointer' }}>
-                            Acepto los <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Términos de Servicio</a> y la{' '}
-                            <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Política de Privacidad</a> de EonsClover.
-                        </label>
+                    <div style={{ marginBottom: '1.75rem' }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'flex-start', gap: '0.75rem',
+                            padding: '0.75rem', borderRadius: '10px',
+                            border: termsError ? '1px solid rgba(239,68,68,0.6)' : '1px solid transparent',
+                            background: termsError ? 'rgba(239,68,68,0.08)' : 'transparent',
+                            transition: 'border-color 0.2s, background 0.2s',
+                        }}>
+                            <input id="onb-terms" type="checkbox" checked={termsAccepted}
+                                onChange={(e) => { setTermsAccepted(e.target.checked); if (e.target.checked) setTermsError(false); }}
+                                style={{ marginTop: '2px', width: '16px', height: '16px', flexShrink: 0, cursor: 'pointer', accentColor: '#22d3ee' }} />
+                            <label htmlFor="onb-terms" style={{ fontSize: '0.75rem', color: termsError ? 'rgba(252,165,165,0.9)' : 'rgba(255,255,255,0.50)', lineHeight: 1.6, cursor: 'pointer', transition: 'color 0.2s' }}>
+                                Acepto los <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Términos de Servicio</a> y la{' '}
+                                <a href="#" style={{ color: '#22d3ee', textDecoration: 'none' }}>Política de Privacidad</a> de EonsClover.
+                            </label>
+                        </div>
+                        {termsError && (
+                            <p style={{ marginTop: '6px', fontSize: '0.75rem', color: '#f87171', paddingLeft: '0.75rem' }}>
+                                Debes aceptar los términos para continuar.
+                            </p>
+                        )}
                     </div>
 
                     {step1Error && (
@@ -425,8 +599,8 @@ export default function OnboardingWizard() {
                         </div>
                     )}
 
-                    <button type="submit" style={{ background: '#22d3ee', color: '#050816', fontWeight: 700, borderRadius: '14px', padding: '14px 32px', fontSize: '1rem', width: '100%', border: 'none', cursor: 'pointer', letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif', transition: 'transform 0.15s, box-shadow 0.15s, background 0.15s' }}>
-                        Crear cuenta →
+                    <button type="submit" disabled={checkingEmail || sendingCode} style={{ background: (checkingEmail || sendingCode) ? 'rgba(34,211,238,0.5)' : '#22d3ee', color: '#050816', fontWeight: 700, borderRadius: '14px', padding: '14px 32px', fontSize: '1rem', width: '100%', border: 'none', cursor: (checkingEmail || sendingCode) ? 'not-allowed' : 'pointer', letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif', transition: 'transform 0.15s, box-shadow 0.15s, background 0.15s' }}>
+                        {checkingEmail ? 'Verificando...' : sendingCode ? 'Enviando código...' : 'Crear cuenta →'}
                     </button>
                 </form>
             </div>
@@ -437,14 +611,108 @@ export default function OnboardingWizard() {
         </PageShell>
     );
 
-    // ── STEP 2 ─────────────────────────────────────────────────────────────────
-    return (
+    // ── STEP 2 — Email verification ──────────────────────────────────────────
+    if (step === 2) return (
         <PageShell step={2} loginUrl={loginUrl}>
             <StepDots step={2} />
+
+            <button
+                type="button"
+                onClick={() => { setStep(1); setVerifyError(''); setVerificationCode(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', cursor: 'pointer', padding: '0', marginBottom: '1.5rem', fontFamily: 'Inter, sans-serif', transition: 'color 0.2s' }}
+                onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.85)'}
+                onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.45)'}
+            >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 12H5M12 5l-7 7 7 7" />
+                </svg>
+                Volver
+            </button>
 
             <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
                 <p style={{ fontSize: '0.75rem', color: 'rgba(34,211,238,0.8)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.75rem' }}>
                     Paso 2 de 4
+                </p>
+                <h1 style={{ fontSize: '2.25rem', fontWeight: 800, lineHeight: 1.25, margin: '0 0 0.75rem', color: '#fff' }}>
+                    Verifica tu{' '}
+                    <span style={{ background: 'linear-gradient(to right, #22d3ee, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                        correo
+                    </span>
+                </h1>
+                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '1rem', lineHeight: 1.625, maxWidth: '360px', margin: '0 auto' }}>
+                    Enviamos un código de 6 dígitos a{' '}
+                    <strong style={{ color: 'rgba(255,255,255,0.85)' }}>{email}</strong>
+                </p>
+            </div>
+
+            <div style={{ ...glass, borderRadius: '24px', padding: '2rem', boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
+                <form onSubmit={handleVerifyCode} autoComplete="off">
+                    <div style={{ marginBottom: '1.5rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: '0.5rem' }}>
+                            Código de verificación
+                        </label>
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            maxLength={6}
+                            style={{ ...inputBase, letterSpacing: '0.3em', fontSize: '1.25rem', textAlign: 'center' }}
+                            placeholder="000000"
+                            value={verificationCode}
+                            onChange={(e) => { setVerificationCode(e.target.value.replace(/\D/g, '')); if (verifyError) setVerifyError(''); }}
+                            autoFocus
+                        />
+                    </div>
+                    {verifyError && (
+                        <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                            {verifyError}
+                        </div>
+                    )}
+                    <button type="submit" disabled={verifying} style={{ background: verifying ? 'rgba(34,211,238,0.5)' : '#22d3ee', color: '#050816', fontWeight: 700, borderRadius: '14px', padding: '14px 32px', fontSize: '1rem', width: '100%', border: 'none', cursor: verifying ? 'not-allowed' : 'pointer', letterSpacing: '0.01em', fontFamily: 'Inter, sans-serif', transition: 'transform 0.15s, box-shadow 0.15s, background 0.15s' }}>
+                        {verifying ? 'Verificando...' : 'Verificar correo →'}
+                    </button>
+                    <p style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.45)' }}>
+                        ¿No recibiste el código?{' '}
+                        {countdown > 0 ? (
+                            <span style={{ color: '#22d3ee' }}>Reenviar en {countdown}s</span>
+                        ) : (
+                            <button type="button" onClick={handleResend} disabled={sendingCode} style={{ background: 'none', border: 'none', color: '#22d3ee', cursor: sendingCode ? 'default' : 'pointer', fontSize: '0.875rem', fontFamily: 'Inter, sans-serif', fontWeight: 500, padding: 0 }}>
+                                {sendingCode ? 'Enviando...' : 'Reenviar código'}
+                            </button>
+                        )}
+                    </p>
+                </form>
+            </div>
+
+            <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.30)', marginTop: '1.5rem' }}>
+                🔒 Tus datos están protegidos con cifrado SSL de extremo a extremo.
+            </p>
+        </PageShell>
+    );
+
+    // ── STEP 3 — Store name ─────────────────────────────────────────────────────────────────
+    return (
+        <PageShell step={3} loginUrl={loginUrl}>
+            <StepDots step={3} />
+
+            {/* Back button — hidden when arriving via OAuth (step 1 was bypassed) */}
+            {!oauthToken && (
+                <button
+                    type="button"
+                    onClick={() => { setStep(1); setStoreError(''); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: '0.875rem', cursor: 'pointer', padding: '0', marginBottom: '1.5rem', fontFamily: 'Inter, sans-serif', transition: 'color 0.2s' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'rgba(255,255,255,0.85)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'rgba(255,255,255,0.45)'}
+                >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M19 12H5M12 5l-7 7 7 7" />
+                    </svg>
+                    Volver
+                </button>
+            )}
+
+            <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                <p style={{ fontSize: '0.75rem', color: 'rgba(34,211,238,0.8)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.75rem' }}>
+                    Paso 3 de 4
                 </p>
                 <h1 style={{ fontSize: '2.25rem', fontWeight: 800, lineHeight: 1.25, margin: '0 0 0.75rem', color: '#fff' }}>
                     Dale un nombre a<br />
@@ -458,7 +726,7 @@ export default function OnboardingWizard() {
             </div>
 
             <div style={{ ...glass, borderRadius: '24px', padding: '2rem', boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
-                <form onSubmit={handleStep2} autoComplete="off">
+                <form onSubmit={handleStep3} autoComplete="off">
 
                     {/* Store name */}
                     <div style={{ marginBottom: '1.5rem' }}>
@@ -493,7 +761,7 @@ export default function OnboardingWizard() {
                                 onBlur={() => setDomainFocused(false)}
                             />
                             <div style={{ background: 'rgba(34,211,238,0.08)', border: `1px solid ${domainFocused ? 'rgba(34,211,238,0.6)' : 'rgba(34,211,238,0.2)'}`, borderLeft: 'none', color: 'rgba(34,211,238,0.8)', fontSize: '0.875rem', padding: '0 14px', borderRadius: '0 12px 12px 0', display: 'flex', alignItems: 'center', whiteSpace: 'nowrap', userSelect: 'none', transition: 'border-color 0.2s' }}>
-                                .eonsclover.com
+                                .{PLATFORM_DOMAIN}
                             </div>
                         </div>
                         <p style={{ marginTop: '8px', fontSize: '0.75rem', color: 'rgba(255,255,255,0.35)' }}>
@@ -506,7 +774,7 @@ export default function OnboardingWizard() {
                         <div style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)', marginBottom: '2rem' }}>
                             Tu tienda estará en:{' '}
                             <span style={{ color: '#c4b5fd', fontWeight: 600 }}>
-                                {domain || 'tu-tienda'}.eonsclover.com
+                                {domain || 'tu-tienda'}.{PLATFORM_DOMAIN}
                             </span>
                         </div>
                     )}
