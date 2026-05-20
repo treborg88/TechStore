@@ -345,6 +345,80 @@ router.get('/metrics', async (req, res) => {
     }
 });
 
+// ── GET /database/schemas — List all schemas + their tables (read-only) ───────
+router.get('/database/schemas', async (req, res) => {
+    try {
+        // Fetch only public + tenant_* schemas
+        const schemasResult = await pool.query(`
+            SELECT schema_name FROM information_schema.schemata
+            WHERE schema_name = 'public' OR schema_name LIKE 'tenant_%'
+            ORDER BY schema_name
+        `);
+
+        const result = {};
+        for (const { schema_name } of schemasResult.rows) {
+            const tablesResult = await pool.query(`
+                SELECT table_name FROM information_schema.tables
+                WHERE table_schema = $1 AND table_type = 'BASE TABLE'
+                ORDER BY table_name
+            `, [schema_name]);
+            result[schema_name] = tablesResult.rows.map(r => r.table_name);
+        }
+
+        res.json(result);
+    } catch (err) {
+        console.error('SuperAdmin database schemas error:', err);
+        res.status(500).json({ message: 'Error al obtener esquemas' });
+    }
+});
+
+// ── GET /database/:schema/table/:table — Paginated rows (read-only) ───────────
+router.get('/database/:schema/table/:table', async (req, res) => {
+    try {
+        const { schema, table } = req.params;
+        const page  = Math.max(1, parseInt(req.query.page)  || 1);
+        const limit = Math.min(100, parseInt(req.query.limit) || 50);
+        const offset = (page - 1) * limit;
+
+        // Strict allowlist validation — prevents SQL injection via identifier
+        if (!/^(public|tenant_[a-z0-9_]+)$/.test(schema)) {
+            return res.status(400).json({ message: 'Schema inválido' });
+        }
+        if (!/^[a-z_][a-z0-9_]*$/.test(table)) {
+            return res.status(400).json({ message: 'Tabla inválida' });
+        }
+
+        // Verify the table actually exists in the schema before querying
+        const exists = await pool.query(
+            `SELECT 1 FROM information_schema.tables
+             WHERE table_schema = $1 AND table_name = $2 AND table_type = 'BASE TABLE'`,
+            [schema, table]
+        );
+        if (!exists.rows.length) {
+            return res.status(404).json({ message: 'Tabla no encontrada' });
+        }
+
+        const countResult = await pool.query(`SELECT COUNT(*) FROM "${schema}"."${table}"`);
+        const total = parseInt(countResult.rows[0].count);
+
+        const dataResult = await pool.query(
+            `SELECT * FROM "${schema}"."${table}" LIMIT $1 OFFSET $2`,
+            [limit, offset]
+        );
+
+        res.json({
+            columns: dataResult.fields.map(f => f.name),
+            rows: dataResult.rows,
+            total,
+            page,
+            totalPages: Math.ceil(total / limit)
+        });
+    } catch (err) {
+        console.error('SuperAdmin table data error:', err);
+        res.status(500).json({ message: 'Error al obtener datos de la tabla' });
+    }
+});
+
 // ── GET /audit-log — Global audit log ─────────────────────────────────────────
 router.get('/audit-log', async (req, res) => {
     try {

@@ -6,6 +6,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { API_URL, PLATFORM_DOMAIN } from '../../config';
 import SuperAdminLoginPage from './SuperAdminLoginPage';
+import DatabaseSection from './DatabaseSection';
 
 // ── Status / plan badge config ────────────────────────────────────────────────
 const STATUS_BADGE = {
@@ -513,8 +514,7 @@ function AlertsPanel({ trialAlerts = [] }) {
 }
 
 // ── Sidebar ───────────────────────────────────────────────────────────────────
-function Sidebar({ onLogout, totalTenants }) {
-    const [activeNav, setActiveNav] = useState('dashboard');
+function Sidebar({ onLogout, totalTenants, activeNav, setActiveNav }) {
 
     const NAV_PLATFORM = [
         { id: 'dashboard', icon: '◈', label: 'Dashboard' },
@@ -587,6 +587,7 @@ function SuperAdminDashboard() {
     const [selectedTenant, setSelectedTenant] = useState(null);
     const [refreshKey, setRefreshKey]     = useState(0);
     const [search, setSearch]             = useState('');
+    const [activeNav, setActiveNav]       = useState('dashboard');
 
     // Inject Inter font
     useEffect(() => {
@@ -634,7 +635,7 @@ function SuperAdminDashboard() {
             <div style={{ position: 'fixed', width: '500px', height: '500px', borderRadius: '999px', filter: 'blur(120px)', background: 'rgba(34,211,238,0.07)', top: '-80px', left: '200px', pointerEvents: 'none', zIndex: 0 }} />
             <div style={{ position: 'fixed', width: '420px', height: '420px', borderRadius: '999px', filter: 'blur(120px)', background: 'rgba(139,92,246,0.08)', bottom: 0, right: 0, pointerEvents: 'none', zIndex: 0 }} />
 
-            <Sidebar onLogout={handleLogout} totalTenants={metrics?.tenants?.total} />
+            <Sidebar onLogout={handleLogout} totalTenants={metrics?.tenants?.total} activeNav={activeNav} setActiveNav={setActiveNav} />
 
             {/* Main content area */}
             <div style={{ flex: 1, overflowY: 'auto', position: 'relative', zIndex: 10 }}>
@@ -668,6 +669,14 @@ function SuperAdminDashboard() {
 
                 {/* Content */}
                 <main style={{ padding: '28px 32px' }}>
+
+                    {/* Database browser section */}
+                    {activeNav === 'database' && (
+                        <DatabaseSection superAdminFetch={superAdminFetch} />
+                    )}
+
+                    {/* Dashboard content (KPIs + tables) */}
+                    {activeNav === 'dashboard' && (<>
 
                     {/* KPI cards */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
@@ -717,6 +726,8 @@ function SuperAdminDashboard() {
                             <AlertsPanel trialAlerts={metrics?.trial_alerts || []} />
                         </div>
                     </div>
+
+                    </>)} {/* end activeNav === 'dashboard' */}
                 </main>
             </div>
 
