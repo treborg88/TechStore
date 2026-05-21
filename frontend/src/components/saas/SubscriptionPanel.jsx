@@ -196,7 +196,7 @@ export default function SubscriptionPanel() {
     );
   }
 
-  if (!data) {
+  if (!data || !data.subscription || !data.plan || !data.tenant) {
     return (
       <div style={{ textAlign: 'center', padding: '3rem', color: '#888' }}>
         No se pudo cargar la información de suscripción.
@@ -204,7 +204,7 @@ export default function SubscriptionPanel() {
     );
   }
 
-  const { plan, usage = {}, subscription, tenant } = data;
+  const { plan = {}, usage = {}, subscription = {}, tenant = {} } = data;
   const isTrialExpiring = subscription.trial_ends_at
     && new Date(subscription.trial_ends_at) - Date.now() < 3 * 24 * 60 * 60 * 1000
     && subscription.status === 'trial';

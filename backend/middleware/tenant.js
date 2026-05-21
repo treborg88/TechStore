@@ -8,7 +8,7 @@ const config = require('../config');
 const tenantCache = new Map();
 // Custom domain â†’ slug reverse map for cache lookups
 const domainToSlugCache = new Map();
-const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Factory: returns tenant resolution middleware.
