@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
-const { statements } = require('../database');
+const { statements, withTransaction } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { checkLimit } = require('../middleware/planLimits');
 const { sendOrderEmail, getSettingsMap } = require('../services/email.service');
@@ -22,50 +22,22 @@ const normalizeProductUnitType = (value) => {
 };
 
 /**
- * Helper: Rollback reserved stock on error (supports variant stock)
- */
-const rollbackReservedStock = async (reservedItems) => {
-    for (const item of reservedItems) {
-        try {
-            if (item.variant_id) {
-                await statements.incrementVariantStock(item.variant_id, item.quantity);
-            } else {
-                await statements.incrementStock(item.product_id, item.quantity);
-            }
-        } catch (rollbackError) {
-            console.error('Error rollback stock:', rollbackError);
-        }
-    }
-};
-
-/**
- * Helper: Restore stock when order is cancelled/returned (supports variant stock)
+ * Helper: Restore stock when order is cancelled/returned (supports variant stock).
+ * Uses atomic RPCs — same functions as order creation, just incrementing.
+ * Must be called inside a transaction alongside the status update.
  */
 const restoreStockForOrder = async (orderId, oldStatus, newStatus) => {
     const isCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(newStatus);
     const wasCancelledOrReturn = ['cancelled', 'return', 'refund'].includes(oldStatus);
 
     if (isCancelledOrReturn && !wasCancelledOrReturn) {
-        console.log(`Restoring stock for order ${orderId} (Status: ${oldStatus} -> ${newStatus})`);
+        console.log(`Restoring stock for order ${orderId} (${oldStatus} -> ${newStatus})`);
         const orderItems = await statements.getOrderItems(orderId);
         for (const item of orderItems) {
             if (item.variant_id) {
-                // Restore variant stock via RPC
                 await statements.incrementVariantStock(item.variant_id, item.quantity);
             } else {
-                // Restore product-level stock
-                const product = await statements.getProductById(item.product_id);
-                if (product) {
-                    const newStock = product.stock + item.quantity;
-                    await statements.updateProduct(
-                        product.name,
-                        product.description,
-                        product.price,
-                        product.category,
-                        newStock,
-                        item.product_id
-                    );
-                }
+                await statements.incrementStock(item.product_id, item.quantity);
             }
         }
     }
@@ -238,9 +210,9 @@ router.get('/:id', authenticateToken, async (req, res) => {
  * Create new order (authenticated user)
  */
 router.post('/', authenticateToken, checkLimit('orders_month'), async (req, res) => {
-    const { 
+    const {
         notes, shipping_address, items, payment_method, payment_status,
-        customer_name, customer_email, customer_phone, 
+        customer_name, customer_email, customer_phone,
         shipping_street, shipping_city, shipping_postal_code, shipping_sector,
         shipping_cost, shipping_distance, shipping_coordinates
     } = req.body;
@@ -248,112 +220,107 @@ router.post('/', authenticateToken, checkLimit('orders_month'), async (req, res)
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
     }
-
     if (!shipping_street || !shipping_city) {
         return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad)' });
     }
 
-    let total = 0;
-    let orderId = null;
-    const reservedItems = [];
-    const itemDetails = [];
-
     try {
-        // Calculate total and reserve stock (supports variant items)
-        for (const item of items) {
-            const product = await statements.getProductById(item.product_id);
-            if (!product) {
-                await rollbackReservedStock(reservedItems);
-                return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
+        // All stock decrements + order writes run inside a single DB transaction.
+        // Any failure automatically rolls back every change — no manual stock rollback needed.
+        const { order, itemDetails, customer, shippingAddress } = await withTransaction(async () => {
+            let total = 0;
+            const txItemDetails = [];
+
+            for (const item of items) {
+                const product = await statements.getProductById(item.product_id);
+                if (!product) {
+                    const err = new Error(`Producto ${item.product_id} no encontrado`);
+                    err.httpStatus = 404;
+                    throw err;
+                }
+
+                let itemPrice = product.price;
+                let variantSnapshot = null;
+
+                if (item.variant_id) {
+                    // Variant item: decrement variant stock, resolve variant price
+                    const variant = await statements.getVariantById(item.variant_id);
+                    // Coerce to Number — DB may return string IDs vs numeric IDs
+                    if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
+                        const err = new Error(`Variante no válida para ${product.name}`);
+                        err.httpStatus = 400;
+                        throw err;
+                    }
+                    if (variant.price_override != null) itemPrice = variant.price_override;
+
+                    const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
+                    if (!reserved) {
+                        const err = new Error(`Stock insuficiente para variante de ${product.name}`);
+                        err.httpStatus = 400;
+                        throw err;
+                    }
+                    // Build snapshot of attributes for order history
+                    variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
+                } else {
+                    // Non-variant item: decrement product stock
+                    const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+                    if (!reserved) {
+                        const err = new Error(`Stock insuficiente para ${product.name}`);
+                        err.httpStatus = 400;
+                        throw err;
+                    }
+                }
+
+                txItemDetails.push({
+                    product_id: product.id,
+                    variant_id: item.variant_id || null,
+                    variant_attributes: variantSnapshot,
+                    name: product.name,
+                    quantity: item.quantity,
+                    price: itemPrice,
+                    unit_type: normalizeProductUnitType(product.unit_type)
+                });
+                total += itemPrice * item.quantity;
             }
 
-            let itemPrice = product.price;
-            let variantSnapshot = null;
+            const paymentMethodValue = payment_method || 'cash';
+            const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
+            const resolvedCustomerName = (customer_name && customer_name.trim()) || req.user.name;
+            const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
+            const resolvedCustomerPhone = customer_phone ? customer_phone.trim() : '';
 
-            if (item.variant_id) {
-                // Variant item: decrement variant stock, resolve variant price
-                const variant = await statements.getVariantById(item.variant_id);
-                // Coerce to Number — DB may return string IDs vs numeric IDs
-                if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
-                    await rollbackReservedStock(reservedItems);
-                    return res.status(400).json({ message: `Variante no válida para ${product.name}` });
-                }
-                if (variant.price_override != null) itemPrice = variant.price_override;
+            const orderResult = await statements.createOrder(
+                req.user.id, total, legacyAddress, paymentMethodValue,
+                resolvedCustomerName, resolvedCustomerEmail, resolvedCustomerPhone,
+                shipping_street, shipping_city, shipping_postal_code || '',
+                shipping_sector || '', shipping_cost || 0,
+                shipping_distance || null,
+                shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
+            );
+            const orderId = orderResult.lastInsertRowid;
 
-                const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
-                if (!reserved) {
-                    await rollbackReservedStock(reservedItems);
-                    return res.status(400).json({ message: `Stock insuficiente para variante de ${product.name}` });
-                }
-                // Build snapshot of attributes for order history (getVariantById already maps to type/value)
-                variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
-            } else {
-                // Non-variant item: decrement product stock
-                const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
-                if (!reserved) {
-                    await rollbackReservedStock(reservedItems);
-                    return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
-                }
+            const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
+            const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
+            await statements.updateOrderStatus(isPaidOnline ? 'paid' : 'pending_payment', orderId);
+
+            const orderNumber = generateOrderNumber(orderId);
+            await statements.updateOrderNumber(orderNumber, orderId);
+
+            for (const txItem of txItemDetails) {
+                await statements.addOrderItem(orderId, txItem.product_id, txItem.quantity, txItem.price, txItem.variant_id, txItem.variant_attributes);
             }
 
-            reservedItems.push({ product_id: product.id, variant_id: item.variant_id || null, quantity: item.quantity });
-            itemDetails.push({
-                product_id: product.id,
-                variant_id: item.variant_id || null,
-                variant_attributes: variantSnapshot,
-                name: product.name,
-                quantity: item.quantity,
-                price: itemPrice,
-                unit_type: normalizeProductUnitType(product.unit_type)
-            });
-            total += itemPrice * item.quantity;
-        }
+            await statements.clearCart(req.user.id);
 
-        const paymentMethodValue = payment_method || 'cash';
-        const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
-        
-        const resolvedCustomerName = (customer_name && customer_name.trim()) || req.user.name;
-        const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
-        const resolvedCustomerPhone = customer_phone ? customer_phone.trim() : '';
+            return {
+                order: await statements.getOrderById(orderId),
+                itemDetails: txItemDetails,
+                customer: { name: resolvedCustomerName, email: resolvedCustomerEmail, phone: resolvedCustomerPhone },
+                shippingAddress: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+            };
+        });
 
-        const orderResult = await statements.createOrder(
-            req.user.id, 
-            total, 
-            legacyAddress,
-            paymentMethodValue,
-            resolvedCustomerName,
-            resolvedCustomerEmail,
-            resolvedCustomerPhone,
-            shipping_street,
-            shipping_city,
-            shipping_postal_code || '',
-            shipping_sector || '',
-            shipping_cost || 0,
-            shipping_distance || null,
-            shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
-        );
-        orderId = orderResult.lastInsertRowid;
-
-        // Determine initial status based on payment method and payment status
-        // Online payments (stripe, paypal) that are already paid should start as 'paid'
-        const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
-        const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
-        const initialStatus = isPaidOnline ? 'paid' : 'pending_payment';
-        
-        await statements.updateOrderStatus(initialStatus, orderId);
-
-        const orderNumber = generateOrderNumber(orderId);
-        await statements.updateOrderNumber(orderNumber, orderId);
-
-        for (const item of itemDetails) {
-            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price, item.variant_id, item.variant_attributes);
-        }
-
-        await statements.clearCart(req.user.id);
-
-        const order = await statements.getOrderById(orderId);
-
-        // Check master + individual email toggle before sending
+        // Email notification — outside transaction (non-critical side-effect)
         let shouldSendEmail = req.body.skipEmail !== true;
         if (shouldSendEmail) {
             try {
@@ -362,34 +329,18 @@ router.post('/', authenticateToken, checkLimit('orders_month'), async (req, res)
             } catch { /* default: send */ }
         }
         if (shouldSendEmail) {
-            const emailSent = await sendOrderEmail({
-                order,
-                items: itemDetails,
-                customer: {
-                    name: resolvedCustomerName,
-                    email: resolvedCustomerEmail,
-                    phone: resolvedCustomerPhone
-                },
-                shipping: {
-                    address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
-                }
-            });
-            if (!emailSent) {
-                console.warn('Order email not sent for order', orderId);
-            }
+            const emailSent = await sendOrderEmail({ order, items: itemDetails, customer, shipping: { address: shippingAddress } });
+            if (!emailSent) console.warn('Order email not sent for order', order.id);
         }
-        
+
         console.log('Orden creada:', order);
         res.status(201).json(order);
+
     } catch (error) {
         console.error('Error creando orden:', error);
-        await rollbackReservedStock(reservedItems);
-        if (orderId) {
-            try {
-                await statements.updateOrderStatus('cancelled', orderId);
-            } catch (statusError) {
-                console.error('Error marcando orden como cancelada:', statusError);
-            }
+        // Validation errors from inside the transaction carry httpStatus
+        if (error.httpStatus) {
+            return res.status(error.httpStatus).json({ message: error.message });
         }
         res.status(500).json({ message: 'Error interno del servidor' });
     }
@@ -400,7 +351,7 @@ router.post('/', authenticateToken, checkLimit('orders_month'), async (req, res)
  * Create order as guest (no authentication)
  */
 router.post('/guest', checkLimit('orders_month'), async (req, res) => {
-    const { 
+    const {
         notes, shipping_address, items, customer_info, payment_method, payment_status,
         shipping_street, shipping_city, shipping_postal_code, shipping_sector,
         shipping_cost, shipping_distance, shipping_coordinates
@@ -409,114 +360,107 @@ router.post('/guest', checkLimit('orders_month'), async (req, res) => {
     if (!items || items.length === 0) {
         return res.status(400).json({ message: 'La orden debe tener al menos un producto' });
     }
-
     if (!shipping_street || !shipping_city) {
         return res.status(400).json({ message: 'Se requiere dirección completa (calle, ciudad)' });
     }
-
     if (!customer_info || !customer_info.email) {
         return res.status(400).json({ message: 'Se requiere información del cliente (email)' });
     }
 
-    let total = 0;
-    let orderId = null;
-    const reservedItems = [];
-    const itemDetails = [];
-
     try {
-        // Calculate total and reserve stock (supports variant items)
-        for (const item of items) {
-            const product = await statements.getProductById(item.product_id);
-            if (!product) {
-                await rollbackReservedStock(reservedItems);
-                return res.status(404).json({ message: `Producto ${item.product_id} no encontrado` });
+        // All stock decrements + order writes run inside a single DB transaction.
+        // Any failure automatically rolls back every change — no manual stock rollback needed.
+        const { order, itemDetails, customer, shippingAddress } = await withTransaction(async () => {
+            let total = 0;
+            const txItemDetails = [];
+
+            for (const item of items) {
+                const product = await statements.getProductById(item.product_id);
+                if (!product) {
+                    const err = new Error(`Producto ${item.product_id} no encontrado`);
+                    err.httpStatus = 404;
+                    throw err;
+                }
+
+                let itemPrice = product.price;
+                let variantSnapshot = null;
+
+                if (item.variant_id) {
+                    // Variant item: decrement variant stock, resolve variant price
+                    const variant = await statements.getVariantById(item.variant_id);
+                    // Coerce to Number — DB may return string IDs vs numeric IDs
+                    if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
+                        const err = new Error(`Variante no válida para ${product.name}`);
+                        err.httpStatus = 400;
+                        throw err;
+                    }
+                    if (variant.price_override != null) itemPrice = variant.price_override;
+
+                    const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
+                    if (!reserved) {
+                        const err = new Error(`Stock insuficiente para variante de ${product.name}`);
+                        err.httpStatus = 400;
+                        throw err;
+                    }
+                    // Build snapshot of attributes for order history
+                    variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
+                } else {
+                    const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+                    if (!reserved) {
+                        const err = new Error(`Stock insuficiente para ${product.name}`);
+                        err.httpStatus = 400;
+                        throw err;
+                    }
+                }
+
+                txItemDetails.push({
+                    product_id: product.id,
+                    variant_id: item.variant_id || null,
+                    variant_attributes: variantSnapshot,
+                    name: product.name,
+                    quantity: item.quantity,
+                    price: itemPrice,
+                    unit_type: normalizeProductUnitType(product.unit_type)
+                });
+                total += itemPrice * item.quantity;
             }
 
-            let itemPrice = product.price;
-            let variantSnapshot = null;
+            const paymentMethodValue = payment_method || 'cash';
+            const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
+            const guestName = (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado';
+            const guestEmail = customer_info.email.trim().toLowerCase();
+            const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
 
-            if (item.variant_id) {
-                // Variant item: decrement variant stock, resolve variant price
-                const variant = await statements.getVariantById(item.variant_id);
-                // Coerce to Number — DB may return string IDs vs numeric IDs
-                if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
-                    await rollbackReservedStock(reservedItems);
-                    return res.status(400).json({ message: `Variante no válida para ${product.name}` });
-                }
-                if (variant.price_override != null) itemPrice = variant.price_override;
+            const orderResult = await statements.createOrder(
+                null, total, legacyAddress, paymentMethodValue,
+                guestName, guestEmail, guestPhone,
+                shipping_street, shipping_city, shipping_postal_code || '',
+                shipping_sector || '', shipping_cost || 0,
+                shipping_distance || null,
+                shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
+            );
+            const orderId = orderResult.lastInsertRowid;
 
-                const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
-                if (!reserved) {
-                    await rollbackReservedStock(reservedItems);
-                    return res.status(400).json({ message: `Stock insuficiente para variante de ${product.name}` });
-                }
-                // Build snapshot of attributes for order history (getVariantById already maps to type/value)
-                variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
-            } else {
-                const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
-                if (!reserved) {
-                    await rollbackReservedStock(reservedItems);
-                    return res.status(400).json({ message: `Stock insuficiente para ${product.name}` });
-                }
+            const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
+            const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
+            await statements.updateOrderStatus(isPaidOnline ? 'paid' : 'pending_payment', orderId);
+
+            const orderNumber = generateOrderNumber(orderId);
+            await statements.updateOrderNumber(orderNumber, orderId);
+
+            for (const txItem of txItemDetails) {
+                await statements.addOrderItem(orderId, txItem.product_id, txItem.quantity, txItem.price, txItem.variant_id, txItem.variant_attributes);
             }
 
-            reservedItems.push({ product_id: product.id, variant_id: item.variant_id || null, quantity: item.quantity });
-            itemDetails.push({
-                product_id: product.id,
-                variant_id: item.variant_id || null,
-                variant_attributes: variantSnapshot,
-                name: product.name,
-                quantity: item.quantity,
-                price: itemPrice,
-                unit_type: normalizeProductUnitType(product.unit_type)
-            });
-            total += itemPrice * item.quantity;
-        }
+            return {
+                order: await statements.getOrderById(orderId),
+                itemDetails: txItemDetails,
+                customer: { name: guestName, email: guestEmail, phone: guestPhone },
+                shippingAddress: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+            };
+        });
 
-        const paymentMethodValue = payment_method || 'cash';
-        const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
-        const guestName = (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado';
-        const guestEmail = customer_info.email.trim().toLowerCase();
-        const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
-
-        const orderResult = await statements.createOrder(
-            null,
-            total,
-            legacyAddress,
-            paymentMethodValue,
-            guestName,
-            guestEmail,
-            guestPhone,
-            shipping_street,
-            shipping_city,
-            shipping_postal_code || '',
-            shipping_sector || '',
-            shipping_cost || 0,
-            shipping_distance || null,
-            shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
-        );
-        orderId = orderResult.lastInsertRowid;
-
-        // Determine initial status based on payment method and payment status
-        // Online payments (stripe, paypal) that are already paid should start as 'paid'
-        const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
-        const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
-        const initialStatus = isPaidOnline ? 'paid' : 'pending_payment';
-
-        await statements.updateOrderStatus(initialStatus, orderId);
-
-        const orderNumber = generateOrderNumber(orderId);
-        await statements.updateOrderNumber(orderNumber, orderId);
-
-        // Update shipping info if provided (cost, distance, coordinates)
-        // Wrapped in try-catch in case columns don't exist in database yet
-        for (const item of itemDetails) {
-            await statements.addOrderItem(orderId, item.product_id, item.quantity, item.price, item.variant_id, item.variant_attributes);
-        }
-
-        const order = await statements.getOrderById(orderId);
-        
-        // Check master + individual email toggle before sending
+        // Email notification — outside transaction (non-critical side-effect)
         let shouldSendGuestEmail = req.body.skipEmail !== true;
         if (shouldSendGuestEmail) {
             try {
@@ -525,34 +469,18 @@ router.post('/guest', checkLimit('orders_month'), async (req, res) => {
             } catch { /* default: send */ }
         }
         if (shouldSendGuestEmail) {
-            const emailSent = await sendOrderEmail({
-                order,
-                items: itemDetails,
-                customer: {
-                    name: guestName,
-                    email: guestEmail,
-                    phone: guestPhone
-                },
-                shipping: {
-                    address: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
-                }
-            });
-            if (!emailSent) {
-                console.warn('Order email not sent for guest order', orderId);
-            }
+            const emailSent = await sendOrderEmail({ order, items: itemDetails, customer, shipping: { address: shippingAddress } });
+            if (!emailSent) console.warn('Order email not sent for guest order', order.id);
         }
-        
+
         console.log('Orden de invitado creada:', order);
         res.status(201).json(order);
+
     } catch (error) {
         console.error('Error creando orden de invitado:', error);
-        await rollbackReservedStock(reservedItems);
-        if (orderId) {
-            try {
-                await statements.updateOrderStatus('cancelled', orderId);
-            } catch (statusError) {
-                console.error('Error marcando orden como cancelada:', statusError);
-            }
+        // Validation errors from inside the transaction carry httpStatus
+        if (error.httpStatus) {
+            return res.status(error.httpStatus).json({ message: error.message });
         }
         res.status(500).json({ message: 'Error interno del servidor' });
     }
@@ -720,21 +648,25 @@ router.put('/:id', authenticateToken, requireAdmin, async (req, res) => {
              return res.status(404).json({ message: 'Orden no encontrada' });
         }
 
-        const result = await statements.updateOrder(orderId, filteredUpdates);
-        
-        if (result) {
+        // Wrap update + stock restoration in one transaction so they succeed or fail together
+        const order = await withTransaction(async () => {
+            const result = await statements.updateOrder(orderId, filteredUpdates);
+            if (!result) {
+                const err = new Error('Orden no encontrada');
+                err.httpStatus = 404;
+                throw err;
+            }
             if (filteredUpdates.status) {
                 await restoreStockForOrder(orderId, currentOrder.status, filteredUpdates.status);
             }
+            return statements.getOrderById(orderId);
+        });
 
-            const order = await statements.getOrderById(orderId);
-            console.log('Orden actualizada:', order);
-            res.json({ message: 'Orden actualizada exitosamente', order });
-        } else {
-            res.status(404).json({ message: 'Orden no encontrada' });
-        }
+        console.log('Orden actualizada:', order);
+        res.json({ message: 'Orden actualizada exitosamente', order });
     } catch (error) {
         console.error('Error actualizando orden:', error);
+        if (error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
         if (error.code === '42703') {
             return res.status(500).json({ message: 'Error de base de datos: Faltan columnas (internal_notes, carrier, tracking_number). Por favor ejecuta la migración.' });
         }
@@ -762,19 +694,23 @@ router.put('/:id/status', authenticateToken, requireAdmin, async (req, res) => {
              return res.status(404).json({ message: 'Orden no encontrada' });
         }
 
-        const result = await statements.updateOrderStatus(status, orderId);
-        
-        if (result) {
+        // Wrap status update + stock restoration in one transaction so they succeed or fail together
+        const order = await withTransaction(async () => {
+            const result = await statements.updateOrderStatus(status, orderId);
+            if (!result) {
+                const err = new Error('Orden no encontrada');
+                err.httpStatus = 404;
+                throw err;
+            }
             await restoreStockForOrder(orderId, currentOrder.status, status);
+            return statements.getOrderById(orderId);
+        });
 
-            const order = await statements.getOrderById(orderId);
-            console.log('Estado de orden actualizado:', order);
-            res.json({ message: 'Estado actualizado exitosamente', order });
-        } else {
-            res.status(404).json({ message: 'Orden no encontrada' });
-        }
+        console.log('Estado de orden actualizado:', order);
+        res.json({ message: 'Estado actualizado exitosamente', order });
     } catch (error) {
         console.error('Error actualizando estado:', error);
+        if (error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });

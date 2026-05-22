@@ -21,5 +21,6 @@ module.exports = {
   disconnectDb:   () => adapter.disconnectDb(),
   testConnection: () => (adapter.testConnection ? adapter.testConnection() : Promise.resolve(false)),
   withTenantSchema: (...args) => adapter.withTenantSchema(...args),
+  withTransaction:  (...args) => adapter.withTransaction(...args),
   get tenantContext() { return adapter.tenantContext; },
 };

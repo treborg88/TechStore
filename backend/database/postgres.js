@@ -998,6 +998,46 @@ const testConnection = async () => {
 };
 
 /**
+ * Execute a function inside a single PostgreSQL transaction.
+ * All pool.query() calls within fn() are automatically routed to the same
+ * transactional client via AsyncLocalStorage — no client threading required.
+ *
+ * In SaaS/tenant mode, dbContext already started a transaction on a dedicated
+ * client. This function detects that and reuses it so the entire request stays
+ * on one connection and one search_path.
+ *
+ * @param {Function} fn - async () => result
+ * @returns {Promise<*>} Result of fn
+ */
+const withTransaction = async (fn) => {
+  // Reuse existing tenant-scoped client (set by dbContext middleware in SaaS mode)
+  const existingStore = tenantContext.getStore();
+  if (existingStore?.client) {
+    return fn();
+  }
+
+  if (!pool) {
+    const err = new Error('Base de datos no configurada.');
+    err.code = 'DB_NOT_CONFIGURED';
+    throw err;
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // Route all pool.query() calls through this client via AsyncLocalStorage
+    const result = await tenantContext.run({ client }, () => fn());
+    await client.query('COMMIT');
+    return result;
+  } catch (err) {
+    try { await client.query('ROLLBACK'); } catch (_) { /* ignore cleanup errors */ }
+    throw err;
+  } finally {
+    client.release();
+  }
+};
+
+/**
  * Execute a function with search_path set to a tenant schema.
  * Uses SET LOCAL inside a transaction — resets on COMMIT/ROLLBACK.
  * @param {string} schemaName - Tenant schema name (e.g. "tenant_mi_tienda")
@@ -1032,6 +1072,7 @@ module.exports = {
   reinitializeDb,
   disconnectDb,
   testConnection,
+  withTransaction,
   withTenantSchema,
   tenantContext,                                // AsyncLocalStorage for tenant-scoped queries
   UPLOADS_DIR

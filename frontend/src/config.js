@@ -22,7 +22,8 @@ export const TENANT_SLUG = IS_TENANT ? hostParts[0] : null;
 // System contexts (SaaS platform pages)
 export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0] === 'www') && !isAdminPath && !isAppPath;
 export const IS_ONBOARDING = !isLocalhost && (hostParts[0] === 'app' || isAppPath);
-export const IS_SUPER_ADMIN = !isLocalhost && (hostParts[0] === 'admin' || isAdminPath);
+// Tenant subdomains own their own /admin route — never treat them as super admin
+export const IS_SUPER_ADMIN = !isLocalhost && !IS_TENANT && (hostParts[0] === 'admin' || isAdminPath);
 
 // Platform domain derived from hostname (e.g. "eonsclover.local" from "app.eonsclover.local")
 // Used to build subdomain URLs dynamically â€” no hardcoded domain strings needed

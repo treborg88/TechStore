@@ -27,7 +27,7 @@ const COD_ORDER_STEPS = [
 const EXTRA_STEPS = [
     { id: 'return', label: 'Devolución', icon: '↩️', color: '#6366f1' },
     { id: 'refund', label: 'Reembolso', icon: '💸', color: '#ec4899' },
-    { id: 'cancelled', label: 'Cancelado', icon: '❌', color: '#ef4444' }
+    { id: 'cancelled', label: 'Cancelar', icon: '❌', color: '#ef4444' }
 ];
 
 // All steps combined for status badge lookup
@@ -442,9 +442,7 @@ export default function AdminOrderDetail({
                             >
                                 ✓ Confirmar Pago
                             </button>
-                            <button className="admin-btn danger full-width" onClick={() => onDelete && onDelete(order.id)}>
-                                ❌ Cancelar Orden
-                            </button>
+
                         </div>
                     </div>
 
