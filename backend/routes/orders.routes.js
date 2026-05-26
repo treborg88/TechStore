@@ -3,23 +3,20 @@ const express = require('express');
 const router = express.Router();
 
 const { statements, withTransaction } = require('../database');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { authenticateToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { checkLimit } = require('../middleware/planLimits');
 const { sendOrderEmail, getSettingsMap } = require('../services/email.service');
 const { generateOrderNumber } = require('../utils/orderNumber');
+const { normalizeProductUnitType } = require('../utils/productUnits');
+const { trackLimiter } = require('../middleware/rateLimiter');
 
 // Valid order statuses
 const VALID_STATUSES = [
-    'pending_payment', 'paid', 'to_ship', 'shipped', 'delivered', 
+    'pending_payment', 'paid', 'to_ship', 'shipped', 'delivered',
     'return', 'refund', 'cancelled', 'pending', 'processing'
 ];
 
-const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
-
-const normalizeProductUnitType = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
-};
+const VALID_PAYMENT_METHODS = ['cash', 'stripe', 'paypal', 'card', 'online', 'transfer'];
 
 /**
  * Helper: Restore stock when order is cancelled/returned (supports variant stock).
@@ -150,13 +147,19 @@ router.get('/track/:id', async (req, res) => {
 
 /**
  * GET /api/orders/track/email/:email
- * Track orders by email (public)
+ * Track orders by email (public) — rate limited to prevent customer email enumeration
  */
-router.get('/track/email/:email', async (req, res) => {
-    const email = req.params.email.trim().toLowerCase();
+router.get('/track/email/:email', trackLimiter, async (req, res) => {
+    const raw = req.params.email.trim().toLowerCase();
+
+    // Validate email format before hitting the database
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(raw)) {
+        return res.status(400).json({ message: 'Formato de email inválido' });
+    }
 
     try {
-        const orders = await statements.getOrdersByEmail(email);
+        const orders = await statements.getOrdersByEmail(raw);
         
         if (!orders || orders.length === 0) {
             return res.status(404).json({ message: 'No se encontraron órdenes' });
@@ -166,7 +169,7 @@ router.get('/track/email/:email', async (req, res) => {
             ...order,
             items: await statements.getOrderItems(order.id)
         })));
-        
+
         res.json(ordersWithItems);
     } catch (error) {
         console.error('Error buscando órdenes por email:', error);
@@ -205,6 +208,167 @@ router.get('/:id', authenticateToken, async (req, res) => {
     }
 });
 
+// ── Shared order-creation helpers ─────────────────────────────────────────────
+
+/**
+ * Runs all stock-reservation and DB writes for a new order inside a transaction.
+ * Both the authenticated and guest routes delegate to this function.
+ *
+ * @param {object} opts
+ * @param {number|null}  opts.userId
+ * @param {array}        opts.items
+ * @param {object}       opts.customer          - { name, email, phone }
+ * @param {string}       opts.payment_method
+ * @param {string}       opts.payment_status
+ * @param {string}       opts.notes
+ * @param {string}       opts.shipping_address
+ * @param {string}       opts.shipping_street
+ * @param {string}       opts.shipping_city
+ * @param {string}       opts.shipping_postal_code
+ * @param {string}       opts.shipping_sector
+ * @param {number}       opts.shipping_cost
+ * @param {number}       opts.shipping_distance
+ * @param {object}       opts.shipping_coordinates
+ * @param {boolean}      opts.clearCartAfter    - true for authenticated users
+ */
+async function createOrderCore({
+    userId, items, customer,
+    payment_method, payment_status,
+    notes, shipping_address,
+    shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+    shipping_cost, shipping_distance, shipping_coordinates,
+    clearCartAfter
+}) {
+    let total = 0;
+    const txItemDetails = [];
+
+    for (const item of items) {
+        const product = await statements.getProductById(item.product_id);
+        if (!product) {
+            const err = new Error(`Producto ${item.product_id} no encontrado`);
+            err.httpStatus = 404;
+            throw err;
+        }
+
+        let itemPrice = product.price;
+        let variantSnapshot = null;
+
+        if (item.variant_id) {
+            // Variant item: decrement variant stock, resolve variant price
+            const variant = await statements.getVariantById(item.variant_id);
+            // Coerce to Number — DB may return string IDs vs numeric IDs
+            if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
+                const err = new Error(`Variante no válida para ${product.name}`);
+                err.httpStatus = 400;
+                throw err;
+            }
+            if (variant.price_override != null) itemPrice = variant.price_override;
+
+            const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
+            if (!reserved) {
+                const err = new Error(`Stock insuficiente para variante de ${product.name}`);
+                err.httpStatus = 400;
+                throw err;
+            }
+            // Build snapshot of attributes for order history
+            variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
+        } else {
+            // Non-variant item: decrement product stock
+            const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
+            if (!reserved) {
+                const err = new Error(`Stock insuficiente para ${product.name}`);
+                err.httpStatus = 400;
+                throw err;
+            }
+        }
+
+        // Snapshot the first gallery image so order history is independent of future product changes
+        const imageUrl = await statements.getFirstProductImage(product.id) || product.image || null;
+
+        txItemDetails.push({
+            product_id: product.id,
+            variant_id: item.variant_id || null,
+            variant_attributes: variantSnapshot,
+            name: product.name,
+            quantity: item.quantity,
+            price: itemPrice,
+            unit_type: normalizeProductUnitType(product.unit_type),
+            image_url: imageUrl,
+            category: product.category || null
+        });
+        total += itemPrice * item.quantity;
+    }
+    total += parseFloat(shipping_cost) || 0;
+
+    const paymentMethodValue = payment_method || 'cash';
+    if (!VALID_PAYMENT_METHODS.includes(paymentMethodValue)) {
+        const err = new Error('Método de pago inválido');
+        err.httpStatus = 400;
+        throw err;
+    }
+
+    const legacyAddress = notes || shipping_address ||
+        [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
+
+    const orderResult = await statements.createOrder(
+        userId, total, legacyAddress, paymentMethodValue,
+        customer.name, customer.email, customer.phone,
+        shipping_street, shipping_city, shipping_postal_code || '',
+        shipping_sector || '', shipping_cost || 0,
+        shipping_distance || null,
+        shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
+    );
+    const orderId = orderResult.lastInsertRowid;
+
+    const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
+    const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
+    await statements.updateOrderStatus(isPaidOnline ? 'paid' : 'pending_payment', orderId);
+
+    const orderNumber = generateOrderNumber(orderId);
+    await statements.updateOrderNumber(orderNumber, orderId);
+
+    for (const txItem of txItemDetails) {
+        await statements.addOrderItem(
+            orderId, txItem.product_id, txItem.quantity, txItem.price,
+            txItem.variant_id, txItem.variant_attributes,
+            txItem.name, txItem.unit_type, txItem.image_url, txItem.category
+        );
+    }
+
+    if (clearCartAfter) {
+        await statements.clearCart(userId);
+    }
+
+    return {
+        order: await statements.getOrderById(orderId),
+        itemDetails: txItemDetails,
+        customer,
+        shippingAddress: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
+    };
+}
+
+/**
+ * Sends order confirmation email if not suppressed by settings or skipEmail flag.
+ * Always called outside the transaction (non-critical side-effect).
+ */
+async function sendOrderNotification(order, itemDetails, customer, shippingAddress, skipEmail) {
+    let shouldSend = skipEmail !== true;
+    if (shouldSend) {
+        try {
+            const emailSettings = await getSettingsMap();
+            if (emailSettings.emailEnabled === 'false' || emailSettings.emailOrderConfirmation === 'false') {
+                shouldSend = false;
+            }
+        } catch { /* default: send */ }
+    }
+    if (shouldSend) {
+        const sent = await sendOrderEmail({ order, items: itemDetails, customer, shipping: { address: shippingAddress } });
+        if (!sent) console.warn('Order email not sent for order', order.id);
+    }
+}
+
+// ── Routes ────────────────────────────────────────────────────────────────────
+
 /**
  * POST /api/orders
  * Create new order (authenticated user)
@@ -225,123 +389,31 @@ router.post('/', authenticateToken, checkLimit('orders_month'), async (req, res)
     }
 
     try {
-        // All stock decrements + order writes run inside a single DB transaction.
-        // Any failure automatically rolls back every change — no manual stock rollback needed.
-        const { order, itemDetails, customer, shippingAddress } = await withTransaction(async () => {
-            let total = 0;
-            const txItemDetails = [];
+        const customer = {
+            name: (customer_name && customer_name.trim()) || req.user.name,
+            email: (customer_email || req.user.email || '').trim().toLowerCase(),
+            phone: customer_phone ? customer_phone.trim() : ''
+        };
 
-            for (const item of items) {
-                const product = await statements.getProductById(item.product_id);
-                if (!product) {
-                    const err = new Error(`Producto ${item.product_id} no encontrado`);
-                    err.httpStatus = 404;
-                    throw err;
-                }
+        const { order, itemDetails, shippingAddress } = await withTransaction(() =>
+            createOrderCore({
+                userId: req.user.id, items, customer,
+                payment_method, payment_status,
+                notes, shipping_address,
+                shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+                shipping_cost, shipping_distance, shipping_coordinates,
+                clearCartAfter: true
+            })
+        );
 
-                let itemPrice = product.price;
-                let variantSnapshot = null;
-
-                if (item.variant_id) {
-                    // Variant item: decrement variant stock, resolve variant price
-                    const variant = await statements.getVariantById(item.variant_id);
-                    // Coerce to Number — DB may return string IDs vs numeric IDs
-                    if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
-                        const err = new Error(`Variante no válida para ${product.name}`);
-                        err.httpStatus = 400;
-                        throw err;
-                    }
-                    if (variant.price_override != null) itemPrice = variant.price_override;
-
-                    const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
-                    if (!reserved) {
-                        const err = new Error(`Stock insuficiente para variante de ${product.name}`);
-                        err.httpStatus = 400;
-                        throw err;
-                    }
-                    // Build snapshot of attributes for order history
-                    variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
-                } else {
-                    // Non-variant item: decrement product stock
-                    const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
-                    if (!reserved) {
-                        const err = new Error(`Stock insuficiente para ${product.name}`);
-                        err.httpStatus = 400;
-                        throw err;
-                    }
-                }
-
-                txItemDetails.push({
-                    product_id: product.id,
-                    variant_id: item.variant_id || null,
-                    variant_attributes: variantSnapshot,
-                    name: product.name,
-                    quantity: item.quantity,
-                    price: itemPrice,
-                    unit_type: normalizeProductUnitType(product.unit_type)
-                });
-                total += itemPrice * item.quantity;
-            }
-
-            const paymentMethodValue = payment_method || 'cash';
-            const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
-            const resolvedCustomerName = (customer_name && customer_name.trim()) || req.user.name;
-            const resolvedCustomerEmail = (customer_email || req.user.email || '').trim().toLowerCase();
-            const resolvedCustomerPhone = customer_phone ? customer_phone.trim() : '';
-
-            const orderResult = await statements.createOrder(
-                req.user.id, total, legacyAddress, paymentMethodValue,
-                resolvedCustomerName, resolvedCustomerEmail, resolvedCustomerPhone,
-                shipping_street, shipping_city, shipping_postal_code || '',
-                shipping_sector || '', shipping_cost || 0,
-                shipping_distance || null,
-                shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
-            );
-            const orderId = orderResult.lastInsertRowid;
-
-            const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
-            const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
-            await statements.updateOrderStatus(isPaidOnline ? 'paid' : 'pending_payment', orderId);
-
-            const orderNumber = generateOrderNumber(orderId);
-            await statements.updateOrderNumber(orderNumber, orderId);
-
-            for (const txItem of txItemDetails) {
-                await statements.addOrderItem(orderId, txItem.product_id, txItem.quantity, txItem.price, txItem.variant_id, txItem.variant_attributes);
-            }
-
-            await statements.clearCart(req.user.id);
-
-            return {
-                order: await statements.getOrderById(orderId),
-                itemDetails: txItemDetails,
-                customer: { name: resolvedCustomerName, email: resolvedCustomerEmail, phone: resolvedCustomerPhone },
-                shippingAddress: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
-            };
-        });
-
-        // Email notification — outside transaction (non-critical side-effect)
-        let shouldSendEmail = req.body.skipEmail !== true;
-        if (shouldSendEmail) {
-            try {
-                const emailSettings = await getSettingsMap();
-                if (emailSettings.emailEnabled === 'false' || emailSettings.emailOrderConfirmation === 'false') shouldSendEmail = false;
-            } catch { /* default: send */ }
-        }
-        if (shouldSendEmail) {
-            const emailSent = await sendOrderEmail({ order, items: itemDetails, customer, shipping: { address: shippingAddress } });
-            if (!emailSent) console.warn('Order email not sent for order', order.id);
-        }
+        await sendOrderNotification(order, itemDetails, customer, shippingAddress, req.body.skipEmail);
 
         console.log('Orden creada:', order);
         res.status(201).json(order);
 
     } catch (error) {
         console.error('Error creando orden:', error);
-        // Validation errors from inside the transaction carry httpStatus
-        if (error.httpStatus) {
-            return res.status(error.httpStatus).json({ message: error.message });
-        }
+        if (error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
@@ -368,120 +440,31 @@ router.post('/guest', checkLimit('orders_month'), async (req, res) => {
     }
 
     try {
-        // All stock decrements + order writes run inside a single DB transaction.
-        // Any failure automatically rolls back every change — no manual stock rollback needed.
-        const { order, itemDetails, customer, shippingAddress } = await withTransaction(async () => {
-            let total = 0;
-            const txItemDetails = [];
+        const customer = {
+            name: (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado',
+            email: customer_info.email.trim().toLowerCase(),
+            phone: customer_info.phone ? customer_info.phone.trim() : ''
+        };
 
-            for (const item of items) {
-                const product = await statements.getProductById(item.product_id);
-                if (!product) {
-                    const err = new Error(`Producto ${item.product_id} no encontrado`);
-                    err.httpStatus = 404;
-                    throw err;
-                }
+        const { order, itemDetails, shippingAddress } = await withTransaction(() =>
+            createOrderCore({
+                userId: null, items, customer,
+                payment_method, payment_status,
+                notes, shipping_address,
+                shipping_street, shipping_city, shipping_postal_code, shipping_sector,
+                shipping_cost, shipping_distance, shipping_coordinates,
+                clearCartAfter: false
+            })
+        );
 
-                let itemPrice = product.price;
-                let variantSnapshot = null;
-
-                if (item.variant_id) {
-                    // Variant item: decrement variant stock, resolve variant price
-                    const variant = await statements.getVariantById(item.variant_id);
-                    // Coerce to Number — DB may return string IDs vs numeric IDs
-                    if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
-                        const err = new Error(`Variante no válida para ${product.name}`);
-                        err.httpStatus = 400;
-                        throw err;
-                    }
-                    if (variant.price_override != null) itemPrice = variant.price_override;
-
-                    const reserved = await statements.decrementVariantStock(item.variant_id, item.quantity);
-                    if (!reserved) {
-                        const err = new Error(`Stock insuficiente para variante de ${product.name}`);
-                        err.httpStatus = 400;
-                        throw err;
-                    }
-                    // Build snapshot of attributes for order history
-                    variantSnapshot = (variant.attributes || []).map(a => ({ type: a.type, value: a.value }));
-                } else {
-                    const reserved = await statements.decrementStockIfAvailable(product.id, item.quantity);
-                    if (!reserved) {
-                        const err = new Error(`Stock insuficiente para ${product.name}`);
-                        err.httpStatus = 400;
-                        throw err;
-                    }
-                }
-
-                txItemDetails.push({
-                    product_id: product.id,
-                    variant_id: item.variant_id || null,
-                    variant_attributes: variantSnapshot,
-                    name: product.name,
-                    quantity: item.quantity,
-                    price: itemPrice,
-                    unit_type: normalizeProductUnitType(product.unit_type)
-                });
-                total += itemPrice * item.quantity;
-            }
-
-            const paymentMethodValue = payment_method || 'cash';
-            const legacyAddress = notes || shipping_address || [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ');
-            const guestName = (customer_info.name && customer_info.name.trim()) || 'Cliente Invitado';
-            const guestEmail = customer_info.email.trim().toLowerCase();
-            const guestPhone = customer_info.phone ? customer_info.phone.trim() : '';
-
-            const orderResult = await statements.createOrder(
-                null, total, legacyAddress, paymentMethodValue,
-                guestName, guestEmail, guestPhone,
-                shipping_street, shipping_city, shipping_postal_code || '',
-                shipping_sector || '', shipping_cost || 0,
-                shipping_distance || null,
-                shipping_coordinates ? JSON.stringify(shipping_coordinates) : null
-            );
-            const orderId = orderResult.lastInsertRowid;
-
-            const onlinePaymentMethods = ['stripe', 'paypal', 'card', 'online'];
-            const isPaidOnline = onlinePaymentMethods.includes(paymentMethodValue) && payment_status === 'paid';
-            await statements.updateOrderStatus(isPaidOnline ? 'paid' : 'pending_payment', orderId);
-
-            const orderNumber = generateOrderNumber(orderId);
-            await statements.updateOrderNumber(orderNumber, orderId);
-
-            for (const txItem of txItemDetails) {
-                await statements.addOrderItem(orderId, txItem.product_id, txItem.quantity, txItem.price, txItem.variant_id, txItem.variant_attributes);
-            }
-
-            return {
-                order: await statements.getOrderById(orderId),
-                itemDetails: txItemDetails,
-                customer: { name: guestName, email: guestEmail, phone: guestPhone },
-                shippingAddress: [shipping_street, shipping_sector, shipping_city].filter(Boolean).join(', ')
-            };
-        });
-
-        // Email notification — outside transaction (non-critical side-effect)
-        let shouldSendGuestEmail = req.body.skipEmail !== true;
-        if (shouldSendGuestEmail) {
-            try {
-                const emailSettings = await getSettingsMap();
-                if (emailSettings.emailEnabled === 'false' || emailSettings.emailOrderConfirmation === 'false') shouldSendGuestEmail = false;
-            } catch { /* default: send */ }
-        }
-        if (shouldSendGuestEmail) {
-            const emailSent = await sendOrderEmail({ order, items: itemDetails, customer, shipping: { address: shippingAddress } });
-            if (!emailSent) console.warn('Order email not sent for guest order', order.id);
-        }
+        await sendOrderNotification(order, itemDetails, customer, shippingAddress, req.body.skipEmail);
 
         console.log('Orden de invitado creada:', order);
         res.status(201).json(order);
 
     } catch (error) {
         console.error('Error creando orden de invitado:', error);
-        // Validation errors from inside the transaction carry httpStatus
-        if (error.httpStatus) {
-            return res.status(error.httpStatus).json({ message: error.message });
-        }
+        if (error.httpStatus) return res.status(error.httpStatus).json({ message: error.message });
         res.status(500).json({ message: 'Error interno del servidor' });
     }
 });
@@ -490,7 +473,7 @@ router.post('/guest', checkLimit('orders_month'), async (req, res) => {
  * POST /api/orders/:id/invoice-email
  * Send invoice email with PDF attachment
  */
-router.post('/:id/invoice-email', async (req, res) => {
+router.post('/:id/invoice-email', optionalAuth, async (req, res) => {
     const orderId = parseInt(req.params.id, 10);
     const { pdfBase64, email } = req.body || {};
 
@@ -517,21 +500,31 @@ router.post('/:id/invoice-email', async (req, res) => {
             return res.status(404).json({ message: 'Orden no encontrada' });
         }
 
-        // Determine recipient email
         const orderEmail = (order.customer_email || '').trim().toLowerCase();
         const requestEmail = (email || '').trim().toLowerCase();
-        const recipientEmail = requestEmail || orderEmail;
 
-        // Validate we have an email to send to
-        if (!recipientEmail) {
-            console.error('invoice-email: No email found for order', orderId);
-            return res.status(400).json({ message: 'No hay email de destino para esta orden' });
+        // ── Ownership gate ──────────────────────────────────────────────────────
+        // Admin: always allowed.
+        // Authenticated user: must own the order.
+        // Guest (no token): email param is required and must match order email.
+        if (req.user) {
+            if (req.user.role !== 'admin' && order.user_id !== req.user.id) {
+                return res.status(403).json({ message: 'No autorizado para esta orden' });
+            }
+        } else {
+            // Guest path — require explicit, matching email (no silent fallback)
+            if (!requestEmail) {
+                return res.status(401).json({ message: 'Se requiere autenticación o email de la orden' });
+            }
+            if (orderEmail && requestEmail !== orderEmail) {
+                return res.status(403).json({ message: 'Email no autorizado para esta orden' });
+            }
         }
+        // ───────────────────────────────────────────────────────────────────────
 
-        // Security check: if order has email, request must match or be empty
-        if (orderEmail && requestEmail && orderEmail !== requestEmail) {
-            return res.status(403).json({ message: 'Email no autorizado para esta orden' });
-        }
+        // Determine recipient: admin may override with a different address;
+        // authenticated users and guests send to the order's email.
+        const recipientEmail = (req.user?.role === 'admin' && requestEmail) ? requestEmail : orderEmail;
 
         const items = await statements.getOrderItems(orderId);
         const itemDetails = items.map((item) => ({

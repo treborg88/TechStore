@@ -1,5 +1,5 @@
--- =============================================================================
--- TechStore SaaS — Multi-Tenant System Tables (schema 'public')
+﻿-- =============================================================================
+-- Eonsclover SaaS — Multi-Tenant System Tables (schema 'public')
 -- =============================================================================
 -- Run ONCE on the main database. Does NOT modify existing tenant tables.
 -- Safe to re-run: uses IF NOT EXISTS / ON CONFLICT everywhere.

@@ -1,4 +1,4 @@
-## Agent Workflow
+﻿## Agent Workflow
 - Avoid unsolicited features or commentary.
 - Keep code minimal; keep the code minimalistic and always comments the code for readability.
 - Use existing project patterns and styles.
@@ -15,7 +15,7 @@
 | **Server** | Oracle Cloud ARM64, Ubuntu 22.04, IP `143.47.118.165` |
 | **Domain** | `eonsclover.com` (Cloudflare proxy) |
 | **SSH user** | `ubuntu` |
-| **App path** | `/home/ubuntu/TechStore/` |
+| **App path** | `/home/ubuntu/Eonsclover/` |
 | **Process manager** | PM2 (backend on :5001, frontend Vite preview on :5173) |
 | **Reverse proxy** | Nginx on :80 (redirect) + :443 (SSL) |
 | **SSL** | Cloudflare Full (Strict) — Origin Certificate on Nginx :443 |

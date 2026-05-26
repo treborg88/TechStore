@@ -1,4 +1,4 @@
-# ============================================================
+﻿# ============================================================
 # Nginx Reverse Proxy — mi-tienda-online
 # ============================================================
 #
@@ -8,13 +8,13 @@
 #   {{DOMAIN}}          — dominio del sitio (ej: mitienda.com)
 #   {{BACKEND_PORT}}    — puerto del backend Express (default: 5001)
 #   {{FRONTEND_PORT}}   — puerto del frontend Vite preview (default: 5173)
-#   {{APP_PATH}}        — ruta absoluta de la app (ej: /home/ubuntu/TechStore)
+#   {{APP_PATH}}        — ruta absoluta de la app (ej: /home/ubuntu/Eonsclover)
 #
 # Uso rápido con sed:
 #   sed -e 's/{{DOMAIN}}/mitienda.com/g' \
 #       -e 's/{{BACKEND_PORT}}/5001/g' \
 #       -e 's/{{FRONTEND_PORT}}/5173/g' \
-#       -e 's|{{APP_PATH}}|/home/ubuntu/TechStore|g' \
+#       -e 's|{{APP_PATH}}|/home/ubuntu/Eonsclover|g' \
 #       nginx/tienda.conf.template > /etc/nginx/sites-available/tienda
 #
 # Variantes SSL:

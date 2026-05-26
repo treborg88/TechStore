@@ -1,5 +1,5 @@
--- =============================================================================
--- TechStore — Seed Data
+﻿-- =============================================================================
+-- Eonsclover — Seed Data
 -- =============================================================================
 -- Run AFTER schema.sql to populate initial data for a fresh installation.
 -- Creates: admin user, default site settings, sample categories.
@@ -39,7 +39,7 @@ ON CONFLICT (name) DO NOTHING;
 -- ---------------------------------------------------------------------------
 -- Branding
 INSERT INTO app_settings (id, value) VALUES
-    ('siteName',        'TechStore'),
+    ('siteName',        'Eonsclover'),
     ('siteIcon',        '🛍️'),
     ('siteLogo',        ''),
     ('siteLogoSize',    '40'),
@@ -94,7 +94,7 @@ INSERT INTO app_settings (id, value) VALUES
     -- Contact info
     ('contactTitle',       'Contáctanos'),
     ('contactSubtitle',    '¿Tienes preguntas? Estamos aquí para ayudarte'),
-    ('contactCompany',     'TechStore'),
+    ('contactCompany',     'Eonsclover'),
     ('contactEmail',       ''),
     ('contactPhone',       ''),
     ('contactWhatsapp',    ''),
@@ -120,7 +120,7 @@ INSERT INTO app_settings (id, value) VALUES
     ('emailPasswordReset',        'true'),
     -- Chatbot  
     ('chatbotEnabled',       'false'),
-    ('chatbotGreeting',      '¡Hola! 👋 Soy el asistente de TechStore. ¿En qué puedo ayudarte?'),
+    ('chatbotGreeting',      '¡Hola! 👋 Soy el asistente de Eonsclover. ¿En qué puedo ayudarte?'),
     ('chatbotMaxMessages',   '50'),
     ('chatbotPlaceholder',   'Escribe tu mensaje...'),
     ('chatbotColor',         '#2563eb'),

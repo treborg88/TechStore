@@ -1,4 +1,4 @@
-// routes/payments.routes.js - Stripe and PayPal payment processing
+﻿// routes/payments.routes.js - Stripe and PayPal payment processing
 const express = require('express');
 const router = express.Router();
 const { 
@@ -488,7 +488,7 @@ router.post('/paypal/create-order', async (req, res) => {
         return res.status(503).json({ message: 'PayPal no está configurado. Configure las credenciales en Ajustes > Pagos.' });
     }
     
-    const { amount, currency = 'USD', orderId, description = 'Compra en TechStore' } = req.body;
+    const { amount, currency = 'USD', orderId, description = 'Compra en Eonsclover' } = req.body;
     
     if (!amount || amount <= 0) {
         return res.status(400).json({ message: 'Monto inválido' });

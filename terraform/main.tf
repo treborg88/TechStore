@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Main — Recursos de infraestructura en Google Cloud
 # =============================================================================
 # Este archivo define QUÉ se va a crear:
@@ -49,7 +49,7 @@ resource "google_compute_firewall" "allow_web_ssh" {
   source_ranges = ["0.0.0.0/0"]
 
   # Aplicar solo a VMs con este tag
-  target_tags = ["techstore-server"]
+  target_tags = ["eonsclover-server"]
 }
 
 # ── 3. VM — La máquina virtual ────────────────────────────
@@ -59,7 +59,7 @@ resource "google_compute_instance" "prod2" {
   zone         = var.zone
 
   # Tags para que el firewall aplique a esta VM
-  tags = ["techstore-server"]
+  tags = ["eonsclover-server"]
 
   # Disco de arranque con Ubuntu 22.04
   boot_disk {

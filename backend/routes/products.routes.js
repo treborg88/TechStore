@@ -3,17 +3,12 @@ const express = require('express');
 const multer = require('multer');
 const router = express.Router();
 
-const { statements } = require('../database');
-const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { statements, withTransaction } = require('../database');
+const { deleteUploadedFile } = require('../database');
+const { authenticateToken, optionalAuth, requireAdmin } = require('../middleware/auth');
 const { productImagesUpload, singleImageUpload } = require('../middleware/upload');
 const { checkLimit } = require('../middleware/planLimits');
-
-const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
-
-const normalizeProductUnitType = (value) => {
-    const normalized = String(value || '').trim().toLowerCase();
-    return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
-};
+const { normalizeProductUnitType } = require('../utils/productUnits');
 
 const parseImageUrls = (raw) => {
     if (!raw) return [];
@@ -65,12 +60,13 @@ router.get('/attribute-types', async (_req, res) => {
  * GET /api/products
  * Get paginated products with optional filters
  */
-router.get('/', async (req, res) => {
+router.get('/', optionalAuth, async (req, res) => {
     const categoryFilter = req.query.category;
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
     const search = req.query.search || '';
     const sort = req.query.sort || '';
+    const isAdmin = req.user?.role === 'admin';
 
     try {
         const { data: products, total } = await statements.getProductsPaginated(
@@ -78,7 +74,8 @@ router.get('/', async (req, res) => {
             limit, 
             search, 
             categoryFilter && categoryFilter.toLowerCase() !== 'todos' ? categoryFilter : 'all',
-            sort
+            sort,
+            isAdmin
         );
 
         // Add images to each product and migrate legacy images
@@ -116,10 +113,11 @@ router.get('/', async (req, res) => {
  * GET /api/products/:id
  * Get single product by ID
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', optionalAuth, async (req, res) => {
     const productId = parseInt(req.params.id, 10);
+    const isAdmin = req.user?.role === 'admin';
     try {
-        const product = await statements.getProductById(productId);
+        const product = await statements.getProductById(productId, isAdmin);
 
         if (product) {
             let images = await statements.getProductImages(productId);
@@ -171,26 +169,41 @@ router.post('/', authenticateToken, requireAdmin, checkLimit('products'), produc
             return res.status(400).json({ message: 'Se requiere al menos una imagen (archivo o URL).' });
         }
 
-        const result = await statements.createProduct(
-            name,
-            description || '',
-            parseFloat(price),
-            category,
-            parseInt(stock, 10),
-            normalizeProductUnitType(unitType)
-        );
-
-        const productId = result.lastInsertRowid;
-
-        // Add images to storage
+        // 1. Upload files to disk first — no DB row exists yet, so a failure here
+        //    leaves nothing to clean up in the database.
+        const uploadedPaths = [];
         for (const file of req.files) {
             const publicUrl = await statements.uploadImage(file);
-            await statements.addProductImage(productId, publicUrl);
+            uploadedPaths.push(publicUrl);
         }
 
-        // Add image URLs provided from admin form
-        for (const imageUrl of imageUrls) {
-            await statements.addProductImage(productId, imageUrl);
+        // 2. Wrap all DB writes in a transaction. If any insert fails, the product
+        //    row and all image rows are rolled back, then uploaded files are removed.
+        let productId;
+        try {
+            const result = await withTransaction(async () => {
+                const r = await statements.createProduct(
+                    name,
+                    description || '',
+                    parseFloat(price),
+                    category,
+                    parseInt(stock, 10),
+                    normalizeProductUnitType(unitType)
+                );
+                const id = r.lastInsertRowid;
+                for (const publicUrl of uploadedPaths) {
+                    await statements.addProductImage(id, publicUrl);
+                }
+                for (const imageUrl of imageUrls) {
+                    await statements.addProductImage(id, imageUrl);
+                }
+                return r;
+            });
+            productId = result.lastInsertRowid;
+        } catch (txErr) {
+            // DB transaction failed — delete any files that were already uploaded
+            uploadedPaths.forEach((p) => deleteUploadedFile(p));
+            throw txErr;
         }
 
         const newProduct = await statements.getProductById(productId);
@@ -271,9 +284,15 @@ router.delete('/:id', authenticateToken, requireAdmin, async (req, res) => {
     const productId = parseInt(req.params.id, 10);
     
     try {
-        // Delete all images first
-        await statements.deleteAllProductImages(productId);
+        // Collect image paths before deletion (they're gone from DB after deleteProduct)
+        const images = await statements.getProductImages(productId);
+
+        // Delete DB row first — ON DELETE CASCADE removes product_images rows atomically.
+        // If this fails, no files are touched and the product remains intact.
         await statements.deleteProduct(productId);
+
+        // DB is consistent now; clean up orphaned filesystem files (best-effort)
+        images.forEach((img) => deleteUploadedFile(img.image_path));
 
         res.json({ message: 'Producto eliminado exitosamente' });
     } catch (error) {

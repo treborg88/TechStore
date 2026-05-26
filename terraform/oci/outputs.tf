@@ -1,20 +1,20 @@
-# =============================================================================
+﻿# =============================================================================
 # Outputs — Info shown after terraform apply
 # =============================================================================
 
 output "vm_public_ip" {
   description = "Public IP of the test VM"
-  value       = oci_core_instance.techstore_test.public_ip
+  value       = oci_core_instance.eonsclover_test.public_ip
 }
 
 output "vm_name" {
   description = "Display name of the instance"
-  value       = oci_core_instance.techstore_test.display_name
+  value       = oci_core_instance.eonsclover_test.display_name
 }
 
 output "ssh_command" {
   description = "SSH command to connect"
-  value       = "ssh -i ~/.ssh/oci_test ubuntu@${oci_core_instance.techstore_test.public_ip}"
+  value       = "ssh -i ~/.ssh/oci_test ubuntu@${oci_core_instance.eonsclover_test.public_ip}"
 }
 
 output "image_used" {

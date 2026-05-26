@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+﻿import React, { useState, useEffect } from "react";
 import { login, register, resetPassword } from '../../services/authService';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -303,7 +303,7 @@ return (
                 style={{ cursor: 'pointer' }}
                 title="Volver al inicio"
             >
-                <h1>🛍️ TechStore</h1>
+                <h1>🛍️ Eonsclover</h1>
             </div>
         )}
 

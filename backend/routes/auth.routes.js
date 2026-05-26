@@ -1,4 +1,4 @@
-// routes/auth.routes.js - Authentication routes
+﻿// routes/auth.routes.js - Authentication routes
 const express = require('express');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
@@ -7,6 +7,7 @@ const router = express.Router();
 
 const { statements } = require('../database');
 const { getSettingsMap } = require('../services/email.service');
+const { validatePassword, PASSWORD_POLICY_MESSAGE } = require('../utils');
 
 // Generate unique session ID for each login (per device/browser)
 const generateSessionId = () => crypto.randomBytes(16).toString('hex');
@@ -74,11 +75,8 @@ router.post('/register', async (req, res) => {
         }
 
         // Validate password complexity
-        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
-        if (!passwordRegex.test(password)) {
-            return res.status(400).json({ 
-                message: 'La contraseña debe tener al menos 8 caracteres, una mayúscula y un número' 
-            });
+        if (!validatePassword(password)) {
+            return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
         }
 
         // Check if email exists
@@ -289,14 +287,14 @@ router.post('/forgot-password', async (req, res) => {
         await statements.createVerificationCode(email.toLowerCase(), code, 'password_reset', expiresAt);
 
         const mailOptions = {
-            from: process.env.EMAIL_USER || 'noreply@techstore.com',
+            from: process.env.EMAIL_USER || 'noreply@eonsclover.com',
             to: email,
-            subject: 'Restablecer contraseña - TechStore',
+            subject: 'Restablecer contraseña - Eonsclover',
             text: `Tu código para restablecer la contraseña es: ${code}. Expira en 10 minutos.`,
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
                     <h2 style="color: #007bff;">Restablecer Contraseña</h2>
-                    <p>Has solicitado restablecer tu contraseña en TechStore.</p>
+                    <p>Has solicitado restablecer tu contraseña en Eonsclover.</p>
                     <p>Tu código de verificación es:</p>
                     <h1 style="letter-spacing: 5px; background: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">${code}</h1>
                     <p>Este código expira en 10 minutos.</p>

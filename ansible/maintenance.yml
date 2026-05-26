@@ -1,5 +1,5 @@
-# =============================================================================
-# Ansible Maintenance Playbook — TechStore
+﻿# =============================================================================
+# Ansible Maintenance Playbook — Eonsclover
 # =============================================================================
 # Common maintenance tasks for day-to-day server management.
 #
@@ -31,7 +31,7 @@
 #   ... --limit staging
 # =============================================================================
 
-- name: TechStore Maintenance Tasks
+- name: Eonsclover Maintenance Tasks
   hosts: all
   become: true
   vars_files:

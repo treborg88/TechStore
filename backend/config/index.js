@@ -55,4 +55,9 @@ module.exports = {
     FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID,
     FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET,
     FACEBOOK_REDIRECT_URI: process.env.FACEBOOK_REDIRECT_URI,
+
+    // Testing: comma-separated emails/domains that skip email sending and accept code 000000.
+    // e.g. TEST_BYPASS_EMAIL=test@test.com,@playwright.local
+    // Never set in production.
+    TEST_BYPASS_EMAIL: process.env.TEST_BYPASS_EMAIL || '',
 };

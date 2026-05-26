@@ -1,5 +1,5 @@
 // middleware/index.js - Export all middleware
-const { authenticateToken, requireAdmin, blacklistToken, isTokenBlacklisted, hashToken } = require('./auth');
+const { authenticateToken, optionalAuth, requireAdmin, blacklistToken, isTokenBlacklisted, hashToken } = require('./auth');
 const { authLimiter, apiLimiter } = require('./rateLimiter');
 const { csrfProtection, setAuthCookies, setCsrfCookie, getCookieOptions } = require('./csrf');
 const { upload, productImagesUpload, singleImageUpload } = require('./upload');
@@ -10,6 +10,7 @@ const { checkLimit } = require('./planLimits');
 module.exports = {
     // Auth
     authenticateToken,
+    optionalAuth,
     requireAdmin,
     blacklistToken,
     isTokenBlacklisted,

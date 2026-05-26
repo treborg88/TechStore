@@ -1,4 +1,4 @@
-// server.js - Main Express server (Modular version)
+﻿// server.js - Main Express server (Modular version)
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -154,14 +154,14 @@ const getShareSettings = async () => {
         let seoConfig = {};
         try { seoConfig = settingsMap.seoConfig ? JSON.parse(settingsMap.seoConfig) : {}; } catch { /* ignore */ }
         _shareSettingsCache = {
-            siteName: settingsMap.siteName || 'TechStore',
+            siteName: settingsMap.siteName || 'Eonsclover',
             currency: settingsMap.currencyCode || 'DOP',
             ogImage: seoConfig.ogImage || '',
             locale: seoConfig.locale || 'es_DO'
         };
         _shareSettingsCacheTime = now;
     } catch (_err) {
-        _shareSettingsCache = { siteName: 'TechStore', currency: 'DOP', ogImage: '', locale: 'es_DO' };
+        _shareSettingsCache = { siteName: 'Eonsclover', currency: 'DOP', ogImage: '', locale: 'es_DO' };
     }
     return _shareSettingsCache;
 };

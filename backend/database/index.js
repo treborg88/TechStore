@@ -20,7 +20,8 @@ module.exports = {
   reinitializeDb: (...args) => adapter.reinitializeDb(...args),
   disconnectDb:   () => adapter.disconnectDb(),
   testConnection: () => (adapter.testConnection ? adapter.testConnection() : Promise.resolve(false)),
-  withTenantSchema: (...args) => adapter.withTenantSchema(...args),
-  withTransaction:  (...args) => adapter.withTransaction(...args),
+  withTenantSchema:   (...args) => adapter.withTenantSchema(...args),
+  withTransaction:    (...args) => adapter.withTransaction(...args),
   get tenantContext() { return adapter.tenantContext; },
+  deleteUploadedFile: (...args) => adapter.deleteUploadedFile(...args),
 };

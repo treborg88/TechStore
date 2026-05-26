@@ -1,10 +1,20 @@
-// routes/verification.routes.js - Email verification routes
+﻿// routes/verification.routes.js - Email verification routes
 const express = require('express');
 const router = express.Router();
 
 const { statements } = require('../database');
 const { sendMailWithSettings, getSettingsMap } = require('../services/email.service');
-const { EMAIL_USER } = require('../config');
+const { EMAIL_USER, TEST_BYPASS_EMAIL } = require('../config');
+
+// Returns true when the email matches a TEST_BYPASS_EMAIL entry.
+// Entries can be exact addresses (test@example.com) or domain suffixes (@example.com).
+const isTestBypassEmail = (email) => {
+    if (!TEST_BYPASS_EMAIL) return false;
+    const lower = email.toLowerCase();
+    return TEST_BYPASS_EMAIL.split(',').map(e => e.trim().toLowerCase()).some(
+        entry => entry.startsWith('@') ? lower.endsWith(entry) : lower === entry
+    );
+};
 
 /**
  * POST /api/verification/send-code
@@ -43,6 +53,14 @@ router.post('/send-code', async (req, res) => {
 
     const normalizedEmail = email.toLowerCase().trim();
 
+    // Test bypass: skip real email and store fixed code 000000
+    if (isTestBypassEmail(normalizedEmail)) {
+        const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+        await statements.deleteVerificationCodes(normalizedEmail, purpose || 'general');
+        await statements.createVerificationCode(normalizedEmail, '000000', purpose || 'general', expiresAt);
+        return res.json({ success: true, message: 'Código enviado correctamente' });
+    }
+
     // Generate 6-digit code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     
@@ -58,15 +76,15 @@ router.post('/send-code', async (req, res) => {
 
         // Send email
         const mailOptions = {
-            from: EMAIL_USER || 'noreply@techstore.com',
+            from: EMAIL_USER || 'noreply@eonsclover.com',
             to: normalizedEmail,
-            subject: 'Tu código de verificación - TechStore',
+            subject: 'Tu código de verificación - Eonsclover',
             text: `Tu código de verificación es: ${code}. Este código expira en 10 minutos.`,
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
                     <h2 style="color: #007bff;">Código de Verificación</h2>
                     <p>Hola,</p>
-                    <p>Tu código de verificación para TechStore es:</p>
+                    <p>Tu código de verificación para Eonsclover es:</p>
                     <h1 style="letter-spacing: 5px; background: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">${code}</h1>
                     <p>Este código expira en 10 minutos.</p>
                     <p>Si no solicitaste este código, puedes ignorar este correo.</p>

@@ -1,13 +1,13 @@
-# =============================================================================
-# Ansible Variables — TechStore
+﻿# =============================================================================
+# Ansible Variables — Eonsclover
 # =============================================================================
 # All configurable values for the playbook.
 # Override per-host in inventory.yml or via --extra-vars on CLI.
 # =============================================================================
 
 # ── Application ───────────────────────────────────────────
-app_name: TechStore
-app_path: /home/ubuntu/TechStore
+app_name: Eonsclover
+app_path: /home/ubuntu/Eonsclover
 app_repo: https://github.com/treborg88/TechStore.git
 app_branch: main
 
@@ -38,14 +38,14 @@ deploy_group: ubuntu
 pm2_ecosystem: ecosystem.config.cjs
 
 # ── Nginx ─────────────────────────────────────────────────
-nginx_config_name: techstore
+nginx_config_name: eonsclover
 nginx_client_max_body_size: 50M
 
 # ── Docker Compose (used by playbook-docker.yml) ─────────
 # Defaults for Docker PostgreSQL — override per host in inventory.yml
-docker_pg_user: techstore
-docker_pg_password: techstore
-docker_pg_db: techstore
+docker_pg_user: eonsclover
+docker_pg_password: eonsclover
+docker_pg_db: eonsclover
 docker_pg_host: database
 
 # ── Swap (para servidores con poca RAM) ───────────────────

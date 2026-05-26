@@ -1,5 +1,5 @@
-# =============================================================================
-# Ansible Inventory — TechStore (Multi-Instance)
+﻿# =============================================================================
+# Ansible Inventory — Eonsclover (Multi-Instance)
 # =============================================================================
 # Define all target servers grouped by environment.
 #

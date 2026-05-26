@@ -46,7 +46,19 @@ const apiLimiter = rateLimit({
     keyGenerator: tenantKeyGenerator
 });
 
+// Rate limiter for public order-tracking by email (prevents customer email enumeration)
+const trackLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20, // 20 lookups per IP per window
+    message: { message: 'Demasiadas búsquedas, por favor intenta de nuevo en 15 minutos' },
+    standardHeaders: true,
+    legacyHeaders: false,
+    skip: shouldSkipRateLimit,
+    keyGenerator: tenantKeyGenerator
+});
+
 module.exports = {
     authLimiter,
-    apiLimiter
+    apiLimiter,
+    trackLimiter
 };

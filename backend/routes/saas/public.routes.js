@@ -6,6 +6,7 @@ const { pool, statements } = require('../../database');
 const config = require('../../config');
 const { provisionTenant, validateSlug } = require('../../services/tenant/provisioner');
 const { getSettingsMap } = require('../../services/email.service');
+const { validatePassword, PASSWORD_POLICY_MESSAGE } = require('../../utils');
 
 const router = Router();
 
@@ -92,8 +93,8 @@ router.post('/register', async (req, res) => {
     if (!ownerEmail || !ownerPassword) {
       return res.status(400).json({ message: 'Todos los campos son requeridos' });
     }
-    if (ownerPassword.length < 8) {
-      return res.status(400).json({ message: 'Contraseña mínimo 8 caracteres' });
+    if (!validatePassword(ownerPassword)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
     // Check if email verification is disabled via admin settings

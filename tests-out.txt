@@ -1,7 +1,90 @@
-techstore-proxy=Up 1 second
-techstore-backend=Up 2 seconds (health: starting)
-techstore-db=Up 8 seconds (healthy)
-techstore-frontend=Up 12 seconds (healthy)
-===  
-{"status":"ok","version":"1.0.0","uptime":1,"database":"connected","saas":true,"message":"All systems operational"}  
-{"message":"El subdominio \"tienda5\" ya está en uso"}
+Here is the full issue audit. Each item is actionable and traceable to a specific file and line.
+
+Full Issue Audit
+CRITICAL — Data Integrity
+1. Order creation is not wrapped in a DB transaction (orders.routes.js:257)
+Stock is decremented via decrementStockIfAvailable (atomic RPC), then the order row and order items are inserted in separate pool.query calls with no surrounding BEGIN/COMMIT. If createOrder, updateOrderStatus, updateOrderNumber, or addOrderItem fails after stock is already decremented, the "rollback" is done with a manual loop (rollbackReservedStock) which itself can fail silently. The entire block must run inside a single DB transaction.
+
+2. restoreStockForOrder uses a non-atomic read-modify-write for non-variant products (orders.routes.js:49)
+When cancelling an order, for products without variants the code does getProductById → compute new stock → updateProduct. A concurrent status change between the read and the write corrupts stock. The incrementStock RPC function already exists and is atomic — it's just not used here. Variant items correctly use incrementVariantStock.
+
+3. dbContext.js COMMIT runs after the HTTP response is already sent (dbContext.js:45)
+res.on('finish', () => releaseClient('COMMIT')) fires after Express has sent bytes to the client. If the COMMIT fails (network error, serialization failure, pool timeout), the client already received HTTP 201 but nothing was actually saved. Write responses should be sent only after the COMMIT succeeds.
+
+4. getOrdersByEmail cannot find guest orders (postgres.js:748)
+The function does SELECT id FROM users WHERE email = $1, then fetches orders by user_id. Guest orders have user_id = NULL and store the email in customer_email. So tracking by email returns zero results for any guest order, making the public /track/email/:email endpoint useless for guests.
+
+5. Shipping cost is not included in the order total (orders.routes.js:465)
+total is computed as sum(price * quantity) but shipping_cost is never added. The stored orders.total therefore always excludes shipping, which breaks invoice totals and revenue analytics.
+
+HIGH — Security
+6. POST /api/orders/:id/invoice-email has no authentication middleware (orders.routes.js:770)
+Any unauthenticated caller who knows an order ID and provides a PDF can send emails from the store's SMTP. The weak email-match check (orderEmail !== requestEmail) still allows sending if no email is supplied. authenticateToken must be applied.
+
+7. Superadmin secret comparison is timing-attack vulnerable (superadmin.routes.js:15)
+secret !== config.SUPER_ADMIN_SECRET is a direct string equality check. Must use crypto.timingSafeEqual().
+
+8. Hidden products (is_hidden = true) are served publicly (postgres.js:269)
+getProductsPaginated and getProductById have no is_hidden = false filter applied on public routes. Hidden products appear in store listings and are accessible by their ID. The filter should be injected by the route depending on whether the caller is admin.
+
+9. payment_method is not validated against a whitelist on order creation (orders.routes.js:488)
+Any string can be written into orders.payment_method. A whitelist (['cash', 'stripe', 'paypal', 'card', 'online', 'transfer']) should be enforced.
+
+MEDIUM — Race Conditions / Consistency
+10. addToCart uses check-then-insert instead of an atomic UPSERT (postgres.js:545)
+The route does getCartItem → addToCart or updateCartItem. A double-click or concurrent request between the read and the insert will hit the UNIQUE(user_id, product_id, variant_id) constraint and throw a 500. Should be replaced with a single INSERT … ON CONFLICT … DO UPDATE SET quantity = quantity + excluded.quantity.
+
+11. Product image deletion order is wrong (products.routes.js:251)
+deleteAllProductImages deletes files from the filesystem first, then deleteProduct is called. If the DB delete fails, the images are gone with no rollback. Correct order: delete the DB product row (CASCADE removes product_images rows), then clean up the filesystem files.
+
+12. Product creation has no transaction (products.routes.js:165)
+createProduct inserts the product row, then uploads each image to disk and inserts a product_images row in a loop. A failure midway leaves an orphaned product with partial images and no cleanup.
+
+13. planLimits.js opens a separate withTenantSchema connection (planLimits.js:47)
+This runs the usage count in its own transaction, separate from the dbContext tenant transaction that wraps the request. The count can be stale in high-concurrency situations and uses an extra pool connection per plan-checked request.
+
+CODE QUALITY / DUPLICATION
+14. Order creation logic duplicated entirely between POST /orders and POST /orders/guest
+Both handlers contain ~150 lines of identical stock-reservation, order-creation, and email-notification code. This should be extracted into a shared createOrderFromItems(opts) service function.
+
+15. getOrderItems overwrites the stored name snapshot with the current product name
+The JOIN returns p.name AS product_name and the mapping does name: product_name || 'Producto eliminado', discarding oi.name (the snapshot captured at purchase time). If a product is renamed, all historical orders show the new name. oi.name should be used as-is; the join is only needed for the image.
+
+16. normalizeProductUnitType and VALID_PRODUCT_UNIT_TYPES are defined three times (postgres.js:100, products.routes.js:12, orders.routes.js:18)
+Should be in a single shared utility.
+
+17. ensureProductUnitTypeColumnSupport / ensureProductIsHiddenColumnSupport are dead checks
+The schema.sql already adds those columns with ADD COLUMN IF NOT EXISTS. These runtime checks run on every product operation. They should be removed.
+
+18. _schema_version table is never populated or read
+Defined in schema.sql for tracking per-tenant migrations but there is no migration runner seeding or reading it. It's dead code.
+
+19. Tenant registration password validation is weaker than regular auth
+public.routes.js only checks ownerPassword.length < 8. auth.routes.js enforces uppercase + digit. Inconsistent.
+
+20. getOrdersByEmail endpoint is accessible without rate limiting
+GET /api/orders/track/email/:email allows brute-forcing customer emails to enumerate all orders. It needs rate limiting and ideally email normalization validation.
+
+Summary table
+#	Severity	File	Issue
+1	Critical	orders.routes.js	No DB transaction around stock + order creation
+2	Critical	orders.routes.js	restoreStockForOrder uses non-atomic read-modify-write
+3	Critical	middleware/dbContext.js	COMMIT fires after HTTP response is sent
+4	Critical	database/postgres.js	getOrdersByEmail misses all guest orders
+5	Critical	orders.routes.js	Shipping cost excluded from stored total
+6	High	orders.routes.js	Invoice email endpoint unprotected
+7	High	saas/superadmin.routes.js	Timing-attack on secret comparison
+8	High	database/postgres.js	Hidden products visible publicly
+9	High	orders.routes.js	payment_method not whitelisted
+10	Medium	database/postgres.js	Cart add is not atomic (race condition)
+11	Medium	routes/products.routes.js	Wrong file-vs-DB deletion order
+12	Medium	routes/products.routes.js	No transaction on product creation
+13	Medium	middleware/planLimits.js	Separate DB connection for usage count
+14	Low	orders.routes.js	Massive code duplication auth/guest order
+15	Low	database/postgres.js	Order item name snapshot overridden by JOIN
+16	Low	multiple	normalizeProductUnitType defined 3×
+17	Low	database/postgres.js	Dead legacy column-check functions
+18	Low	schema.sql	_schema_version table never used
+19	Low	saas/public.routes.js	Weak tenant password validation
+20	Low	orders.routes.js	Email tracking endpoint has no rate limit
+Tell me which items you want to fix first and I'll implement them.

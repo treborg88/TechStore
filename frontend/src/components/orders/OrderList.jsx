@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+﻿import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -40,7 +40,7 @@ export default function OrderList({
     pagination,
 	onPageChange,
 	currencyCode,
-	siteName = 'TechStore',
+	siteName = 'Eonsclover',
 	siteIcon = '🛒',
 	onForceRefresh,
 	orderCounts = {},

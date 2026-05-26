@@ -1,6 +1,6 @@
-#!/bin/bash
+﻿#!/bin/bash
 # =============================================================================
-# TechStore — Docker deploy on fresh Ubuntu 22.04 ARM64
+# Eonsclover — Docker deploy on fresh Ubuntu 22.04 ARM64
 # =============================================================================
 # Run this on the VM after SSH-ing in:
 #   curl -fsSL https://raw.githubusercontent.com/treborg88/TechStore/main/scripts/docker-deploy.sh | bash
@@ -19,12 +19,12 @@
 
 set -euo pipefail
 
-APP_DIR="$HOME/TechStore"
+APP_DIR="$HOME/Eonsclover"
 REPO_URL="https://github.com/treborg88/TechStore.git"
 BRANCH="main"
 
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   TechStore — Docker Full Stack Deploy (ARM64)       ║"
+echo "║   Eonsclover — Docker Full Stack Deploy (ARM64)       ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
@@ -54,13 +54,13 @@ echo "🔥 Configuring firewall (iptables)..."
 # Insert HTTP/HTTPS rules before the REJECT rule (position 5 and 6)
 # Check if rule already exists to avoid duplicates
 if ! sudo iptables -C INPUT -p tcp --dport 80 -j ACCEPT 2>/dev/null; then
-  sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT -m comment --comment "TechStore HTTP"
+  sudo iptables -I INPUT 5 -p tcp --dport 80 -j ACCEPT -m comment --comment "Eonsclover HTTP"
   echo "   ✅ Port 80 (HTTP) opened"
 else
   echo "   ✅ Port 80 already open"
 fi
 if ! sudo iptables -C INPUT -p tcp --dport 443 -j ACCEPT 2>/dev/null; then
-  sudo iptables -I INPUT 6 -p tcp --dport 443 -j ACCEPT -m comment --comment "TechStore HTTPS"
+  sudo iptables -I INPUT 6 -p tcp --dport 443 -j ACCEPT -m comment --comment "Eonsclover HTTPS"
   echo "   ✅ Port 443 (HTTPS) opened"
 else
   echo "   ✅ Port 443 already open"
@@ -97,7 +97,7 @@ PORT=5001
 NODE_ENV=production
 
 # Database: Docker PostgreSQL (configured by docker-compose.yml)
-DATABASE_URL=postgresql://techstore:techstore@database:5432/techstore
+DATABASE_URL=postgresql://eonsclover:eonsclover@database:5432/eonsclover
 EOF
 
 echo "✅ backend/.env created (JWT_SECRET generated)"

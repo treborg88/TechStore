@@ -3,7 +3,6 @@
 // Skip: when not in SaaS mode or when plan limit is -1 (unlimited).
 
 const config = require('../config');
-const { withTenantSchema } = require('../database');
 const { pool } = require('../database');
 
 // Count queries per resource type (executed inside tenant schema)
@@ -40,14 +39,13 @@ function checkLimit(resource) {
       // -1 = unlimited, skip check
       if (limit == null || limit === -1) return next();
 
-      // Count current usage inside tenant schema
+      // Count current usage via pool.query — already routed to the tenant-scoped
+      // client by AsyncLocalStorage (set by dbContext), so no extra connection needed.
       const countQuery = COUNT_QUERIES[resource];
       if (!countQuery) return next();
 
-      const usage = await withTenantSchema(req.tenant.schema_name, async (client) => {
-        const r = await client.query(countQuery);
-        return parseInt(r.rows[0].count, 10);
-      });
+      const r = await pool.query(countQuery);
+      const usage = parseInt(r.rows[0].count, 10);
 
       if (usage >= limit) {
         return res.status(403).json({

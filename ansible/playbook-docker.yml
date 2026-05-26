@@ -1,5 +1,5 @@
-# =============================================================================
-# Ansible Playbook — TechStore (Docker Compose Mode)
+﻿# =============================================================================
+# Ansible Playbook — Eonsclover (Docker Compose Mode)
 # =============================================================================
 # Provisions a fresh Ubuntu VM and deploys the full stack with Docker Compose:
 #   PostgreSQL + Express backend + Vite/React frontend + Nginx proxy
@@ -19,7 +19,7 @@
 #   SSH key access to the target server
 # =============================================================================
 
-- name: Deploy TechStore (Docker Compose)
+- name: Deploy Eonsclover (Docker Compose)
   hosts: docker
   become: true
   vars_files:
@@ -99,7 +99,7 @@
         jump: ACCEPT
         action: insert
         rule_num: "5"
-        comment: "TechStore HTTP"
+        comment: "Eonsclover HTTP"
 
     - name: Open HTTPS port 443 in iptables
       tags: [setup, firewall]
@@ -110,7 +110,7 @@
         jump: ACCEPT
         action: insert
         rule_num: "6"
-        comment: "TechStore HTTPS"
+        comment: "Eonsclover HTTPS"
 
     - name: Install iptables-persistent for rule persistence
       tags: [setup, firewall]

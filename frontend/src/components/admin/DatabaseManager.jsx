@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 
 /**
@@ -181,7 +181,7 @@ function DatabaseManager() {
 
   /** Check if creating this backup will overwrite an existing file. */
   const willReplace = () => {
-    const name = (backupName || storeName || 'techstore').replace(/[^a-zA-Z0-9_-]/g, '');
+    const name = (backupName || storeName || 'eonsclover').replace(/[^a-zA-Z0-9_-]/g, '');
     const ver = backupVersion ? `-${backupVersion.replace(/[^a-zA-Z0-9._-]/g, '')}` : '';
     const fn = `${name}${ver}.tar.gz`;
     return backups.some(b => b.filename === fn) ? fn : null;
@@ -284,7 +284,7 @@ function DatabaseManager() {
                 style={s.input}
                 value={backupName}
                 onChange={(e) => setBackupName(e.target.value)}
-                placeholder={storeName || 'techstore'}
+                placeholder={storeName || 'eonsclover'}
               />
             </div>
             <div style={s.fieldGroup}>

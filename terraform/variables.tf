@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Variables — Parámetros configurables para la infraestructura
 # =============================================================================
 # Cada variable tiene un tipo, descripción y valor por defecto.
@@ -29,7 +29,7 @@ variable "zone" {
 variable "vm_name" {
   description = "Nombre de la instancia VM"
   type        = string
-  default     = "techstore-prod-2"
+  default     = "eonsclover-prod-2"
 }
 
 variable "machine_type" {

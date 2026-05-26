@@ -5,6 +5,7 @@ const bcrypt = require('bcrypt');
 
 const { statements } = require('../database');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
+const { validatePassword, PASSWORD_POLICY_MESSAGE } = require('../utils');
 
 /**
  * POST /api/users
@@ -25,8 +26,8 @@ router.post('/', authenticateToken, requireAdmin, async (req, res) => {
     }
 
     // Validate password (min 8 chars, uppercase, lowercase, number)
-    if (password.length < 8) {
-        return res.status(400).json({ message: 'La contraseña debe tener al menos 8 caracteres' });
+    if (!validatePassword(password)) {
+        return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
     // Validate role

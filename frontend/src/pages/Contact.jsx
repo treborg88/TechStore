@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+﻿import { useEffect, useMemo, useState } from 'react';
 import { apiFetch, apiUrl } from '../services/apiClient';
 import { useSeo } from '../hooks/useSeo';
 import { toast } from 'react-hot-toast';
@@ -8,8 +8,8 @@ import './Contact.css';
 const defaultContactData = {
   contactTitle: 'Contáctanos',
   contactSubtitle: 'Estamos aquí para ayudarte con cualquier consulta sobre nuestros productos y servicios.',
-  contactCompany: 'TechStore S.R.L.',
-  contactEmail: 'soporte@techstore.com',
+  contactCompany: 'Eonsclover S.R.L.',
+  contactEmail: 'soporte@eonsclover.com',
   contactPhone: '+1 (809) 555-0147',
   contactWhatsapp: '+1 (809) 555-7788',
   contactAddress: 'Av. Winston Churchill 123, Santo Domingo, RD',

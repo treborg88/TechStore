@@ -1,7 +1,7 @@
+﻿# =============================================================================
+# Ansible Playbook — Eonsclover
 # =============================================================================
-# Ansible Playbook — TechStore
-# =============================================================================
-# Provisions and deploys the TechStore app on an Ubuntu server.
+# Provisions and deploys the Eonsclover app on an Ubuntu server.
 #
 # Usage:
 #   # Full setup + deploy
@@ -18,7 +18,7 @@
 #   SSH key access to the target server
 # =============================================================================
 
-- name: Provision and deploy TechStore
+- name: Provision and deploy Eonsclover
   hosts: all
   become: true
   vars_files:

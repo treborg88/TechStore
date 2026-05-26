@@ -1,4 +1,4 @@
-// services/email.service.js - Email sending utilities
+﻿// services/email.service.js - Email sending utilities
 const nodemailer = require('nodemailer');
 const { statements } = require('../database');
 const { decryptSetting } = require('./encryption.service');
@@ -157,7 +157,7 @@ const sendMailWithSettings = async (mailOptions) => {
     }
 
     const fromEmail = settings.mailFrom || settings.mailUser || EMAIL_USER || mailOptions.from;
-    const fromName = settings.mailFromName || settings.siteName || 'TechStore';
+    const fromName = settings.mailFromName || settings.siteName || 'Eonsclover';
     const from = fromEmail ? `${fromName} <${fromEmail}>` : mailOptions.from;
 
     try {
@@ -213,7 +213,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         }
 
         const fromEmail = settings.mailFrom || settings.mailUser || EMAIL_USER;
-        const fromName = settings.mailFromName || settings.siteName || 'TechStore';
+        const fromName = settings.mailFromName || settings.siteName || 'Eonsclover';
         const from = `${fromName} <${fromEmail}>`;
 
         // Build item rows HTML
@@ -266,7 +266,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         const defaultTemplate = `
             <div style="font-family: Arial, sans-serif; color: #111827; line-height: 1.6;">
                 <div style="background: #111827; color: #fff; padding: 16px 20px; border-radius: 10px 10px 0 0;">
-                    <h2 style="margin: 0;">${settings.siteIcon || '🛍️'} ${settings.siteName || 'TechStore'}</h2>
+                    <h2 style="margin: 0;">${settings.siteIcon || '🛍️'} ${settings.siteName || 'Eonsclover'}</h2>
                     <p style="margin: 4px 0 0;">Tu pedido fue recibido</p>
                 </div>
                 <div style="border: 1px solid #e5e7eb; border-top: none; padding: 20px; border-radius: 0 0 10px 10px;">
@@ -292,7 +292,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
         const template = settings.mailTemplateHtml || '';
         const html = template
             ? renderTemplate(template, {
-                siteName: settings.siteName || 'TechStore',
+                siteName: settings.siteName || 'Eonsclover',
                 siteIcon: settings.siteIcon || '🛍️',
                 orderNumber: order.order_number || `#${order.id}`,
                 customerName: customer.name,

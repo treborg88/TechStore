@@ -11,7 +11,14 @@ const { pool, withTenantSchema } = require('../../database');
 // Validates the x-super-admin-secret header against env var
 function requireSuperAdmin(req, res, next) {
     const secret = req.headers['x-super-admin-secret'];
-    if (!config.SUPER_ADMIN_SECRET || secret !== config.SUPER_ADMIN_SECRET) {
+    if (!config.SUPER_ADMIN_SECRET || !secret) {
+        return res.status(403).json({ message: 'Acceso denegado' });
+    }
+    // Use timing-safe comparison to prevent secret enumeration via timing attacks
+    const expected = Buffer.from(config.SUPER_ADMIN_SECRET);
+    const provided = Buffer.from(secret);
+    if (expected.length !== provided.length ||
+        !crypto.timingSafeEqual(expected, provided)) {
         return res.status(403).json({ message: 'Acceso denegado' });
     }
     next();

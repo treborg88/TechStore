@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
@@ -123,7 +123,7 @@ function SettingsManager() {
   );
 
   const [settings, setSettings] = useState({
-    siteName: 'TechStore',
+    siteName: 'Eonsclover',
     siteIcon: '🛍️',
     siteLogo: '',
     siteLogoSize: 40,
@@ -132,13 +132,13 @@ function SettingsManager() {
     maintenanceMode: false,
     siteDomain: '',
     freeShippingThreshold: 50000,
-    contactEmail: 'soporte@techstore.com',
+    contactEmail: 'soporte@eonsclover.com',
     showPromotionBanner: true,
     promoTitle: '¡Oferta Especial del Mes!',
     promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.',
     promoButtonText: 'Ver Oferta',
     promoImage: '',
-    mailFromName: 'TechStore',
+    mailFromName: 'Eonsclover',
     mailFrom: '',
     mailUser: '',
     mailPassword: '',

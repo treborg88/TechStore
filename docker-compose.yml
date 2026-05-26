@@ -1,5 +1,5 @@
-# =============================================================================
-# TechStore — Docker Compose (Full Stack with PostgreSQL)
+﻿# =============================================================================
+# Eonsclover — Docker Compose (Full Stack with PostgreSQL)
 # =============================================================================
 # Runs the full stack: PostgreSQL + backend (Express) + frontend (Nginx/Vite)
 # behind an Nginx reverse proxy on port 80.
@@ -23,12 +23,12 @@ services:
   # ─────────────────────────────────────────────
   database:
     image: postgres:14-alpine
-    container_name: techstore-db
+    container_name: eonsclover-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-techstore}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-techstore}
-      POSTGRES_DB: ${POSTGRES_DB:-techstore}
+      POSTGRES_USER: ${POSTGRES_USER:-eonsclover}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eonsclover}
+      POSTGRES_DB: ${POSTGRES_DB:-eonsclover}
     volumes:
       # Persist data between rebuilds
       - pgdata:/var/lib/postgresql/data
@@ -37,14 +37,14 @@ services:
       - ./backend/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql:ro
       - ./backend/database/schema-saas.sql:/docker-entrypoint-initdb.d/03-schema-saas.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-techstore}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-eonsclover}"]
       interval: 5s
       timeout: 3s
       retries: 10
     ports:
       - "5432:5432"
     networks:
-      - techstore
+      - eonsclover
 
   # ─────────────────────────────────────────────
   # Backend: Express API on port 5001
@@ -53,15 +53,18 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
-    container_name: techstore-backend
+    container_name: eonsclover-backend
     restart: unless-stopped
     env_file:
       - ./backend/.env
     environment:
       # Docker-internal override — must use 'database' service hostname, not localhost
-      DATABASE_URL: postgresql://${POSTGRES_USER:-techstore}:${POSTGRES_PASSWORD:-techstore}@database:5432/${POSTGRES_DB:-techstore}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-eonsclover}:${POSTGRES_PASSWORD:-eonsclover}@database:5432/${POSTGRES_DB:-eonsclover}
       # CORS wildcard for all subdomains (local dev)
       CORS_ORIGIN: ${CORS_ORIGIN:-*.eonsclover.local}
+      # Test bypass: these emails skip real email sending and accept code 000000.
+      # Remove or leave empty in production.
+      TEST_BYPASS_EMAIL: ${TEST_BYPASS_EMAIL:-test@playwright.local,@test.local}
       # All other SaaS vars (SAAS_MODE, PLATFORM_DOMAIN, SUPER_ADMIN_SECRET, etc.)
       # come from env_file: ./backend/.env — do not override here
     depends_on:
@@ -75,7 +78,7 @@ services:
       # Persist logs
       - ./logs:/app/backend/logs
     networks:
-      - techstore
+      - eonsclover
 
   # ─────────────────────────────────────────────
   # Frontend: Vite build served by Nginx on port 3000
@@ -87,10 +90,10 @@ services:
       args:
         # /api is relative — the proxy container handles routing
         VITE_API_URL: /api
-    container_name: techstore-frontend
+    container_name: eonsclover-frontend
     restart: unless-stopped
     networks:
-      - techstore
+      - eonsclover
 
   # ─────────────────────────────────────────────
   # Proxy: Nginx reverse proxy (entry point)
@@ -104,7 +107,7 @@ services:
   # Adminer: lightweight DB web UI (localhost:8080)
   adminer:
     image: adminer:latest
-    container_name: techstore-adminer
+    container_name: eonsclover-adminer
     restart: unless-stopped
     ports:
       - "8080:8080"
@@ -112,10 +115,10 @@ services:
       database:
         condition: service_healthy
     networks:
-      - techstore
+      - eonsclover
   proxy:
     image: nginx:alpine
-    container_name: techstore-proxy
+    container_name: eonsclover-proxy
     restart: unless-stopped
     ports:
       - "80:80"
@@ -125,12 +128,12 @@ services:
       - backend
       - frontend
     networks:
-      - techstore
+      - eonsclover
 
 volumes:
   pgdata:
   uploads:
 
 networks:
-  techstore:
+  eonsclover:
     driver: bridge

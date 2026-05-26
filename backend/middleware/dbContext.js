@@ -62,13 +62,42 @@ function createDbContext(pool) {
             await client.query(`SET LOCAL search_path TO "${schemaName}", public`);
             req.dbClient = client;
 
-            const onClose = () => {
-                const action = (res.writableEnded || res.finished) ? 'COMMIT' : 'ROLLBACK';
-                cleanupClient(action);
+            // Intercept res.end so COMMIT runs before any bytes reach the client.
+            // If COMMIT fails on a 2xx response, the status is changed to 500
+            // and an error body is sent instead — preventing a silent data loss.
+            const originalEnd = res.end.bind(res);
+            let endIntercepted = false;
+
+            res.end = function (chunk, encoding, callback) {
+                if (endIntercepted || released) {
+                    return originalEnd(chunk, encoding, callback);
+                }
+                endIntercepted = true;
+
+                const shouldCommit = res.statusCode < 400;
+
+                cleanupClient(shouldCommit ? 'COMMIT' : 'ROLLBACK')
+                    .then(() => originalEnd(chunk, encoding, callback))
+                    .catch((err) => {
+                        console.error('Transaction commit failed:', err);
+                        if (shouldCommit) {
+                            // Swap success body for a 500 error before sending
+                            res.statusCode = 500;
+                            const errBody = JSON.stringify({ message: 'Error al guardar los datos' });
+                            res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                            res.setHeader('Content-Length', Buffer.byteLength(errBody, 'utf8'));
+                            originalEnd(errBody, 'utf8', callback);
+                        } else {
+                            originalEnd(chunk, encoding, callback);
+                        }
+                    });
+
+                return res;
             };
 
-            res.once('finish', () => cleanupClient('COMMIT'));
-            res.once('close', onClose);
+            // ROLLBACK listeners for abrupt close / client abort / response error.
+            // If res.end already committed, released=true makes these no-ops.
+            res.once('close', () => cleanupClient('ROLLBACK'));
             res.once('error', () => cleanupClient('ROLLBACK'));
             req.once('aborted', () => cleanupClient('ROLLBACK'));
 

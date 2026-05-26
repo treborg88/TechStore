@@ -1,5 +1,5 @@
-# =============================================================================
-# Makefile — Ansible shortcuts for TechStore
+﻿# =============================================================================
+# Makefile — Ansible shortcuts for Eonsclover
 # =============================================================================
 # Simplifica los comandos de Ansible a atajos cortos y memorables.
 #
@@ -156,7 +156,7 @@ vault-view:
 help:
 	@echo ""
 	@echo "═══════════════════════════════════════════════════"
-	@echo "  TechStore — Comandos Ansible"
+	@echo "  Eonsclover — Comandos Ansible"
 	@echo "═══════════════════════════════════════════════════"
 	@echo ""
 	@echo "  DEPLOY:"

@@ -1,4 +1,4 @@
-# =============================================================================
+﻿# =============================================================================
 # Variables — OCI Test VM
 # =============================================================================
 
@@ -38,7 +38,7 @@ variable "compartment_ocid" {
 variable "instance_name" {
   description = "Display name for the VM"
   type        = string
-  default     = "techstore-test"
+  default     = "eonsclover-test"
 }
 
 variable "instance_shape" {

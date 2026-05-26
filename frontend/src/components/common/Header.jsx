@@ -1,8 +1,8 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 
 export default function Header({
-  siteName = 'TechStore',
+  siteName = 'Eonsclover',
   siteIcon = '🛍️',
   siteLogo = '',
   siteLogoSize = 40,

@@ -1,12 +1,12 @@
-import React from 'react';
+﻿import React from 'react';
 
 function Footer() {
-  const [siteName, setSiteName] = React.useState(localStorage.getItem('siteName') || 'TechStore');
+  const [siteName, setSiteName] = React.useState(localStorage.getItem('siteName') || 'Eonsclover');
 
   React.useEffect(() => {
     // Escuchar cambios en localStorage (disparados por App.jsx)
     const handleStorage = () => {
-      setSiteName(localStorage.getItem('siteName') || 'TechStore');
+      setSiteName(localStorage.getItem('siteName') || 'Eonsclover');
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -51,7 +51,7 @@ function Footer() {
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} TechStore. Todos los derechos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} Eonsclover. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>

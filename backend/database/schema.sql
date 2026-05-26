@@ -1,5 +1,5 @@
--- =============================================================================
--- TechStore — Complete Database Schema for Supabase (PostgreSQL)
+﻿-- =============================================================================
+-- Eonsclover — Complete Database Schema for Supabase (PostgreSQL)
 -- =============================================================================
 -- Run this in the Supabase SQL Editor to create all tables from scratch.
 -- Safe to re-run: uses IF NOT EXISTS / OR REPLACE everywhere.
@@ -132,33 +132,54 @@ CREATE TABLE IF NOT EXISTS cart (
     variant_id  BIGINT REFERENCES product_variants (id) ON DELETE CASCADE,  -- NULL for non-variant products
     quantity    INTEGER NOT NULL DEFAULT 1,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    -- One cart entry per user+product+variant; upserted on add
-    UNIQUE (user_id, product_id, variant_id)
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Backward compatibility: add variant_id column if upgrading from older schema
 ALTER TABLE cart ADD COLUMN IF NOT EXISTS variant_id BIGINT REFERENCES product_variants (id) ON DELETE CASCADE;
 
--- Migrate unique constraint from (user_id, product_id) to (user_id, product_id, variant_id)
--- Safe: only runs if old constraint exists
+-- Drop legacy 2-column constraint if present (old schema)
+-- Scope to current_schema() to avoid cross-schema false-positives in multi-tenant setup
 DO $$
 BEGIN
     IF EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'cart_user_id_product_id_key'
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_class t ON c.conrelid = t.oid
+        JOIN pg_namespace n ON t.relnamespace = n.oid
+        WHERE c.conname = 'cart_user_id_product_id_key'
+          AND n.nspname = current_schema()
     ) THEN
         ALTER TABLE cart DROP CONSTRAINT cart_user_id_product_id_key;
     END IF;
 END;
 $$;
 
--- Create new composite unique (idempotent via IF NOT EXISTS pattern)
+-- Drop auto-generated 3-column constraint created by previous schema versions
+-- (replaced by the named constraint + partial index below)
+DO $$
+BEGIN
+    IF EXISTS (
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_class t ON c.conrelid = t.oid
+        JOIN pg_namespace n ON t.relnamespace = n.oid
+        WHERE c.conname = 'cart_user_id_product_id_variant_id_key'
+          AND n.nspname = current_schema()
+    ) THEN
+        ALTER TABLE cart DROP CONSTRAINT cart_user_id_product_id_variant_id_key;
+    END IF;
+END;
+$$;
+
+-- Unique constraint for variant rows (variant_id IS NOT NULL)
+-- ON CONFLICT uses this for the variant branch of upsertCartItem
 DO $$
 BEGIN
     IF NOT EXISTS (
-        SELECT 1 FROM pg_constraint
-        WHERE conname = 'cart_user_product_variant_unique'
+        SELECT 1 FROM pg_constraint c
+        JOIN pg_class t ON c.conrelid = t.oid
+        JOIN pg_namespace n ON t.relnamespace = n.oid
+        WHERE c.conname = 'cart_user_product_variant_unique'
+          AND n.nspname = current_schema()
     ) THEN
         ALTER TABLE cart ADD CONSTRAINT cart_user_product_variant_unique
             UNIQUE (user_id, product_id, variant_id);
@@ -166,8 +187,8 @@ BEGIN
 END;
 $$;
 
--- Partial unique index: prevent duplicate (user, product) when variant_id IS NULL
--- (SQL UNIQUE constraints treat NULL != NULL, so the constraint above won't catch it)
+-- Partial unique index for non-variant rows (variant_id IS NULL)
+-- Standard UNIQUE treats NULL != NULL, so this index handles that case
 CREATE UNIQUE INDEX IF NOT EXISTS cart_user_product_no_variant_unique
     ON cart (user_id, product_id) WHERE variant_id IS NULL;
 
@@ -198,9 +219,25 @@ CREATE TABLE IF NOT EXISTS orders (
     internal_notes          TEXT,                       -- admin-only notes
     carrier                 TEXT,                       -- shipping carrier name
     tracking_number         TEXT,                       -- shipment tracking ID
+    -- Financial extras (populate as features are built)
+    currency                TEXT NOT NULL DEFAULT 'DOP', -- per-order currency (critical for multi-tenant)
+    discount_total          NUMERIC(10, 2) NOT NULL DEFAULT 0,  -- order-level discount (coupons)
+    discount_code           TEXT,                       -- coupon/promo code used
+    payment_reference       TEXT,                       -- Stripe PI ID, PayPal order ID, bank ref
+    -- Analytics & lifecycle
+    source                  TEXT NOT NULL DEFAULT 'web', -- acquisition channel: web, mobile, pos, api
+    fulfilled_at            TIMESTAMPTZ,                -- set when status changes to 'delivered'
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- Backward compatibility: safe to re-run on any existing schema
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS currency TEXT NOT NULL DEFAULT 'DOP';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_total NUMERIC(10, 2) NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount_code TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS payment_reference TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS source TEXT NOT NULL DEFAULT 'web';
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS fulfilled_at TIMESTAMPTZ;
 
 CREATE INDEX IF NOT EXISTS idx_orders_user        ON orders (user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_status      ON orders (status);
@@ -217,12 +254,28 @@ CREATE TABLE IF NOT EXISTS order_items (
     variant_id          BIGINT,                                              -- snapshot: variant may be deleted
     variant_attributes  JSONB,                                               -- snapshot: {"Color":"Rojo","Talla":"M"}
     quantity            INTEGER NOT NULL DEFAULT 1,
-    price               NUMERIC(10, 2) NOT NULL DEFAULT 0                   -- snapshot at time of purchase
+    price               NUMERIC(10, 2) NOT NULL DEFAULT 0,                  -- snapshot at time of purchase
+    -- Purchase-time snapshots (never change even if product is edited/deleted)
+    name                TEXT,                                               -- product name
+    unit_type           TEXT,                                               -- unidad, lb, kg, etc.
+    image_url           TEXT,                                               -- first gallery image (eliminates JOIN on read)
+    category            TEXT,                                               -- enables per-category analytics without JOIN
+    sku                 TEXT,                                               -- product SKU/reference (populate when SKU added to products)
+    -- Discount fields (populate when coupon/promo system is built)
+    original_price      NUMERIC(10, 2),                                     -- pre-discount price; NULL = no discount
+    discount_amount     NUMERIC(10, 2) NOT NULL DEFAULT 0                   -- per-item discount applied
 );
 
--- Backward compatibility: add variant columns if upgrading from older schema
+-- Backward compatibility: safe to re-run on any existing schema
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_id BIGINT;
 ALTER TABLE order_items ADD COLUMN IF NOT EXISTS variant_attributes JSONB;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS unit_type TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS image_url TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS sku TEXT;
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS original_price NUMERIC(10, 2);
+ALTER TABLE order_items ADD COLUMN IF NOT EXISTS discount_amount NUMERIC(10, 2) NOT NULL DEFAULT 0;
 
 CREATE INDEX IF NOT EXISTS idx_order_items_order ON order_items (order_id);
 
@@ -337,21 +390,6 @@ BEGIN
     RETURN FOUND;
 END;
 $$;
-
-
--- ===========================================================================
--- SCHEMA VERSION TRACKING (for per-tenant migrations)
--- ===========================================================================
-CREATE TABLE IF NOT EXISTS _schema_version (
-    version     INT PRIMARY KEY,
-    description TEXT,
-    applied_at  TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Base version — represents the initial schema
-INSERT INTO _schema_version (version, description)
-VALUES (1, 'Initial schema')
-ON CONFLICT (version) DO NOTHING;
 
 
 -- ===========================================================================

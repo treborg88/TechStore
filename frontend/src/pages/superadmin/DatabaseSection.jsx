@@ -1,4 +1,4 @@
-// DatabaseSection.jsx — Read-only DB browser for the super admin panel
+﻿// DatabaseSection.jsx — Read-only DB browser for the super admin panel
 // Two tabs: public schema (SaaS platform tables) and per-tenant schema browser
 // Opens Adminer in new tab with pre-selected schema via URL params
 
@@ -116,7 +116,7 @@ function DatabaseSection({ superAdminFetch }) {
     // Open Adminer with pre-selected schema (and table if available)
     const openAdminer = () => {
         const ns = tab === 'platform' ? 'public' : (selectedTenant?.schema_name || 'public');
-        const params = new URLSearchParams({ pgsql: 'database', username: 'techstore', db: 'techstore', ns });
+        const params = new URLSearchParams({ pgsql: 'database', username: 'eonsclover', db: 'eonsclover', ns });
         if (selectedTable) params.set('select', selectedTable);
         window.open(`${ADMINER_BASE}/?${params}`, '_blank');
     };

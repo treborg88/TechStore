@@ -1,4 +1,4 @@
-/**
+﻿/**
  * PM2 Ecosystem Configuration
  * Manages both backend and frontend processes for production deployment
  * 
@@ -81,7 +81,7 @@ module.exports = {
       host: '143.47.118.165',
       ref: 'origin/main',
       repo: 'git@github.com:treborg88/TechStore.git',
-      path: '/home/ubuntu/TechStore',
+      path: '/home/ubuntu/Eonsclover',
       'pre-deploy-local': '',
       'post-deploy': 
         'npm ci --ignore-scripts && ' +

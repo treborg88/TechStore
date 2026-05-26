@@ -123,6 +123,33 @@ const authenticateToken = async (req, res, next) => {
     });
 };
 
+// Optional authentication — attaches req.user if a valid token is present,
+// continues without error if no token is provided (for endpoints that serve both
+// authenticated users and guests).
+const optionalAuth = async (req, res, next) => {
+    const authHeader = req.headers['authorization'];
+    const tokenFromHeader = authHeader && authHeader.split(' ')[1];
+    const tokenFromCookie = req.cookies?.auth_token;
+    const token = tokenFromHeader || tokenFromCookie;
+
+    if (!token) return next(); // No token — continue as guest
+
+    const blacklisted = await isTokenBlacklisted(token);
+    if (blacklisted) return next(); // Revoked — treat as unauthenticated
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (!err) {
+            // SaaS: skip tokens from a different tenant
+            if (config.SAAS_MODE === 'true' && req.tenant) {
+                if (user.tenantId && user.tenantId !== req.tenant.id) return next();
+            }
+            req.user = user;
+            req.token = token;
+        }
+        next();
+    });
+};
+
 // Admin-only middleware (use after authenticateToken)
 const requireAdmin = (req, res, next) => {
     if (req.user.role !== 'admin') {
@@ -133,6 +160,7 @@ const requireAdmin = (req, res, next) => {
 
 module.exports = {
     authenticateToken,
+    optionalAuth,
     requireAdmin,
     blacklistToken,
     isTokenBlacklisted,

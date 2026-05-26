@@ -1,4 +1,4 @@
-// useSiteSettings.js - Hook para gestión de toda la configuración visual del sitio
+﻿// useSiteSettings.js - Hook para gestión de toda la configuración visual del sitio
 import { useState, useEffect } from 'react';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { apiFetch, apiUrl } from '../services/apiClient';
@@ -25,7 +25,7 @@ const SETTINGS_REVALIDATE_COOLDOWN_MS = 30 * 1000;
  */
 export function useSiteSettings() {
   // --- Estado de configuración del sitio ---
-  const [siteName, setSiteName] = useState(() => localStorage.getItem('siteName') || 'TechStore');
+  const [siteName, setSiteName] = useState(() => localStorage.getItem('siteName') || 'Eonsclover');
   const [siteIcon, setSiteIcon] = useState(() => localStorage.getItem('siteIcon') || '🛍️');
   const [siteLogo, setSiteLogo] = useState(() => localStorage.getItem('siteLogo') || '');
   const [siteLogoSize, setSiteLogoSize] = useState(() => parseInt(localStorage.getItem('siteLogoSize')) || 40);

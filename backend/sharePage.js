@@ -1,4 +1,4 @@
-const escapeHtml = (value = '') => String(value)
+﻿const escapeHtml = (value = '') => String(value)
   .replace(/&/g, '&amp;')
   .replace(/</g, '&lt;')
   .replace(/>/g, '&gt;')
@@ -45,7 +45,7 @@ const extractProductIdFromSlug = (slug = '') => {
  * @param {string} [params.price] - Product price for og:price
  * @param {string} [params.currency] - Price currency (default: DOP)
  */
-const buildShareHtml = ({ title, description, imageUrl, url, siteName = 'TechStore', price, currency = 'DOP', locale = 'es_DO' }) => {
+const buildShareHtml = ({ title, description, imageUrl, url, siteName = 'Eonsclover', price, currency = 'DOP', locale = 'es_DO' }) => {
   const safeTitle = escapeHtml(title || 'Producto');
   const safeDescription = escapeHtml(truncateText(description || '', 200));
   const safeImage = escapeHtml(imageUrl || '');

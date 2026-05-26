@@ -1,4 +1,4 @@
-#!/bin/bash
+﻿#!/bin/bash
 set -e
 echo "=== WIPING SERVER ==="
 
@@ -9,7 +9,7 @@ pm2 unstartup 2>/dev/null || true
 
 # Remove app directory
 echo "Removing app..."
-sudo rm -rf /home/ubuntu/TechStore
+sudo rm -rf /home/ubuntu/Eonsclover
 
 # Remove PM2
 echo "Removing PM2..."
@@ -46,6 +46,6 @@ echo "=== WIPE COMPLETE ==="
 echo "Node: $(node --version 2>/dev/null || echo 'REMOVED')"
 echo "PM2: $(pm2 --version 2>/dev/null || echo 'REMOVED')"
 echo "Nginx: $(nginx -v 2>&1 || echo 'REMOVED')"
-echo "App: $(ls /home/ubuntu/TechStore 2>/dev/null && echo 'EXISTS' || echo 'REMOVED')"
+echo "App: $(ls /home/ubuntu/Eonsclover 2>/dev/null && echo 'EXISTS' || echo 'REMOVED')"
 echo "Swap: $(swapon --show | grep -c swapfile || echo '0') swapfiles"
 echo "RAM: $(free -h | grep Mem | awk '{print $2}')"

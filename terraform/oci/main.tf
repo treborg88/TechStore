@@ -1,5 +1,5 @@
-# =============================================================================
-# TechStore — Oracle Cloud Infrastructure (OCI) — Test VM
+﻿# =============================================================================
+# Eonsclover — Oracle Cloud Infrastructure (OCI) — Test VM
 # =============================================================================
 # Creates an ARM64 VM (Ampere A1) on OCI Always Free tier for testing
 # the Docker + PostgreSQL deployment.
@@ -60,17 +60,17 @@ data "oci_core_images" "ubuntu" {
 # =============================================================================
 
 # ── Virtual Cloud Network ─────────────────────────────────
-resource "oci_core_vcn" "techstore_vcn" {
+resource "oci_core_vcn" "eonsclover_vcn" {
   compartment_id = var.compartment_ocid
   display_name   = "${var.instance_name}-vcn"
   cidr_blocks    = ["10.0.0.0/16"]
-  dns_label      = "techstorevcn"
+  dns_label      = "eonsclovervcn"
 }
 
 # ── Internet Gateway (allows outbound + inbound traffic) ──
 resource "oci_core_internet_gateway" "igw" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.techstore_vcn.id
+  vcn_id         = oci_core_vcn.eonsclover_vcn.id
   display_name   = "${var.instance_name}-igw"
   enabled        = true
 }
@@ -78,7 +78,7 @@ resource "oci_core_internet_gateway" "igw" {
 # ── Route Table — send 0.0.0.0/0 through IGW ─────────────
 resource "oci_core_route_table" "public_rt" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.techstore_vcn.id
+  vcn_id         = oci_core_vcn.eonsclover_vcn.id
   display_name   = "${var.instance_name}-public-rt"
 
   route_rules {
@@ -90,7 +90,7 @@ resource "oci_core_route_table" "public_rt" {
 # ── Security List — open SSH + web ports ──────────────────
 resource "oci_core_security_list" "public_sl" {
   compartment_id = var.compartment_ocid
-  vcn_id         = oci_core_vcn.techstore_vcn.id
+  vcn_id         = oci_core_vcn.eonsclover_vcn.id
   display_name   = "${var.instance_name}-public-sl"
 
   # Allow all outbound
@@ -153,7 +153,7 @@ resource "oci_core_security_list" "public_sl" {
 # ── Public Subnet ─────────────────────────────────────────
 resource "oci_core_subnet" "public_subnet" {
   compartment_id             = var.compartment_ocid
-  vcn_id                     = oci_core_vcn.techstore_vcn.id
+  vcn_id                     = oci_core_vcn.eonsclover_vcn.id
   cidr_block                 = "10.0.1.0/24"
   display_name               = "${var.instance_name}-public-subnet"
   dns_label                  = "pubsubnet"
@@ -166,7 +166,7 @@ resource "oci_core_subnet" "public_subnet" {
 # 2. COMPUTE — ARM64 VM (Ampere A1)
 # =============================================================================
 
-resource "oci_core_instance" "techstore_test" {
+resource "oci_core_instance" "eonsclover_test" {
   compartment_id      = var.compartment_ocid
   availability_domain = data.oci_identity_availability_domains.ads.availability_domains[0].name
   display_name        = var.instance_name

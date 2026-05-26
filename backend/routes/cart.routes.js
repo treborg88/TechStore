@@ -70,26 +70,18 @@ router.post('/', authenticateToken, async (req, res) => {
         }
 
         const existingItem = await statements.getCartItem(req.user.id, productId, variantId);
+        const currentQty = existingItem ? existingItem.quantity : 0;
 
-        if (existingItem) {
-            const newQuantity = existingItem.quantity + quantity;
-            if (newQuantity > stock) {
-                return res.status(400).json({
-                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${stock}, en carrito ya tiene: ${existingItem.quantity}`,
-                    availableStock: stock,
-                    currentCartQuantity: existingItem.quantity
-                });
-            }
-            await statements.updateCartItem(newQuantity, req.user.id, productId, variantId);
-        } else {
-            if (quantity > stock) {
-                return res.status(400).json({
-                    message: `No hay suficiente stock para ${product.name}. Stock disponible: ${stock}`,
-                    availableStock: stock
-                });
-            }
-            await statements.addToCart(req.user.id, productId, quantity, variantId);
+        if (currentQty + quantity > stock) {
+            return res.status(400).json({
+                message: `No hay suficiente stock para ${product.name}. Stock disponible: ${stock}${currentQty ? `, en carrito ya tiene: ${currentQty}` : ''}`,
+                availableStock: stock,
+                currentCartQuantity: currentQty
+            });
         }
+
+        // Atomic UPSERT — safe against double-click and concurrent requests
+        await statements.upsertCartItem(req.user.id, productId, quantity, variantId);
 
         const cart = await statements.getCartByUserId(req.user.id);
         console.log('Carrito actualizado para usuario', req.user.id, ':', cart);

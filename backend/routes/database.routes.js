@@ -1,4 +1,4 @@
-// routes/database.routes.js — Database backup/restore management (admin only)
+﻿// routes/database.routes.js — Database backup/restore management (admin only)
 // Creates unified .tar.gz backups containing database.sql + product images.
 // Uses pg_dump/psql/tar CLI tools (installed via apk in container).
 
@@ -18,7 +18,7 @@ const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
 const PRODUCTS_DIR = path.join(UPLOADS_DIR, 'products');
 const MAX_UPLOAD_SIZE = 500 * 1024 * 1024; // 500 MB
 const MAIN_TABLES = ['users', 'products', 'product_images', 'orders', 'order_items', 'cart', 'app_settings', 'verification_codes'];
-const DEFAULT_NAME = 'techstore'; // fallback store name
+const DEFAULT_NAME = 'eonsclover'; // fallback store name
 
 // Ensure directories exist on load
 if (!fs.existsSync(BACKUPS_DIR)) fs.mkdirSync(BACKUPS_DIR, { recursive: true });

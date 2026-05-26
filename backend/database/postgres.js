@@ -101,43 +101,7 @@ if (!initPool(process.env.DATABASE_URL)) {
   console.warn('   Set DATABASE_URL in .env or configure via Setup Wizard.');
 }
 
-// -- Shared helpers -------------------------------------------------------
-
-const VALID_PRODUCT_UNIT_TYPES = ['unidad', 'paquete', 'caja', 'docena', 'lb', 'kg', 'g', 'l', 'ml', 'm'];
-
-const normalizeProductUnitType = (value) => {
-  const normalized = String(value || '').trim().toLowerCase();
-  return VALID_PRODUCT_UNIT_TYPES.includes(normalized) ? normalized : 'unidad';
-};
-
-let productUnitTypeColumnSupported = null;
-let productIsHiddenColumnSupported = null;
-
-// Check if legacy deployments have the unit_type column
-const ensureProductUnitTypeColumnSupport = async () => {
-  if (productUnitTypeColumnSupported !== null) return productUnitTypeColumnSupported;
-  if (!pool) { productUnitTypeColumnSupported = false; return false; }
-  try {
-    await pool.query('SELECT unit_type FROM products LIMIT 1');
-    productUnitTypeColumnSupported = true;
-  } catch {
-    productUnitTypeColumnSupported = false;
-  }
-  return productUnitTypeColumnSupported;
-};
-
-// Check if legacy deployments have the is_hidden column
-const ensureProductIsHiddenColumnSupport = async () => {
-  if (productIsHiddenColumnSupported !== null) return productIsHiddenColumnSupported;
-  if (!pool) { productIsHiddenColumnSupported = false; return false; }
-  try {
-    await pool.query('SELECT is_hidden FROM products LIMIT 1');
-    productIsHiddenColumnSupported = true;
-  } catch {
-    productIsHiddenColumnSupported = false;
-  }
-  return productIsHiddenColumnSupported;
-};
+const { VALID_PRODUCT_UNIT_TYPES, normalizeProductUnitType } = require('../utils/productUnits');
 
 // Ensure a directory exists (recursive), used for uploads
 const ensureDir = (dir) => {
@@ -231,11 +195,16 @@ const statements = {
     const { rows } = await pool.query('SELECT * FROM products ORDER BY created_at DESC');
     return rows;
   },
-  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '', sort = '') => {
+  getProductsPaginated: async (page = 1, limit = 20, search = '', category = '', sort = '', includeHidden = false) => {
     const offset = (page - 1) * limit;
     const conditions = [];
     const params = [];
     let idx = 1;
+
+    // Public callers never see hidden products
+    if (!includeHidden) {
+      conditions.push('(is_hidden IS NOT TRUE)');
+    }
 
     if (search) {
       // Sanitize search input: remove wildcards, limit length
@@ -277,8 +246,9 @@ const statements = {
     );
     return { data: rows, total };
   },
-  getProductById: async (id) => {
-    const { rows } = await pool.query('SELECT * FROM products WHERE id = $1', [id]);
+  getProductById: async (id, includeHidden = false) => {
+    const hiddenFilter = includeHidden ? '' : ' AND (is_hidden IS NOT TRUE)';
+    const { rows } = await pool.query(`SELECT * FROM products WHERE id = $1${hiddenFilter}`, [id]);
     return rows[0] || null;
   },
   getProductsByCategory: async (category) => {
@@ -288,42 +258,19 @@ const statements = {
     return rows;
   },
   createProduct: async (name, description, price, category, stock, unitType = 'unidad') => {
-    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    let query, params;
-    if (supportsUnitType) {
-      query = `INSERT INTO products (name, description, price, category, stock, unit_type)
-               VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`;
-      params = [name, description, price, category, stock, normalizeProductUnitType(unitType)];
-    } else {
-      query = `INSERT INTO products (name, description, price, category, stock)
-               VALUES ($1, $2, $3, $4, $5) RETURNING *`;
-      params = [name, description, price, category, stock];
-    }
-    const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(
+      `INSERT INTO products (name, description, price, category, stock, unit_type)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [name, description, price, category, stock, normalizeProductUnitType(unitType)]
+    );
     return { lastInsertRowid: rows[0].id };
   },
   updateProduct: async (name, description, price, category, stock, id, unitType, isHidden) => {
-    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const supportsIsHidden = await ensureProductIsHiddenColumnSupport();
-    let query, params;
-    if (supportsUnitType && supportsIsHidden && unitType !== undefined) {
-      query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-               stock=$5, unit_type=$6, is_hidden=$7, updated_at=NOW() WHERE id=$8 RETURNING *`;
-      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), !!isHidden, id];
-    } else if (supportsUnitType && unitType !== undefined) {
-      query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-               stock=$5, unit_type=$6, updated_at=NOW() WHERE id=$7 RETURNING *`;
-      params = [name, description, price, category, stock, normalizeProductUnitType(unitType), id];
-    } else if (supportsIsHidden && isHidden !== undefined) {
-      query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-               stock=$5, is_hidden=$6, updated_at=NOW() WHERE id=$7 RETURNING *`;
-      params = [name, description, price, category, stock, !!isHidden, id];
-    } else {
-      query = `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
-               stock=$5, updated_at=NOW() WHERE id=$6 RETURNING *`;
-      params = [name, description, price, category, stock, id];
-    }
-    const { rows } = await pool.query(query, params);
+    const { rows } = await pool.query(
+      `UPDATE products SET name=$1, description=$2, price=$3, category=$4,
+       stock=$5, unit_type=$6, is_hidden=$7, updated_at=NOW() WHERE id=$8 RETURNING *`,
+      [name, description, price, category, stock, normalizeProductUnitType(unitType), !!isHidden, id]
+    );
     return rows[0] || null;
   },
   deleteProduct: async (id) => {
@@ -351,6 +298,14 @@ const statements = {
       'SELECT * FROM product_images WHERE product_id = $1 ORDER BY created_at ASC', [product_id]
     );
     return rows;
+  },
+  // Returns the first gallery image path for a product (used as snapshot during order creation)
+  getFirstProductImage: async (product_id) => {
+    const { rows } = await pool.query(
+      'SELECT image_path FROM product_images WHERE product_id = $1 ORDER BY created_at ASC LIMIT 1',
+      [product_id]
+    );
+    return rows[0]?.image_path || null;
   },
   addProductImage: async (product_id, image_path) => {
     const { rows } = await pool.query(
@@ -498,12 +453,9 @@ const statements = {
 
   // ── Cart ─────────────────────────────────────────────────
   getCartByUserId: async (user_id) => {
-    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const unitCol = supportsUnitType ? ', p.unit_type' : '';
-
     const { rows } = await pool.query(`
       SELECT c.id, c.product_id, c.variant_id, c.quantity,
-             p.name, p.price, p.stock${unitCol}, p.image, p.has_variants,
+             p.name, p.price, p.stock, p.unit_type, p.image, p.has_variants,
              (SELECT pi.image_path FROM product_images pi
               WHERE pi.product_id = c.product_id
               ORDER BY pi.created_at ASC LIMIT 1) AS gallery_image,
@@ -547,13 +499,30 @@ const statements = {
       variant_attributes: variantAttrs[r.variant_id] || null
     }));
   },
-  // variant_id is optional — null for non-variant products
-  addToCart: async (user_id, product_id, quantity, variant_id = null) => {
-    await pool.query(
-      `INSERT INTO cart (user_id, product_id, quantity, variant_id, updated_at)
-       VALUES ($1, $2, $3, $4, NOW())`,
-      [user_id, product_id, quantity, variant_id]
-    );
+  // Atomic UPSERT — adds quantity if row exists, inserts if not.
+  // NULL vs non-NULL variant_id must use different conflict targets:
+  //   - NULL: partial index cart_user_product_no_variant_unique (UNIQUE treats NULL≠NULL)
+  //   - non-NULL: named constraint cart_user_product_variant_unique
+  upsertCartItem: async (user_id, product_id, quantity, variant_id = null) => {
+    if (variant_id === null) {
+      await pool.query(
+        `INSERT INTO cart (user_id, product_id, quantity, variant_id, updated_at)
+         VALUES ($1, $2, $3, NULL, NOW())
+         ON CONFLICT (user_id, product_id) WHERE variant_id IS NULL
+         DO UPDATE SET quantity = cart.quantity + EXCLUDED.quantity,
+                       updated_at = NOW()`,
+        [user_id, product_id, quantity]
+      );
+    } else {
+      await pool.query(
+        `INSERT INTO cart (user_id, product_id, quantity, variant_id, updated_at)
+         VALUES ($1, $2, $3, $4, NOW())
+         ON CONFLICT ON CONSTRAINT cart_user_product_variant_unique
+         DO UPDATE SET quantity = cart.quantity + EXCLUDED.quantity,
+                       updated_at = NOW()`,
+        [user_id, product_id, quantity, variant_id]
+      );
+    }
     return null;
   },
   updateCartItem: async (quantity, user_id, product_id, variant_id = null) => {
@@ -740,17 +709,15 @@ const statements = {
   },
   getOrdersByEmail: async (email) => {
     try {
-      // Find user by email first, then fetch their orders
-      const { rows: userRows } = await pool.query(
-        'SELECT id FROM users WHERE LOWER(email) = LOWER($1)', [email]
-      );
-      if (!userRows[0]) return [];
-
+      // Match registered-user orders (via users.email) AND guest orders (via orders.customer_email)
       const { rows } = await pool.query(`
         SELECT o.*, u.name AS user_name, u.email AS user_email
-        FROM orders o LEFT JOIN users u ON u.id = o.user_id
-        WHERE o.user_id = $1 ORDER BY o.created_at DESC
-      `, [userRows[0].id]);
+        FROM orders o
+        LEFT JOIN users u ON u.id = o.user_id
+        WHERE LOWER(u.email) = LOWER($1)
+           OR LOWER(o.customer_email) = LOWER($1)
+        ORDER BY o.created_at DESC
+      `, [email]);
 
       return rows.map(({ user_name, user_email, ...o }) => ({
         ...o,
@@ -765,36 +732,32 @@ const statements = {
 
   // ── Order Items ──────────────────────────────────────────
   // variant_id and variant_attributes are optional (null for non-variant items)
-  addOrderItem: async (order_id, product_id, quantity, price, variant_id = null, variant_attributes = null) => {
+  addOrderItem: async (order_id, product_id, quantity, price, variant_id = null, variant_attributes = null, name = null, unit_type = null, image_url = null, category = null) => {
     const { rows } = await pool.query(
-      `INSERT INTO order_items (order_id, product_id, quantity, price, variant_id, variant_attributes)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [order_id, product_id, quantity, price, variant_id, variant_attributes ? JSON.stringify(variant_attributes) : null]
+      `INSERT INTO order_items
+         (order_id, product_id, quantity, price, variant_id, variant_attributes,
+          name, unit_type, image_url, category)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [order_id, product_id, quantity, price, variant_id,
+        variant_attributes ? JSON.stringify(variant_attributes) : null,
+        name || null, unit_type || null, image_url || null, category || null]
     );
     return rows;
   },
   getOrderItems: async (order_id) => {
-    const supportsUnitType = await ensureProductUnitTypeColumnSupport();
-    const unitCol = supportsUnitType ? ', p.unit_type AS product_unit_type' : '';
-
+    // oi.* contains all purchase-time snapshots (name, unit_type, image_url, category).
+    // LEFT JOIN products only to recover the legacy p.image for very old rows.
     const { rows } = await pool.query(`
-      SELECT oi.*,
-             p.name AS product_name${unitCol}, p.image AS product_image,
-             (SELECT pi.image_path FROM product_images pi
-              WHERE pi.product_id = oi.product_id
-              ORDER BY pi.created_at ASC LIMIT 1) AS gallery_image
+      SELECT oi.*, p.image AS product_image_legacy
       FROM order_items oi
       LEFT JOIN products p ON p.id = oi.product_id
       WHERE oi.order_id = $1
     `, [order_id]);
 
-    // Map joined fields to top-level
-    return rows.map(({ product_name, product_unit_type, product_image, gallery_image, ...item }) => ({
+    return rows.map(({ product_image_legacy, ...item }) => ({
       ...item,
-      name: product_name || 'Producto eliminado',
-      unit_type: normalizeProductUnitType(product_unit_type),
-      image: gallery_image || product_image || null,
-      // Include variant snapshot for display
+      unit_type: normalizeProductUnitType(item.unit_type),
+      image: item.image_url || product_image_legacy || null,
       variant_id: item.variant_id || null,
       variant_attributes: item.variant_attributes || null
     }));
@@ -956,14 +919,12 @@ const reinitializeDb = (connectionString) => {
   pool = null;
   dbConfigured = false;
   if (oldPool) oldPool.end().catch(() => {});
-  productUnitTypeColumnSupported = null;
   return initPool(connectionString);
 };
 
 const disconnectDb = () => {
   if (pool) { pool.end().catch(() => {}); pool = null; }
   dbConfigured = false;
-  productUnitTypeColumnSupported = null;
   delete process.env.DATABASE_URL;
   console.log('⚠️  Database disconnected — app in setup mode.');
   return true;
@@ -1075,5 +1036,6 @@ module.exports = {
   withTransaction,
   withTenantSchema,
   tenantContext,                                // AsyncLocalStorage for tenant-scoped queries
-  UPLOADS_DIR
+  UPLOADS_DIR,
+  deleteUploadedFile                            // Filesystem cleanup helper for post-DB use
 };
