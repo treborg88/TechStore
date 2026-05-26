@@ -40,11 +40,12 @@ const LogoSvg = () => (
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function SuperAdminLoginPage({ onLogin }) {
+    const [step, setStep]                 = useState('credentials'); // 'credentials' | 'otp'
     const [email, setEmail]               = useState('');
     const [password, setPassword]         = useState('');
     const [showPassword, setShowPassword] = useState(false);
     const [otp, setOtp]                   = useState(['', '', '', '', '', '']);
-    const [rememberMe, setRememberMe]     = useState(false);
+    const [rememberDevice, setRememberDevice] = useState(false);
     const [emailErr, setEmailErr]         = useState('');
     const [passErr, setPassErr]           = useState('');
     const [otpErr, setOtpErr]             = useState('');
@@ -89,43 +90,97 @@ export default function SuperAdminLoginPage({ onLogin }) {
         }
     };
 
-    const handleSubmit = async (e) => {
+    // Step 1: validate email + password; check trusted device or send OTP
+    const handleCredentialsSubmit = async (e) => {
         e.preventDefault();
         let valid = true;
         setLoginErr('');
 
-        // TODO: re-enable email validation when full auth is implemented
-        // if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-        //     setEmailErr('Correo inválido.'); valid = false;
-        // } else { setEmailErr(''); }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            setEmailErr('Correo inválido.'); valid = false;
+        } else { setEmailErr(''); }
 
         if (!password) {
             setPassErr('Ingresa tu contraseña.'); valid = false;
         } else { setPassErr(''); }
 
-        // TODO: re-enable OTP validation when 2FA is implemented on the backend
-        // const code = otp.join('');
-        // if (code.length < 6) {
-        //     setOtpErr('Código incompleto.'); valid = false;
-        // } else { setOtpErr(''); }
-
         if (!valid) return;
-
         setLoading(true);
+
         try {
-            // Store secret in the chosen storage, then verify against the API
-            const storage = rememberMe ? localStorage : sessionStorage;
+            // Check if this device is already trusted
+            const deviceToken = localStorage.getItem('superAdminDeviceToken');
+            if (deviceToken) {
+                const dvRes = await fetch(`${API_URL}/superadmin/verify-device`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deviceToken, email: email.trim(), password })
+                });
+                const dvData = await dvRes.json();
+                if (dvData.valid) {
+                    // Device trusted — store secret and proceed
+                    localStorage.setItem('superAdminSecret', password);
+                    onLogin();
+                    return;
+                }
+                // Token expired or invalid — remove it
+                localStorage.removeItem('superAdminDeviceToken');
+            }
+
+            // Send OTP to admin email
+            const res = await fetch(`${API_URL}/superadmin/send-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), password })
+            });
+            if (!res.ok) {
+                const d = await res.json();
+                setLoginErr(d.message || 'Credenciales incorrectas.');
+                return;
+            }
+            setOtp(['', '', '', '', '', '']);
+            setStep('otp');
+        } catch {
+            setLoginErr('Error de conexión. Intente de nuevo.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Step 2: verify OTP; store secret + device token if requested
+    const handleOtpSubmit = async (e) => {
+        e.preventDefault();
+        setLoginErr('');
+
+        const code = otp.join('');
+        if (code.length < 6) { setOtpErr('Código incompleto.'); return; }
+        setOtpErr('');
+        setLoading(true);
+
+        try {
+            const res = await fetch(`${API_URL}/superadmin/verify-otp`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email: email.trim(), code, rememberDevice })
+            });
+            if (!res.ok) {
+                const d = await res.json();
+                setLoginErr(d.message || 'Código inválido.');
+                return;
+            }
+            const data = await res.json();
+
+            // Store secret (localStorage if rememberDevice, else sessionStorage)
+            const storage = rememberDevice ? localStorage : sessionStorage;
             storage.setItem('superAdminSecret', password);
 
-            const res = await fetch(`${API_URL}/superadmin/metrics`, {
-                headers: { 'x-super-admin-secret': password }
-            });
-            if (!res.ok) throw new Error('denied');
+            // Persist device token if remember was checked
+            if (rememberDevice && data.deviceToken) {
+                localStorage.setItem('superAdminDeviceToken', data.deviceToken);
+            }
             onLogin();
         } catch {
-            sessionStorage.removeItem('superAdminSecret');
-            localStorage.removeItem('superAdminSecret');
-            setLoginErr('Credenciales incorrectas o código 2FA inválido. Intento registrado.');
+            setLoginErr('Error de conexión. Intente de nuevo.');
         } finally {
             setLoading(false);
         }
@@ -203,110 +258,141 @@ export default function SuperAdminLoginPage({ onLogin }) {
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.248-8.25-3.285z"/>
                                 </svg>
                             </div>
-                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>Iniciar sesión</h2>
-                            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px', marginBottom: 0 }}>Acceso exclusivo para administradores</p>
+                            <h2 style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>
+                                {step === 'credentials' ? 'Iniciar sesión' : 'Verificación 2FA'}
+                            </h2>
+                            <p style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)', marginTop: '4px', marginBottom: 0 }}>
+                                {step === 'credentials' ? 'Acceso exclusivo para administradores' : `Código enviado a ${email}`}
+                            </p>
                         </div>
 
-                        <form onSubmit={handleSubmit} noValidate onPaste={handlePaste}>
+                        {step === 'credentials' ? (
+                            /* ── Step 1: Email + Password ─────────────────────────────────── */
+                            <form onSubmit={handleCredentialsSubmit} noValidate>
 
-                            {/* Email */}
-                            <div style={{ marginBottom: '16px' }}>
-                                <label style={labelStyle}>Correo de administrador</label>
-                                <input
-                                    type="email"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    placeholder="admin@eonsclover.com"
-                                    style={inputBase}
-                                    autoComplete="username"
-                                />
-                                {emailErr && <p style={errStyle}>{emailErr}</p>}
-                            </div>
-
-                            {/* Password */}
-                            <div style={{ marginBottom: '20px' }}>
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                                    <label style={{ ...labelStyle, marginBottom: 0 }}>Contraseña</label>
-                                    <a href="#" style={{ fontSize: '0.75rem', color: '#22d3ee', textDecoration: 'none' }}>¿Olvidaste la contraseña?</a>
-                                </div>
-                                <div style={{ position: 'relative' }}>
+                                {/* Email */}
+                                <div style={{ marginBottom: '16px' }}>
+                                    <label style={labelStyle}>Correo de administrador</label>
                                     <input
-                                        type={showPassword ? 'text' : 'password'}
-                                        value={password}
-                                        onChange={(e) => setPassword(e.target.value)}
-                                        placeholder="••••••••••••"
-                                        style={{ ...inputBase, paddingRight: '48px' }}
-                                        autoComplete="current-password"
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        placeholder="admin@eonsclover.com"
+                                        style={inputBase}
+                                        autoComplete="username"
                                     />
+                                    {emailErr && <p style={errStyle}>{emailErr}</p>}
+                                </div>
+
+                                {/* Password */}
+                                <div style={{ marginBottom: '24px' }}>
+                                    <label style={{ ...labelStyle, marginBottom: '8px' }}>Contraseña de acceso</label>
+                                    <div style={{ position: 'relative' }}>
+                                        <input
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={password}
+                                            onChange={(e) => setPassword(e.target.value)}
+                                            placeholder="••••••••••••"
+                                            style={{ ...inputBase, paddingRight: '48px' }}
+                                            autoComplete="current-password"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => setShowPassword(p => !p)}
+                                            aria-label="Mostrar contraseña"
+                                            style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', padding: 0 }}
+                                        >
+                                            {showPassword ? <EyeOn /> : <EyeOff />}
+                                        </button>
+                                    </div>
+                                    {passErr && <p style={errStyle}>{passErr}</p>}
+                                </div>
+
+                                {/* Submit */}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    style={{ width: '100%', padding: '14px', borderRadius: '16px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? 'rgba(34,211,238,0.5)' : '#22d3ee', color: '#050816', fontWeight: 700, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', letterSpacing: '0.01em', transition: 'background 0.15s' }}
+                                >
+                                    {loading ? 'Verificando…' : 'Continuar →'}
+                                </button>
+
+                                {/* SSL badge */}
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px' }}>
+                                    <span style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                        </svg>
+                                        SSL 256-bit
+                                    </span>
+                                </div>
+                            </form>
+                        ) : (
+                            /* ── Step 2: TOTP Verification ────────────────────────────────── */
+                            <form onSubmit={handleOtpSubmit} noValidate onPaste={handlePaste}>
+
+                                {/* OTP boxes */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={{ ...labelStyle, textAlign: 'center' }}>Código de autenticación</label>
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                                        {otp.map((digit, i) => (
+                                            <input
+                                                key={i}
+                                                ref={(el) => { otpRefs.current[i] = el; }}
+                                                type="text"
+                                                maxLength={1}
+                                                value={digit}
+                                                inputMode="numeric"
+                                                pattern="[0-9]"
+                                                onChange={(e) => handleOtp(i, e.target.value)}
+                                                onKeyDown={(e) => handleOtpKeyDown(i, e)}
+                                                style={otpBox}
+                                            />
+                                        ))}
+                                    </div>
+                                    {otpErr && <p style={{ ...errStyle, textAlign: 'center' }}>{otpErr}</p>}
+                                </div>
+
+                                {/* Remember device */}
+                                <div style={{ marginBottom: '20px' }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={rememberDevice}
+                                            onChange={(e) => setRememberDevice(e.target.checked)}
+                                            style={{ width: '14px', height: '14px', accentColor: '#22d3ee' }}
+                                        />
+                                        <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>Recordar este dispositivo por 30 días</span>
+                                    </label>
+                                </div>
+
+                                {/* Submit */}
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    style={{ width: '100%', padding: '14px', borderRadius: '16px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? 'rgba(34,211,238,0.5)' : '#22d3ee', color: '#050816', fontWeight: 700, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', letterSpacing: '0.01em', transition: 'background 0.15s' }}
+                                >
+                                    {loading ? 'Verificando…' : 'Acceder al panel'}
+                                </button>
+
+                                {/* Back + SSL */}
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '14px' }}>
                                     <button
                                         type="button"
-                                        onClick={() => setShowPassword(p => !p)}
-                                        aria-label="Mostrar contraseña"
-                                        style={{ position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', padding: 0 }}
+                                        onClick={() => { setStep('credentials'); setLoginErr(''); setOtp(['', '', '', '', '', '']); }}
+                                        style={{ background: 'none', border: 'none', color: '#22d3ee', fontSize: '0.75rem', cursor: 'pointer', padding: 0, fontFamily: "'Inter', sans-serif" }}
                                     >
-                                        {showPassword ? <EyeOn /> : <EyeOff />}
+                                        ← Cambiar credenciales
                                     </button>
+                                    <span style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                        <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                                        </svg>
+                                        SSL 256-bit
+                                    </span>
                                 </div>
-                                {passErr && <p style={errStyle}>{passErr}</p>}
-                            </div>
-
-                            {/* Divider */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'rgba(255,255,255,0.18)', fontSize: '0.72rem', margin: '0 0 20px' }}>
-                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                                verificación en dos pasos
-                                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-                            </div>
-
-                            {/* OTP boxes */}
-                            <div style={{ marginBottom: '24px' }}>
-                                <label style={{ ...labelStyle, textAlign: 'center' }}>Código de autenticación (TOTP)</label>
-                                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                                    {otp.map((digit, i) => (
-                                        <input
-                                            key={i}
-                                            ref={(el) => { otpRefs.current[i] = el; }}
-                                            type="text"
-                                            maxLength={1}
-                                            value={digit}
-                                            inputMode="numeric"
-                                            pattern="[0-9]"
-                                            onChange={(e) => handleOtp(i, e.target.value)}
-                                            onKeyDown={(e) => handleOtpKeyDown(i, e)}
-                                            style={otpBox}
-                                        />
-                                    ))}
-                                </div>
-                                {otpErr && <p style={{ ...errStyle, textAlign: 'center' }}>{otpErr}</p>}
-                            </div>
-
-                            {/* Submit */}
-                            <button
-                                type="submit"
-                                disabled={loading}
-                                style={{ width: '100%', padding: '14px', borderRadius: '16px', border: 'none', cursor: loading ? 'not-allowed' : 'pointer', background: loading ? 'rgba(34,211,238,0.5)' : '#22d3ee', color: '#050816', fontWeight: 700, fontFamily: "'Inter', sans-serif", fontSize: '0.875rem', letterSpacing: '0.01em', transition: 'background 0.15s, transform 0.15s, box-shadow 0.15s' }}
-                            >
-                                {loading ? 'Verificando…' : 'Acceder al panel'}
-                            </button>
-
-                            {/* Remember me + SSL badge */}
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '16px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={rememberMe}
-                                        onChange={(e) => setRememberMe(e.target.checked)}
-                                        style={{ width: '14px', height: '14px', accentColor: '#22d3ee' }}
-                                    />
-                                    <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>Recordar por 30 días</span>
-                                </label>
-                                <span style={{ fontSize: '0.625rem', color: 'rgba(255,255,255,0.25)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                    <svg width="10" height="10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
-                                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
-                                    </svg>
-                                    SSL 256-bit
-                                </span>
-                            </div>
-                        </form>
+                            </form>
+                        )}
 
                         {/* Login error */}
                         {loginErr && (

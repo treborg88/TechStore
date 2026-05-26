@@ -6,6 +6,30 @@ const crypto = require('crypto');
 const router = express.Router();
 const config = require('../../config');
 const { pool, withTenantSchema } = require('../../database');
+const nodemailer = require('nodemailer');
+
+// Direct env-var transporter for OTP — bypasses DB settings query (pre-auth context)
+const _sendOtpEmail = async (to, code) => {
+    const transporter = nodemailer.createTransport({
+        service: config.EMAIL_SERVICE || 'gmail',
+        host: config.EMAIL_HOST || undefined,
+        port: config.EMAIL_PORT ? Number(config.EMAIL_PORT) : undefined,
+        auth: { user: config.EMAIL_USER, pass: config.EMAIL_PASS }
+    });
+    await transporter.sendMail({
+        from: `EonsClover Admin <${config.EMAIL_USER}>`,
+        to,
+        subject: '\uD83D\uDD10 C\u00f3digo de acceso \u2014 EonsClover Super Admin',
+        html: `
+            <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px;">
+                <h2 style="color:#0f172a;margin-bottom:8px;">C\u00f3digo de autenticaci\u00f3n</h2>
+                <p style="color:#475569;margin-bottom:24px;">Usa este c\u00f3digo para acceder al panel de Super Admin. Expira en <strong>5 minutos</strong>.</p>
+                <div style="background:#f1f5f9;border-radius:12px;padding:24px;text-align:center;letter-spacing:0.3em;font-size:2rem;font-weight:700;color:#0f172a;">${code}</div>
+                <p style="color:#94a3b8;font-size:0.75rem;margin-top:24px;">Si no solicitaste este c\u00f3digo, ignora este mensaje.</p>
+            </div>
+        `
+    });
+};
 
 // ── Super Admin Auth Middleware ────────────────────────────────────────────────
 // Validates the x-super-admin-secret header against env var
@@ -23,6 +47,93 @@ function requireSuperAdmin(req, res, next) {
     }
     next();
 }
+
+// ── In-memory OTP + device token stores ──────────────────────────────────────
+// NOTE: Single-process safe; for multi-process deployments use Redis/DB
+const _otpStore     = new Map(); // email  -> { code, expires }
+const _deviceTokens = new Map(); // token  -> { email, expires }
+
+// Purge expired entries every hour
+setInterval(() => {
+    const now = Date.now();
+    for (const [k, v] of _otpStore)     if (now > v.expires)     _otpStore.delete(k);
+    for (const [k, v] of _deviceTokens) if (now > v.expires) _deviceTokens.delete(k);
+}, 60 * 60 * 1000);
+
+// ── POST /send-otp — validate credentials, send 6-digit OTP to admin email ────
+router.post('/send-otp', async (req, res) => {
+    const { email, password } = req.body;
+    if (!email || !password || !config.SUPER_ADMIN_EMAIL || !config.SUPER_ADMIN_SECRET) {
+        return res.status(401).json({ message: 'Credenciales inválidas.' });
+    }
+    const emailOk = email.trim().toLowerCase() === config.SUPER_ADMIN_EMAIL.toLowerCase();
+    let secretOk = false;
+    try {
+        const expected = Buffer.from(config.SUPER_ADMIN_SECRET);
+        const provided = Buffer.from(password);
+        secretOk = expected.length === provided.length && crypto.timingSafeEqual(expected, provided);
+    } catch { secretOk = false; }
+
+    if (!emailOk || !secretOk) {
+        return res.status(401).json({ message: 'Credenciales inválidas.' });
+    }
+
+    // Generate and store 6-digit OTP (5-min expiry)
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    _otpStore.set(email.trim().toLowerCase(), { code, expires: Date.now() + 5 * 60 * 1000 });
+
+    try {
+        await _sendOtpEmail(email.trim(), code);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Error sending OTP email:', err.message);
+        res.status(500).json({ message: 'Error enviando el código por email.' });
+    }
+});
+
+// ── POST /verify-otp — validate OTP, issue device token if requested ──────────
+router.post('/verify-otp', (req, res) => {
+    const { email, code, rememberDevice } = req.body;
+    if (!email || !code) return res.status(400).json({ message: 'Faltan parámetros.' });
+
+    const key    = email.trim().toLowerCase();
+    const stored = _otpStore.get(key);
+    if (!stored || String(code).trim() !== stored.code || Date.now() > stored.expires) {
+        return res.status(401).json({ message: 'Código inválido o expirado.' });
+    }
+    _otpStore.delete(key); // Single-use
+
+    let deviceToken = null;
+    if (rememberDevice) {
+        deviceToken = crypto.randomBytes(32).toString('hex');
+        _deviceTokens.set(deviceToken, { email: key, expires: Date.now() + 30 * 24 * 60 * 60 * 1000 });
+    }
+    res.json({ success: true, deviceToken });
+});
+
+// ── POST /verify-device — check if remembered device token is still valid ─────
+router.post('/verify-device', (req, res) => {
+    const { deviceToken, email, password } = req.body;
+    if (!deviceToken || !email || !password) return res.json({ valid: false });
+
+    // Still validate credentials before trusting device token
+    const emailOk = email.trim().toLowerCase() === (config.SUPER_ADMIN_EMAIL || '').toLowerCase();
+    let secretOk = false;
+    try {
+        const expected = Buffer.from(config.SUPER_ADMIN_SECRET);
+        const provided = Buffer.from(password);
+        secretOk = expected.length === provided.length && crypto.timingSafeEqual(expected, provided);
+    } catch { secretOk = false; }
+
+    if (!emailOk || !secretOk) return res.json({ valid: false });
+
+    const stored = _deviceTokens.get(deviceToken);
+    if (!stored || Date.now() > stored.expires || stored.email !== email.trim().toLowerCase()) {
+        _deviceTokens.delete(deviceToken);
+        return res.json({ valid: false });
+    }
+    res.json({ valid: true });
+});
 
 // All routes in this router require super admin auth
 router.use(requireSuperAdmin);

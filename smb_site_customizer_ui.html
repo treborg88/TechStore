@@ -1,0 +1,407 @@
+
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: var(--font-sans); }
+
+.app { display: grid; grid-template-columns: 260px 1fr; min-height: 580px; border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); overflow: hidden; background: var(--color-background-primary); }
+
+.sidebar { background: var(--color-background-secondary); border-right: 0.5px solid var(--color-border-tertiary); display: flex; flex-direction: column; }
+
+.sidebar-nav { display: flex; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.snav-btn { flex: 1; padding: 10px 6px; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; transition: color .15s; }
+.snav-btn.active { color: var(--color-text-primary); border-bottom-color: var(--color-text-primary); background: var(--color-background-primary); }
+
+.panel { padding: 14px; flex: 1; display: none; flex-direction: column; gap: 12px; }
+.panel.active { display: flex; }
+
+.panel-label { font-size: 11px; font-weight: 500; color: var(--color-text-tertiary); letter-spacing: .05em; text-transform: uppercase; margin-bottom: 2px; }
+
+.biz-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.biz-card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 5px; cursor: pointer; transition: border-color .15s, background .15s; }
+.biz-card:hover { border-color: var(--color-border-secondary); background: var(--color-background-primary); }
+.biz-card.selected { border: 2px solid #534AB7; background: #EEEDFE; }
+.biz-card .biz-icon { font-size: 22px; color: var(--color-text-secondary); }
+.biz-card.selected .biz-icon { color: #534AB7; }
+.biz-card .biz-name { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-align: center; }
+.biz-card.selected .biz-name { color: #3C3489; }
+
+.palette-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.palette-chip { width: 36px; height: 36px; border-radius: var(--border-radius-md); cursor: pointer; border: 2px solid transparent; transition: transform .12s; flex-shrink: 0; }
+.palette-chip:hover { transform: scale(1.1); }
+.palette-chip.selected { border-color: var(--color-text-primary); }
+
+.color-slots { display: flex; flex-direction: column; gap: 7px; }
+.color-row { display: flex; align-items: center; gap: 8px; }
+.color-swatch { width: 28px; height: 28px; border-radius: 6px; border: 0.5px solid var(--color-border-tertiary); cursor: pointer; flex-shrink: 0; transition: transform .12s; }
+.color-swatch:hover { transform: scale(1.08); }
+.color-name { font-size: 12px; color: var(--color-text-secondary); flex: 1; }
+.color-hex { font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-mono); }
+
+.font-opts { display: flex; flex-direction: column; gap: 6px; }
+.font-opt { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 8px 10px; cursor: pointer; transition: border-color .15s; }
+.font-opt.selected { border: 2px solid #534AB7; }
+.font-opt .font-sample { font-size: 15px; font-weight: 500; color: var(--color-text-primary); }
+.font-opt .font-label { font-size: 11px; color: var(--color-text-tertiary); margin-top: 1px; }
+
+.layout-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.layout-opt { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); padding: 8px; cursor: pointer; display: flex; flex-direction: column; gap: 5px; transition: border-color .15s; }
+.layout-opt.selected { border: 2px solid #534AB7; }
+.layout-thumb { width: 100%; height: 52px; border-radius: 4px; background: var(--color-background-secondary); display: flex; flex-direction: column; gap: 3px; padding: 5px; }
+.lt-bar { border-radius: 2px; background: var(--color-border-secondary); }
+.lt-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 3px; }
+.lt-block { border-radius: 2px; background: var(--color-border-secondary); height: 20px; }
+.lt-hero { display: flex; flex-direction: column; gap: 2px; }
+.lt-split { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; height: 30px; }
+.layout-opt-name { font-size: 11px; font-weight: 500; color: var(--color-text-secondary); text-align: center; }
+
+.main-area { display: flex; flex-direction: column; }
+.preview-topbar { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); }
+.preview-tabs { display: flex; gap: 2px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 2px; }
+.preview-tab { font-size: 12px; font-weight: 500; padding: 5px 10px; border-radius: 6px; border: none; background: none; cursor: pointer; color: var(--color-text-secondary); }
+.preview-tab.active { background: var(--color-background-primary); color: var(--color-text-primary); border: 0.5px solid var(--color-border-tertiary); }
+.topbar-actions { display: flex; gap: 6px; }
+.topbar-actions button { font-size: 12px; padding: 5px 10px; }
+
+.preview-area { flex: 1; padding: 14px; overflow: auto; }
+
+.site-preview { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; }
+.preview-nav { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; }
+.preview-nav .logo { font-size: 13px; font-weight: 500; }
+.preview-nav-links { display: flex; gap: 12px; }
+.preview-nav-links span { font-size: 11px; color: var(--color-text-secondary); }
+.preview-nav-btn { font-size: 11px; font-weight: 500; padding: 5px 12px; border-radius: 6px; border: none; cursor: default; }
+
+.preview-hero { padding: 28px 20px; display: flex; flex-direction: column; gap: 10px; }
+.preview-hero h2 { font-size: 20px; font-weight: 500; line-height: 1.3; }
+.preview-hero p { font-size: 12px; color: var(--color-text-secondary); max-width: 260px; line-height: 1.6; }
+.preview-hero-btn { font-size: 12px; font-weight: 500; padding: 8px 18px; border-radius: 6px; border: none; cursor: default; width: fit-content; }
+
+.preview-products { padding: 16px 16px 20px; }
+.preview-products h3 { font-size: 13px; font-weight: 500; margin-bottom: 10px; }
+.product-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.product-card { border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); overflow: hidden; }
+.product-img { height: 48px; display: flex; align-items: center; justify-content: center; }
+.product-info { padding: 6px 8px; }
+.product-info .pname { font-size: 11px; font-weight: 500; }
+.product-info .pprice { font-size: 11px; color: var(--color-text-secondary); }
+
+.preview-strip { height: 6px; }
+.apply-btn-wrap { padding: 12px 14px; border-top: 0.5px solid var(--color-border-tertiary); }
+.apply-btn { width: 100%; padding: 9px; font-size: 13px; font-weight: 500; border-radius: var(--border-radius-md); border: none; cursor: pointer; background: #534AB7; color: #EEEDFE; transition: opacity .15s; }
+.apply-btn:hover { opacity: .88; }
+
+.change-tag { font-size: 10px; font-weight: 500; padding: 2px 7px; border-radius: 20px; background: #EEEDFE; color: #534AB7; margin-left: 6px; vertical-align: middle; }
+</style>
+
+<h2 class="sr-only">Website customization studio for small and medium businesses — choose business type, palette, fonts and layout</h2>
+
+<div class="app">
+  <div class="sidebar">
+    <div class="sidebar-nav">
+      <button class="snav-btn active" onclick="showPanel('biz',this)"><i class="ti ti-building-store" style="display:block;font-size:16px;margin:0 auto 2px" aria-hidden="true"></i>Business</button>
+      <button class="snav-btn" onclick="showPanel('palette',this)"><i class="ti ti-palette" style="display:block;font-size:16px;margin:0 auto 2px" aria-hidden="true"></i>Colors</button>
+      <button class="snav-btn" onclick="showPanel('fonts',this)"><i class="ti ti-typography" style="display:block;font-size:16px;margin:0 auto 2px" aria-hidden="true"></i>Fonts</button>
+      <button class="snav-btn" onclick="showPanel('layout',this)"><i class="ti ti-layout" style="display:block;font-size:16px;margin:0 auto 2px" aria-hidden="true"></i>Layout</button>
+    </div>
+
+    <div class="panel active" id="panel-biz">
+      <div>
+        <div class="panel-label">Business type</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Pick your category to load a matching template</div>
+      </div>
+      <div class="biz-grid" id="biz-grid"></div>
+    </div>
+
+    <div class="panel" id="panel-palette">
+      <div>
+        <div class="panel-label">Curated palettes</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Click any palette to apply it instantly</div>
+      </div>
+      <div id="palette-list" style="display:flex;flex-direction:column;gap:8px;"></div>
+      <div style="border-top:0.5px solid var(--color-border-tertiary);padding-top:10px;">
+        <div class="panel-label" style="margin-bottom:8px">Fine-tune colors</div>
+        <div class="color-slots" id="color-slots"></div>
+      </div>
+    </div>
+
+    <div class="panel" id="panel-fonts">
+      <div>
+        <div class="panel-label">Heading font</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Sets the visual personality of your site</div>
+      </div>
+      <div class="font-opts" id="font-opts"></div>
+    </div>
+
+    <div class="panel" id="panel-layout">
+      <div>
+        <div class="panel-label">Page layout</div>
+        <div style="font-size:12px;color:var(--color-text-secondary);margin-bottom:8px">Choose how your homepage is structured</div>
+      </div>
+      <div class="layout-opts" id="layout-opts"></div>
+    </div>
+
+    <div class="apply-btn-wrap">
+      <button class="apply-btn" onclick="applyChanges()">Save & publish</button>
+    </div>
+  </div>
+
+  <div class="main-area">
+    <div class="preview-topbar">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:13px;font-weight:500;color:var(--color-text-primary)">Live preview</span>
+        <span class="change-tag" id="change-tag" style="display:none">Unsaved</span>
+      </div>
+      <div class="preview-tabs">
+        <button class="preview-tab active" onclick="setPview('desktop',this)"><i class="ti ti-device-desktop" aria-hidden="true"></i></button>
+        <button class="preview-tab" onclick="setPview('mobile',this)"><i class="ti ti-device-mobile" aria-hidden="true"></i></button>
+      </div>
+      <div class="topbar-actions">
+        <button onclick="sendPrompt('Generate full page copy for my ' + state.biz + ' website')">Generate copy ↗</button>
+        <button onclick="sendPrompt('Suggest 3 more color palettes for a ' + state.biz + ' store')">More palettes ↗</button>
+      </div>
+    </div>
+
+    <div class="preview-area" id="preview-area">
+      <div id="preview-wrap" style="transition:max-width .2s;margin:0 auto;">
+        <div class="site-preview" id="site-preview">
+          <div class="preview-nav" id="prev-nav">
+            <span class="logo" id="prev-logo">My Store</span>
+            <div class="preview-nav-links">
+              <span>Shop</span><span>About</span><span>Contact</span>
+            </div>
+            <button class="preview-nav-btn" id="prev-nav-btn">Cart</button>
+          </div>
+          <div class="preview-strip" id="prev-strip"></div>
+          <div class="preview-hero" id="prev-hero">
+            <h2 id="prev-headline">Fresh finds, delivered to you</h2>
+            <p id="prev-subline">Discover quality products carefully selected for everyday life. Fast delivery, easy returns.</p>
+            <button class="preview-hero-btn" id="prev-cta">Shop now</button>
+          </div>
+          <div class="preview-products" id="prev-products">
+            <h3 id="prev-cat-title">Featured products</h3>
+            <div class="product-grid" id="product-grid"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BIZ = [
+  { id:'grocery', label:'Grocery', icon:'ti-shopping-cart', color:'#3B6D11', headline:'Fresh groceries, every day', sub:'Local produce and pantry essentials delivered to your door.', cta:'Shop fresh', products:['Organic milk','Seasonal fruit','Artisan bread'], productColors:['#EAF3DE','#C0DD97','#EAF3DE'] },
+  { id:'electronics', label:'Electronics', icon:'ti-device-laptop', color:'#185FA5', headline:'Tech that moves you forward', sub:'Latest devices, expert advice, fast delivery.', cta:'Explore tech', products:['Smart TV','Wireless buds','Laptop stand'], productColors:['#E6F1FB','#B5D4F4','#E6F1FB'] },
+  { id:'food', label:'Food store', icon:'ti-tools-kitchen-2', color:'#854F0B', headline:'Taste the difference', sub:'Specialty foods and gourmet ingredients for every kitchen.', cta:'Order now', products:['Aged cheese','Olive oil','Pasta pack'], productColors:['#FAEEDA','#FAC775','#FAEEDA'] },
+  { id:'pets', label:'Pets', icon:'ti-paw', color:'#0F6E56', headline:'Everything your pet loves', sub:'Nutrition, toys and care — because they deserve the best.', cta:'Shop for pets', products:['Premium kibble','Cozy bed','Chew toy'], productColors:['#E1F5EE','#9FE1CB','#E1F5EE'] },
+  { id:'pharmacy', label:'Drugstore', icon:'ti-pill', color:'#185FA5', headline:'Health within reach', sub:'Medications, supplements and wellness essentials online.', cta:'Browse health', products:['Vitamin D','Allergy relief','Bandages'], productColors:['#E6F1FB','#B5D4F4','#E6F1FB'] },
+  { id:'fashion', label:'Fashion', icon:'ti-shirt', color:'#993556', headline:'Style starts here', sub:'Curated fashion for every occasion, every season.', cta:'View collection', products:['Linen shirt','Canvas bag','Sneakers'], productColors:['#FBEAF0','#F4C0D1','#FBEAF0'] },
+  { id:'flowers', label:'Flowers', icon:'ti-rosette', color:'#D4537E', headline:'Beauty in bloom', sub:'Fresh arrangements and plants for every moment.', cta:'Send flowers', products:['Rose bunch','Peace lily','Mixed bouquet'], productColors:['#FBEAF0','#F4C0D1','#FBEAF0'] },
+  { id:'books', label:'Books', icon:'ti-book', color:'#534AB7', headline:'Your next great read', sub:'Thousands of titles, delivered fast. New arrivals weekly.', cta:'Browse books', products:['Bestseller','Sci-fi classic','Cookbook'], productColors:['#EEEDFE','#CECBF6','#EEEDFE'] },
+];
+
+const PALETTES = [
+  { name:'Forest green', colors:['#3B6D11','#639922','#EAF3DE','#2C2C2A'] },
+  { name:'Ocean blue', colors:['#185FA5','#378ADD','#E6F1FB','#2C2C2A'] },
+  { name:'Warm amber', colors:['#854F0B','#BA7517','#FAEEDA','#2C2C2A'] },
+  { name:'Deep teal', colors:['#0F6E56','#1D9E75','#E1F5EE','#2C2C2A'] },
+  { name:'Berry pink', colors:['#993556','#D4537E','#FBEAF0','#2C2C2A'] },
+  { name:'Indigo', colors:['#534AB7','#7F77DD','#EEEDFE','#2C2C2A'] },
+  { name:'Coral red', colors:['#993C1D','#D85A30','#FAECE7','#2C2C2A'] },
+  { name:'Slate', colors:['#5F5E5A','#888780','#F1EFE8','#2C2C2A'] },
+];
+
+const FONTS = [
+  { id:'sans', sample:'Aa', label:'System sans-serif', stack:'system-ui, sans-serif' },
+  { id:'serif', sample:'Aa', label:'Classic serif', stack:'Georgia, serif' },
+  { id:'rounded', sample:'Aa', label:'Friendly rounded', stack:'"Trebuchet MS", sans-serif' },
+  { id:'mono', sample:'Aa', label:'Technical mono', stack:'"Courier New", monospace' },
+];
+
+const LAYOUTS = [
+  { id:'grid', name:'Product grid' },
+  { id:'hero', name:'Big hero' },
+  { id:'split', name:'Split' },
+  { id:'minimal', name:'Minimal list' },
+];
+
+const COLOR_NAMES = ['Primary','Accent','Background','Text'];
+
+const state = {
+  biz: 'grocery',
+  palette: 0,
+  colors: [...PALETTES[0].colors],
+  font: 'sans',
+  layout: 'grid',
+  pview: 'desktop',
+};
+
+function markUnsaved() {
+  document.getElementById('change-tag').style.display = '';
+}
+
+function showPanel(id, btn) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.snav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  btn.classList.add('active');
+}
+
+function setPview(mode, btn) {
+  state.pview = mode;
+  document.querySelectorAll('.preview-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('preview-wrap').style.maxWidth = mode === 'mobile' ? '320px' : '100%';
+}
+
+function buildBizGrid() {
+  const g = document.getElementById('biz-grid');
+  g.innerHTML = BIZ.map(b => `
+    <div class="biz-card${b.id===state.biz?' selected':''}" id="biz-${b.id}" onclick="selectBiz('${b.id}')">
+      <i class="ti ${b.icon} biz-icon" aria-hidden="true"></i>
+      <span class="biz-name">${b.label}</span>
+    </div>`).join('');
+}
+
+function buildPaletteList() {
+  const c = document.getElementById('palette-list');
+  c.innerHTML = PALETTES.map((p,i) => `
+    <div style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 8px;border-radius:var(--border-radius-md);border:${i===state.palette?'2px solid #534AB7':'0.5px solid var(--color-border-tertiary)'};background:${i===state.palette?'#EEEDFE':'var(--color-background-primary)'}" onclick="selectPalette(${i})" id="pal-${i}">
+      <div style="display:flex;gap:3px;">
+        ${p.colors.map(c=>`<div style="width:16px;height:16px;border-radius:4px;background:${c};"></div>`).join('')}
+      </div>
+      <span style="font-size:12px;font-weight:500;color:${i===state.palette?'#3C3489':'var(--color-text-secondary)'};">${p.name}</span>
+    </div>`).join('');
+}
+
+function buildColorSlots() {
+  const s = document.getElementById('color-slots');
+  s.innerHTML = state.colors.map((c,i) => `
+    <div class="color-row">
+      <div class="color-swatch" style="background:${c};" title="Click to change" onclick="promptColorChange(${i})"></div>
+      <span class="color-name">${COLOR_NAMES[i]}</span>
+      <span class="color-hex">${c}</span>
+    </div>`).join('');
+}
+
+function buildFontOpts() {
+  const f = document.getElementById('font-opts');
+  f.innerHTML = FONTS.map(fn => `
+    <div class="font-opt${fn.id===state.font?' selected':''}" onclick="selectFont('${fn.id}','${fn.stack}')" id="font-${fn.id}">
+      <div class="font-sample" style="font-family:${fn.stack}">${fn.sample} — The quick brown fox</div>
+      <div class="font-label">${fn.label}</div>
+    </div>`).join('');
+}
+
+function buildLayoutOpts() {
+  const l = document.getElementById('layout-opts');
+  l.innerHTML = LAYOUTS.map(lo => `
+    <div class="layout-opt${lo.id===state.layout?' selected':''}" onclick="selectLayout('${lo.id}')" id="lay-${lo.id}">
+      <div class="layout-thumb">${thumbFor(lo.id)}</div>
+      <div class="layout-opt-name">${lo.name}</div>
+    </div>`).join('');
+}
+
+function thumbFor(id) {
+  if (id==='grid') return `<div style="display:flex;gap:3px;margin-bottom:3px"><div style="height:6px;background:var(--color-border-secondary);border-radius:2px;flex:1"></div><div style="height:6px;background:var(--color-border-secondary);border-radius:2px;flex:2"></div></div><div class="lt-grid"><div class="lt-block"></div><div class="lt-block"></div><div class="lt-block"></div></div>`;
+  if (id==='hero') return `<div style="height:22px;border-radius:2px;background:var(--color-border-secondary);margin-bottom:3px"></div><div style="display:flex;gap:3px"><div style="height:10px;background:var(--color-border-tertiary);border-radius:2px;flex:1"></div><div style="height:10px;background:var(--color-border-tertiary);border-radius:2px;flex:1"></div></div>`;
+  if (id==='split') return `<div class="lt-split"><div style="background:var(--color-border-secondary);border-radius:2px"></div><div style="background:var(--color-border-tertiary);border-radius:2px;display:flex;flex-direction:column;gap:2px;padding:3px"><div style="height:3px;background:var(--color-border-secondary);border-radius:1px"></div><div style="height:3px;background:var(--color-border-secondary);border-radius:1px;width:60%"></div></div></div>`;
+  return `<div style="display:flex;flex-direction:column;gap:3px">${[1,1,1].map(()=>`<div style="height:5px;background:var(--color-border-secondary);border-radius:2px"></div>`).join('')}</div>`;
+}
+
+function selectBiz(id) {
+  state.biz = id;
+  const biz = BIZ.find(b=>b.id===id);
+  const matchPal = PALETTES.findIndex(p=>p.colors[0]===biz.color);
+  if (matchPal >= 0) { state.palette = matchPal; state.colors = [...PALETTES[matchPal].colors]; }
+  else { state.colors[0] = biz.color; }
+  buildBizGrid(); buildPaletteList(); buildColorSlots(); updatePreview(); markUnsaved();
+}
+
+function selectPalette(i) {
+  state.palette = i;
+  state.colors = [...PALETTES[i].colors];
+  buildPaletteList(); buildColorSlots(); updatePreview(); markUnsaved();
+}
+
+function selectFont(id, stack) {
+  state.font = id;
+  state.fontStack = stack;
+  buildFontOpts(); updatePreview(); markUnsaved();
+}
+
+function selectLayout(id) {
+  state.layout = id;
+  buildLayoutOpts(); updatePreview(); markUnsaved();
+}
+
+function promptColorChange(i) {
+  sendPrompt('Suggest a better ' + COLOR_NAMES[i].toLowerCase() + ' color for my ' + state.biz + ' store (give me a hex code)');
+}
+
+function updatePreview() {
+  const biz = BIZ.find(b=>b.id===state.biz);
+  const [primary, accent, bg, text] = state.colors;
+  const fontStack = state.fontStack || 'system-ui, sans-serif';
+
+  document.getElementById('prev-nav').style.background = primary;
+  document.getElementById('prev-logo').style.color = bg;
+  document.getElementById('prev-logo').textContent = biz.label + ' Store';
+  document.getElementById('prev-logo').style.fontFamily = fontStack;
+  document.querySelectorAll('.preview-nav-links span').forEach(s => s.style.color = bg+'cc');
+  document.getElementById('prev-nav-btn').style.background = accent;
+  document.getElementById('prev-nav-btn').style.color = bg;
+
+  document.getElementById('prev-strip').style.background = accent;
+  document.getElementById('prev-hero').style.background = bg;
+  document.getElementById('prev-headline').textContent = biz.headline;
+  document.getElementById('prev-headline').style.fontFamily = fontStack;
+  document.getElementById('prev-headline').style.color = text;
+  document.getElementById('prev-subline').textContent = biz.sub;
+  document.getElementById('prev-cta').style.background = primary;
+  document.getElementById('prev-cta').style.color = bg;
+  document.getElementById('prev-cta').textContent = biz.cta;
+
+  document.getElementById('prev-products').style.background = 'var(--color-background-primary)';
+  document.getElementById('prev-cat-title').style.fontFamily = fontStack;
+  document.getElementById('prev-cat-title').style.color = primary;
+
+  const grid = document.getElementById('product-grid');
+  grid.innerHTML = biz.products.map((p,i) => `
+    <div class="product-card">
+      <div class="product-img" style="background:${biz.productColors[i]||bg}">
+        <i class="ti ${BIZ.find(b=>b.id===state.biz).icon}" style="font-size:20px;color:${primary};opacity:.6" aria-hidden="true"></i>
+      </div>
+      <div class="product-info">
+        <div class="pname" style="font-family:${fontStack}">${p}</div>
+        <div class="pprice" style="color:${accent};font-weight:500">$${(Math.random()*30+5).toFixed(2)}</div>
+      </div>
+    </div>`).join('');
+
+  if (state.layout === 'hero') {
+    document.getElementById('prev-hero').style.padding = '40px 20px';
+    grid.parentElement.style.display = 'none';
+  } else if (state.layout === 'split') {
+    grid.style.gridTemplateColumns = '1fr 1fr';
+    grid.parentElement.style.display = '';
+  } else if (state.layout === 'minimal') {
+    grid.style.gridTemplateColumns = '1fr';
+    grid.parentElement.style.display = '';
+  } else {
+    grid.style.gridTemplateColumns = '1fr 1fr 1fr';
+    document.getElementById('prev-hero').style.padding = '28px 20px';
+    grid.parentElement.style.display = '';
+  }
+}
+
+function applyChanges() {
+  document.getElementById('change-tag').style.display = 'none';
+  sendPrompt('My ' + state.biz + ' site is ready — what SEO meta tags and page sections should I add next?');
+}
+
+buildBizGrid();
+buildPaletteList();
+buildColorSlots();
+buildFontOpts();
+buildLayoutOpts();
+updatePreview();
+</script>

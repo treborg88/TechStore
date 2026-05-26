@@ -99,16 +99,16 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
         // 3. Execute schema.sql + seed.sql inside the new schema
         await client.query(`SET LOCAL search_path TO "${schemaName}"`);
 
-        const schemaSQL = await fs.readFile(
+        const schemaSQL = (await fs.readFile(
             path.join(__dirname, '..', '..', 'database', 'schema.sql'),
             'utf8'
-        );
+        )).replace(/^\uFEFF/, ''); // strip UTF-8 BOM if present
         await client.query(schemaSQL);
 
-        const seedSQL = await fs.readFile(
+        const seedSQL = (await fs.readFile(
             path.join(__dirname, '..', '..', 'database', 'seed.sql'),
             'utf8'
-        );
+        )).replace(/^\uFEFF/, ''); // strip UTF-8 BOM if present
         await client.query(seedSQL);
 
         // 4. Create tenant admin (overwrite the generic admin from seed.sql)
