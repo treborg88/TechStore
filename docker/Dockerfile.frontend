@@ -1,5 +1,5 @@
 # =============================================================================
-# TechStore — Frontend Dockerfile
+# Eonsclover — Frontend Dockerfile
 # =============================================================================
 # Multi-stage build: install + build → serve with Nginx Alpine (~25MB final)
 # Produces a static site served by Nginx (no Node.js in production)

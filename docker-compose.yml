@@ -53,6 +53,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile.backend
+    image: eonsclover-backend
     container_name: eonsclover-backend
     restart: unless-stopped
     env_file:
@@ -90,6 +91,7 @@ services:
       args:
         # /api is relative — the proxy container handles routing
         VITE_API_URL: /api
+    image: eonsclover-frontend
     container_name: eonsclover-frontend
     restart: unless-stopped
     networks:

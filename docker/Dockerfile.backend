@@ -1,5 +1,5 @@
 # =============================================================================
-# TechStore — Backend Dockerfile
+# Eonsclover — Backend Dockerfile
 # =============================================================================
 # Multi-stage build: install deps → production image
 # Image: Node 20 Alpine (lightweight ~50MB base)
