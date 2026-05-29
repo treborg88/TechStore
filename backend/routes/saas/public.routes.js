@@ -67,7 +67,7 @@ router.get('/check-email', async (req, res) => {
 // POST /api/saas/register — Create a new tenant (store)
 // Accepts either ownerEmail+ownerPassword (form flow) or oauth_token (SSO flow).
 router.post('/register', async (req, res) => {
-  const { slug, businessName, planId = 'trial', trialDays = 14 } = req.body;
+  const { slug, businessName, planId = 'trial', trialDays = 14, themeId = 'tech-blue' } = req.body;
   let ownerEmail, ownerPassword;
   let skipVerification = false; // SSO users skip email verify; form users must verify unless toggle is off
 
@@ -127,7 +127,8 @@ router.post('/register', async (req, res) => {
       ownerEmail,
       ownerPassword,
       planId,
-      trialDays: Number(trialDays)
+      trialDays: Number(trialDays),
+      themeId,
     });
 
     // Delete the used verification code now that the tenant is created

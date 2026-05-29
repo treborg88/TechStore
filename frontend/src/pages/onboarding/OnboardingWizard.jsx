@@ -7,6 +7,16 @@ import { useState, useRef, useEffect } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL, API_URL } from '../../config';
 
+// Color palette previews shown in the onboarding theme picker.
+// IDs must match the keys in backend/database/themes/index.js.
+const ONBOARDING_THEMES = [
+    { id: 'tech-blue', name: 'Tech Azul',  colors: ['#2563eb', '#7c3aed', '#f59e0b'], desc: 'Tecnología · Electrónica' },
+    { id: 'emerald',   name: 'Esmeralda',  colors: ['#059669', '#0d9488', '#f59e0b'], desc: 'Salud · Orgánicos' },
+    { id: 'rose',      name: 'Rosa',       colors: ['#be185d', '#db2777', '#7c3aed'], desc: 'Belleza · Flores' },
+    { id: 'amber',     name: 'Ámbar',      colors: ['#b45309', '#d97706', '#2563eb'], desc: 'Café · Artesanal' },
+    { id: 'carbon',    name: 'Carbón',     colors: ['#374151', '#4b5563', '#0ea5e9'], desc: 'Automotriz · Tools' },
+];
+
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const glass = {
     background: 'rgba(255,255,255,0.05)',
@@ -203,6 +213,7 @@ export default function OnboardingWizard() {
     const [storeError, setStoreError]   = useState('');
     const [submitting, setSubmitting]   = useState(false);
     const [success, setSuccess]         = useState(null);
+    const [themeId, setThemeId]         = useState('tech-blue');
 
     // OAuth SSO state
     const [oauthToken, setOauthToken]   = useState(null);
@@ -426,8 +437,8 @@ export default function OnboardingWizard() {
         try {
             // Include oauth_token if coming from SSO; otherwise use email+password
             const body = oauthToken
-                ? { oauth_token: oauthToken, businessName: storeName.trim(), slug: domain }
-                : { ownerEmail: email.trim(), ownerPassword: password, code: savedCode, businessName: storeName.trim(), slug: domain };
+                ? { oauth_token: oauthToken, businessName: storeName.trim(), slug: domain, themeId }
+                : { ownerEmail: email.trim(), ownerPassword: password, code: savedCode, businessName: storeName.trim(), slug: domain, themeId };
 
             const res = await apiFetch(apiUrl('/saas/register'), {
                 method: 'POST',
@@ -771,13 +782,55 @@ export default function OnboardingWizard() {
 
                     {/* URL preview badge */}
                     {showPreview && (
-                        <div style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)', marginBottom: '2rem' }}>
+                        <div style={{ background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.25)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', color: 'rgba(255,255,255,0.65)', marginBottom: '1.5rem' }}>
                             Tu tienda estará en:{' '}
                             <span style={{ color: '#c4b5fd', fontWeight: 600 }}>
                                 {domain || 'tu-tienda'}.{PLATFORM_DOMAIN}
                             </span>
                         </div>
                     )}
+
+                    {/* Theme / color palette picker */}
+                    <div style={{ marginBottom: '1.75rem' }}>
+                        <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: '0.75rem' }}>
+                            Color de tu tienda
+                        </label>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                            {ONBOARDING_THEMES.map(t => (
+                                <button
+                                    key={t.id}
+                                    type="button"
+                                    onClick={() => setThemeId(t.id)}
+                                    style={{
+                                        background: themeId === t.id ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.04)',
+                                        border: `2px solid ${themeId === t.id ? '#22d3ee' : 'rgba(255,255,255,0.10)'}`,
+                                        borderRadius: '12px',
+                                        padding: '10px 4px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        flexDirection: 'column',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        transition: 'border-color 0.2s, background 0.2s',
+                                        fontFamily: 'Inter, sans-serif',
+                                    }}
+                                    title={t.name}
+                                >
+                                    <div style={{ display: 'flex', gap: '3px' }}>
+                                        {t.colors.map((c, i) => (
+                                            <div key={i} style={{ width: '13px', height: '13px', borderRadius: '50%', background: c, flexShrink: 0 }} />
+                                        ))}
+                                    </div>
+                                    <span style={{ fontSize: '0.65rem', fontWeight: 500, color: themeId === t.id ? '#22d3ee' : 'rgba(255,255,255,0.50)', textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', paddingInline: '2px' }}>
+                                        {t.name}
+                                    </span>
+                                    <span style={{ fontSize: '0.55rem', color: themeId === t.id ? 'rgba(34,211,238,0.70)' : 'rgba(255,255,255,0.28)', textAlign: 'center', lineHeight: 1.2, whiteSpace: 'normal', width: '100%', paddingInline: '2px' }}>
+                                        {t.desc}
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
                     {storeError && (
                         <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.875rem', marginBottom: '1rem' }}>

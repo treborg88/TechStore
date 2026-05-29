@@ -10,6 +10,7 @@ import LandingPageAdmin from './LandingPageAdmin';
 import InvoicePdfSection from './InvoicePdfSection';
 import SeoSection from './SeoSection';
 import StoreLocationMap from '../common/StoreLocationMap';
+import SiteCustomizer from './SiteCustomizer';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../../config';
 import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
 import { cloneLandingPageConfig } from '../../utils/landingPageDefaults';
@@ -146,6 +147,7 @@ function SettingsManager() {
     mailPort: 587,
     mailUseTls: true,
     mailTemplateHtml: '<div style="font-family: Arial, sans-serif; color:#111827; line-height:1.6;">\n  <div style="background:#111827;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;">\n    <h2 style="margin:0;">{{siteIcon}} {{siteName}}</h2>\n    <p style="margin:4px 0 0;">Tu pedido fue recibido</p>\n  </div>\n  <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 10px 10px;">\n    <p>Hola <strong>{{customerName}}</strong>,</p>\n    <p>Tu orden <strong>{{orderNumber}}</strong> fue tomada y está en proceso de preparación para envío.</p>\n    <h3 style="margin-top:20px;">Resumen</h3>\n    {{itemsTable}}\n    <p style="margin-top:16px;"><strong>Total:</strong> {{total}}</p>\n    <p><strong>Dirección:</strong> {{shippingAddress}}</p>\n    <p><strong>Pago:</strong> {{paymentMethod}}</p>\n    <p style="margin-top:20px;">Gracias por comprar con nosotros.</p>\n  </div>\n</div>',
+    fontFamily: 'system-ui, sans-serif',
     // Hero text configuration
     heroTitle: 'La Mejor Tecnología a Tu Alcance',
     heroDescription: 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
@@ -454,6 +456,11 @@ function SettingsManager() {
       console.error(err);
       toast.error('Ocurrió un error al subir la imagen', { id: uploadToast });
     }
+  };
+
+  // Bulk-update multiple settings keys at once (used by SiteCustomizer palette/layout presets)
+  const handleBulkChange = (values) => {
+    setSettings(prev => ({ ...prev, ...values }));
   };
 
   const handleSave = async (e) => {
@@ -813,103 +820,11 @@ function SettingsManager() {
               </div>
 
               {siteTab === 'general' && (
-                <section className="settings-section collapsible">
-                  <button type="button" className="section-toggle" onClick={() => toggleSection('theme')}>
-                    <span>🎨 Tema Global (Colores)</span>
-                    <span className="toggle-indicator">{openSections.theme ? '−' : '+'}</span>
-                  </button>
-                  {openSections.theme && (
-                    <>
-                      <p className="section-description">Define la paleta de colores de toda la aplicación.</p>
-                      <div className="settings-grid">
-                        <div className="form-group">
-                          <label>Color Principal (Botones, Header)</label>
-                          <div className="color-input-wrapper">
-                            <input type="color" name="primaryColor" value={settings.primaryColor || '#2563eb'} onChange={handleChange} />
-                            <span>{settings.primaryColor}</span>
-                          </div>
-                        </div>
-
-                        <div className="form-group">
-                          <label>Color Secundario</label>
-                          <div className="color-input-wrapper">
-                            <input type="color" name="secondaryColor" value={settings.secondaryColor || '#7c3aed'} onChange={handleChange} />
-                            <span>{settings.secondaryColor}</span>
-                          </div>
-                        </div>
-
-                        <div className="form-group">
-                          <label>Color de Acento</label>
-                          <div className="color-input-wrapper">
-                            <input type="color" name="accentColor" value={settings.accentColor || '#f59e0b'} onChange={handleChange} />
-                            <span>{settings.accentColor}</span>
-                          </div>
-                        </div>
-
-                        <div className="form-group">
-                          <label>Color de Fondo</label>
-                          <div className="color-input-wrapper">
-                            <input type="color" name="backgroundColor" value={settings.backgroundColor || '#f8fafc'} onChange={handleChange} />
-                            <span>{settings.backgroundColor}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="settings-subsection" style={{ paddingTop: 0 }}>
-                        <h4 style={{ marginTop: 0, marginBottom: '0.75rem', color: '#374151' }}>Cabecera y Acceso</h4>
-                        <div className="settings-grid">
-                          <div className="form-group">
-                            <label>Color de Fondo del Header</label>
-                            <div className="color-input-wrapper">
-                              <input type="color" name="headerBgColor" value={settings.headerBgColor || '#2563eb'} onChange={handleChange} />
-                              <span>{settings.headerBgColor || '#2563eb'}</span>
-                            </div>
-                          </div>
-
-                          <div className="form-group">
-                            <label>Color de Texto del Header</label>
-                            <div className="color-input-wrapper">
-                              <input type="color" name="headerTextColor" value={settings.headerTextColor || '#ffffff'} onChange={handleChange} />
-                              <span>{settings.headerTextColor || '#ffffff'}</span>
-                            </div>
-                          </div>
-
-                          <div className="form-group">
-                            <label>Botón de Login (Fondo)</label>
-                            <div className="color-input-wrapper">
-                              <input type="color" name="headerButtonColor" value={settings.headerButtonColor || '#ffffff'} onChange={handleChange} />
-                              <span>{settings.headerButtonColor || '#ffffff'}</span>
-                            </div>
-                          </div>
-
-                          <div className="form-group">
-                            <label>Botón de Login (Texto)</label>
-                            <div className="color-input-wrapper">
-                              <input type="color" name="headerButtonTextColor" value={settings.headerButtonTextColor || '#2563eb'} onChange={handleChange} />
-                              <span>{settings.headerButtonTextColor || '#2563eb'}</span>
-                            </div>
-                          </div>
-
-                          <div className="form-group">
-                            <label>Transparencia del Header (%)</label>
-                            <input
-                              type="number"
-                              name="headerTransparency"
-                              min="0"
-                              max="100"
-                              value={settings.headerTransparency || 100}
-                              onChange={handleChange}
-                            />
-                          </div>
-                        </div>
-
-                        <p className="field-hint" style={{ marginTop: '0.5rem' }}>
-                          La activación completa de Tienda se controla en el tab <strong>Tienda</strong>.
-                        </p>
-                      </div>
-                    </>
-                  )}
-                </section>
+                <SiteCustomizer
+                  settings={settings}
+                  onChange={handleChange}
+                  onBulkChange={handleBulkChange}
+                />
               )}
               {siteTab === 'home' && (
                 <section className="settings-section collapsible">

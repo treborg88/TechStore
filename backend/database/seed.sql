@@ -77,6 +77,7 @@ INSERT INTO app_settings (id, value) VALUES
     ('accentColor',     '#f59e0b'),
     ('backgroundColor', '#f8fafc'),
     ('textColor',       '#030303ff'),
+    ('fontFamily',      'system-ui, sans-serif'),
     -- Product detail hero
     ('productDetailHeroImage',          ''),
     ('productDetailUseHomeHero',        'false'),

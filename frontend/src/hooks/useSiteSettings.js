@@ -64,7 +64,8 @@ export function useSiteSettings() {
     secondaryColor: '#7c3aed',
     accentColor: '#f59e0b',
     backgroundColor: '#f8fafc',
-    textColor: '#1e293b'
+    textColor: '#1e293b',
+    fontFamily: 'system-ui, sans-serif'
   });
 
   const [productDetailHeroImage, setProductDetailHeroImage] = useState('');
@@ -198,7 +199,8 @@ export function useSiteSettings() {
         secondaryColor: data.secondaryColor || '#7c3aed',
         accentColor: data.accentColor || '#f59e0b',
         backgroundColor: data.backgroundColor || '#f8fafc',
-        textColor: data.textColor || '#1e293b'
+        textColor: data.textColor || '#1e293b',
+        fontFamily: data.fontFamily || 'system-ui, sans-serif'
       });
     }
 
@@ -353,6 +355,7 @@ export function useSiteSettings() {
     root.style.setProperty('--accent-color', themeSettings.accentColor);
     root.style.setProperty('--background-color', themeSettings.backgroundColor);
     root.style.setProperty('--text-color', themeSettings.textColor);
+    root.style.setProperty('--font-family', themeSettings.fontFamily || 'system-ui, sans-serif');
     
     // Generar hover automáticamente (un poco más oscuro)
     const darkenColor = (hex, div = 1.2) => {

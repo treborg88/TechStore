@@ -5,6 +5,7 @@
 const fs = require('fs').promises;
 const path = require('path');
 const bcrypt = require('bcrypt');
+const { applyTheme, DEFAULT_THEME } = require('../../database/themes');
 
 // Slug validation: lowercase alphanumeric + hyphens, 3-63 chars
 const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
@@ -15,6 +16,39 @@ const RESERVED_SLUGS = new Set([
     'status', 'docs', 'help', 'support', 'billing',
     'static', 'assets', 'cdn', 'media',
 ]);
+
+// Map theme IDs to their demo seed files — unmapped themes use the default tech seed
+const DEMO_SEED_MAP = {
+    'rose':    'seed-demo-rosa.sql',
+    'emerald': 'seed-demo-emerald.sql',
+    'amber':   'seed-demo-amber.sql',
+    'carbon':  'seed-demo-carbon.sql',
+};
+
+// Bundled seed images directory (included in Docker image via COPY backend/)
+const SEED_IMAGES_DIR = path.join(__dirname, '..', '..', 'database', 'seed-images');
+const UPLOADS_PRODUCTS_DIR = process.env.UPLOADS_DIR
+    ? path.join(process.env.UPLOADS_DIR, 'products')
+    : path.join(__dirname, '..', '..', 'uploads', 'products');
+
+/**
+ * Copy seed images to the uploads/products directory (idempotent — skips existing files).
+ * Non-fatal: logs a warning if the seed-images directory is missing.
+ */
+async function copySeedImages() {
+    try {
+        const files = await fs.readdir(SEED_IMAGES_DIR);
+        await fs.mkdir(UPLOADS_PRODUCTS_DIR, { recursive: true });
+        await Promise.all(files.map(async (file) => {
+            const dest = path.join(UPLOADS_PRODUCTS_DIR, file);
+            try { await fs.access(dest); } catch { // file doesn't exist yet
+                await fs.copyFile(path.join(SEED_IMAGES_DIR, file), dest);
+            }
+        }));
+    } catch (err) {
+        console.warn('[provisioner] copySeedImages skipped:', err.message);
+    }
+}
 
 /**
  * Validate slug format and availability.
@@ -53,7 +87,7 @@ function validateSlug(slug) {
  * @param {number} [opts.trialDays=14] - Trial duration in days
  * @returns {Promise<{ tenantId: string, schemaName: string }>}
  */
-async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, planId = 'trial', trialDays = 14 }) {
+async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, planId = 'trial', trialDays = 14, themeId = DEFAULT_THEME }) {
     // Normalize email and validate slug format
     const normalizedEmail = (ownerEmail || '').trim().toLowerCase();
     const slugCheck = validateSlug(slug);
@@ -110,6 +144,20 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
             'utf8'
         )).replace(/^\uFEFF/, ''); // strip UTF-8 BOM if present
         await client.query(seedSQL);
+
+        // 3b. Copy bundled seed images to the uploads directory (non-fatal)
+        await copySeedImages();
+
+        // 3c. Run the theme-specific demo seed (products + enriched settings)
+        const demoSeedFile = DEMO_SEED_MAP[themeId] || 'seed-demo.sql';
+        const demoSeedSQL = (await fs.readFile(
+            path.join(__dirname, '..', '..', 'database', demoSeedFile),
+            'utf8'
+        )).replace(/^\uFEFF/, '');
+        await client.query(demoSeedSQL);
+
+        // 3c. Apply the chosen color theme on top of the seed settings
+        await applyTheme(client, themeId);
 
         // 4. Create tenant admin (overwrite the generic admin from seed.sql)
         await client.query(
