@@ -159,7 +159,7 @@ export function useSiteSettings() {
     }
 
     // Hero settings
-    if (data.heroTitle || data.heroDescription || data.heroImage || data.heroTitleSize || data.heroDescriptionSize || data.heroPositionY || data.heroPositionX || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor || data.heroBannerImage) {
+    if (data.heroTitle || data.heroDescription || data.heroImage || data.heroTitleSize || data.heroDescriptionSize || data.heroPositionY || data.heroPositionX || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor || data.heroBannerImage || data.heroImageBgX !== undefined || data.heroImageBgY !== undefined || data.heroImageBgZoom !== undefined || data.heroTextPaddingX !== undefined || data.heroTextPaddingY !== undefined) {
       setHeroSettings({
         title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
         description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
@@ -176,7 +176,12 @@ export function useSiteSettings() {
         bannerSize: parseFloat(data.heroBannerSize) || 150,
         bannerPositionX: data.heroBannerPositionX || 'right',
         bannerPositionY: data.heroBannerPositionY || 'center',
-        bannerOpacity: parseFloat(data.heroBannerOpacity) || 100
+        bannerOpacity: parseFloat(data.heroBannerOpacity) || 100,
+        imageBgX:     parseInt(data.heroImageBgX)     ?? 50,
+        imageBgY:     parseInt(data.heroImageBgY)     ?? 50,
+        imageBgZoom:  parseInt(data.heroImageBgZoom)  ?? 100,
+        textPaddingX: parseInt(data.heroTextPaddingX) ?? 0,
+        textPaddingY: parseInt(data.heroTextPaddingY) ?? 0
       });
     }
 
@@ -354,6 +359,7 @@ export function useSiteSettings() {
     root.style.setProperty('--secondary-color', themeSettings.secondaryColor);
     root.style.setProperty('--accent-color', themeSettings.accentColor);
     root.style.setProperty('--background-color', themeSettings.backgroundColor);
+    root.style.setProperty('--light-bg', themeSettings.backgroundColor);
     root.style.setProperty('--text-color', themeSettings.textColor);
     root.style.setProperty('--font-family', themeSettings.fontFamily || 'system-ui, sans-serif');
     

@@ -10,11 +10,12 @@ import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL, API_URL } from '../../config';
 // Color palette previews shown in the onboarding theme picker.
 // IDs must match the keys in backend/database/themes/index.js.
 const ONBOARDING_THEMES = [
-    { id: 'tech-blue', name: 'Tech Azul',  colors: ['#2563eb', '#7c3aed', '#f59e0b'], desc: 'Tecnología · Electrónica' },
-    { id: 'emerald',   name: 'Esmeralda',  colors: ['#059669', '#0d9488', '#f59e0b'], desc: 'Salud · Orgánicos' },
-    { id: 'rose',      name: 'Rosa',       colors: ['#be185d', '#db2777', '#7c3aed'], desc: 'Belleza · Flores' },
-    { id: 'amber',     name: 'Ámbar',      colors: ['#b45309', '#d97706', '#2563eb'], desc: 'Café · Artesanal' },
-    { id: 'carbon',    name: 'Carbón',     colors: ['#374151', '#4b5563', '#0ea5e9'], desc: 'Automotriz · Tools' },
+    { id: 'tech-blue', name: 'Tech Azul',    colors: ['#2563eb', '#7c3aed', '#f59e0b'], desc: 'Tecnología · Electrónica' },
+    { id: 'emerald',   name: 'Esmeralda',    colors: ['#059669', '#0d9488', '#f59e0b'], desc: 'Salud · Orgánicos' },
+    { id: 'rose',      name: 'Rosa',         colors: ['#be185d', '#db2777', '#7c3aed'], desc: 'Belleza · Flores' },
+    { id: 'amber',     name: 'Ámbar',        colors: ['#b45309', '#d97706', '#2563eb'], desc: 'Café · Artesanal' },
+    { id: 'carbon',    name: 'Carbón',       colors: ['#374151', '#4b5563', '#0ea5e9'], desc: 'Automotriz · Tools' },
+    { id: 'blank',     name: 'Base Vacía',   colors: ['#2563eb', '#7c3aed', '#f59e0b'], desc: 'Sin demo · Inicio limpio', blank: true },
 ];
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
@@ -795,7 +796,7 @@ export default function OnboardingWizard() {
                         <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, color: 'rgba(255,255,255,0.75)', marginBottom: '0.75rem' }}>
                             Color de tu tienda
                         </label>
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '8px' }}>
                             {ONBOARDING_THEMES.map(t => (
                                 <button
                                     key={t.id}
@@ -803,7 +804,7 @@ export default function OnboardingWizard() {
                                     onClick={() => setThemeId(t.id)}
                                     style={{
                                         background: themeId === t.id ? 'rgba(34,211,238,0.10)' : 'rgba(255,255,255,0.04)',
-                                        border: `2px solid ${themeId === t.id ? '#22d3ee' : 'rgba(255,255,255,0.10)'}`,
+                                        border: `2px ${t.blank ? 'dashed' : 'solid'} ${themeId === t.id ? '#22d3ee' : t.blank ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.10)'}`,
                                         borderRadius: '12px',
                                         padding: '10px 4px',
                                         cursor: 'pointer',
@@ -816,11 +817,20 @@ export default function OnboardingWizard() {
                                     }}
                                     title={t.name}
                                 >
-                                    <div style={{ display: 'flex', gap: '3px' }}>
-                                        {t.colors.map((c, i) => (
-                                            <div key={i} style={{ width: '13px', height: '13px', borderRadius: '50%', background: c, flexShrink: 0 }} />
-                                        ))}
-                                    </div>
+                                    {t.blank ? (
+                                        /* blank store: show empty circles instead of filled dots */
+                                        <div style={{ display: 'flex', gap: '3px' }}>
+                                            {t.colors.map((c, i) => (
+                                                <div key={i} style={{ width: '13px', height: '13px', borderRadius: '50%', border: `1.5px solid ${c}`, background: 'transparent', flexShrink: 0 }} />
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', gap: '3px' }}>
+                                            {t.colors.map((c, i) => (
+                                                <div key={i} style={{ width: '13px', height: '13px', borderRadius: '50%', background: c, flexShrink: 0 }} />
+                                            ))}
+                                        </div>
+                                    )}
                                     <span style={{ fontSize: '0.65rem', fontWeight: 500, color: themeId === t.id ? '#22d3ee' : 'rgba(255,255,255,0.50)', textAlign: 'center', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', paddingInline: '2px' }}>
                                         {t.name}
                                     </span>

@@ -117,6 +117,27 @@
   top: 100px;
 }
 
+.settings-mode-toggle {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #374151;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.settings-mode-toggle:hover {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
 .settings-nav-group {
   display: flex;
   flex-direction: column;

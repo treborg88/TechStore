@@ -14,6 +14,7 @@ const PUBLIC_SETTINGS = [
     'heroTitle', 'heroDescription', 'heroImage', 'heroTitleSize', 'heroDescriptionSize',
     'heroPositionX', 'heroPositionY', 'heroImageWidth', 'heroOverlayOpacity', 'heroHeight',
     'heroTextColor', 'heroPrimaryBtn', 'heroSecondaryBtn',
+    'heroImageBgX', 'heroImageBgY', 'heroImageBgZoom', 'heroTextPaddingX', 'heroTextPaddingY',
     'headerTextColor', 'headerButtonColor', 'headerButtonTextColor',
     'heroBannerImage', 'heroBannerSize', 'heroBannerPositionX', 'heroBannerPositionY', 'heroBannerOpacity',
     // Promo banner

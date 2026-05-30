@@ -17,12 +17,14 @@ const RESERVED_SLUGS = new Set([
     'static', 'assets', 'cdn', 'media',
 ]);
 
-// Map theme IDs to their demo seed files — unmapped themes use the default tech seed
+// Map theme IDs to their demo seed files.
+// null = blank store (skip demo seed entirely), unmapped = default tech seed.
 const DEMO_SEED_MAP = {
     'rose':    'seed-demo-rosa.sql',
     'emerald': 'seed-demo-emerald.sql',
     'amber':   'seed-demo-amber.sql',
     'carbon':  'seed-demo-carbon.sql',
+    'blank':   null,
 };
 
 // Bundled seed images directory (included in Docker image via COPY backend/)
@@ -148,16 +150,20 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
         // 3b. Copy bundled seed images to the uploads directory (non-fatal)
         await copySeedImages();
 
-        // 3c. Run the theme-specific demo seed (products + enriched settings)
-        const demoSeedFile = DEMO_SEED_MAP[themeId] || 'seed-demo.sql';
-        const demoSeedSQL = (await fs.readFile(
-            path.join(__dirname, '..', '..', 'database', demoSeedFile),
-            'utf8'
-        )).replace(/^\uFEFF/, '');
-        await client.query(demoSeedSQL);
+        // 3c. Run the theme-specific demo seed (products + enriched settings).
+        // 'blank' has null entry — skip demo seed to provision an empty store.
+        const demoSeedFile = themeId in DEMO_SEED_MAP ? DEMO_SEED_MAP[themeId] : 'seed-demo.sql';
+        if (demoSeedFile !== null) {
+            const demoSeedSQL = (await fs.readFile(
+                path.join(__dirname, '..', '..', 'database', demoSeedFile),
+                'utf8'
+            )).replace(/^\uFEFF/, '');
+            await client.query(demoSeedSQL);
+        }
 
-        // 3c. Apply the chosen color theme on top of the seed settings
-        await applyTheme(client, themeId);
+        // 3d. Apply the chosen color theme on top of the seed settings.
+        // For blank, fall back to tech-blue colors.
+        await applyTheme(client, themeId === 'blank' ? 'tech-blue' : themeId);
 
         // 4. Create tenant admin (overwrite the generic admin from seed.sql)
         await client.query(

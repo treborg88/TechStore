@@ -239,7 +239,9 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       '--product-button-color': styles.buttonText || undefined,
       '--product-button-radius': toCssUnit(styles.buttonRadius),
       '--product-button-border': styles.buttonBorder || undefined,
-      '--product-button-shadow': styles.buttonShadow || undefined
+      '--product-button-shadow': styles.buttonShadow || undefined,
+      '--product-card-gap': toCssUnit(styles.cardGap),
+      '--product-grid-padding': toCssUnit(styles.gridPadding)
     };
   }, [productCardConfig, toCssUnit]);
 
@@ -390,16 +392,22 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       '--hero-text-align': textAlign,
       '--hero-image-width': `${heroSettings?.imageWidth || 100}%`,
       '--hero-min-height': `${heroSettings?.height || 360}px`,
-      '--hero-text-color': heroSettings?.textColor || '#ffffff'
+      '--hero-text-color': heroSettings?.textColor || '#ffffff',
+      '--hero-bg-pos-x': `${heroSettings?.imageBgX ?? 50}%`,
+      '--hero-bg-pos-y': `${heroSettings?.imageBgY ?? 50}%`,
+      '--hero-bg-size': heroSettings?.imageBgZoom != null && heroSettings.imageBgZoom !== 100
+        ? `${heroSettings.imageBgZoom}%` : 'cover',
+      '--hero-text-padding-x': `${heroSettings?.textPaddingX ?? 0}px`,
+      '--hero-text-padding-y': `${heroSettings?.textPaddingY ?? 0}px`
     };
-  }, [heroSettings?.titleSize, heroSettings?.descriptionSize, heroSettings?.positionX, heroSettings?.positionY, heroSettings?.imageWidth, heroSettings?.height, heroSettings?.textColor]);
+  }, [heroSettings?.titleSize, heroSettings?.descriptionSize, heroSettings?.positionX, heroSettings?.positionY, heroSettings?.imageWidth, heroSettings?.height, heroSettings?.textColor, heroSettings?.imageBgX, heroSettings?.imageBgY, heroSettings?.imageBgZoom, heroSettings?.textPaddingX, heroSettings?.textPaddingY]);
 
   // Banner overlay image styles
   const bannerOverlayStyles = useMemo(() => {
     if (!heroSettings?.bannerImage) return null;
     
-    const posX = heroSettings?.bannerPositionX || 'right';
-    const posY = heroSettings?.bannerPositionY || 'center';
+    const posX = heroSettings?.bannerPositionX;
+    const posY = heroSettings?.bannerPositionY;
     
     const styles = {
       position: 'absolute',
@@ -412,8 +420,11 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       pointerEvents: 'none'
     };
     
-    // Horizontal position
-    if (posX === 'left') {
+    // Numeric % positioning (from fine-tune panel) — takes priority over keywords
+    if (!isNaN(Number(posX))) {
+      styles.left = `${posX}%`;
+      styles.right = 'auto';
+    } else if (posX === 'left') {
       styles.left = '5%';
       styles.right = 'auto';
     } else if (posX === 'center') {
@@ -424,8 +435,10 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       styles.left = 'auto';
     }
     
-    // Vertical position
-    if (posY === 'top') {
+    if (!isNaN(Number(posY))) {
+      styles.top = `${posY}%`;
+      styles.bottom = 'auto';
+    } else if (posY === 'top') {
       styles.top = '10%';
       styles.bottom = 'auto';
     } else if (posY === 'center') {
@@ -450,8 +463,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
         style={{
           ...(heroSettings?.image && imageLoaded ? { 
             backgroundImage: `linear-gradient(rgba(0,0,0,${overlayOpacity}), rgba(0,0,0,${overlayOpacity})), url(${localHeroImage || heroSettings.image})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center',
+            backgroundSize: 'var(--hero-bg-size, cover)',
+            backgroundPosition: 'var(--hero-bg-pos-x, 50%) var(--hero-bg-pos-y, 50%)',
             backgroundRepeat: 'no-repeat'
           } : {}),
           ...heroStyleVars,
