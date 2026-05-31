@@ -265,9 +265,33 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
     heroBannerX:    parseInt(settings.heroBannerPositionX) || 80,
     heroBannerY:    parseInt(settings.heroBannerPositionY) || 50,
     heroBannerSize: parseInt(settings.heroBannerSize)      || 150,
+    heroImageZoom:  parseInt(settings.heroImageBgZoom)     || 100,
   };
 
   // Update a single fine-tune parameter
+  // Category filter config helpers
+  const catCfg = settings.categoryFiltersConfig || {};
+  const catStyles = catCfg.styles || {};
+  const catList = catCfg.categories || [];
+
+  const setCatStyle = (field, val) => markAndBulk({
+    categoryFiltersConfig: { ...catCfg, useDefault: false, styles: { ...catStyles, [field]: val } }
+  });
+
+  const setCatItem = (idx, field, val) => {
+    const updated = catList.map((c, i) => i === idx ? { ...c, [field]: val } : c);
+    markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: updated } });
+  };
+
+  const addCatItem = () => {
+    const id = `cat-${Date.now()}`;
+    markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: [...catList, { id, name: 'Nueva', icon: '📌', slug: id, image: '' }] } });
+  };
+
+  const removeCatItem = (idx) => {
+    markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: catList.filter((_, i) => i !== idx) } });
+  };
+
   const setFt = (key, val) => {
     const cardStyleKeys = ['cardPadding', 'cardImgHeight', 'cardGap', 'gridPadding'];
     if (key === 'columns') {
@@ -301,12 +325,6 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
   // Reset all fine-tune params to baseline values (stays in ajuste_fino mode)
   const resetFtDefaults = () => {
     markAndBulk({
-      heroHeight: 340,
-      heroBannerPositionX: 80,
-      heroBannerPositionY: 50,
-      heroBannerSize: 150,
-      heroTextPaddingX: 0,
-      heroTextPaddingY: 0,
       productCardConfig: {
         ...settings.productCardConfig,
         useDefault: false,
@@ -326,28 +344,32 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
     { id: 'fonts', icon: '✏️', label: 'Fuentes' },
     { id: 'layout', icon: '⊞', label: 'Layout' },
     { id: 'identity', icon: '🏷️', label: 'Identidad' },
-    { id: 'home', icon: '🏠', label: 'Home' }
+    { id: 'hero', icon: '🖼️', label: 'Hero' },
+    { id: 'filtros', icon: '🧩', label: 'Filtros' }
   ];
 
   return (
     <div className="sc-app">
+      {/* ── SECTION NAV — full-width horizontal bar ── */}
+      <nav className="sc-section-nav" aria-label="Secciones de personalización">
+        {PANELS.map(p => (
+          <button
+            key={p.id}
+            type="button"
+            title={p.label}
+            className={`sc-nav-btn${activePanel === p.id ? ' active' : ''}`}
+            onClick={() => setActivePanel(p.id)}
+          >
+            <span className="sc-nav-icon" aria-hidden="true">{p.icon}</span>
+            <span>{p.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* ── BODY: sidebar panel + live preview ── */}
+      <div className="sc-body">
       {/* ── SIDEBAR ── */}
       <div className="sc-sidebar">
-        {/* Panel navigation — icon-only compact row */}
-        <nav className="sc-panel-nav" aria-label="Personalización">
-          {PANELS.map(p => (
-            <button
-              key={p.id}
-              type="button"
-              title={p.label}
-              className={`sc-nav-btn${activePanel === p.id ? ' active' : ''}`}
-              onClick={() => setActivePanel(p.id)}
-            >
-              <span className="sc-nav-icon" aria-hidden="true">{p.icon}</span>
-              <span>{p.label}</span>
-            </button>
-          ))}
-        </nav>
 
         {/* ── PALETTE PANEL ── */}
         {activePanel === 'palette' && (
@@ -574,28 +596,10 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
                   onChange={v => setFt('cardPadding', v)} />
                 <Stepper label="Img. alto" value={ft.cardImgHeight} min={40} max={200} step={8} unit="px"
                   onChange={v => setFt('cardImgHeight', v)} />
-
-                <div className="sc-ft-section">Hero</div>
-                <Stepper label="Altura" value={ft.heroHeight} min={80} max={1200} step={30} unit="px"
-                  onChange={v => setFt('heroHeight', v)} />
                 <Stepper label="Margen lateral" value={ft.gridPadding} min={0} max={80} step={4} unit="px"
                   onChange={v => setFt('gridPadding', v)} />
                 <Stepper label="Sep. cards" value={ft.cardGap} min={0} max={24} step={2} unit="px"
                   onChange={v => setFt('cardGap', v)} />
-
-                <div className="sc-ft-section">Texto del hero</div>
-                <Stepper label="Pos. X" value={ft.heroTextX} min={0} max={1600} step={10} unit="px"
-                  onChange={v => setFt('heroTextPaddingX', v)} />
-                <Stepper label="Pos. Y" value={ft.heroTextY} min={0} max={600} step={10} unit="px"
-                  onChange={v => setFt('heroTextPaddingY', v)} />
-
-                <div className="sc-ft-section">Imagen del hero</div>
-                <Stepper label="Pos. X" value={ft.heroBannerX} min={0} max={100} step={5} unit="%"
-                  onChange={v => setFt('heroBannerPositionX', v)} />
-                <Stepper label="Pos. Y" value={ft.heroBannerY} min={0} max={100} step={5} unit="%"
-                  onChange={v => setFt('heroBannerPositionY', v)} />
-                <Stepper label="Tamaño" value={ft.heroBannerSize} min={30} max={600} step={10} unit="px"
-                  onChange={v => setFt('heroBannerSize', v)} />
 
                 <button type="button" className="sc-ft-reset" onClick={resetFtDefaults}>
                   ↺ Restaurar por defecto
@@ -605,106 +609,305 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
           </div>
         )}
 
-        {/* ── HOME PANEL ── */}
-        {activePanel === 'home' && (
-          <div className="sc-panel">
-            <p className="sc-panel-label">Contenido del Hero</p>
-            <div className="sc-identity-row">
-              <div className="sc-identity-field">
-                <label className="sc-field-label">Título</label>
-                <input type="text" className="sc-text-input"
+        {/* ── HERO PANEL ── */}
+        {activePanel === 'hero' && (
+          <div className="sc-panel sc-panel--home">
+
+            {/* ── Contenido del Hero ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Contenido del Hero</p>
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título</label>
+                <input type="text" className="sc-home-input"
                   value={settings.heroTitle || ''}
                   onChange={e => markAndChange('heroTitle', e.target.value)}
-                  placeholder="La Mejor Tecnología..." />
+                  placeholder="La Mejor Tecnología a Tu Alcance" />
               </div>
-            </div>
-            <div className="sc-identity-row">
-              <div className="sc-identity-field">
-                <label className="sc-field-label">Descripción</label>
-                <input type="text" className="sc-text-input"
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Descripción</label>
+                <textarea className="sc-home-input sc-home-textarea"
                   value={settings.heroDescription || ''}
                   onChange={e => markAndChange('heroDescription', e.target.value)}
-                  placeholder="Descubre nuestra selección..." />
+                  placeholder="Descubre nuestra selección..."
+                  rows={2}
+                  onInput={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }} />
               </div>
             </div>
 
-            <div className="sc-divider" />
-            <p className="sc-panel-label">Apariencia</p>
-            <div className="sc-home-row">
-              <div className="sc-home-field">
-                <label className="sc-field-label">Texto del hero</label>
-                <div className="sc-color-row" style={{ marginTop: 4 }}>
-                  <label className="sc-color-swatch-label">
+            {/* ── Apariencia ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Apariencia</p>
+              <div className="sc-home-appearance-grid">
+
+                {/* Color texto */}
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Color texto</span>
+                  <label className="sc-home-color-btn">
                     <input type="color"
                       value={settings.heroTextColor || '#ffffff'}
                       onChange={e => markAndChange('heroTextColor', e.target.value)}
                       className="sc-color-input" />
-                    <span className="sc-color-swatch" style={{ background: settings.heroTextColor || '#ffffff' }} />
+                    <span className="sc-home-color-swatch" style={{ background: settings.heroTextColor || '#ffffff' }} />
+                    <span className="sc-home-color-hex">{settings.heroTextColor || '#fff'}</span>
                   </label>
-                  <span className="sc-color-hex">{settings.heroTextColor || '#ffffff'}</span>
                 </div>
-              </div>
-              <div className="sc-home-field">
-                <label className="sc-field-label">Oscurecer</label>
-                <div className="sc-inline-num">
-                  <input type="number" className="sc-size-input" style={{ width: 54 }}
-                    min="0" max="80" step="5"
-                    value={Math.round((settings.heroOverlayOpacity ?? 0.5) * 100)}
-                    onChange={e => markAndChange('heroOverlayOpacity', parseFloat(e.target.value) / 100)} />
-                  <span className="sc-size-unit">%</span>
+
+                {/* Oscurecer */}
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Oscurecer</span>
+                  <div className="sc-home-range-wrap">
+                    <input type="range" className="sc-home-range"
+                      min="0" max="80" step="5"
+                      value={Math.round((settings.heroOverlayOpacity ?? 0.5) * 100)}
+                      onChange={e => markAndChange('heroOverlayOpacity', parseFloat(e.target.value) / 100)} />
+                    <span className="sc-home-range-val">{Math.round((settings.heroOverlayOpacity ?? 0.5) * 100)}%</span>
+                  </div>
                 </div>
-              </div>
-              <div className="sc-home-field">
-                <label className="sc-field-label">Pos. texto</label>
-                <select className="sc-text-input sc-select"
-                  value={settings.heroPositionX || 'left'}
-                  onChange={e => markAndChange('heroPositionX', e.target.value)}>
-                  <option value="left">Izq.</option>
-                  <option value="center">Centro</option>
-                  <option value="right">Der.</option>
-                </select>
+
+                {/* Posición texto */}
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Posición texto</span>
+                  <div className="sc-home-pos-btns">
+                    {[['left','◀ Izq.'],['center','● Centro'],['right','Der. ▶']].map(([v, lbl]) => (
+                      <button key={v} type="button"
+                        className={`sc-home-pos-btn${(settings.heroPositionX || 'left') === v ? ' active' : ''}`}
+                        onClick={() => markAndChange('heroPositionX', v)}>{lbl}</button>
+                    ))}
+                  </div>
+                </div>
+
               </div>
             </div>
 
-            <div className="sc-divider" />
-            <p className="sc-panel-label">Imagen del Hero</p>
-            {onImageUpload && (
-              <input type="file" accept="image/*" className="sc-file-input"
-                onChange={e => onImageUpload(e, 'heroImage')} />
-            )}
-            {settings.heroImage && (
-              <div className="sc-identity-preview">
-                <img src={settings.heroImage} alt="Hero" style={{ height: '36px', objectFit: 'cover', borderRadius: 4, flex: 1, maxWidth: 120 }} />
-                <button type="button" className="sc-identity-del"
-                  onClick={() => markAndChange('heroImage', '')}>eliminar</button>
+            {/* ── Dimensiones ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Dimensiones</p>
+              <div className="sc-hero-steppers">
+                <Stepper label="Altura hero" value={ft.heroHeight} min={80} max={1200} step={30} unit="px"
+                  onChange={v => markAndChange('heroHeight', v)} />
+                <Stepper label="Texto Pos. X" value={ft.heroTextX} min={0} max={1600} step={10} unit="px"
+                  onChange={v => markAndChange('heroTextPaddingX', v)} />
+                <Stepper label="Texto Pos. Y" value={ft.heroTextY} min={0} max={600} step={10} unit="px"
+                  onChange={v => markAndChange('heroTextPaddingY', v)} />
               </div>
-            )}
+            </div>
 
-            <div className="sc-divider" />
-            <p className="sc-panel-label">Imagen Superpuesta</p>
-            {onImageUpload && (
-              <input type="file" accept="image/*" className="sc-file-input"
-                onChange={e => onImageUpload(e, 'heroBannerImage')} />
-            )}
-            {settings.heroBannerImage && (
-              <div className="sc-identity-preview">
-                <img src={settings.heroBannerImage} alt="Banner" style={{ height: '36px', objectFit: 'contain', flex: 1, maxWidth: 80 }} />
-                <button type="button" className="sc-identity-del"
-                  onClick={() => markAndChange('heroBannerImage', '')}>eliminar</button>
+            {/* ── Imágenes ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Imágenes</p>
+
+              <div className="sc-hero-img-block">
+                <span className="sc-home-label">Fondo del Hero</span>
+                {onImageUpload && (
+                  <label className="sc-home-upload-btn">
+                    📁 Subir imagen
+                    <input type="file" accept="image/*" className="sc-hidden-file"
+                      onChange={e => onImageUpload(e, 'heroImage')} />
+                  </label>
+                )}
+                {settings.heroImage && (
+                  <div className="sc-home-img-preview">
+                    <img src={settings.heroImage} alt="Hero" />
+                    <button type="button" className="sc-home-img-del"
+                      onClick={() => markAndChange('heroImage', '')}>✕</button>
+                  </div>
+                )}
+                <div className="sc-hero-steppers">
+                  <Stepper label="Zoom" value={ft.heroImageZoom} min={50} max={300} step={10} unit="%"
+                    onChange={v => markAndChange('heroImageBgZoom', v)} />
+                </div>
               </div>
-            )}
 
-            <div className="sc-divider" />
-            <p className="sc-panel-label">Landing Page</p>
-            <label className="sc-checkbox-label">
-              <input type="checkbox"
-                checked={settings.landingPageConfig?.enabled === true}
-                onChange={e => markAndBulk({
-                  landingPageConfig: { ...(settings.landingPageConfig || {}), enabled: e.target.checked }
-                })} />
-              <span>Activar como página principal (<code>/</code>)</span>
-            </label>
-            <p className="sc-panel-hint">Si está activa, <code>/</code> muestra la landing y la tienda se mueve a <code>/tienda</code>.</p>
+              <div className="sc-hero-img-block" style={{ marginTop: 8 }}>
+                <span className="sc-home-label">Imagen superpuesta</span>
+                {onImageUpload && (
+                  <label className="sc-home-upload-btn">
+                    📁 Subir imagen
+                    <input type="file" accept="image/*" className="sc-hidden-file"
+                      onChange={e => onImageUpload(e, 'heroBannerImage')} />
+                  </label>
+                )}
+                {settings.heroBannerImage && (
+                  <div className="sc-home-img-preview">
+                    <img src={settings.heroBannerImage} alt="Banner" />
+                    <button type="button" className="sc-home-img-del"
+                      onClick={() => markAndChange('heroBannerImage', '')}>✕</button>
+                  </div>
+                )}
+                <div className="sc-hero-steppers">
+                  <Stepper label="Pos. X" value={ft.heroBannerX} min={0} max={100} step={5} unit="%"
+                    onChange={v => markAndChange('heroBannerPositionX', v)} />
+                  <Stepper label="Pos. Y" value={ft.heroBannerY} min={0} max={100} step={5} unit="%"
+                    onChange={v => markAndChange('heroBannerPositionY', v)} />
+                  <Stepper label="Tamaño" value={ft.heroBannerSize} min={30} max={600} step={10} unit="px"
+                    onChange={v => markAndChange('heroBannerSize', v)} />
+                </div>
+              </div>
+            </div>
+
+            {/* ── Landing Page ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Landing Page</p>
+              <label className="sc-home-toggle-row">
+                <div className="sc-home-toggle-info">
+                  <span className="sc-home-toggle-title">Activar como página principal</span>
+                  <span className="sc-home-toggle-desc">La ruta <code>/</code> mostrará la landing; la tienda se mueve a <code>/tienda</code>.</span>
+                </div>
+                <div className={`sc-home-toggle${settings.landingPageConfig?.enabled ? ' on' : ''}`}
+                  role="switch"
+                  aria-checked={!!settings.landingPageConfig?.enabled}
+                  onClick={() => markAndBulk({
+                    landingPageConfig: { ...(settings.landingPageConfig || {}), enabled: !settings.landingPageConfig?.enabled }
+                  })}>
+                  <div className="sc-home-toggle-thumb" />
+                </div>
+              </label>
+            </div>
+
+          </div>
+        )}
+
+        {/* ── FILTROS panel ── */}
+        {activePanel === 'filtros' && (
+          <div className="sc-panel sc-panel--home">
+
+            {/* ── Previsualización ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Previsualización</p>
+              <div className="sc-cat-preview-row">
+                {(catList.length > 0 ? catList.slice(0, 4) : ['Todos','Electrónica','Ropa','Hogar'].map(n => ({ name: n, icon: '' }))).map((cat, i) => (
+                  <div key={i} className="sc-cat-preview-chip" style={{
+                    background: i === 0 ? (catStyles.activeBackground || primary) : (catStyles.cardBackground || 'transparent'),
+                    color: i === 0 ? (catStyles.activeTitleColor || '#fff') : (catStyles.titleColor || text),
+                    border: `1px solid ${i === 0 ? (catStyles.activeBorderColor || primary) : (catStyles.cardBorderColor || primary + '44')}`,
+                    borderRadius: catStyles.cardRadius ? catStyles.cardRadius + 'px' : '20px',
+                    padding: catStyles.cardPadding ? `${Math.max(2, Math.round(parseInt(catStyles.cardPadding) / 2))}px ${catStyles.cardPadding}px` : '4px 12px',
+                    fontSize: catStyles.titleSize ? catStyles.titleSize + 'px' : '11px',
+                    fontWeight: catStyles.titleWeight || 600,
+                  }}>
+                    {(cat.icon || '') && <span style={{ marginRight: 3 }}>{cat.icon}</span>}
+                    {cat.name || cat}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* ── Estado normal ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Estado normal</p>
+              <div className="sc-home-appearance-grid">
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Fondo</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.cardBackground || '#f8fafc'} onChange={e => setCatStyle('cardBackground', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.cardBackground || '#f8fafc' }} />
+                    <span className="sc-home-color-hex">{catStyles.cardBackground || '#f8fafc'}</span>
+                  </label>
+                </div>
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Borde</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.cardBorderColor || '#e2e8f0'} onChange={e => setCatStyle('cardBorderColor', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.cardBorderColor || '#e2e8f0' }} />
+                    <span className="sc-home-color-hex">{catStyles.cardBorderColor || '#e2e8f0'}</span>
+                  </label>
+                </div>
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Texto</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.titleColor || '#1f2937'} onChange={e => setCatStyle('titleColor', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.titleColor || '#1f2937' }} />
+                    <span className="sc-home-color-hex">{catStyles.titleColor || '#1f2937'}</span>
+                  </label>
+                </div>
+              </div>
+              <div className="sc-hero-steppers" style={{ marginTop: 8 }}>
+                <Stepper label="Padding" value={parseInt(catStyles.cardPadding) || 8} min={2} max={40} step={2} unit="px"
+                  onChange={v => setCatStyle('cardPadding', String(v))} />
+                <Stepper label="Radio" value={parseInt(catStyles.cardRadius) || 20} min={0} max={50} step={2} unit="px"
+                  onChange={v => setCatStyle('cardRadius', String(v))} />
+                <Stepper label="Tam. texto" value={parseInt(catStyles.titleSize) || 13} min={8} max={24} step={1} unit="px"
+                  onChange={v => setCatStyle('titleSize', String(v))} />
+                <Stepper label="Tam. icono" value={parseInt(catStyles.iconSize) || 20} min={10} max={48} step={2} unit="px"
+                  onChange={v => setCatStyle('iconSize', String(v))} />
+              </div>
+            </div>
+
+            {/* ── Estado activo ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Estado activo</p>
+              <div className="sc-home-field-full" style={{ marginBottom: 6 }}>
+                <label className="sc-home-label">Fondo (acepta gradiente)</label>
+                <input type="text" className="sc-home-input"
+                  value={catStyles.activeBackground || ''}
+                  onChange={e => setCatStyle('activeBackground', e.target.value)}
+                  placeholder={primary} />
+              </div>
+              <div className="sc-home-appearance-grid">
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Texto activo</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.activeTitleColor || '#ffffff'} onChange={e => setCatStyle('activeTitleColor', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.activeTitleColor || '#ffffff' }} />
+                    <span className="sc-home-color-hex">{catStyles.activeTitleColor || '#fff'}</span>
+                  </label>
+                </div>
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Borde activo</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.activeBorderColor || primary} onChange={e => setCatStyle('activeBorderColor', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.activeBorderColor || primary }} />
+                    <span className="sc-home-color-hex">{catStyles.activeBorderColor || primary}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Estado hover ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Estado hover</p>
+              <div className="sc-home-appearance-grid">
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Fondo</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.hoverBackground || '#eff6ff'} onChange={e => setCatStyle('hoverBackground', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.hoverBackground || '#eff6ff' }} />
+                    <span className="sc-home-color-hex">{catStyles.hoverBackground || '#eff6ff'}</span>
+                  </label>
+                </div>
+                <div className="sc-home-appear-item">
+                  <span className="sc-home-label">Texto</span>
+                  <label className="sc-home-color-btn">
+                    <input type="color" value={catStyles.hoverTitleColor || '#2563eb'} onChange={e => setCatStyle('hoverTitleColor', e.target.value)} className="sc-color-input" />
+                    <span className="sc-home-color-swatch" style={{ background: catStyles.hoverTitleColor || '#2563eb' }} />
+                    <span className="sc-home-color-hex">{catStyles.hoverTitleColor || '#2563eb'}</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Categorías ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Categorías</p>
+              <div className="sc-cat-list">
+                {catList.map((cat, idx) => (
+                  <div key={cat.id || idx} className="sc-cat-row">
+                    <input className="sc-cat-input sc-cat-icon-inp" type="text"
+                      value={cat.icon || ''} onChange={e => setCatItem(idx, 'icon', e.target.value)}
+                      placeholder="🏪" />
+                    <input className="sc-cat-input sc-cat-name-inp" type="text"
+                      value={cat.name || ''} onChange={e => setCatItem(idx, 'name', e.target.value)}
+                      placeholder="Nombre" />
+                    <button type="button" className="sc-cat-del"
+                      onClick={() => removeCatItem(idx)}
+                      disabled={cat.slug === 'todos'}>✕</button>
+                  </div>
+                ))}
+              </div>
+              <button type="button" className="sc-ft-reset" style={{ marginTop: 6 }}
+                onClick={addCatItem}>+ Agregar categoría</button>
+            </div>
+
           </div>
         )}
 
@@ -773,19 +976,25 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
                   ...(heroImage
                     ? {
                         backgroundImage: `url(${heroImage})`,
-                        backgroundSize: 'cover',
+                        backgroundSize: ft.heroImageZoom !== 100 ? `${ft.heroImageZoom}%` : 'cover',
                         backgroundPosition: '50% 50%',
                         backgroundRepeat: 'no-repeat'
                       }
                     : { background: `linear-gradient(135deg, ${primary}ee 0%, ${secondary}77 100%)` }
                   ),
-                  minHeight: Math.round(activeLayoutDef.heroHeight * 0.22) + 'px',
+                  minHeight: Math.round((parseInt(settings.heroHeight) || activeLayoutDef.heroHeight) * 0.22) + 'px',
                   alignItems: heroAlign,
                   textAlign: heroTextAlign,
                   position: 'relative',
                   overflow: 'hidden'
                 }}
               >
+                {/* Dark overlay */}
+                <div style={{
+                  position: 'absolute', inset: 0,
+                  background: `rgba(0,0,0,${heroOverlay})`,
+                  pointerEvents: 'none', zIndex: 0
+                }} />
                 {settings.heroBannerImage && (
                   <img
                     src={resolveImageUrl(settings.heroBannerImage)}
@@ -797,11 +1006,12 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
                       width: `${Math.round(ft.heroBannerSize * 0.22)}px`,
                       height: 'auto',
                       pointerEvents: 'none',
-                      opacity: (parseInt(settings.heroBannerOpacity) || 100) / 100
+                      opacity: (parseInt(settings.heroBannerOpacity) || 100) / 100,
+                      zIndex: 1
                     }}
                   />
                 )}
-                <div style={{ transform: `translate(${Math.round(ft.heroTextX * 0.22)}px, ${Math.round(ft.heroTextY * 0.22)}px)` }}>
+                <div style={{ transform: `translate(${Math.round(ft.heroTextX * 0.22)}px, ${Math.round(ft.heroTextY * 0.22)}px)`, position: 'relative', zIndex: 2 }}>
                 <h2 className="sc-prev-headline" style={{ color: heroTextColor, fontFamily }}>
                   {heroTitle}
                 </h2>
@@ -816,17 +1026,19 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
 
               {/* ── Category filter strip ── */}
               <div className="sc-prev-cats" style={{ background: bg, borderBottom: `1px solid ${primary}22` }}>
-                {['Todos', 'Electrónica', 'Ropa', 'Hogar', 'Deportes'].map((cat, i) => (
+                {(catList.length > 0 ? catList.slice(0, 5) : ['Todos','Electrónica','Ropa','Hogar','Deportes'].map(n => ({ name: n, icon: '' }))).map((cat, i) => (
                   <div
-                    key={cat}
+                    key={i}
                     className="sc-prev-cat-chip"
                     style={{
-                      background: i === 0 ? primary : 'transparent',
-                      color: i === 0 ? '#fff' : text,
-                      border: `1px solid ${i === 0 ? primary : primary + '44'}`
+                      background: i === 0 ? (catStyles.activeBackground || primary) : (catStyles.cardBackground || 'transparent'),
+                      color: i === 0 ? (catStyles.activeTitleColor || '#fff') : (catStyles.titleColor || text),
+                      border: `1px solid ${i === 0 ? (catStyles.activeBorderColor || primary) : (catStyles.cardBorderColor || primary + '44')}`,
+                      ...(catStyles.cardRadius && { borderRadius: catStyles.cardRadius + 'px' }),
+                      ...(catStyles.titleSize && { fontSize: catStyles.titleSize + 'px' }),
                     }}
                   >
-                    {cat}
+                    {cat.name || cat}
                   </div>
                 ))}
               </div>
@@ -911,6 +1123,7 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
           </div>
         </div>
       </div>
+      </div>{/* ── /sc-body ── */}
     </div>
   );
 }
