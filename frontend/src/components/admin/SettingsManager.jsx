@@ -16,12 +16,6 @@ import { normalizeCurrencyCode } from '../../utils/settingsHelpers';
 import { cloneLandingPageConfig } from '../../utils/landingPageDefaults';
 import { CACHE_KEYS, getCacheItem, setCacheItem } from '../../utils/cacheStorage';
 
-const PRODUCT_CURRENCY_OPTIONS = [
-  { code: 'DOP', label: 'DOP (RD$)' },
-  { code: 'USD', label: 'USD (USD$)' },
-  { code: 'EUR', label: 'EUR (€)' }
-];
-
 function SettingsManager() {
   const location = useLocation();
   const [activeSection, setActiveSection] = useState('site');
@@ -30,10 +24,8 @@ function SettingsManager() {
   const [openSections, setOpenSections] = useState({
     theme: true,
     home: true,
-    product: true,
     identity: false,
     ecommerce: true,
-    promos: true,
     filters: true,
     productCards: true,
     filterCategories: true,
@@ -134,11 +126,53 @@ function SettingsManager() {
     siteDomain: '',
     freeShippingThreshold: 50000,
     contactEmail: 'soporte@eonsclover.com',
-    showPromotionBanner: true,
+    showPromotionBanner: false,
     promoTitle: '¡Oferta Especial del Mes!',
     promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.',
     promoButtonText: 'Ver Oferta',
     promoImage: '',
+    promoProductId: '',
+    whyChooseUsConfig: {
+      enabled: true,
+      sectionTitle: '¿Por Qué Elegirnos?',
+      items: [
+        { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+        { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+        { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+      ]
+    },
+    newsletterConfig: {
+      enabled: false,
+      title: 'Únete a Nuestra Newsletter',
+      text: 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+      placeholder: 'Tu correo electrónico',
+      buttonText: 'Suscribirse'
+    },
+    footerConfig: {
+      brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+      quickLinksTitle: 'Enlaces Rápidos',
+      quickLinks: [
+        { label: 'Inicio', href: '/', enabled: true },
+        { label: 'Productos', href: '/tienda', enabled: true },
+        { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+        { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+      ],
+      supportTitle: 'Atención al Cliente',
+      supportLinks: [
+        { label: 'Contáctanos', href: '/contacto', enabled: true },
+        { label: 'Devoluciones', href: '/contacto', enabled: true },
+        { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+        { label: 'Estado del Pedido', href: '/orders', enabled: true }
+      ],
+      socialTitle: 'Síguenos',
+      socialLinks: [
+        { icon: '📘', href: '', enabled: true },
+        { icon: '📱', href: '', enabled: true },
+        { icon: '📷', href: '', enabled: true },
+        { icon: '🐦', href: '', enabled: true }
+      ],
+      copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+    },
     mailFromName: 'Eonsclover',
     mailFrom: '',
     mailUser: '',
@@ -193,6 +227,10 @@ function SettingsManager() {
     storeModuleConfig: {
       enabled: true
     },
+    // Search bar config
+    searchBarConfig: {
+      enabled: true
+    },
     // Header navigation visibility
     navigationConfig: {
       showHomeLink: true,
@@ -228,7 +266,7 @@ function SettingsManager() {
     }
   }, [activeSection, location.hash]);
 
-  const ADVANCED_ONLY_TABS = ['cards', 'filters', 'promos', 'ecommerce', 'email', 'database', 'chatbot', 'landing'];
+  const ADVANCED_ONLY_TABS = ['cards', 'filters', 'ecommerce', 'email', 'database', 'chatbot', 'landing'];
 
   useEffect(() => {
     if (uiMode === 'quick' && ADVANCED_ONLY_TABS.includes(siteTab)) {
@@ -334,6 +372,120 @@ function SettingsManager() {
             };
           } catch {
             typedData[key] = { enabled: true };
+          }
+        } else if (key === 'searchBarConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            typedData[key] = {
+              enabled: parsed?.enabled !== false
+            };
+          } catch {
+            typedData[key] = { enabled: true };
+          }
+        } else if (key === 'whyChooseUsConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            const fallbackItems = [
+              { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+              { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+              { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+            ];
+            typedData[key] = {
+              enabled: parsed?.enabled !== false,
+              sectionTitle: parsed?.sectionTitle || '¿Por Qué Elegirnos?',
+              items: Array.isArray(parsed?.items) && parsed.items.length > 0 ? parsed.items : fallbackItems
+            };
+          } catch {
+            typedData[key] = {
+              enabled: true,
+              sectionTitle: '¿Por Qué Elegirnos?',
+              items: [
+                { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+                { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+                { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+              ]
+            };
+          }
+        } else if (key === 'newsletterConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            typedData[key] = {
+              enabled: parsed?.enabled === true,
+              title: parsed?.title || 'Únete a Nuestra Newsletter',
+              text: parsed?.text || 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+              placeholder: parsed?.placeholder || 'Tu correo electrónico',
+              buttonText: parsed?.buttonText || 'Suscribirse'
+            };
+          } catch {
+            typedData[key] = {
+              enabled: false,
+              title: 'Únete a Nuestra Newsletter',
+              text: 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+              placeholder: 'Tu correo electrónico',
+              buttonText: 'Suscribirse'
+            };
+          }
+        } else if (key === 'footerConfig') {
+          try {
+            const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+            const fallback = {
+              brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+              quickLinksTitle: 'Enlaces Rápidos',
+              quickLinks: [
+                { label: 'Inicio', href: '/', enabled: true },
+                { label: 'Productos', href: '/tienda', enabled: true },
+                { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+                { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+              ],
+              supportTitle: 'Atención al Cliente',
+              supportLinks: [
+                { label: 'Contáctanos', href: '/contacto', enabled: true },
+                { label: 'Devoluciones', href: '/contacto', enabled: true },
+                { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+                { label: 'Estado del Pedido', href: '/orders', enabled: true }
+              ],
+              socialTitle: 'Síguenos',
+              socialLinks: [
+                { icon: '📘', href: '', enabled: true },
+                { icon: '📱', href: '', enabled: true },
+                { icon: '📷', href: '', enabled: true },
+                { icon: '🐦', href: '', enabled: true }
+              ],
+              copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+            };
+            typedData[key] = {
+              ...fallback,
+              ...(parsed || {}),
+              quickLinks: Array.isArray(parsed?.quickLinks) && parsed.quickLinks.length > 0 ? parsed.quickLinks : fallback.quickLinks,
+              supportLinks: Array.isArray(parsed?.supportLinks) && parsed.supportLinks.length > 0 ? parsed.supportLinks : fallback.supportLinks,
+              socialLinks: Array.isArray(parsed?.socialLinks) && parsed.socialLinks.length > 0 ? parsed.socialLinks : fallback.socialLinks
+            };
+          } catch {
+            typedData[key] = {
+              brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+              quickLinksTitle: 'Enlaces Rápidos',
+              quickLinks: [
+                { label: 'Inicio', href: '/', enabled: true },
+                { label: 'Productos', href: '/tienda', enabled: true },
+                { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+                { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+              ],
+              supportTitle: 'Atención al Cliente',
+              supportLinks: [
+                { label: 'Contáctanos', href: '/contacto', enabled: true },
+                { label: 'Devoluciones', href: '/contacto', enabled: true },
+                { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+                { label: 'Estado del Pedido', href: '/orders', enabled: true }
+              ],
+              socialTitle: 'Síguenos',
+              socialLinks: [
+                { icon: '📘', href: '', enabled: true },
+                { icon: '📱', href: '', enabled: true },
+                { icon: '📷', href: '', enabled: true },
+                { icon: '🐦', href: '', enabled: true }
+              ],
+              copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+            };
           }
         } else if (key === 'mapConfig') {
           try {
@@ -501,6 +653,48 @@ function SettingsManager() {
         landingPageConfig: JSON.stringify(normalizedLandingConfig),
         navigationConfig: JSON.stringify(normalizedNavigationConfig),
         storeModuleConfig: JSON.stringify(normalizedStoreModuleConfig),
+        searchBarConfig: JSON.stringify({ enabled: settings.searchBarConfig?.enabled !== false }),
+        whyChooseUsConfig: JSON.stringify(settings.whyChooseUsConfig || {
+          enabled: true,
+          sectionTitle: '¿Por Qué Elegirnos?',
+          items: [
+            { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+            { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+            { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+          ]
+        }),
+        newsletterConfig: JSON.stringify(settings.newsletterConfig || {
+          enabled: false,
+          title: 'Únete a Nuestra Newsletter',
+          text: 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+          placeholder: 'Tu correo electrónico',
+          buttonText: 'Suscribirse'
+        }),
+        footerConfig: JSON.stringify(settings.footerConfig || {
+          brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+          quickLinksTitle: 'Enlaces Rápidos',
+          quickLinks: [
+            { label: 'Inicio', href: '/', enabled: true },
+            { label: 'Productos', href: '/tienda', enabled: true },
+            { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+            { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+          ],
+          supportTitle: 'Atención al Cliente',
+          supportLinks: [
+            { label: 'Contáctanos', href: '/contacto', enabled: true },
+            { label: 'Devoluciones', href: '/contacto', enabled: true },
+            { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+            { label: 'Estado del Pedido', href: '/orders', enabled: true }
+          ],
+          socialTitle: 'Síguenos',
+          socialLinks: [
+            { icon: '📘', href: '', enabled: true },
+            { icon: '📱', href: '', enabled: true },
+            { icon: '📷', href: '', enabled: true },
+            { icon: '🐦', href: '', enabled: true }
+          ],
+          copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+        }),
         mapConfig: JSON.stringify(settings.mapConfig || cloneMapConfig()),
         invoicePdfConfig: JSON.stringify(settings.invoicePdfConfig || {}),
         seoConfig: JSON.stringify(settings.seoConfig || {})
@@ -663,10 +857,6 @@ function SettingsManager() {
       title: 'Home',
       subtitle: 'Contenido principal del hero y banner de inicio.'
     },
-    product: {
-      title: 'Productos',
-      subtitle: 'Ajustes del detalle del producto y hero de la ficha.'
-    },
     store: {
       title: 'Tienda',
       subtitle: 'Control del modulo tienda y sus secciones internas.'
@@ -678,10 +868,6 @@ function SettingsManager() {
     filters: {
       title: 'Filtros',
       subtitle: 'Categorías del Home y estilos de filtros.'
-    },
-    promos: {
-      title: 'Promociones',
-      subtitle: 'Banners y textos promocionales visibles al cliente.'
     },
     ecommerce: {
       title: 'E-commerce',
@@ -780,10 +966,8 @@ function SettingsManager() {
 
               <div className="settings-nav-group">
                 <p className="settings-nav-group-title">Catalogo</p>
-                {isAdvancedMode && renderTabButton('product', '📦 Productos')}
                 {isAdvancedMode && renderTabButton('cards', '🃏 Tarjetas')}
                 {isAdvancedMode && renderTabButton('filters', '🔍 Filtros')}
-                {isAdvancedMode && renderTabButton('promos', '🏷️ Promociones')}
               </div>
 
               <div className="settings-nav-group">
@@ -849,368 +1033,6 @@ function SettingsManager() {
                   )}
                 </section>
               )}
-
-              {(siteTab === 'cards' || siteTab === 'store') && (
-                <div className="cards-main-section">
-                  <p className="section-description" style={{ marginBottom: '1rem' }}>
-                    Configura las tarjetas de producto y la moneda.
-                  </p>
-
-                  <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={!!productCardConfig.useDefault}
-                        onChange={(e) => updateProductCardConfig(prev => ({ ...prev, useDefault: e.target.checked }))}
-                      />
-                      Usar configuración predeterminada
-                    </label>
-                    <button type="button" className="settings-secondary-btn" onClick={handleResetProductCard} style={{ marginLeft: '1rem' }}>
-                      Restablecer
-                    </button>
-                  </div>
-
-                  {/* Sección 1: Distribución */}
-                  <section className="settings-section collapsible">
-                    <button type="button" className="section-toggle" onClick={() => toggleSection('cardLayout')}>
-                      <span>📐 Distribución</span>
-                      <span className="toggle-indicator">{openSections.cardLayout ? '−' : '+'}</span>
-                    </button>
-                    {openSections.cardLayout && (
-                      <div className="section-content styles-compact-content">
-                        <div className="style-group-content">
-                          <div className="inline-field">
-                            <label>Móvil</label>
-                            <input type="number" value={productCardConfig.layout?.columnsMobile ?? ''} onChange={(e) => handleProductCardLayoutChange('columnsMobile', e.target.value)} disabled={productCardConfig.useDefault} min="1" max="6" />
-                            <span>col</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Tablet</label>
-                            <input type="number" value={productCardConfig.layout?.columnsTablet ?? ''} onChange={(e) => handleProductCardLayoutChange('columnsTablet', e.target.value)} disabled={productCardConfig.useDefault} min="1" max="8" />
-                            <span>col</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Desktop</label>
-                            <input type="number" value={productCardConfig.layout?.columnsDesktop ?? ''} onChange={(e) => handleProductCardLayoutChange('columnsDesktop', e.target.value)} disabled={productCardConfig.useDefault} min="1" max="8" />
-                            <span>col</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Wide</label>
-                            <input type="number" value={productCardConfig.layout?.columnsWide ?? ''} onChange={(e) => handleProductCardLayoutChange('columnsWide', e.target.value)} disabled={productCardConfig.useDefault} min="1" max="10" />
-                            <span>col</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Orientación</label>
-                            <select value={productCardConfig.layout?.orientation || 'vertical'} onChange={(e) => handleProductCardLayoutChange('orientation', e.target.value)} disabled={productCardConfig.useDefault}>
-                              <option value="vertical">Vertical</option>
-                              <option value="horizontal">Horizontal</option>
-                            </select>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Sección 2: Dimensiones y Bordes */}
-                  <section className="settings-section collapsible" style={{ marginTop: '0.5rem' }}>
-                    <button type="button" className="section-toggle" onClick={() => toggleSection('cardDimensions')}>
-                      <span>📏 Dimensiones y Bordes</span>
-                      <span className="toggle-indicator">{openSections.cardDimensions ? '−' : '+'}</span>
-                    </button>
-                    {openSections.cardDimensions && (
-                      <div className="section-content styles-compact-content">
-                        <div className="style-group-content">
-                          <div className="inline-field">
-                            <label>Ancho</label>
-                            <input type="number" value={productCardConfig.styles?.cardWidth || ''} onChange={(e) => handleProductCardStyleChange('cardWidth', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>px</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Alto</label>
-                            <input type="number" value={productCardConfig.styles?.cardHeight || ''} onChange={(e) => handleProductCardStyleChange('cardHeight', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>px</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Padding</label>
-                            <input type="number" value={productCardConfig.styles?.cardPadding || ''} onChange={(e) => handleProductCardStyleChange('cardPadding', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>px</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Radio</label>
-                            <input type="number" value={productCardConfig.styles?.cardRadius || ''} onChange={(e) => handleProductCardStyleChange('cardRadius', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>px</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Borde</label>
-                            <input type="number" value={productCardConfig.styles?.borderWidth || ''} onChange={(e) => handleProductCardStyleChange('borderWidth', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>px</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Estilo</label>
-                            <input type="text" value={productCardConfig.styles?.borderStyle || ''} onChange={(e) => handleProductCardStyleChange('borderStyle', e.target.value)} disabled={productCardConfig.useDefault} placeholder="solid" />
-                          </div>
-                          <div className="color-field">
-                            <input type="color" value={productCardConfig.styles?.borderColor || '#e5e7eb'} onChange={(e) => handleProductCardStyleChange('borderColor', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>Borde</span>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Sección 3: Colores y Texto */}
-                  <section className="settings-section collapsible" style={{ marginTop: '0.5rem' }}>
-                    <button type="button" className="section-toggle" onClick={() => toggleSection('cardColors')}>
-                      <span>🎨 Colores y Texto</span>
-                      <span className="toggle-indicator">{openSections.cardColors ? '−' : '+'}</span>
-                    </button>
-                    {openSections.cardColors && (
-                      <div className="section-content styles-compact-content">
-                        {/* Fondo y Sombra */}
-                        <details className="style-group" open>
-                          <summary>🖼️ Fondo</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={productCardConfig.styles?.background || '#ffffff'} onChange={(e) => handleProductCardStyleChange('background', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>Fondo</span>
-                            </div>
-                            <div className="inline-field wide">
-                              <label>Sombra</label>
-                              <input type="text" value={productCardConfig.styles?.shadow || ''} onChange={(e) => handleProductCardStyleChange('shadow', e.target.value)} disabled={productCardConfig.useDefault} placeholder="0 1px 3px rgba(0,0,0,0.1)" />
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Título */}
-                        <details className="style-group">
-                          <summary>📝 Título</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={productCardConfig.styles?.titleColor || '#111827'} onChange={(e) => handleProductCardStyleChange('titleColor', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>Color</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Tamaño</label>
-                              <input type="number" value={productCardConfig.styles?.titleSize || ''} onChange={(e) => handleProductCardStyleChange('titleSize', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Grosor</label>
-                              <input type="number" value={productCardConfig.styles?.titleWeight || ''} onChange={(e) => handleProductCardStyleChange('titleWeight', e.target.value)} disabled={productCardConfig.useDefault} placeholder="600" />
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Precio */}
-                        <details className="style-group">
-                          <summary>💰 Precio</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={productCardConfig.styles?.priceColor || '#111827'} onChange={(e) => handleProductCardStyleChange('priceColor', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>Color</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Tamaño</label>
-                              <input type="number" value={productCardConfig.styles?.priceSize || ''} onChange={(e) => handleProductCardStyleChange('priceSize', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Grosor</label>
-                              <input type="number" value={productCardConfig.styles?.priceWeight || ''} onChange={(e) => handleProductCardStyleChange('priceWeight', e.target.value)} disabled={productCardConfig.useDefault} placeholder="700" />
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Descripción */}
-                        <details className="style-group">
-                          <summary>📄 Descripción</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={productCardConfig.styles?.descriptionColor || '#6b7280'} onChange={(e) => handleProductCardStyleChange('descriptionColor', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>Color</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Tamaño</label>
-                              <input type="number" value={productCardConfig.styles?.descriptionSize || ''} onChange={(e) => handleProductCardStyleChange('descriptionSize', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Categoría */}
-                        <details className="style-group">
-                          <summary>🏷️ Categoría</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={productCardConfig.styles?.categoryColor || '#2563eb'} onChange={(e) => handleProductCardStyleChange('categoryColor', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>Color</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Tamaño</label>
-                              <input type="number" value={productCardConfig.styles?.categorySize || ''} onChange={(e) => handleProductCardStyleChange('categorySize', e.target.value)} disabled={productCardConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                          </div>
-                        </details>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Sección 4: Botón */}
-                  <section className="settings-section collapsible" style={{ marginTop: '0.5rem' }}>
-                    <button type="button" className="section-toggle" onClick={() => toggleSection('cardButton')}>
-                      <span>🔘 Botón</span>
-                      <span className="toggle-indicator">{openSections.cardButton ? '−' : '+'}</span>
-                    </button>
-                    {openSections.cardButton && (
-                      <div className="section-content styles-compact-content">
-                        <div className="style-group-content colors-row">
-                          <div className="color-field">
-                            <input type="color" value={productCardConfig.styles?.buttonBg || '#2563eb'} onChange={(e) => handleProductCardStyleChange('buttonBg', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>Fondo</span>
-                          </div>
-                          <div className="color-field">
-                            <input type="color" value={productCardConfig.styles?.buttonText || '#ffffff'} onChange={(e) => handleProductCardStyleChange('buttonText', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>Texto</span>
-                          </div>
-                          <div className="inline-field">
-                            <label>Radio</label>
-                            <input type="number" value={productCardConfig.styles?.buttonRadius || ''} onChange={(e) => handleProductCardStyleChange('buttonRadius', e.target.value)} disabled={productCardConfig.useDefault} />
-                            <span>px</span>
-                          </div>
-                          <div className="inline-field wide">
-                            <label>Borde</label>
-                            <input type="text" value={productCardConfig.styles?.buttonBorder || ''} onChange={(e) => handleProductCardStyleChange('buttonBorder', e.target.value)} disabled={productCardConfig.useDefault} placeholder="1px solid #000" />
-                          </div>
-                          <div className="inline-field wide">
-                            <label>Sombra</label>
-                            <input type="text" value={productCardConfig.styles?.buttonShadow || ''} onChange={(e) => handleProductCardStyleChange('buttonShadow', e.target.value)} disabled={productCardConfig.useDefault} placeholder="0 2px 4px rgba(0,0,0,0.1)" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </section>
-                </div>
-              )}
-
-              {(siteTab === 'product' || siteTab === 'store') && (
-                <section className="settings-section collapsible">
-                  <button type="button" className="section-toggle" onClick={() => toggleSection('product')}>
-                    <span>📦 Detalle de Producto</span>
-                    <span className="toggle-indicator">{openSections.product ? '−' : '+'}</span>
-                  </button>
-                  {openSections.product && (
-                    <>
-                      {/* Configuración de moneda global para precios de productos */}
-                      <div className="form-group" style={{ marginBottom: '1rem' }}>
-                        <label>Moneda de Productos</label>
-                        <select
-                          value={normalizeCurrencyCode(productCardConfig.currency)}
-                          onChange={(e) => updateProductCardConfig(prev => ({
-                            ...prev,
-                            currency: normalizeCurrencyCode(e.target.value)
-                          }))}
-                        >
-                          {PRODUCT_CURRENCY_OPTIONS.map((currencyOption) => (
-                            <option key={currencyOption.code} value={currencyOption.code}>{currencyOption.label}</option>
-                          ))}
-                        </select>
-                        <small className="field-hint">Este ajuste se aplica a Home, detalle de producto, carrito, checkout y órdenes.</small>
-                      </div>
-
-                      {/* Checkbox para usar configuración del Home */}
-                      <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
-                        <label>
-                          <input
-                            type="checkbox"
-                            checked={settings.productDetailUseHomeHero ?? true}
-                            onChange={(e) => setSettings(prev => ({ ...prev, productDetailUseHomeHero: e.target.checked }))}
-                          />
-                          Usar misma configuración del Hero del Home
-                        </label>
-                      </div>
-
-                      {/* Si NO usa la configuración del home, mostrar opciones */}
-                      {!settings.productDetailUseHomeHero && (
-                        <div className="hero-settings-compact">
-                          {/* Imagen del Hero */}
-                          <div className="hero-image-row">
-                            <div className="form-group-compact" style={{ flex: 1 }}>
-                              <label>Imagen del Hero</label>
-                              <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'productDetailHeroImage')} />
-                            </div>
-                            {settings.productDetailHeroImage && (
-                              <div className="settings-preview-compact">
-                                <img src={settings.productDetailHeroImage} alt="Product Hero" />
-                                <button type="button" onClick={() => setSettings(prev => ({ ...prev, productDetailHeroImage: '' }))} className="delete-text-btn">eliminar</button>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Altura y oscurecimiento */}
-                          <div className="settings-grid-3" style={{ marginTop: '0.5rem' }}>
-                            <div className="form-group-compact inline-label">
-                              <label>Altura <input type="number" name="productDetailHeroHeight" min="100" max="400" step="20" value={settings.productDetailHeroHeight || 200} onChange={handleChange} className="size-input-mini" />px</label>
-                            </div>
-                            <div className="form-group-compact inline-label">
-                              <label>Oscurecer <input type="number" name="productDetailHeroOverlayOpacity" min="0" max="80" step="5" value={Math.round((settings.productDetailHeroOverlayOpacity ?? 0.5) * 100)} onChange={(e) => handleChange({ target: { name: 'productDetailHeroOverlayOpacity', value: parseFloat(e.target.value) / 100 } })} className="size-input-mini" />%</label>
-                            </div>
-                          </div>
-
-                          {/* Imagen superpuesta del Banner */}
-                          {isAdvancedMode && (
-                          <div className="banner-image-section">
-                            <label className="section-label">Imagen Superpuesta del Banner</label>
-                            <div className="hero-image-row">
-                              <div className="form-group-compact" style={{ flex: 1 }}>
-                                <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'productDetailHeroBannerImage')} />
-                              </div>
-                              {settings.productDetailHeroBannerImage && (
-                                <div className="settings-preview-compact">
-                                  <img src={settings.productDetailHeroBannerImage} alt="Banner overlay" />
-                                  <button type="button" onClick={() => setSettings(prev => ({ ...prev, productDetailHeroBannerImage: '' }))} className="delete-text-btn">eliminar</button>
-                                </div>
-                              )}
-                            </div>
-                            {settings.productDetailHeroBannerImage && (
-                              <div className="settings-grid-4" style={{ marginTop: '0.5rem' }}>
-                                <div className="form-group-compact inline-label">
-                                  <label>Tamaño <input type="number" name="productDetailHeroBannerSize" min="50" max="300" step="10" value={settings.productDetailHeroBannerSize || 120} onChange={handleChange} className="size-input-mini" />px</label>
-                                </div>
-                                <div className="form-group-compact">
-                                  <label>Pos. Horizontal</label>
-                                  <select name="productDetailHeroBannerPositionX" value={settings.productDetailHeroBannerPositionX || 'right'} onChange={handleChange}>
-                                    <option value="left">Izquierda</option>
-                                    <option value="center">Centro</option>
-                                    <option value="right">Derecha</option>
-                                  </select>
-                                </div>
-                                <div className="form-group-compact">
-                                  <label>Pos. Vertical</label>
-                                  <select name="productDetailHeroBannerPositionY" value={settings.productDetailHeroBannerPositionY || 'center'} onChange={handleChange}>
-                                    <option value="top">Arriba</option>
-                                    <option value="center">Centro</option>
-                                    <option value="bottom">Abajo</option>
-                                  </select>
-                                </div>
-                                <div className="form-group-compact inline-label">
-                                  <label>Opacidad <input type="number" name="productDetailHeroBannerOpacity" min="10" max="100" step="5" value={settings.productDetailHeroBannerOpacity || 100} onChange={handleChange} className="size-input-mini" />%</label>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                          )}
-                        </div>
-                      )}
-
-                      {settings.productDetailUseHomeHero && (
-                        <p className="field-hint" style={{ marginTop: '0.5rem' }}>Se usará la imagen y configuración del Hero del Home.</p>
-                      )}
-                    </>
-                  )}
-                </section>
-              )}
-
               {siteTab === 'payments' && (
                 <div className="payments-main-section">
                   <p className="section-description" style={{ marginBottom: '1rem' }}>
@@ -1673,341 +1495,6 @@ function SettingsManager() {
                     </>
                   )}
                 </section>
-              )}
-
-              {(siteTab === 'promos' || siteTab === 'store') && (
-                <section className="settings-section collapsible">
-                  <button type="button" className="section-toggle" onClick={() => toggleSection('promos')}>
-                    <span>Promociones</span>
-                    <span className="toggle-indicator">{openSections.promos ? '−' : '+'}</span>
-                  </button>
-                  {openSections.promos && (
-                    <>
-                      <div className="form-group checkbox-group">
-                        <label>
-                          <input 
-                            type="checkbox" 
-                            name="showPromotionBanner" 
-                            checked={settings.showPromotionBanner} 
-                            onChange={handleChange} 
-                          />
-                          Mostrar Banner de Promoción
-                        </label>
-                      </div>
-                      <div className="form-group">
-                        <label>Título de la Promoción</label>
-                        <input 
-                          type="text" 
-                          name="promoTitle" 
-                          value={settings.promoTitle} 
-                          onChange={handleChange}
-                          placeholder="¡Oferta Especial del Mes!"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Texto de la Promoción</label>
-                        <textarea 
-                          name="promoText" 
-                          value={settings.promoText} 
-                          onChange={handleChange}
-                          rows="2"
-                          placeholder="Descripción de la oferta o promoción"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Texto del Botón</label>
-                        <input 
-                          type="text" 
-                          name="promoButtonText" 
-                          value={settings.promoButtonText} 
-                          onChange={handleChange}
-                          placeholder="Ver Oferta"
-                        />
-                      </div>
-                      <div className="form-group">
-                        <label>Imagen de Promoción</label>
-                        <input type="file" accept="image/*" onChange={(e) => handleImageUpload(e, 'promoImage')} />
-                        {settings.promoImage && (
-                          <div style={{ marginTop: '8px' }}>
-                            <img src={settings.promoImage} alt="Promo" style={{ maxHeight: 120, borderRadius: 8 }} />
-                            <button 
-                              type="button" 
-                              className="remove-btn" 
-                              style={{ marginLeft: 8 }}
-                              onClick={() => setSettings(prev => ({ ...prev, promoImage: '' }))}
-                            >
-                              ✕ Quitar
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </section>
-              )}
-
-              {(siteTab === 'filters' || siteTab === 'store') && (
-                <div className="filters-main-section">
-                  <p className="section-description" style={{ marginBottom: '1rem' }}>
-                    Administra las categorías del Home y personaliza su estilo.
-                  </p>
-
-                  <div className="form-group checkbox-group" style={{ marginBottom: '1rem' }}>
-                    <label>
-                      <input
-                        type="checkbox"
-                        checked={!!categoryConfig.useDefault}
-                        onChange={(e) => updateCategoryConfig(prev => ({ ...prev, useDefault: e.target.checked }))}
-                      />
-                      Usar configuración predeterminada
-                    </label>
-                    <button type="button" className="settings-secondary-btn" onClick={handleResetCategoryFilters} style={{ marginLeft: '1rem' }}>
-                      Restablecer
-                    </button>
-                  </div>
-
-                  {/* Sección 1: Filtros por Categoría */}
-                  <section className="settings-section collapsible">
-                    <button type="button" className="section-toggle" onClick={() => toggleSection('filterCategories')}>
-                      <span>🧩 Filtros por Categoría</span>
-                      <span className="toggle-indicator">{openSections.filterCategories ? '−' : '+'}</span>
-                    </button>
-                    {openSections.filterCategories && (
-                      <div className="section-content">
-                        <div className="category-settings-list compact">
-                          {categoryConfig.categories?.map((category, index) => {
-                            const isExpanded = expandedCategories[index];
-                            return (
-                              <div key={category.id || `${category.slug}-${index}`} className={`category-settings-card compact ${isExpanded ? 'expanded' : ''}`}>
-                                <div 
-                                  className="category-card-header"
-                                  onClick={() => setExpandedCategories(prev => ({ ...prev, [index]: !prev[index] }))}
-                                >
-                                  <span className="category-preview">
-                                    <span className="category-icon">{category.icon || '📌'}</span>
-                                    <span className="category-name">{category.name || 'Sin nombre'}</span>
-                                    <span className="category-slug">({category.slug})</span>
-                                  </span>
-                                  <span className="category-expand-icon">{isExpanded ? '▲' : '▼'}</span>
-                                </div>
-                                {isExpanded && (
-                                  <div className="category-card-body">
-                                    <div className="settings-grid">
-                                      <div className="form-group">
-                                        <label>Nombre</label>
-                                        <input
-                                          type="text"
-                                          value={category.name || ''}
-                                          onChange={(e) => handleCategoryItemChange(index, 'name', e.target.value)}
-                                          disabled={categoryConfig.useDefault}
-                                        />
-                                      </div>
-                                      <div className="form-group">
-                                        <label>Slug (valor de filtro)</label>
-                                        <input
-                                          type="text"
-                                          value={category.slug || ''}
-                                          onChange={(e) => handleCategoryItemChange(index, 'slug', e.target.value)}
-                                          disabled={categoryConfig.useDefault || category.slug === 'todos'}
-                                        />
-                                      </div>
-                                      <div className="form-group">
-                                        <label>Emoji</label>
-                                        <input
-                                          type="text"
-                                          value={category.icon || ''}
-                                          onChange={(e) => handleCategoryItemChange(index, 'icon', e.target.value)}
-                                          disabled={categoryConfig.useDefault}
-                                        />
-                                      </div>
-                                      <div className="form-group">
-                                        <label>Imagen (URL)</label>
-                                        <input
-                                          type="text"
-                                          value={category.image || ''}
-                                          onChange={(e) => handleCategoryItemChange(index, 'image', e.target.value)}
-                                          disabled={categoryConfig.useDefault}
-                                        />
-                                      </div>
-                                    </div>
-                                    <div className="category-settings-actions">
-                                      <button
-                                        type="button"
-                                        className="settings-danger-btn"
-                                        onClick={() => handleRemoveCategory(index)}
-                                        disabled={categoryConfig.useDefault || category.slug === 'todos'}
-                                      >
-                                        Eliminar
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                        <button
-                          type="button"
-                          className="settings-secondary-btn"
-                          onClick={handleAddCategory}
-                          disabled={categoryConfig.useDefault}
-                          style={{ marginTop: '0.75rem' }}
-                        >
-                          + Agregar categoría
-                        </button>
-                      </div>
-                    )}
-                  </section>
-
-                  {/* Sección 2: Estilos globales */}
-                  <section className="settings-section collapsible" style={{ marginTop: '1rem' }}>
-                    <button type="button" className="section-toggle" onClick={() => toggleSection('filterStyles')}>
-                      <span>🎨 Estilos globales</span>
-                      <span className="toggle-indicator">{openSections.filterStyles ? '−' : '+'}</span>
-                    </button>
-                    {openSections.filterStyles && (
-                      <div className="section-content styles-compact-content">
-                        {/* Dimensiones */}
-                        <details className="style-group">
-                          <summary>📐 Dimensiones</summary>
-                          <div className="style-group-content">
-                            <div className="inline-field">
-                              <label>Ancho</label>
-                              <input type="number" value={categoryConfig.styles?.cardWidth || ''} onChange={(e) => handleCategoryStyleChange('cardWidth', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Alto</label>
-                              <input type="number" value={categoryConfig.styles?.cardHeight || ''} onChange={(e) => handleCategoryStyleChange('cardHeight', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Padding</label>
-                              <input type="number" value={categoryConfig.styles?.cardPadding || ''} onChange={(e) => handleCategoryStyleChange('cardPadding', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Radio</label>
-                              <input type="number" value={categoryConfig.styles?.cardRadius || ''} onChange={(e) => handleCategoryStyleChange('cardRadius', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Colores base */}
-                        <details className="style-group">
-                          <summary>🎨 Colores base</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={categoryConfig.styles?.cardBackground || '#f8fafc'} onChange={(e) => handleCategoryStyleChange('cardBackground', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>Fondo</span>
-                            </div>
-                            <div className="color-field">
-                              <input type="color" value={categoryConfig.styles?.cardBorderColor || '#e2e8f0'} onChange={(e) => handleCategoryStyleChange('cardBorderColor', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>Borde</span>
-                            </div>
-                            <div className="color-field">
-                              <input type="color" value={categoryConfig.styles?.titleColor || '#1f2937'} onChange={(e) => handleCategoryStyleChange('titleColor', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>Texto</span>
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Estado Hover */}
-                        <details className="style-group">
-                          <summary>👆 Estado Hover</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={categoryConfig.styles?.hoverBackground || '#eff6ff'} onChange={(e) => handleCategoryStyleChange('hoverBackground', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>Fondo</span>
-                            </div>
-                            <div className="color-field">
-                              <input type="color" value={categoryConfig.styles?.hoverTitleColor || '#2563eb'} onChange={(e) => handleCategoryStyleChange('hoverTitleColor', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>Texto</span>
-                            </div>
-                            <div className="inline-field small">
-                              <label>Borde</label>
-                              <input type="text" value={categoryConfig.styles?.hoverBorderColor || ''} onChange={(e) => handleCategoryStyleChange('hoverBorderColor', e.target.value)} disabled={categoryConfig.useDefault} placeholder="#color" />
-                            </div>
-                            <div className="inline-field small">
-                              <label>Sombra</label>
-                              <input type="text" value={categoryConfig.styles?.hoverShadow || ''} onChange={(e) => handleCategoryStyleChange('hoverShadow', e.target.value)} disabled={categoryConfig.useDefault} placeholder="0 2px 8px..." />
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Estado Activo */}
-                        <details className="style-group">
-                          <summary>✅ Estado Activo</summary>
-                          <div className="style-group-content colors-row">
-                            <div className="color-field">
-                              <input type="color" value={categoryConfig.styles?.activeTitleColor || '#ffffff'} onChange={(e) => handleCategoryStyleChange('activeTitleColor', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>Texto</span>
-                            </div>
-                            <div className="inline-field small">
-                              <label>Fondo</label>
-                              <input type="text" value={categoryConfig.styles?.activeBackground || ''} onChange={(e) => handleCategoryStyleChange('activeBackground', e.target.value)} disabled={categoryConfig.useDefault} placeholder="gradient o #color" />
-                            </div>
-                            <div className="inline-field small">
-                              <label>Borde</label>
-                              <input type="text" value={categoryConfig.styles?.activeBorderColor || ''} onChange={(e) => handleCategoryStyleChange('activeBorderColor', e.target.value)} disabled={categoryConfig.useDefault} placeholder="#color" />
-                            </div>
-                            <div className="inline-field small">
-                              <label>Sombra</label>
-                              <input type="text" value={categoryConfig.styles?.activeShadow || ''} onChange={(e) => handleCategoryStyleChange('activeShadow', e.target.value)} disabled={categoryConfig.useDefault} placeholder="0 2px 8px..." />
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Tipografía */}
-                        <details className="style-group">
-                          <summary>✏️ Tipografía</summary>
-                          <div className="style-group-content">
-                            <div className="inline-field">
-                              <label>Tamaño</label>
-                              <input type="number" value={categoryConfig.styles?.titleSize || ''} onChange={(e) => handleCategoryStyleChange('titleSize', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Grosor</label>
-                              <input type="number" value={categoryConfig.styles?.titleWeight || ''} onChange={(e) => handleCategoryStyleChange('titleWeight', e.target.value)} disabled={categoryConfig.useDefault} placeholder="600" />
-                            </div>
-                            <div className="inline-field">
-                              <label>Espaciado</label>
-                              <input type="number" value={categoryConfig.styles?.titleLetterSpacing || ''} onChange={(e) => handleCategoryStyleChange('titleLetterSpacing', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field">
-                              <label>Transformar</label>
-                              <select value={categoryConfig.styles?.titleTransform || ''} onChange={(e) => handleCategoryStyleChange('titleTransform', e.target.value)} disabled={categoryConfig.useDefault}>
-                                <option value="">Normal</option>
-                                <option value="uppercase">MAYÚSCULAS</option>
-                                <option value="capitalize">Capitalizar</option>
-                                <option value="lowercase">minúsculas</option>
-                              </select>
-                            </div>
-                          </div>
-                        </details>
-
-                        {/* Icono y Sombra */}
-                        <details className="style-group">
-                          <summary>🔧 Otros</summary>
-                          <div className="style-group-content">
-                            <div className="inline-field">
-                              <label>Tamaño icono</label>
-                              <input type="number" value={categoryConfig.styles?.iconSize || ''} onChange={(e) => handleCategoryStyleChange('iconSize', e.target.value)} disabled={categoryConfig.useDefault} />
-                              <span>px</span>
-                            </div>
-                            <div className="inline-field wide">
-                              <label>Sombra base</label>
-                              <input type="text" value={categoryConfig.styles?.cardShadow || ''} onChange={(e) => handleCategoryStyleChange('cardShadow', e.target.value)} disabled={categoryConfig.useDefault} placeholder="0 1px 3px rgba(0,0,0,0.1)" />
-                            </div>
-                          </div>
-                        </details>
-                      </div>
-                    )}
-                  </section>
-                </div>
               )}
 
               {siteTab === 'email' && (

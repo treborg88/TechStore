@@ -41,6 +41,9 @@ function AppRoutes({
   promoSettings,
   landingPageConfig,
   storeModuleConfig,
+  searchBarConfig,
+  whyChooseUsConfig,
+  newsletterConfig,
   // Navegación
   navigate
 }) {
@@ -104,6 +107,9 @@ function AppRoutes({
               categoryFilterSettings={categoryFilterSettings}
               productCardSettings={productCardSettings}
               promoSettings={promoSettings}
+              searchBarConfig={searchBarConfig}
+              whyChooseUsConfig={whyChooseUsConfig}
+              newsletterConfig={newsletterConfig}
             />
           ) : (
             <Navigate to="/contacto" replace />
@@ -124,6 +130,9 @@ function AppRoutes({
               categoryFilterSettings={categoryFilterSettings}
               productCardSettings={productCardSettings}
               promoSettings={promoSettings}
+              searchBarConfig={searchBarConfig}
+              whyChooseUsConfig={whyChooseUsConfig}
+              newsletterConfig={newsletterConfig}
             />
           ) : (
             <Navigate to="/" replace />

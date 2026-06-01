@@ -18,7 +18,7 @@ const PUBLIC_SETTINGS = [
     'headerTextColor', 'headerButtonColor', 'headerButtonTextColor',
     'heroBannerImage', 'heroBannerSize', 'heroBannerPositionX', 'heroBannerPositionY', 'heroBannerOpacity',
     // Promo banner
-    'showPromotionBanner', 'promoTitle', 'promoText', 'promoButtonText', 'promoImage',
+    'showPromotionBanner', 'promoTitle', 'promoText', 'promoButtonText', 'promoImage', 'promoProductId',
     'headerBgColor', 'headerTransparency',
     'primaryColor', 'secondaryColor', 'accentColor', 'backgroundColor', 'textColor', 'fontFamily',
     'productDetailHeroImage', 'productDetailUseHomeHero', 'productDetailHeroHeight', 'productDetailHeroOverlayOpacity',
@@ -48,6 +48,14 @@ const PUBLIC_SETTINGS = [
     'navigationConfig',
     // Store module control
     'storeModuleConfig',
+    // Search bar control
+    'searchBarConfig',
+    // Why choose us section control
+    'whyChooseUsConfig',
+    // Newsletter section control
+    'newsletterConfig',
+    // Footer section control
+    'footerConfig',
     // Invoice PDF customization
     'invoicePdfConfig',
     // SEO configuration
@@ -103,6 +111,42 @@ router.get('/public', async (req, res) => {
                 await statements.updateSetting('navigationConfig', settingsObj.navigationConfig);
             } catch (healError) {
                 console.warn('⚠️ No se pudo auto-crear navigationConfig:', healError.message);
+            }
+        }
+
+        if (settingsObj.searchBarConfig === undefined) {
+            settingsObj.searchBarConfig = '{"enabled":true}';
+            try {
+                await statements.updateSetting('searchBarConfig', settingsObj.searchBarConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear searchBarConfig:', healError.message);
+            }
+        }
+
+        if (settingsObj.whyChooseUsConfig === undefined) {
+            settingsObj.whyChooseUsConfig = '{"enabled":true,"sectionTitle":"¿Por Qué Elegirnos?","items":[{"icon":"🚚","title":"Envío Gratis","text":"En todos tus pedidos superiores a $50"},{"icon":"⚡","title":"Garantía Extendida","text":"12 meses adicionales en todos nuestros productos"},{"icon":"🔒","title":"Pago Seguro","text":"Todas las transacciones son 100% seguras"}]}';
+            try {
+                await statements.updateSetting('whyChooseUsConfig', settingsObj.whyChooseUsConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear whyChooseUsConfig:', healError.message);
+            }
+        }
+
+        if (settingsObj.newsletterConfig === undefined) {
+            settingsObj.newsletterConfig = '{"enabled":false,"title":"Únete a Nuestra Newsletter","text":"Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.","placeholder":"Tu correo electrónico","buttonText":"Suscribirse"}';
+            try {
+                await statements.updateSetting('newsletterConfig', settingsObj.newsletterConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear newsletterConfig:', healError.message);
+            }
+        }
+
+        if (settingsObj.footerConfig === undefined) {
+            settingsObj.footerConfig = '{"brandMessage":"Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.","quickLinksTitle":"Enlaces Rápidos","quickLinks":[{"label":"Inicio","href":"/","enabled":true},{"label":"Productos","href":"/tienda","enabled":true},{"label":"Ofertas","href":"/tienda?promo=1","enabled":true},{"label":"Sobre Nosotros","href":"/contacto","enabled":true}],"supportTitle":"Atención al Cliente","supportLinks":[{"label":"Contáctanos","href":"/contacto","enabled":true},{"label":"Devoluciones","href":"/contacto","enabled":true},{"label":"Preguntas Frecuentes","href":"/contacto","enabled":true},{"label":"Estado del Pedido","href":"/orders","enabled":true}],"socialTitle":"Síguenos","socialLinks":[{"icon":"📘","href":"","enabled":true},{"icon":"📱","href":"","enabled":true},{"icon":"📷","href":"","enabled":true},{"icon":"🐦","href":"","enabled":true}],"copyrightText":"© 2026 Eonsclover. Todos los derechos reservados."}';
+            try {
+                await statements.updateSetting('footerConfig', settingsObj.footerConfig);
+            } catch (healError) {
+                console.warn('⚠️ No se pudo auto-crear footerConfig:', healError.message);
             }
         }
         

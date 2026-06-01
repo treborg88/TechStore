@@ -4,14 +4,21 @@ import { useSeo } from '../hooks/useSeo';
 import ProductImageGallery from '../components/products/ProductImageGallery';
 import LoadingSpinner from '../components/common/LoadingSpinner';
 import Footer from '../components/common/Footer';
+import { apiFetch, apiUrl } from '../services/apiClient';
 import { DEFAULT_CATEGORY_FILTERS_CONFIG, DEFAULT_PRODUCT_CARD_CONFIG } from '../config';
 import { formatCurrency } from '../utils/formatCurrency';
+import { resolveImageUrl } from '../utils/resolveImageUrl';
 import { stripHtml } from '../utils/stripHtml';
+import { toast } from 'react-hot-toast';
 
 const HERO_IMAGE_CACHE_KEY = 'hero_image_cache';
 const HERO_IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 
-function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings, promoSettings }) {
+// Pixel sizes for the 10 steps of the images-style card size stepper (step 5 = 90px default)
+const IMG_SIZE_STEPS = [40, 54, 68, 80, 90, 110, 134, 162, 196, 234];
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings, promoSettings, searchBarConfig, whyChooseUsConfig, newsletterConfig }) {
   // SEO dinámico para la página principal
   useSeo('home');
   const [selectedCategory, setSelectedCategory] = useState('todos');
@@ -38,6 +45,110 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const navigate = useNavigate();
 
   const [localHeroImage, setLocalHeroImage] = useState(null);
+  const [promoProductDetails, setPromoProductDetails] = useState(null);
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [newsletterSubmitting, setNewsletterSubmitting] = useState(false);
+
+  const defaultWhyChooseUs = useMemo(() => ({
+    enabled: true,
+    sectionTitle: '¿Por Qué Elegirnos?',
+    items: [
+      { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+      { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+      { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+    ]
+  }), []);
+
+  const whyChooseUs = useMemo(() => {
+    const source = whyChooseUsConfig || {};
+    return {
+      enabled: source.enabled !== false,
+      sectionTitle: source.sectionTitle || defaultWhyChooseUs.sectionTitle,
+      items: Array.isArray(source.items) && source.items.length > 0 ? source.items : defaultWhyChooseUs.items
+    };
+  }, [whyChooseUsConfig, defaultWhyChooseUs]);
+
+  const defaultNewsletter = useMemo(() => ({
+    enabled: false,
+    title: 'Únete a Nuestra Newsletter',
+    text: 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+    placeholder: 'Tu correo electrónico',
+    buttonText: 'Suscribirse'
+  }), []);
+
+  const newsletter = useMemo(() => {
+    const source = newsletterConfig || {};
+    return {
+      enabled: source.enabled === true,
+      title: source.title || defaultNewsletter.title,
+      text: source.text || defaultNewsletter.text,
+      placeholder: source.placeholder || defaultNewsletter.placeholder,
+      buttonText: source.buttonText || defaultNewsletter.buttonText
+    };
+  }, [newsletterConfig, defaultNewsletter]);
+
+  const handleNewsletterSubmit = async (e) => {
+    e.preventDefault();
+
+    const email = String(newsletterEmail || '').toLowerCase().trim();
+    if (!EMAIL_REGEX.test(email)) {
+      toast.error('Ingresa un email válido para suscribirte.');
+      return;
+    }
+
+    setNewsletterSubmitting(true);
+    try {
+      const response = await apiFetch(apiUrl('/newsletter/subscribe'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        toast.error(data.message || 'No se pudo registrar la suscripción.');
+        return;
+      }
+
+      setNewsletterEmail('');
+      toast.success('Gracias por unirte a nuestra newsletter.');
+    } catch {
+      toast.error('No se pudo registrar la suscripción.');
+    } finally {
+      setNewsletterSubmitting(false);
+    }
+  };
+
+  const selectedPromoProductId = String(promoSettings?.promoProductId || '').trim();
+  const selectedPromoProductFromList = useMemo(() => {
+    if (!selectedPromoProductId) return null;
+    return (products || []).find((product) => String(product.id) === selectedPromoProductId) || null;
+  }, [products, selectedPromoProductId]);
+
+  const selectedPromoProduct = selectedPromoProductFromList || promoProductDetails;
+
+  useEffect(() => {
+    const fetchPromoProduct = async () => {
+      if (!selectedPromoProductId || selectedPromoProductFromList) {
+        setPromoProductDetails(null);
+        return;
+      }
+
+      try {
+        const response = await apiFetch(apiUrl(`/products/${selectedPromoProductId}`));
+        if (response.ok) {
+          const data = await response.json();
+          setPromoProductDetails(data || null);
+        } else {
+          setPromoProductDetails(null);
+        }
+      } catch {
+        setPromoProductDetails(null);
+      }
+    };
+
+    fetchPromoProduct();
+  }, [selectedPromoProductId, selectedPromoProductFromList]);
 
   // Efecto para pre-cargar la imagen del Hero y guardarla localmente
   useEffect(() => {
@@ -150,6 +261,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     };
   }, [categoryFilterSettings]);
 
+  const filterStyle = categoryConfig.filterStyle || 'cards';
+
   const categories = useMemo(() => {
     const list = Array.isArray(categoryConfig.categories) ? categoryConfig.categories : [];
     const hasTodos = list.some((item) => item?.slug === 'todos');
@@ -160,6 +273,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const categoryStyleVars = useMemo(() => {
     if (categoryConfig.useDefault) return {};
     const styles = categoryConfig.styles || {};
+    const imgSizePx = (IMG_SIZE_STEPS[(categoryConfig.filterImageSize ?? 5) - 1] ?? 90) + 'px';
     return {
       '--category-card-width': toCssUnit(styles.cardWidth),
       '--category-card-height': toCssUnit(styles.cardHeight),
@@ -181,7 +295,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       '--category-title-weight': styles.titleWeight || undefined,
       '--category-title-transform': styles.titleTransform || undefined,
       '--category-title-letter-spacing': toCssUnit(styles.titleLetterSpacing, 'px'),
-      '--category-icon-size': toCssUnit(styles.iconSize, 'px')
+      '--category-icon-size': toCssUnit(styles.iconSize, 'px'),
+      '--filter-img-size': imgSizePx
     };
   }, [categoryConfig, toCssUnit]);
 
@@ -487,7 +602,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       </section>
       
       {/* Categories */}
-      <section className="categories-section" style={categoryStyleVars}>
+      {filterStyle !== 'none' && (
+      <section className={`categories-section filter-style-${filterStyle}`} style={categoryStyleVars}>
         <div className="container">
           <h2 className="section-title">Explora Nuestras Categorías</h2>
           <div className="categories-scroll-container">
@@ -505,13 +621,22 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                   className={`category-card ${selectedCategory === category.slug ? 'active' : ''}`}
                   onClick={() => handleCategoryChangeWithClear(category.slug)}
                 >
-                  <div className="category-icon">
-                    {category.image ? (
-                      <img src={category.image} alt={category.name} className="category-icon-image" />
-                    ) : (
-                      category.icon
-                    )}
-                  </div>
+                  {filterStyle === 'images' && category.image ? (
+                    <>
+                      {/* Blurry fill behind the contained image */}
+                      <img src={category.image} className="cat-img-blur-bg" aria-hidden="true" alt="" />
+                      {/* Main image, contained (no crop) */}
+                      <img src={category.image} className="cat-img-main" alt="" />
+                    </>
+                  ) : (
+                    <div className="category-icon">
+                      {category.image ? (
+                        <img src={category.image} alt={category.name} className="category-icon-image" />
+                      ) : (
+                        category.icon
+                      )}
+                    </div>
+                  )}
                   <h3 className="category-title">{category.name}</h3>
                 </button>
               ))}
@@ -519,8 +644,10 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
           </div>
         </div>
       </section>
+      )}
 
       {/* Search Bar with integrated Sort */}
+      {searchBarConfig?.enabled !== false && (
       <section className="search-section">
         <div className="container">
           <div className="search-bar-wrapper">
@@ -575,6 +702,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
           )}
         </div>
       </section>
+      )}
       
       {/* Featured Products */}
       <section className="products-section" style={productCardStyleVars}>
@@ -663,15 +791,32 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
           <div className="container promo-container">
             <div className="promo-content">
               <h2 className="promo-title">{promoSettings?.promoTitle || '¡Oferta Especial del Mes!'}</h2>
-              <p className="promo-text">
-                {promoSettings?.promoText || 'Obtén un 20% de descuento en todos nuestros smartphones cuando compras cualquier accesorio.'}
-              </p>
-              <button className="promo-button">{promoSettings?.promoButtonText || 'Ver Oferta'}</button>
+              <div
+                className="promo-text"
+                dangerouslySetInnerHTML={{
+                  __html: promoSettings?.promoText || 'Obtén un 20% de descuento en todos nuestros smartphones cuando compras cualquier accesorio.'
+                }}
+              />
+              <button
+                className="promo-button"
+                onClick={() => {
+                  if (selectedPromoProductId) {
+                    navigate(`/product/${selectedPromoProductId}`);
+                    return;
+                  }
+                  navigate('/tienda');
+                }}
+              >
+                {promoSettings?.promoButtonText || 'Ver Oferta'}
+              </button>
             </div>
-            {/* Imagen de promo: usa la configurada o un fallback */}
-            {promoSettings?.promoImage && (
+            {/* Imagen de promo: usa el producto seleccionado */}
+            {(selectedPromoProduct?.images?.[0]?.image_url || selectedPromoProduct?.image) && (
               <div className="promo-image">
-                <img src={promoSettings.promoImage} alt="Promoción especial" />
+                <img
+                  src={resolveImageUrl(selectedPromoProduct?.images?.[0]?.image_url || selectedPromoProduct?.image)}
+                  alt={selectedPromoProduct?.name || 'Promoción especial'}
+                />
               </div>
             )}
           </div>
@@ -679,46 +824,45 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
       )}
       
       {/* Features */}
-      <section className="features-section">
-        <div className="container">
-          <h2 className="section-title">¿Por Qué Elegirnos?</h2>
-          <div className="features-grid">
-            <div className="feature-card">
-              <div className="feature-icon">🚚</div>
-              <h3 className="feature-title">Envío Gratis</h3>
-              <p className="feature-text">En todos tus pedidos superiores a $50</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">⚡</div>
-              <h3 className="feature-title">Garantía Extendida</h3>
-              <p className="feature-text">12 meses adicionales en todos nuestros productos</p>
-            </div>
-            <div className="feature-card">
-              <div className="feature-icon">🔒</div>
-              <h3 className="feature-title">Pago Seguro</h3>
-              <p className="feature-text">Todas las transacciones son 100% seguras</p>
+      {whyChooseUs.enabled && (
+        <section className="features-section">
+          <div className="container">
+            <h2 className="section-title">{whyChooseUs.sectionTitle}</h2>
+            <div className="features-grid">
+              {whyChooseUs.items.map((item, index) => (
+                <div className="feature-card" key={`feature-${index}`}>
+                  <div className="feature-icon">{item.icon || '⭐'}</div>
+                  <h3 className="feature-title">{item.title || 'Beneficio'}</h3>
+                  <p className="feature-text">{item.text || ''}</p>
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
       
       {/* Newsletter */}
-      <section className="newsletter-section">
-        <div className="container">
-          <h2 className="newsletter-title">Únete a Nuestra Newsletter</h2>
-          <p className="newsletter-text">
-            Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.
-          </p>
-          <div className="newsletter-form">
-            <input
-              type="email"
-              placeholder="Tu correo electrónico"
-              className="newsletter-input"
-            />
-            <button className="newsletter-button">Suscribirse</button>
+      {newsletter.enabled && (
+        <section className="newsletter-section">
+          <div className="container">
+            <h2 className="newsletter-title">{newsletter.title}</h2>
+            <p className="newsletter-text">{newsletter.text}</p>
+            <form className="newsletter-form" onSubmit={handleNewsletterSubmit}>
+              <input
+                type="email"
+                placeholder={newsletter.placeholder}
+                className="newsletter-input"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                required
+              />
+              <button className="newsletter-button" type="submit" disabled={newsletterSubmitting}>
+                {newsletterSubmitting ? 'Enviando...' : newsletter.buttonText}
+              </button>
+            </form>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }

@@ -3,6 +3,8 @@ import { apiFetch, apiUrl } from '../../services/apiClient';
 import { resolveImageUrl } from '../../utils/resolveImageUrl';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { COLOR_PALETTES, FONT_OPTIONS } from '../../utils/colorPalettes';
+import { DEFAULT_CATEGORY_FILTERS_CONFIG } from '../../config';
+import RichTextEditor from '../common/RichTextEditor';
 import './SiteCustomizer.css';
 
 // Layout presets inspired by major e-commerce platform patterns.
@@ -112,6 +114,65 @@ const LAYOUT_OPTIONS = [
   }
 ];
 
+// Filter style options for the category filter strip.
+const FILTER_STYLES = [
+  { id: 'cards',   label: 'Tarjetas',   desc: 'Icono + nombre en tile' },
+  { id: 'pills',   label: 'Pastillas',  desc: 'Chip compacto' },
+  { id: 'tabs',    label: 'Pestaña',    desc: 'Texto con subrayado activo' },
+  { id: 'bubbles', label: 'Burbujas',   desc: 'Icono + texto' },
+  { id: 'images',  label: 'Imágenes',   desc: 'Tarjeta con imagen de fondo' },
+  { id: 'none',    label: 'Sin filtro', desc: 'Ocultar categorías' },
+];
+
+// Card size steps for 'images' filter style (px). Step 5 is the default.
+const IMG_SIZE_STEPS = [40, 54, 68, 80, 90, 110, 134, 162, 196, 234];
+
+const PRODUCT_CURRENCY_OPTIONS = [
+  { code: 'DOP', label: 'DOP (RD$)' },
+  { code: 'USD', label: 'USD (USD$)' },
+  { code: 'EUR', label: 'EUR (€)' }
+];
+
+const DEFAULT_WHY_CHOOSE_US_ITEMS = [
+  { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+  { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+  { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+];
+
+const DEFAULT_NEWSLETTER_CONFIG = {
+  enabled: false,
+  title: 'Únete a Nuestra Newsletter',
+  text: 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+  placeholder: 'Tu correo electrónico',
+  buttonText: 'Suscribirse'
+};
+
+const DEFAULT_FOOTER_CONFIG = {
+  brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+  quickLinksTitle: 'Enlaces Rápidos',
+  quickLinks: [
+    { label: 'Inicio', href: '/', enabled: true },
+    { label: 'Productos', href: '/tienda', enabled: true },
+    { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+    { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+  ],
+  supportTitle: 'Atención al Cliente',
+  supportLinks: [
+    { label: 'Contáctanos', href: '/contacto', enabled: true },
+    { label: 'Devoluciones', href: '/contacto', enabled: true },
+    { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+    { label: 'Estado del Pedido', href: '/orders', enabled: true }
+  ],
+  socialTitle: 'Síguenos',
+  socialLinks: [
+    { icon: '📘', href: '', enabled: true },
+    { icon: '📱', href: '', enabled: true },
+    { icon: '📷', href: '', enabled: true },
+    { icon: '🐦', href: '', enabled: true }
+  ],
+  copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+};
+
 // Derive active layout from current productCardConfig. Match by columnsDesktop + orientation.
 function getActiveLayout(settings) {
   const cardCfg = settings.productCardConfig || {};
@@ -148,6 +209,9 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
   const [unsaved, setUnsaved] = useState(false);
   const [ftOpen, setFtOpen] = useState(false);
   const [stylesOpen, setStylesOpen] = useState(false);
+  const [catMoreOpen, setCatMoreOpen] = useState(false);
+  const [emojiEditIdx, setEmojiEditIdx] = useState(null);
+  const emojiPopRef = useRef(null);
   const [logoPreview, setLogoPreview] = useState(null);
   const [nameImgPreview, setNameImgPreview] = useState(null);
 
@@ -155,10 +219,10 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await apiFetch(apiUrl('/products?limit=6&page=1'));
+        const res = await apiFetch(apiUrl('/products?limit=100&page=1'));
         if (res.ok) {
           const data = await res.json();
-          setProducts(Array.isArray(data.data) ? data.data.slice(0, 6) : []);
+          setProducts(Array.isArray(data.data) ? data.data : []);
         }
       } catch {
         // silently fail — preview works with placeholder cards
@@ -252,6 +316,108 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
         id: i + 1, name: `Producto ${i + 1}`, price: 1200 * (i + 1), category: 'General'
       }));
 
+  const selectedPromoProduct = (() => {
+    const selectedId = String(settings.promoProductId || '').trim();
+    if (!selectedId) return null;
+    return products.find((p) => String(p.id) === selectedId) || null;
+  })();
+
+  const promoPreviewImage = selectedPromoProduct?.images?.[0]?.image_url
+    || selectedPromoProduct?.image
+    || '';
+
+  const whyChooseUsConfig = settings.whyChooseUsConfig || {
+    enabled: true,
+    sectionTitle: '¿Por Qué Elegirnos?',
+    items: DEFAULT_WHY_CHOOSE_US_ITEMS
+  };
+  const whyChooseUsItems = Array.isArray(whyChooseUsConfig.items) && whyChooseUsConfig.items.length > 0
+    ? whyChooseUsConfig.items
+    : DEFAULT_WHY_CHOOSE_US_ITEMS;
+
+  const setWhyChooseUsConfig = (nextConfig) => {
+    markAndBulk({
+      whyChooseUsConfig: {
+        enabled: true,
+        sectionTitle: '¿Por Qué Elegirnos?',
+        items: DEFAULT_WHY_CHOOSE_US_ITEMS,
+        ...whyChooseUsConfig,
+        ...nextConfig
+      }
+    });
+  };
+
+  const setWhyChooseUsItem = (index, field, value) => {
+    const nextItems = whyChooseUsItems.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [field]: value } : item
+    ));
+    setWhyChooseUsConfig({ items: nextItems });
+  };
+
+  const addWhyChooseUsItem = () => {
+    setWhyChooseUsConfig({
+      items: [...whyChooseUsItems, { icon: '⭐', title: 'Nuevo beneficio', text: 'Describe tu propuesta de valor.' }]
+    });
+  };
+
+  const removeWhyChooseUsItem = (index) => {
+    const nextItems = whyChooseUsItems.filter((_, itemIndex) => itemIndex !== index);
+    setWhyChooseUsConfig({ items: nextItems.length > 0 ? nextItems : DEFAULT_WHY_CHOOSE_US_ITEMS });
+  };
+
+  const newsletterConfig = {
+    ...DEFAULT_NEWSLETTER_CONFIG,
+    ...(settings.newsletterConfig || {})
+  };
+
+  const setNewsletterConfig = (nextConfig) => {
+    markAndBulk({
+      newsletterConfig: {
+        ...DEFAULT_NEWSLETTER_CONFIG,
+        ...newsletterConfig,
+        ...nextConfig
+      }
+    });
+  };
+
+  const footerConfig = {
+    ...DEFAULT_FOOTER_CONFIG,
+    ...(settings.footerConfig || {}),
+    quickLinks: Array.isArray(settings.footerConfig?.quickLinks) && settings.footerConfig.quickLinks.length > 0
+      ? settings.footerConfig.quickLinks
+      : DEFAULT_FOOTER_CONFIG.quickLinks,
+    supportLinks: Array.isArray(settings.footerConfig?.supportLinks) && settings.footerConfig.supportLinks.length > 0
+      ? settings.footerConfig.supportLinks
+      : DEFAULT_FOOTER_CONFIG.supportLinks,
+    socialLinks: Array.isArray(settings.footerConfig?.socialLinks) && settings.footerConfig.socialLinks.length > 0
+      ? settings.footerConfig.socialLinks
+      : DEFAULT_FOOTER_CONFIG.socialLinks
+  };
+
+  const setFooterConfig = (nextConfig) => {
+    markAndBulk({
+      footerConfig: {
+        ...footerConfig,
+        ...nextConfig
+      }
+    });
+  };
+
+  const setFooterLinkItem = (group, index, field, value) => {
+    const list = group === 'quickLinks' ? footerConfig.quickLinks : footerConfig.supportLinks;
+    const nextList = list.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [field]: value } : item
+    ));
+    setFooterConfig({ [group]: nextList });
+  };
+
+  const setFooterSocialItem = (index, field, value) => {
+    const nextList = footerConfig.socialLinks.map((item, itemIndex) => (
+      itemIndex === index ? { ...item, [field]: value } : item
+    ));
+    setFooterConfig({ socialLinks: nextList });
+  };
+
   // Fine-tune values — extracted from settings for the ajuste_fino panel and preview
   const ft = {
     columns:       cardCfg.layout?.columnsDesktop ?? 4,
@@ -291,6 +457,56 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
   const removeCatItem = (idx) => {
     markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: catList.filter((_, i) => i !== idx) } });
   };
+
+  const filterStyle = catCfg.filterStyle || 'cards';
+  const setCatFilterStyle = (val) => markAndBulk({
+    categoryFiltersConfig: { ...catCfg, useDefault: false, filterStyle: val }
+  });
+
+  const filterImageSize = catCfg.filterImageSize ?? 5;
+  const setFilterImageSize = (val) => markAndBulk({
+    categoryFiltersConfig: { ...catCfg, useDefault: false, filterImageSize: Math.min(10, Math.max(1, val)) }
+  });
+
+  // Reset to fully defaults: style, size, and restore original default categories
+  const resetFilterDefaults = () => markAndBulk({
+    categoryFiltersConfig: {
+      ...catCfg,
+      filterStyle: 'cards',
+      filterImageSize: 5,
+      styles: {},
+      useDefault: false,
+      categories: DEFAULT_CATEGORY_FILTERS_CONFIG.categories
+    }
+  });
+
+  // Upload an image for a specific category and store the URL in category.image
+  const uploadCatImage = async (idx, file) => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const res = await apiFetch(apiUrl('/settings/upload'), { method: 'POST', body: formData });
+      if (res.ok) {
+        const { url } = await res.json();
+        setCatItem(idx, 'image', url);
+      }
+    } catch (err) {
+      console.error('Cat image upload error', err);
+    }
+  };
+
+  // Close emoji popover on outside click
+  useEffect(() => {
+    if (emojiEditIdx === null) return;
+    const handler = (e) => {
+      if (emojiPopRef.current && !emojiPopRef.current.contains(e.target)) {
+        setEmojiEditIdx(null);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [emojiEditIdx]);
 
   const setFt = (key, val) => {
     const cardStyleKeys = ['cardPadding', 'cardImgHeight', 'cardGap', 'gridPadding'];
@@ -345,7 +561,13 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
     { id: 'layout', icon: '⊞', label: 'Layout' },
     { id: 'identity', icon: '🏷️', label: 'Identidad' },
     { id: 'hero', icon: '🖼️', label: 'Hero' },
-    { id: 'filtros', icon: '🧩', label: 'Filtros' }
+    { id: 'filtros', icon: '🧩', label: 'Filtros' },
+    { id: 'busqueda', icon: '🔍', label: 'Búsqueda' },
+    { id: 'promociones', icon: '🏷️', label: 'Promos' },
+    { id: 'detalle-producto', icon: '📦', label: 'Pro.detalles' },
+    { id: 'por-que-elegirnos', icon: '✨', label: '¿Por Qué Elegirnos?' },
+    { id: 'newsletter', icon: '✉️', label: 'Newsletter' },
+    { id: 'footer', icon: '🦶', label: 'Footer' }
   ];
 
   return (
@@ -767,134 +989,570 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
           </div>
         )}
 
+        {/* ── BÚSQUEDA panel ── */}
+        {activePanel === 'busqueda' && (
+          <div className="sc-panel sc-panel--home">
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Barra de Búsqueda</p>
+              <label className="sc-home-toggle-row">
+                <div className="sc-home-toggle-info">
+                  <span className="sc-home-toggle-title">Mostrar barra de búsqueda</span>
+                  <span className="sc-home-toggle-desc">Permite a los usuarios buscar productos por nombre o descripción en el Home.</span>
+                </div>
+                <div className={`sc-home-toggle${settings.searchBarConfig?.enabled !== false ? ' on' : ''}`}
+                  role="switch"
+                  aria-checked={settings.searchBarConfig?.enabled !== false}
+                  onClick={() => markAndBulk({
+                    searchBarConfig: { ...(settings.searchBarConfig || {}), enabled: !(settings.searchBarConfig?.enabled !== false) }
+                  })}>
+                  <div className="sc-home-toggle-thumb" />
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* ── PROMOCIONES panel ── */}
+        {activePanel === 'promociones' && (
+          <div className="sc-panel sc-panel--home">
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Promociones</p>
+
+              <label className="sc-home-toggle-row">
+                <div className="sc-home-toggle-info">
+                  <span className="sc-home-toggle-title">Mostrar banner de promoción</span>
+                  <span className="sc-home-toggle-desc">Activa o desactiva el bloque promocional que aparece en la página principal.</span>
+                </div>
+                <div className={`sc-home-toggle${settings.showPromotionBanner ? ' on' : ''}`}
+                  role="switch"
+                  aria-checked={!!settings.showPromotionBanner}
+                  onClick={() => markAndChange('showPromotionBanner', !settings.showPromotionBanner)}>
+                  <div className="sc-home-toggle-thumb" />
+                </div>
+              </label>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título de la promoción</label>
+                <input type="text" className="sc-home-input"
+                  value={settings.promoTitle || ''}
+                  onChange={e => markAndChange('promoTitle', e.target.value)}
+                  placeholder="¡Oferta Especial del Mes!" />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Texto de la promoción</label>
+                <RichTextEditor
+                  value={settings.promoText || ''}
+                  onChange={(html) => markAndChange('promoText', html)}
+                  placeholder="Escribe un mensaje de marketing con formato..."
+                  minHeight={120}
+                  helpText="Puedes usar negrita, listas y subtítulos para destacar beneficios y urgencia."
+                />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Texto del botón</label>
+                <input type="text" className="sc-home-input"
+                  value={settings.promoButtonText || ''}
+                  onChange={e => markAndChange('promoButtonText', e.target.value)}
+                  placeholder="Ver Oferta" />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Producto promocionado</label>
+                <select
+                  className="sc-home-input"
+                  value={settings.promoProductId || ''}
+                  onChange={(e) => markAndChange('promoProductId', e.target.value)}
+                >
+                  <option value="">Selecciona un producto...</option>
+                  {products.map((product) => (
+                    <option key={product.id} value={String(product.id)}>
+                      {product.name}
+                    </option>
+                  ))}
+                </select>
+                {selectedPromoProduct && (
+                  <div className="sc-promo-picked">
+                    <span className="sc-promo-picked-label">Seleccionado:</span>
+                    <span className="sc-promo-picked-name">{selectedPromoProduct.name}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── DETALLE DE PRODUCTO panel ── */}
+        {activePanel === 'detalle-producto' && (
+          <div className="sc-panel sc-panel--home">
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Detalle de Producto</p>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Moneda de productos</label>
+                <select
+                  className="sc-home-input"
+                  value={settings.productCardConfig?.currency || 'DOP'}
+                  onChange={(e) => markAndBulk({
+                    productCardConfig: {
+                      ...(settings.productCardConfig || {}),
+                      currency: e.target.value
+                    }
+                  })}
+                >
+                  {PRODUCT_CURRENCY_OPTIONS.map((currencyOption) => (
+                    <option key={currencyOption.code} value={currencyOption.code}>{currencyOption.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <label className="sc-home-toggle-row">
+                <div className="sc-home-toggle-info">
+                  <span className="sc-home-toggle-title">Usar mismo Hero del Home</span>
+                  <span className="sc-home-toggle-desc">El detalle del producto reutiliza el Hero principal cuando esta opción está activa.</span>
+                </div>
+                <div className={`sc-home-toggle${(settings.productDetailUseHomeHero ?? true) ? ' on' : ''}`}
+                  role="switch"
+                  aria-checked={settings.productDetailUseHomeHero ?? true}
+                  onClick={() => markAndChange('productDetailUseHomeHero', !(settings.productDetailUseHomeHero ?? true))}>
+                  <div className="sc-home-toggle-thumb" />
+                </div>
+              </label>
+
+              {!(settings.productDetailUseHomeHero ?? true) && (
+                <>
+                  <div className="sc-home-field-full">
+                    <span className="sc-home-label">Imagen del Hero</span>
+                    {onImageUpload && (
+                      <label className="sc-home-upload-btn">
+                        📁 Subir imagen
+                        <input type="file" accept="image/*" className="sc-hidden-file"
+                          onChange={e => onImageUpload(e, 'productDetailHeroImage')} />
+                      </label>
+                    )}
+                    {settings.productDetailHeroImage && (
+                      <div className="sc-home-img-preview">
+                        <img src={settings.productDetailHeroImage} alt="Hero detalle" />
+                        <button type="button" className="sc-home-img-del"
+                          onClick={() => markAndChange('productDetailHeroImage', '')}>✕</button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="sc-hero-steppers">
+                    <Stepper label="Altura" value={parseInt(settings.productDetailHeroHeight) || 200} min={100} max={400} step={20} unit="px"
+                      onChange={v => markAndChange('productDetailHeroHeight', v)} />
+                    <Stepper label="Oscurecer" value={Math.round((settings.productDetailHeroOverlayOpacity ?? 0.5) * 100)} min={0} max={80} step={5} unit="%"
+                      onChange={v => markAndChange('productDetailHeroOverlayOpacity', v / 100)} />
+                  </div>
+
+                  <div className="sc-home-field-full">
+                    <span className="sc-home-label">Imagen superpuesta</span>
+                    {onImageUpload && (
+                      <label className="sc-home-upload-btn">
+                        📁 Subir imagen
+                        <input type="file" accept="image/*" className="sc-hidden-file"
+                          onChange={e => onImageUpload(e, 'productDetailHeroBannerImage')} />
+                      </label>
+                    )}
+                    {settings.productDetailHeroBannerImage && (
+                      <div className="sc-home-img-preview">
+                        <img src={settings.productDetailHeroBannerImage} alt="Banner detalle" />
+                        <button type="button" className="sc-home-img-del"
+                          onClick={() => markAndChange('productDetailHeroBannerImage', '')}>✕</button>
+                      </div>
+                    )}
+                  </div>
+
+                  {settings.productDetailHeroBannerImage && (
+                    <>
+                      <div className="sc-hero-steppers">
+                        <Stepper label="Tamaño" value={parseInt(settings.productDetailHeroBannerSize) || 120} min={50} max={300} step={10} unit="px"
+                          onChange={v => markAndChange('productDetailHeroBannerSize', v)} />
+                        <Stepper label="Opacidad" value={parseInt(settings.productDetailHeroBannerOpacity) || 100} min={10} max={100} step={5} unit="%"
+                          onChange={v => markAndChange('productDetailHeroBannerOpacity', v)} />
+                      </div>
+
+                      <div className="sc-home-field-full">
+                        <label className="sc-home-label">Posición horizontal</label>
+                        <select className="sc-home-input"
+                          value={settings.productDetailHeroBannerPositionX || 'right'}
+                          onChange={e => markAndChange('productDetailHeroBannerPositionX', e.target.value)}>
+                          <option value="left">Izquierda</option>
+                          <option value="center">Centro</option>
+                          <option value="right">Derecha</option>
+                        </select>
+                      </div>
+
+                      <div className="sc-home-field-full">
+                        <label className="sc-home-label">Posición vertical</label>
+                        <select className="sc-home-input"
+                          value={settings.productDetailHeroBannerPositionY || 'center'}
+                          onChange={e => markAndChange('productDetailHeroBannerPositionY', e.target.value)}>
+                          <option value="top">Arriba</option>
+                          <option value="center">Centro</option>
+                          <option value="bottom">Abajo</option>
+                        </select>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── POR QUÉ ELEGIRNOS panel ── */}
+        {activePanel === 'por-que-elegirnos' && (
+          <div className="sc-panel sc-panel--home">
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">¿Por Qué Elegirnos?</p>
+
+              <label className="sc-home-toggle-row">
+                <div className="sc-home-toggle-info">
+                  <span className="sc-home-toggle-title">Mostrar sección</span>
+                  <span className="sc-home-toggle-desc">Activa o desactiva esta sección informativa en el Home.</span>
+                </div>
+                <div className={`sc-home-toggle${whyChooseUsConfig.enabled !== false ? ' on' : ''}`}
+                  role="switch"
+                  aria-checked={whyChooseUsConfig.enabled !== false}
+                  onClick={() => setWhyChooseUsConfig({ enabled: !(whyChooseUsConfig.enabled !== false) })}>
+                  <div className="sc-home-toggle-thumb" />
+                </div>
+              </label>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título de la sección</label>
+                <input type="text" className="sc-home-input"
+                  value={whyChooseUsConfig.sectionTitle || '¿Por Qué Elegirnos?'}
+                  onChange={(e) => setWhyChooseUsConfig({ sectionTitle: e.target.value })}
+                  placeholder="¿Por Qué Elegirnos?" />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Puntos de valor</label>
+                <div className="sc-why-list">
+                  {whyChooseUsItems.map((item, index) => (
+                    <div className="sc-why-item" key={`why-${index}`}>
+                      <div className="sc-why-item-head">
+                        <span className="sc-why-item-index">Punto {index + 1}</span>
+                        <button type="button" className="sc-why-del"
+                          onClick={() => removeWhyChooseUsItem(index)}>✕</button>
+                      </div>
+                      <div className="sc-why-fields">
+                        <input
+                          type="text"
+                          className="sc-home-input sc-why-icon"
+                          value={item.icon || ''}
+                          onChange={(e) => setWhyChooseUsItem(index, 'icon', e.target.value)}
+                          placeholder="⭐"
+                        />
+                        <input
+                          type="text"
+                          className="sc-home-input"
+                          value={item.title || ''}
+                          onChange={(e) => setWhyChooseUsItem(index, 'title', e.target.value)}
+                          placeholder="Título"
+                        />
+                      </div>
+                      <textarea
+                        className="sc-home-input sc-home-textarea"
+                        value={item.text || ''}
+                        onChange={(e) => setWhyChooseUsItem(index, 'text', e.target.value)}
+                        placeholder="Descripción del beneficio"
+                        rows={2}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <button type="button" className="sc-ft-reset" style={{ marginTop: 8 }} onClick={addWhyChooseUsItem}>
+                  + Agregar punto
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── NEWSLETTER panel ── */}
+        {activePanel === 'newsletter' && (
+          <div className="sc-panel sc-panel--home">
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Newsletter</p>
+
+              <label className="sc-home-toggle-row">
+                <div className="sc-home-toggle-info">
+                  <span className="sc-home-toggle-title">Mostrar sección</span>
+                  <span className="sc-home-toggle-desc">Activa o desactiva el bloque de suscripción en el Home.</span>
+                </div>
+                <div className={`sc-home-toggle${newsletterConfig.enabled !== false ? ' on' : ''}`}
+                  role="switch"
+                  aria-checked={newsletterConfig.enabled !== false}
+                  onClick={() => setNewsletterConfig({ enabled: !(newsletterConfig.enabled !== false) })}>
+                  <div className="sc-home-toggle-thumb" />
+                </div>
+              </label>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título</label>
+                <input type="text" className="sc-home-input"
+                  value={newsletterConfig.title || DEFAULT_NEWSLETTER_CONFIG.title}
+                  onChange={(e) => setNewsletterConfig({ title: e.target.value })}
+                  placeholder={DEFAULT_NEWSLETTER_CONFIG.title} />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Texto</label>
+                <textarea className="sc-home-input sc-home-textarea"
+                  value={newsletterConfig.text || ''}
+                  onChange={(e) => setNewsletterConfig({ text: e.target.value })}
+                  placeholder={DEFAULT_NEWSLETTER_CONFIG.text}
+                  rows={3}
+                />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Placeholder del campo</label>
+                <input type="text" className="sc-home-input"
+                  value={newsletterConfig.placeholder || ''}
+                  onChange={(e) => setNewsletterConfig({ placeholder: e.target.value })}
+                  placeholder={DEFAULT_NEWSLETTER_CONFIG.placeholder} />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Texto del botón</label>
+                <input type="text" className="sc-home-input"
+                  value={newsletterConfig.buttonText || ''}
+                  onChange={(e) => setNewsletterConfig({ buttonText: e.target.value })}
+                  placeholder={DEFAULT_NEWSLETTER_CONFIG.buttonText} />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── FOOTER panel ── */}
+        {activePanel === 'footer' && (
+          <div className="sc-panel sc-panel--home">
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Footer</p>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Mensaje principal</label>
+                <textarea
+                  className="sc-home-input sc-home-textarea"
+                  value={footerConfig.brandMessage || ''}
+                  onChange={(e) => setFooterConfig({ brandMessage: e.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título Enlaces Rápidos</label>
+                <input
+                  type="text"
+                  className="sc-home-input"
+                  value={footerConfig.quickLinksTitle || ''}
+                  onChange={(e) => setFooterConfig({ quickLinksTitle: e.target.value })}
+                />
+              </div>
+
+              <div className="sc-footer-link-list">
+                {footerConfig.quickLinks.map((link, index) => (
+                  <div className="sc-footer-link-item" key={`quick-link-${index}`}>
+                    <label className="sc-footer-link-toggle">
+                      <input
+                        type="checkbox"
+                        checked={link.enabled !== false}
+                        onChange={(e) => setFooterLinkItem('quickLinks', index, 'enabled', e.target.checked)}
+                      />
+                      <span>Mostrar</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="sc-home-input"
+                      value={link.label || ''}
+                      onChange={(e) => setFooterLinkItem('quickLinks', index, 'label', e.target.value)}
+                      placeholder="Texto"
+                    />
+                    <input
+                      type="text"
+                      className="sc-home-input"
+                      value={link.href || ''}
+                      onChange={(e) => setFooterLinkItem('quickLinks', index, 'href', e.target.value)}
+                      placeholder="Ruta o URL"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título Atención al Cliente</label>
+                <input
+                  type="text"
+                  className="sc-home-input"
+                  value={footerConfig.supportTitle || ''}
+                  onChange={(e) => setFooterConfig({ supportTitle: e.target.value })}
+                />
+              </div>
+
+              <div className="sc-footer-link-list">
+                {footerConfig.supportLinks.map((link, index) => (
+                  <div className="sc-footer-link-item" key={`support-link-${index}`}>
+                    <label className="sc-footer-link-toggle">
+                      <input
+                        type="checkbox"
+                        checked={link.enabled !== false}
+                        onChange={(e) => setFooterLinkItem('supportLinks', index, 'enabled', e.target.checked)}
+                      />
+                      <span>Mostrar</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="sc-home-input"
+                      value={link.label || ''}
+                      onChange={(e) => setFooterLinkItem('supportLinks', index, 'label', e.target.value)}
+                      placeholder="Texto"
+                    />
+                    <input
+                      type="text"
+                      className="sc-home-input"
+                      value={link.href || ''}
+                      onChange={(e) => setFooterLinkItem('supportLinks', index, 'href', e.target.value)}
+                      placeholder="Ruta o URL"
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Título redes sociales</label>
+                <input
+                  type="text"
+                  className="sc-home-input"
+                  value={footerConfig.socialTitle || ''}
+                  onChange={(e) => setFooterConfig({ socialTitle: e.target.value })}
+                />
+              </div>
+
+              <div className="sc-footer-link-list">
+                {footerConfig.socialLinks.map((social, index) => (
+                  <div className="sc-footer-social-item" key={`social-link-${index}`}>
+                    <label className="sc-footer-link-toggle">
+                      <input
+                        type="checkbox"
+                        checked={social.enabled !== false}
+                        onChange={(e) => setFooterSocialItem(index, 'enabled', e.target.checked)}
+                      />
+                      <span>Mostrar</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="sc-home-input sc-why-icon"
+                      value={social.icon || ''}
+                      onChange={(e) => setFooterSocialItem(index, 'icon', e.target.value)}
+                      placeholder="📘"
+                    />
+                    <input
+                      type="text"
+                      className="sc-home-input"
+                      value={social.href || ''}
+                      onChange={(e) => setFooterSocialItem(index, 'href', e.target.value)}
+                      placeholder="https://..."
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="sc-home-field-full">
+                <label className="sc-home-label">Texto final</label>
+                <input
+                  type="text"
+                  className="sc-home-input"
+                  value={footerConfig.copyrightText || ''}
+                  onChange={(e) => setFooterConfig({ copyrightText: e.target.value })}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── FILTROS panel ── */}
         {activePanel === 'filtros' && (
           <div className="sc-panel sc-panel--home">
 
-            {/* ── Previsualización ── */}
-            <div className="sc-home-section">
-              <p className="sc-home-section-title">Previsualización</p>
-              <div className="sc-cat-preview-row">
-                {(catList.length > 0 ? catList.slice(0, 4) : ['Todos','Electrónica','Ropa','Hogar'].map(n => ({ name: n, icon: '' }))).map((cat, i) => (
-                  <div key={i} className="sc-cat-preview-chip" style={{
-                    background: i === 0 ? (catStyles.activeBackground || primary) : (catStyles.cardBackground || 'transparent'),
-                    color: i === 0 ? (catStyles.activeTitleColor || '#fff') : (catStyles.titleColor || text),
-                    border: `1px solid ${i === 0 ? (catStyles.activeBorderColor || primary) : (catStyles.cardBorderColor || primary + '44')}`,
-                    borderRadius: catStyles.cardRadius ? catStyles.cardRadius + 'px' : '20px',
-                    padding: catStyles.cardPadding ? `${Math.max(2, Math.round(parseInt(catStyles.cardPadding) / 2))}px ${catStyles.cardPadding}px` : '4px 12px',
-                    fontSize: catStyles.titleSize ? catStyles.titleSize + 'px' : '11px',
-                    fontWeight: catStyles.titleWeight || 600,
-                  }}>
-                    {(cat.icon || '') && <span style={{ marginRight: 3 }}>{cat.icon}</span>}
-                    {cat.name || cat}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ── Estado normal ── */}
-            <div className="sc-home-section">
-              <p className="sc-home-section-title">Estado normal</p>
-              <div className="sc-home-appearance-grid">
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Fondo</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.cardBackground || '#f8fafc'} onChange={e => setCatStyle('cardBackground', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.cardBackground || '#f8fafc' }} />
-                    <span className="sc-home-color-hex">{catStyles.cardBackground || '#f8fafc'}</span>
-                  </label>
-                </div>
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Borde</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.cardBorderColor || '#e2e8f0'} onChange={e => setCatStyle('cardBorderColor', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.cardBorderColor || '#e2e8f0' }} />
-                    <span className="sc-home-color-hex">{catStyles.cardBorderColor || '#e2e8f0'}</span>
-                  </label>
-                </div>
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Texto</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.titleColor || '#1f2937'} onChange={e => setCatStyle('titleColor', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.titleColor || '#1f2937' }} />
-                    <span className="sc-home-color-hex">{catStyles.titleColor || '#1f2937'}</span>
-                  </label>
-                </div>
-              </div>
-              <div className="sc-hero-steppers" style={{ marginTop: 8 }}>
-                <Stepper label="Padding" value={parseInt(catStyles.cardPadding) || 8} min={2} max={40} step={2} unit="px"
-                  onChange={v => setCatStyle('cardPadding', String(v))} />
-                <Stepper label="Radio" value={parseInt(catStyles.cardRadius) || 20} min={0} max={50} step={2} unit="px"
-                  onChange={v => setCatStyle('cardRadius', String(v))} />
-                <Stepper label="Tam. texto" value={parseInt(catStyles.titleSize) || 13} min={8} max={24} step={1} unit="px"
-                  onChange={v => setCatStyle('titleSize', String(v))} />
-                <Stepper label="Tam. icono" value={parseInt(catStyles.iconSize) || 20} min={10} max={48} step={2} unit="px"
-                  onChange={v => setCatStyle('iconSize', String(v))} />
-              </div>
-            </div>
-
-            {/* ── Estado activo ── */}
-            <div className="sc-home-section">
-              <p className="sc-home-section-title">Estado activo</p>
-              <div className="sc-home-field-full" style={{ marginBottom: 6 }}>
-                <label className="sc-home-label">Fondo (acepta gradiente)</label>
-                <input type="text" className="sc-home-input"
-                  value={catStyles.activeBackground || ''}
-                  onChange={e => setCatStyle('activeBackground', e.target.value)}
-                  placeholder={primary} />
-              </div>
-              <div className="sc-home-appearance-grid">
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Texto activo</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.activeTitleColor || '#ffffff'} onChange={e => setCatStyle('activeTitleColor', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.activeTitleColor || '#ffffff' }} />
-                    <span className="sc-home-color-hex">{catStyles.activeTitleColor || '#fff'}</span>
-                  </label>
-                </div>
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Borde activo</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.activeBorderColor || primary} onChange={e => setCatStyle('activeBorderColor', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.activeBorderColor || primary }} />
-                    <span className="sc-home-color-hex">{catStyles.activeBorderColor || primary}</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* ── Estado hover ── */}
-            <div className="sc-home-section">
-              <p className="sc-home-section-title">Estado hover</p>
-              <div className="sc-home-appearance-grid">
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Fondo</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.hoverBackground || '#eff6ff'} onChange={e => setCatStyle('hoverBackground', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.hoverBackground || '#eff6ff' }} />
-                    <span className="sc-home-color-hex">{catStyles.hoverBackground || '#eff6ff'}</span>
-                  </label>
-                </div>
-                <div className="sc-home-appear-item">
-                  <span className="sc-home-label">Texto</span>
-                  <label className="sc-home-color-btn">
-                    <input type="color" value={catStyles.hoverTitleColor || '#2563eb'} onChange={e => setCatStyle('hoverTitleColor', e.target.value)} className="sc-color-input" />
-                    <span className="sc-home-color-swatch" style={{ background: catStyles.hoverTitleColor || '#2563eb' }} />
-                    <span className="sc-home-color-hex">{catStyles.hoverTitleColor || '#2563eb'}</span>
-                  </label>
-                </div>
-              </div>
-            </div>
-
             {/* ── Categorías ── */}
             <div className="sc-home-section">
-              <p className="sc-home-section-title">Categorías</p>
+              <div className="sc-section-hdr">
+                <p className="sc-home-section-title" style={{ margin: 0 }}>Categorías</p>
+                <button type="button" className="sc-defaults-btn" title="Restaurar valores por defecto" onClick={resetFilterDefaults}>
+                  ↺ Defecto
+                </button>
+              </div>
               <div className="sc-cat-list">
                 {catList.map((cat, idx) => (
                   <div key={cat.id || idx} className="sc-cat-row">
-                    <input className="sc-cat-input sc-cat-icon-inp" type="text"
-                      value={cat.icon || ''} onChange={e => setCatItem(idx, 'icon', e.target.value)}
-                      placeholder="🏪" />
+                    {/* Image upload (images style) or emoji picker (all other styles) */}
+                    {filterStyle === 'images' ? (
+                      <div className="sc-cat-img-wrap">
+                        {cat.image ? (
+                          <>
+                            <img src={cat.image} alt="" className="sc-cat-img-mini" />
+                            {/* Hover overlay: replace (↑) or delete (✕) */}
+                            <div className="sc-cat-img-actions">
+                              <label className="sc-cat-img-act-btn" title="Cambiar imagen">
+                                ↑
+                                <input type="file" accept="image/*" className="sc-hidden-file-input"
+                                  onChange={e => {
+                                    const f = e.target.files[0];
+                                    if (f) uploadCatImage(idx, f);
+                                    e.target.value = '';
+                                  }} />
+                              </label>
+                              <button type="button" className="sc-cat-img-act-btn sc-cat-img-del-btn"
+                                title="Eliminar imagen"
+                                onClick={() => setCatItem(idx, 'image', '')}>✕</button>
+                            </div>
+                          </>
+                        ) : (
+                          <label className="sc-cat-img-empty" title="Subir imagen">
+                            🖼️
+                            <input type="file" accept="image/*" className="sc-hidden-file-input"
+                              onChange={e => {
+                                const f = e.target.files[0];
+                                if (f) uploadCatImage(idx, f);
+                                e.target.value = '';
+                              }} />
+                          </label>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="sc-cat-emoji-wrap" ref={emojiEditIdx === idx ? emojiPopRef : null}>
+                        <button
+                          type="button"
+                          className="sc-cat-emoji-btn"
+                          title="Editar emoji"
+                          onClick={() => setEmojiEditIdx(emojiEditIdx === idx ? null : idx)}
+                        >
+                          {cat.icon || '+'}
+                        </button>
+                        {emojiEditIdx === idx && (
+                          <div className="sc-emoji-picker">
+                            <input
+                              className="sc-emoji-text-inp"
+                              type="text"
+                              value={cat.icon || ''}
+                              onChange={e => setCatItem(idx, 'icon', e.target.value)}
+                              placeholder="Emoji..."
+                              autoFocus
+                              onKeyDown={e => e.key === 'Enter' && setEmojiEditIdx(null)}
+                            />
+                            <p className="sc-emoji-hint">
+                              {navigator.platform?.includes('Mac') ? '⌘ Ctrl Space' : 'Win + .'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <input className="sc-cat-input sc-cat-name-inp" type="text"
                       value={cat.name || ''} onChange={e => setCatItem(idx, 'name', e.target.value)}
                       placeholder="Nombre" />
@@ -906,6 +1564,150 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
               </div>
               <button type="button" className="sc-ft-reset" style={{ marginTop: 6 }}
                 onClick={addCatItem}>+ Agregar categoría</button>
+            </div>
+
+            {/* ── Estilo de filtro ── */}
+            <div className="sc-home-section">
+              <p className="sc-home-section-title">Estilo de filtro</p>
+              <div className="sc-filter-style-grid">
+                {FILTER_STYLES.map(fs => (
+                  <button
+                    key={fs.id}
+                    type="button"
+                    className={`sc-filter-style-opt${filterStyle === fs.id ? ' selected' : ''}`}
+                    onClick={() => setCatFilterStyle(fs.id)}
+                  >
+                    <div className="sc-filter-style-thumb">
+                      <FilterStyleThumb id={fs.id} primary={primary} />
+                    </div>
+                    <div className="sc-filter-style-meta">
+                      <span className="sc-filter-style-label">{fs.label}</span>
+                      <span className="sc-filter-style-desc">{fs.desc}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+              {/* Size stepper — only for images style */}
+              {filterStyle === 'images' && (
+                <div className="sc-img-size-row">
+                  <span className="sc-img-size-label">Tamaño de tarjeta</span>
+                  <div className="sc-img-size-stepper">
+                    <button type="button" className="sc-stepper-btn"
+                      onClick={() => setFilterImageSize(filterImageSize - 1)}
+                      disabled={filterImageSize <= 1}>−</button>
+                    <span className="sc-stepper-val">{filterImageSize}</span>
+                    <button type="button" className="sc-stepper-btn"
+                      onClick={() => setFilterImageSize(filterImageSize + 1)}
+                      disabled={filterImageSize >= 10}>+</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* ── Más Ajustes (collapsible) ── */}
+            <div className="sc-home-section sc-cat-more-wrap">
+              <button
+                type="button"
+                className="sc-cat-more-toggle"
+                onClick={() => setCatMoreOpen(o => !o)}
+              >
+                <span>Más ajustes</span>
+                <span className={`sc-cat-more-arrow${catMoreOpen ? ' open' : ''}`}>›</span>
+              </button>
+
+              {catMoreOpen && (
+                <div className="sc-cat-more-body">
+
+                  {/* Estado normal */}
+                  <p className="sc-home-section-title" style={{ marginTop: 0 }}>Estado normal</p>
+                  <div className="sc-home-appearance-grid">
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Fondo</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.cardBackground || '#f8fafc'} onChange={e => setCatStyle('cardBackground', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.cardBackground || '#f8fafc' }} />
+                        <span className="sc-home-color-hex">{catStyles.cardBackground || '#f8fafc'}</span>
+                      </label>
+                    </div>
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Borde</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.cardBorderColor || '#e2e8f0'} onChange={e => setCatStyle('cardBorderColor', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.cardBorderColor || '#e2e8f0' }} />
+                        <span className="sc-home-color-hex">{catStyles.cardBorderColor || '#e2e8f0'}</span>
+                      </label>
+                    </div>
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Texto</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.titleColor || '#1f2937'} onChange={e => setCatStyle('titleColor', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.titleColor || '#1f2937' }} />
+                        <span className="sc-home-color-hex">{catStyles.titleColor || '#1f2937'}</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="sc-hero-steppers" style={{ marginTop: 8 }}>
+                    <Stepper label="Padding" value={parseInt(catStyles.cardPadding) || 8} min={2} max={40} step={2} unit="px"
+                      onChange={v => setCatStyle('cardPadding', String(v))} />
+                    <Stepper label="Radio" value={parseInt(catStyles.cardRadius) || 20} min={0} max={50} step={2} unit="px"
+                      onChange={v => setCatStyle('cardRadius', String(v))} />
+                    <Stepper label="Tam. texto" value={parseInt(catStyles.titleSize) || 13} min={8} max={24} step={1} unit="px"
+                      onChange={v => setCatStyle('titleSize', String(v))} />
+                    <Stepper label="Tam. icono" value={parseInt(catStyles.iconSize) || 20} min={10} max={48} step={2} unit="px"
+                      onChange={v => setCatStyle('iconSize', String(v))} />
+                  </div>
+
+                  {/* Estado activo */}
+                  <p className="sc-home-section-title" style={{ marginTop: 12 }}>Estado activo</p>
+                  <div className="sc-home-field-full" style={{ marginBottom: 6 }}>
+                    <label className="sc-home-label">Fondo (acepta gradiente)</label>
+                    <input type="text" className="sc-home-input"
+                      value={catStyles.activeBackground || ''}
+                      onChange={e => setCatStyle('activeBackground', e.target.value)}
+                      placeholder={primary} />
+                  </div>
+                  <div className="sc-home-appearance-grid">
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Texto activo</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.activeTitleColor || '#ffffff'} onChange={e => setCatStyle('activeTitleColor', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.activeTitleColor || '#ffffff' }} />
+                        <span className="sc-home-color-hex">{catStyles.activeTitleColor || '#fff'}</span>
+                      </label>
+                    </div>
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Borde activo</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.activeBorderColor || primary} onChange={e => setCatStyle('activeBorderColor', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.activeBorderColor || primary }} />
+                        <span className="sc-home-color-hex">{catStyles.activeBorderColor || primary}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {/* Estado hover */}
+                  <p className="sc-home-section-title" style={{ marginTop: 12 }}>Estado hover</p>
+                  <div className="sc-home-appearance-grid">
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Fondo</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.hoverBackground || '#eff6ff'} onChange={e => setCatStyle('hoverBackground', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.hoverBackground || '#eff6ff' }} />
+                        <span className="sc-home-color-hex">{catStyles.hoverBackground || '#eff6ff'}</span>
+                      </label>
+                    </div>
+                    <div className="sc-home-appear-item">
+                      <span className="sc-home-label">Texto</span>
+                      <label className="sc-home-color-btn">
+                        <input type="color" value={catStyles.hoverTitleColor || '#2563eb'} onChange={e => setCatStyle('hoverTitleColor', e.target.value)} className="sc-color-input" />
+                        <span className="sc-home-color-swatch" style={{ background: catStyles.hoverTitleColor || '#2563eb' }} />
+                        <span className="sc-home-color-hex">{catStyles.hoverTitleColor || '#2563eb'}</span>
+                      </label>
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </div>
 
           </div>
@@ -1025,33 +1827,68 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
               </div>
 
               {/* ── Category filter strip ── */}
-              <div className="sc-prev-cats" style={{ background: bg, borderBottom: `1px solid ${primary}22` }}>
-                {(catList.length > 0 ? catList.slice(0, 5) : ['Todos','Electrónica','Ropa','Hogar','Deportes'].map(n => ({ name: n, icon: '' }))).map((cat, i) => (
-                  <div
-                    key={i}
-                    className="sc-prev-cat-chip"
-                    style={{
-                      background: i === 0 ? (catStyles.activeBackground || primary) : (catStyles.cardBackground || 'transparent'),
-                      color: i === 0 ? (catStyles.activeTitleColor || '#fff') : (catStyles.titleColor || text),
-                      border: `1px solid ${i === 0 ? (catStyles.activeBorderColor || primary) : (catStyles.cardBorderColor || primary + '44')}`,
-                      ...(catStyles.cardRadius && { borderRadius: catStyles.cardRadius + 'px' }),
-                      ...(catStyles.titleSize && { fontSize: catStyles.titleSize + 'px' }),
-                    }}
-                  >
-                    {cat.name || cat}
-                  </div>
-                ))}
-              </div>
+              {filterStyle !== 'none' && (
+                <div
+                  className={`sc-prev-cats sc-prev-cats--${filterStyle}`}
+                  style={{
+                    background: bg,
+                    borderBottom: `1px solid ${primary}22`,
+                    ...(filterStyle === 'images' && {
+                      '--filter-img-size': Math.round(IMG_SIZE_STEPS[filterImageSize - 1] * 0.44) + 'px'
+                    })
+                  }}>
+                  {(catList.length > 0 ? catList.slice(0, 5) : ['Todos','Electrónica','Ropa','Hogar','Deportes'].map(n => ({ name: n, icon: '' }))).map((cat, i) => {
+                    const isActive = i === 0;
+                    const activeBg = catStyles.activeBackground || primary;
+                    const normalBg = catStyles.cardBackground || 'transparent';
+                    const activeBorder = catStyles.activeBorderColor || primary;
+                    const normalBorder = catStyles.cardBorderColor || primary + '44';
+                    const radius = catStyles.cardRadius ? catStyles.cardRadius + 'px' : undefined;
+                    let chipStyle;
+                    if (filterStyle === 'tabs') {
+                      chipStyle = {
+                        background: 'transparent', border: 'none',
+                        borderBottom: `2px solid ${isActive ? activeBorder : 'transparent'}`,
+                        borderRadius: 0, padding: '4px 8px',
+                        color: isActive ? activeBorder : (catStyles.titleColor || text),
+                      };
+                    } else if (filterStyle === 'images') {
+                      chipStyle = {
+                        background: `linear-gradient(to bottom, rgba(0,0,0,0.05), rgba(0,0,0,0.55)), ${isActive ? activeBg : (normalBg !== 'transparent' ? normalBg : '#94a3b8')}`,
+                        border: `1.5px solid ${isActive ? activeBorder : normalBorder}`,
+                        ...(radius && { borderRadius: radius }),
+                        color: '#fff',
+                      };
+                    } else {
+                      chipStyle = {
+                        background: isActive ? activeBg : normalBg,
+                        color: isActive ? (catStyles.activeTitleColor || '#fff') : (catStyles.titleColor || text),
+                        border: `1px solid ${isActive ? activeBorder : normalBorder}`,
+                        ...(radius && { borderRadius: radius }),
+                        ...(catStyles.titleSize && { fontSize: catStyles.titleSize + 'px' }),
+                      };
+                    }
+                    return (
+                      <div key={i} className={`sc-prev-cat-chip sc-prev-cat-chip--${filterStyle}`} style={chipStyle}>
+                        {filterStyle !== 'tabs' && cat.icon && <span style={{ lineHeight: 1 }}>{cat.icon}</span>}
+                        <span>{cat.name || cat}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
               {/* ── Search bar ── */}
-              <div className="sc-prev-search" style={{ background: bg }}>
-                <div className="sc-prev-search-bar" style={{ borderColor: primary + '55' }}>
-                  <span style={{ color: primary + '88' }}>🔍</span>
-                  <span className="sc-prev-search-placeholder" style={{ color: text + '66' }}>
-                    Buscar productos...
-                  </span>
+              {settings.searchBarConfig?.enabled !== false && (
+                <div className="sc-prev-search" style={{ background: bg }}>
+                  <div className="sc-prev-search-bar" style={{ borderColor: primary + '55' }}>
+                    <span style={{ color: primary + '88' }}>🔍</span>
+                    <span className="sc-prev-search-placeholder" style={{ color: text + '66' }}>
+                      Buscar productos...
+                    </span>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* ── Products section ── */}
               <div className="sc-prev-products" style={{ background: bg, padding: `10px ${ft.gridPadding}px 16px` }}>
@@ -1113,10 +1950,83 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
                 )}
               </div>
 
+              {/* ── Promo section ── */}
+              {settings.showPromotionBanner && (
+                <div className="sc-prev-promo" style={{ background: `linear-gradient(135deg, ${primary}18 0%, ${accent}14 100%)` }}>
+                  <div className="sc-prev-promo-content">
+                    <h3 className="sc-prev-promo-title" style={{ color: text, fontFamily }}>
+                      {settings.promoTitle || '¡Oferta Especial del Mes!'}
+                    </h3>
+                    <div
+                      className="sc-prev-promo-text"
+                      style={{ color: text + 'cc' }}
+                      dangerouslySetInnerHTML={{
+                        __html: settings.promoText || 'Destaca tu oferta con un mensaje claro, beneficios y llamada a la acción.'
+                      }}
+                    />
+                    <div className="sc-prev-promo-btn" style={{ background: primary, color: '#fff' }}>
+                      {settings.promoButtonText || 'Ver Oferta'}
+                    </div>
+                  </div>
+                  {promoPreviewImage && (
+                    <div className="sc-prev-promo-image">
+                      <img src={resolveImageUrl(promoPreviewImage)} alt="Producto promocionado" />
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* ── Footer strip ── */}
+              {newsletterConfig.enabled !== false && (
+                <div
+                  className="sc-prev-newsletter"
+                  style={{
+                    background: '#f8fafc',
+                    borderTop: `1px solid ${primary}22`,
+                    borderBottom: `1px solid ${primary}22`,
+                    padding: '10px'
+                  }}
+                >
+                  <div style={{ textAlign: 'center', marginBottom: 8 }}>
+                    <div style={{ fontWeight: 700, color: text, marginBottom: 4, fontSize: 12 }}>
+                      {newsletterConfig.title || DEFAULT_NEWSLETTER_CONFIG.title}
+                    </div>
+                    <div style={{ color: text + 'bb', fontSize: 10.5 }}>
+                      {newsletterConfig.text || DEFAULT_NEWSLETTER_CONFIG.text}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <div
+                      style={{
+                        flex: 1,
+                        border: '1px solid #cbd5e1',
+                        borderRadius: 8,
+                        padding: '6px 8px',
+                        color: '#94a3b8',
+                        fontSize: 10
+                      }}
+                    >
+                      {newsletterConfig.placeholder || DEFAULT_NEWSLETTER_CONFIG.placeholder}
+                    </div>
+                    <div
+                      style={{
+                        background: primary,
+                        color: '#fff',
+                        borderRadius: 8,
+                        padding: '6px 10px',
+                        fontSize: 10,
+                        fontWeight: 700
+                      }}
+                    >
+                      {newsletterConfig.buttonText || DEFAULT_NEWSLETTER_CONFIG.buttonText}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div className="sc-prev-footer" style={{ background: primary }}>
-                <span style={{ color: '#ffffff99' }}>{siteName}</span>
-                <span style={{ color: '#ffffff66' }}>Todos los derechos reservados</span>
+                <span style={{ color: '#ffffff99' }}>{footerConfig.brandMessage || siteName}</span>
+                <span style={{ color: '#ffffff66' }}>{footerConfig.copyrightText || 'Todos los derechos reservados'}</span>
               </div>
 
             </div>
@@ -1222,4 +2132,83 @@ function LayoutThumb({ id }) {
       ))}
     </div>
   );
+}
+
+// Mini visual thumbnail for each category filter style option.
+function FilterStyleThumb({ id, primary }) {
+  const active = primary || '#6366f1';
+  if (id === 'cards') return (
+    <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', justifyContent: 'center', height: '100%', paddingBottom: 2 }}>
+      {[0,1,2].map(i => (
+        <div key={i} style={{
+          width: 16, borderRadius: 4, flexShrink: 0,
+          background: i === 0 ? active : '#f1f5f9',
+          border: `1px solid ${i === 0 ? active : '#e2e8f0'}`,
+          display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '3px 2px 2px', gap: 2,
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? 'rgba(255,255,255,0.5)' : '#cbd5e1' }} />
+          <div style={{ width: 10, height: 2, borderRadius: 1, background: i === 0 ? 'rgba(255,255,255,0.6)' : '#e2e8f0' }} />
+        </div>
+      ))}
+    </div>
+  );
+  if (id === 'pills') return (
+    <div style={{ display: 'flex', gap: 3, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      {['Todos','A','B'].map((lbl, i) => (
+        <div key={i} style={{
+          padding: '2px 7px', borderRadius: 999,
+          background: i === 0 ? active : '#f1f5f9',
+          border: `1px solid ${i === 0 ? active : '#e2e8f0'}`,
+          fontSize: 7, fontWeight: 600,
+          color: i === 0 ? '#fff' : '#64748b', whiteSpace: 'nowrap',
+        }}>{lbl}</div>
+      ))}
+    </div>
+  );
+  if (id === 'tabs') return (
+    <div style={{ display: 'flex', gap: 0, alignItems: 'flex-end', justifyContent: 'center', height: '100%', borderBottom: '1px solid #e2e8f0' }}>
+      {['Todos','Uno','Dos'].map((lbl, i) => (
+        <div key={i} style={{
+          padding: '4px 6px 3px',
+          borderBottom: i === 0 ? `2px solid ${active}` : '2px solid transparent',
+          marginBottom: -1, fontSize: 7, fontWeight: i === 0 ? 700 : 500,
+          color: i === 0 ? active : '#94a3b8', whiteSpace: 'nowrap',
+        }}>{lbl}</div>
+      ))}
+    </div>
+  );
+  if (id === 'bubbles') return (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      {[0,1].map(i => (
+        <div key={i} style={{
+          display: 'flex', alignItems: 'center', gap: 3, padding: '3px 8px', borderRadius: 999,
+          background: i === 0 ? active : '#f1f5f9',
+          border: `1px solid ${i === 0 ? active : '#e2e8f0'}`,
+        }}>
+          <div style={{ width: 6, height: 6, borderRadius: '50%', background: i === 0 ? 'rgba(255,255,255,0.7)' : '#cbd5e1' }} />
+          <div style={{ width: 12, height: 2, borderRadius: 1, background: i === 0 ? 'rgba(255,255,255,0.6)' : '#e2e8f0' }} />
+        </div>
+      ))}
+    </div>
+  );
+  if (id === 'images') return (
+    <div style={{ display: 'flex', gap: 3, alignItems: 'stretch', justifyContent: 'center', height: '100%', padding: '2px 0' }}>
+      {[active + 'cc', '#64748b', '#94a3b8'].map((col, i) => (
+        <div key={i} style={{
+          flex: 1, borderRadius: 4,
+          background: `linear-gradient(to bottom, transparent 25%, rgba(0,0,0,0.5) 100%), ${col}`,
+          display: 'flex', alignItems: 'flex-end', padding: '2px 3px',
+          border: i === 0 ? `1.5px solid ${active}` : '1px solid #e2e8f0',
+        }}>
+          <div style={{ width: '100%', height: 2, borderRadius: 1, background: 'rgba(255,255,255,0.7)' }} />
+        </div>
+      ))}
+    </div>
+  );
+  if (id === 'none') return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <span style={{ fontSize: 20, lineHeight: 1, color: '#cbd5e1' }}>—</span>
+    </div>
+  );
+  return null;
 }

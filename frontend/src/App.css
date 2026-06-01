@@ -880,6 +880,173 @@ ul {
   font-weight: 700;
 }
 
+/* ── Filter style variants ────────────────────────────────── */
+
+/* Pills/tabs/bubbles: compact chips that fit on screen — center them */
+.filter-style-pills .categories-grid-scroll,
+.filter-style-tabs .categories-grid-scroll,
+.filter-style-bubbles .categories-grid-scroll {
+  justify-content: center;
+}
+/* Images: center when fits, fallback to start when overflow (safe keeps Todos reachable) */
+.filter-style-images .categories-grid-scroll {
+  justify-content: safe center;
+}
+
+.filter-style-pills .category-card {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  border-radius: 999px !important;
+  padding: 6px 14px !important;
+  min-width: auto !important;
+  width: auto !important;
+  height: auto !important;
+}
+.filter-style-pills .category-icon {
+  font-size: 0.9rem !important;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+}
+.filter-style-pills .category-icon-image { width: 1rem; height: 1rem; border-radius: 3px; }
+.filter-style-pills .category-title { white-space: nowrap; font-size: 0.85rem !important; }
+
+/* Tabs: text tabs with active bottom-border indicator */
+.filter-style-tabs .categories-grid-scroll { gap: 0 !important; }
+.filter-style-tabs .category-card {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 10px 16px 8px !important;
+  min-width: auto !important;
+  width: auto !important;
+  height: auto !important;
+  transform: none !important;
+}
+.filter-style-tabs .category-card:hover {
+  background: transparent !important;
+  background-color: transparent !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  border-bottom-color: #d1d5db !important;
+}
+.filter-style-tabs .category-card.active {
+  background: transparent !important;
+  background-color: transparent !important;
+  transform: none !important;
+  box-shadow: none !important;
+  border-color: transparent !important;
+  border-bottom-color: var(--category-card-active-border, var(--primary-color, #3b82f6)) !important;
+}
+.filter-style-tabs .category-icon { display: none !important; }
+.filter-style-tabs .category-title { color: var(--category-title-color, #4b5563) !important; }
+.filter-style-tabs .category-card.active .category-title {
+  color: var(--category-title-active-color, var(--primary-color, #2563eb)) !important;
+  font-weight: 700;
+}
+.filter-style-tabs .category-card:hover .category-title {
+  color: var(--category-title-hover-color, #1d4ed8) !important;
+}
+
+/* Bubbles: rounded pill with icon + text side by side */
+.filter-style-bubbles .category-card {
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 7px;
+  border-radius: 999px !important;
+  padding: 8px 18px !important;
+  min-width: auto !important;
+  width: auto !important;
+  height: auto !important;
+}
+.filter-style-bubbles .category-icon {
+  font-size: 1.15rem !important;
+  width: 1.3rem !important;
+  height: 1.3rem !important;
+  margin: 0 !important;
+  flex-shrink: 0;
+}
+.filter-style-bubbles .category-icon-image { width: 1.2rem; height: 1.2rem; border-radius: 4px; }
+.filter-style-bubbles .category-title { white-space: nowrap; }
+
+/* Images: tall card with background image and title overlay */
+.filter-style-images .category-card {
+  width: var(--filter-img-size, 90px) !important;
+  min-width: var(--filter-img-size, 90px) !important;
+  height: var(--filter-img-size, 90px) !important;
+  min-height: unset !important;
+  position: relative !important;
+  overflow: hidden !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: flex-end !important;
+  padding: 0 !important;
+  background: #94a3b8 !important;
+  flex: 0 0 auto !important;
+  border-radius: var(--category-card-radius, 8px) !important;
+}
+/* Blurry background fill — covers letterbox/pillarbox gaps */
+.filter-style-images .cat-img-blur-bg {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: cover;
+  filter: blur(12px) saturate(1.4);
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.9;
+}
+/* Main image, contained inside the square */
+.filter-style-images .cat-img-main {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  z-index: 1;
+  pointer-events: none;
+}
+.filter-style-images .category-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.0) 40%, rgba(0,0,0,0.55) 100%);
+  z-index: 2;
+  pointer-events: none;
+}
+.filter-style-images .category-card:hover {
+  transform: none !important;
+}
+.filter-style-images .category-card.active {
+  transform: none !important;
+  border-color: var(--category-card-active-border, var(--primary-color, #60a5fa)) !important;
+  box-shadow: 0 0 0 2px rgba(96, 165, 250, 0.4) !important;
+}
+.filter-style-images .category-icon { display: none !important; }
+.filter-style-images .category-title {
+  position: relative !important;
+  z-index: 3 !important;
+  color: #fff !important;
+  padding: 4px 6px !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+  text-align: center;
+  line-height: 1.2;
+}
+.filter-style-images .category-card.active .category-title,
+.filter-style-images .category-card:hover .category-title {
+  color: #fff !important;
+}
+
 /* Products Section */
 .products-section {
   padding: 20px 0;

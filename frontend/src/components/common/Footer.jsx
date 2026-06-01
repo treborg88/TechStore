@@ -1,16 +1,49 @@
 ﻿import React from 'react';
 
-function Footer() {
-  const [siteName, setSiteName] = React.useState(localStorage.getItem('siteName') || 'Eonsclover');
+const DEFAULT_FOOTER_CONFIG = {
+  brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+  quickLinksTitle: 'Enlaces Rápidos',
+  quickLinks: [
+    { label: 'Inicio', href: '/', enabled: true },
+    { label: 'Productos', href: '/tienda', enabled: true },
+    { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+    { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+  ],
+  supportTitle: 'Atención al Cliente',
+  supportLinks: [
+    { label: 'Contáctanos', href: '/contacto', enabled: true },
+    { label: 'Devoluciones', href: '/contacto', enabled: true },
+    { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+    { label: 'Estado del Pedido', href: '/orders', enabled: true }
+  ],
+  socialTitle: 'Síguenos',
+  socialLinks: [
+    { icon: '📘', href: '', enabled: true },
+    { icon: '📱', href: '', enabled: true },
+    { icon: '📷', href: '', enabled: true },
+    { icon: '🐦', href: '', enabled: true }
+  ],
+  copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+};
 
-  React.useEffect(() => {
-    // Escuchar cambios en localStorage (disparados por App.jsx)
-    const handleStorage = () => {
-      setSiteName(localStorage.getItem('siteName') || 'Eonsclover');
-    };
-    window.addEventListener('storage', handleStorage);
-    return () => window.removeEventListener('storage', handleStorage);
-  }, []);
+function Footer({ siteName = 'Eonsclover', footerConfig }) {
+  const config = {
+    ...DEFAULT_FOOTER_CONFIG,
+    ...(footerConfig || {}),
+    quickLinks: Array.isArray(footerConfig?.quickLinks) && footerConfig.quickLinks.length > 0
+      ? footerConfig.quickLinks
+      : DEFAULT_FOOTER_CONFIG.quickLinks,
+    supportLinks: Array.isArray(footerConfig?.supportLinks) && footerConfig.supportLinks.length > 0
+      ? footerConfig.supportLinks
+      : DEFAULT_FOOTER_CONFIG.supportLinks,
+    socialLinks: Array.isArray(footerConfig?.socialLinks) && footerConfig.socialLinks.length > 0
+      ? footerConfig.socialLinks
+      : DEFAULT_FOOTER_CONFIG.socialLinks
+  };
+
+  const enabledQuickLinks = config.quickLinks.filter((link) => link?.enabled !== false);
+  const enabledSupportLinks = config.supportLinks.filter((link) => link?.enabled !== false);
+  const enabledSocialLinks = config.socialLinks.filter((link) => link?.enabled !== false);
 
   return (
     <footer className="footer">
@@ -19,39 +52,52 @@ function Footer() {
           <div className="footer-column">
             <h3 className="footer-title">{siteName}</h3>
             <p className="footer-text">
-              Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.
+              {config.brandMessage}
             </p>
           </div>
           <div className="footer-column">
-            <h4 className="footer-subtitle">Enlaces Rápidos</h4>
+            <h4 className="footer-subtitle">{config.quickLinksTitle}</h4>
             <ul className="footer-links">
-              <li><a href="#" className="footer-link">Inicio</a></li>
-              <li><a href="#" className="footer-link">Productos</a></li>
-              <li><a href="#" className="footer-link">Ofertas</a></li>
-              <li><a href="#" className="footer-link">Sobre Nosotros</a></li>
+              {enabledQuickLinks.map((link, index) => (
+                <li key={`quick-${index}`}>
+                  <a href={link.href || '#'} className="footer-link">{link.label || 'Enlace'}</a>
+                </li>
+              ))}
             </ul>
           </div>
           <div className="footer-column">
-            <h4 className="footer-subtitle">Atención al Cliente</h4>
+            <h4 className="footer-subtitle">{config.supportTitle}</h4>
             <ul className="footer-links">
-              <li><a href="#" className="footer-link">Contáctanos</a></li>
-              <li><a href="#" className="footer-link">Devoluciones</a></li>
-              <li><a href="#" className="footer-link">Preguntas Frecuentes</a></li>
-              <li><a href="#" className="footer-link">Estado del Pedido</a></li>
+              {enabledSupportLinks.map((link, index) => (
+                <li key={`support-${index}`}>
+                  <a href={link.href || '#'} className="footer-link">{link.label || 'Enlace'}</a>
+                </li>
+              ))}
             </ul>
           </div>
           <div className="footer-column">
-            <h4 className="footer-subtitle">Síguenos</h4>
+            <h4 className="footer-subtitle">{config.socialTitle}</h4>
             <div className="social-links">
-              <a href="#" className="social-link">📘</a>
-              <a href="#" className="social-link">📱</a>
-              <a href="#" className="social-link">📷</a>
-              <a href="#" className="social-link">🐦</a>
+              {enabledSocialLinks.map((social, index) => {
+                const href = social.href || '#';
+                const isExternal = /^https?:\/\//i.test(href);
+                return (
+                  <a
+                    key={`social-${index}`}
+                    href={href}
+                    className="social-link"
+                    target={isExternal ? '_blank' : undefined}
+                    rel={isExternal ? 'noreferrer noopener' : undefined}
+                  >
+                    {social.icon || '🔗'}
+                  </a>
+                );
+              })}
             </div>
           </div>
         </div>
         <div className="footer-bottom">
-          <p>&copy; {new Date().getFullYear()} Eonsclover. Todos los derechos reservados.</p>
+          <p>{config.copyrightText}</p>
         </div>
       </div>
     </footer>

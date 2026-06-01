@@ -10,6 +10,32 @@ const SETTINGS_CACHE_FRESH_MS = 2 * 60 * 1000;
 const SETTINGS_CACHE_MAX_STALE_MS = 24 * 60 * 60 * 1000;
 const SETTINGS_REVALIDATE_COOLDOWN_MS = 30 * 1000;
 
+const DEFAULT_FOOTER_CONFIG = {
+  brandMessage: 'Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.',
+  quickLinksTitle: 'Enlaces Rápidos',
+  quickLinks: [
+    { label: 'Inicio', href: '/', enabled: true },
+    { label: 'Productos', href: '/tienda', enabled: true },
+    { label: 'Ofertas', href: '/tienda?promo=1', enabled: true },
+    { label: 'Sobre Nosotros', href: '/contacto', enabled: true }
+  ],
+  supportTitle: 'Atención al Cliente',
+  supportLinks: [
+    { label: 'Contáctanos', href: '/contacto', enabled: true },
+    { label: 'Devoluciones', href: '/contacto', enabled: true },
+    { label: 'Preguntas Frecuentes', href: '/contacto', enabled: true },
+    { label: 'Estado del Pedido', href: '/orders', enabled: true }
+  ],
+  socialTitle: 'Síguenos',
+  socialLinks: [
+    { icon: '📘', href: '', enabled: true },
+    { icon: '📱', href: '', enabled: true },
+    { icon: '📷', href: '', enabled: true },
+    { icon: '🐦', href: '', enabled: true }
+  ],
+  copyrightText: '© 2026 Eonsclover. Todos los derechos reservados.'
+};
+
 /**
  * Hook que encapsula toda la configuración visual del sitio:
  * - Nombre, icono, logo del sitio
@@ -90,11 +116,12 @@ export function useSiteSettings() {
 
   // --- Estado de configuración de promo ---
   const [promoSettings, setPromoSettings] = useState({
-    showPromotionBanner: true,
+    showPromotionBanner: false,
     promoTitle: '¡Oferta Especial del Mes!',
     promoText: '¡Gran venta de año nuevo! 20% de descuento en todo.',
     promoButtonText: 'Ver Oferta',
-    promoImage: ''
+    promoImage: '',
+    promoProductId: ''
   });
 
   // Landing page config (enabled/disabled + route)
@@ -109,6 +136,30 @@ export function useSiteSettings() {
   const [storeModuleConfig, setStoreModuleConfig] = useState({
     enabled: true
   });
+
+  const [searchBarConfig, setSearchBarConfig] = useState({
+    enabled: true
+  });
+
+  const [whyChooseUsConfig, setWhyChooseUsConfig] = useState({
+    enabled: true,
+    sectionTitle: '¿Por Qué Elegirnos?',
+    items: [
+      { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+      { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+      { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+    ]
+  });
+
+  const [newsletterConfig, setNewsletterConfig] = useState({
+    enabled: false,
+    title: 'Únete a Nuestra Newsletter',
+    text: 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+    placeholder: 'Tu correo electrónico',
+    buttonText: 'Suscribirse'
+  });
+
+  const [footerConfig, setFooterConfig] = useState(DEFAULT_FOOTER_CONFIG);
 
   // SEO configuration
   const [seoConfig, setSeoConfig] = useState({});
@@ -226,11 +277,12 @@ export function useSiteSettings() {
 
     // Promo settings
     setPromoSettings({
-      showPromotionBanner: data.showPromotionBanner !== 'false' && data.showPromotionBanner !== false,
+      showPromotionBanner: data.showPromotionBanner === 'true' || data.showPromotionBanner === true,
       promoTitle: data.promoTitle || '¡Oferta Especial del Mes!',
       promoText: data.promoText || '',
       promoButtonText: data.promoButtonText || 'Ver Oferta',
-      promoImage: data.promoImage || ''
+      promoImage: data.promoImage || '',
+      promoProductId: data.promoProductId || ''
     });
 
     // Category filters config
@@ -260,6 +312,48 @@ export function useSiteSettings() {
     const parsedStoreModule = parseJsonSetting(data.storeModuleConfig, 'storeModuleConfig');
     setStoreModuleConfig({
       enabled: parsedStoreModule?.enabled !== false
+    });
+
+    const parsedSearchBar = parseJsonSetting(data.searchBarConfig, 'searchBarConfig');
+    setSearchBarConfig({
+      enabled: parsedSearchBar?.enabled !== false
+    });
+
+    const parsedWhyChooseUs = parseJsonSetting(data.whyChooseUsConfig, 'whyChooseUsConfig');
+    setWhyChooseUsConfig({
+      enabled: parsedWhyChooseUs?.enabled !== false,
+      sectionTitle: parsedWhyChooseUs?.sectionTitle || '¿Por Qué Elegirnos?',
+      items: Array.isArray(parsedWhyChooseUs?.items) && parsedWhyChooseUs.items.length > 0
+        ? parsedWhyChooseUs.items
+        : [
+            { icon: '🚚', title: 'Envío Gratis', text: 'En todos tus pedidos superiores a $50' },
+            { icon: '⚡', title: 'Garantía Extendida', text: '12 meses adicionales en todos nuestros productos' },
+            { icon: '🔒', title: 'Pago Seguro', text: 'Todas las transacciones son 100% seguras' }
+          ]
+    });
+
+    const parsedNewsletter = parseJsonSetting(data.newsletterConfig, 'newsletterConfig');
+    setNewsletterConfig({
+      enabled: parsedNewsletter?.enabled === true,
+      title: parsedNewsletter?.title || 'Únete a Nuestra Newsletter',
+      text: parsedNewsletter?.text || 'Recibe las últimas noticias sobre tecnología y ofertas exclusivas directamente en tu correo.',
+      placeholder: parsedNewsletter?.placeholder || 'Tu correo electrónico',
+      buttonText: parsedNewsletter?.buttonText || 'Suscribirse'
+    });
+
+    const parsedFooter = parseJsonSetting(data.footerConfig, 'footerConfig');
+    setFooterConfig({
+      ...DEFAULT_FOOTER_CONFIG,
+      ...(parsedFooter || {}),
+      quickLinks: Array.isArray(parsedFooter?.quickLinks) && parsedFooter.quickLinks.length > 0
+        ? parsedFooter.quickLinks
+        : DEFAULT_FOOTER_CONFIG.quickLinks,
+      supportLinks: Array.isArray(parsedFooter?.supportLinks) && parsedFooter.supportLinks.length > 0
+        ? parsedFooter.supportLinks
+        : DEFAULT_FOOTER_CONFIG.supportLinks,
+      socialLinks: Array.isArray(parsedFooter?.socialLinks) && parsedFooter.socialLinks.length > 0
+        ? parsedFooter.socialLinks
+        : DEFAULT_FOOTER_CONFIG.socialLinks
     });
 
     // SEO config
@@ -393,6 +487,10 @@ export function useSiteSettings() {
     landingPageConfig,
     navigationConfig,
     storeModuleConfig,
+    searchBarConfig,
+    whyChooseUsConfig,
+    newsletterConfig,
+    footerConfig,
     seoConfig
   };
 }

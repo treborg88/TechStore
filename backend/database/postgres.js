@@ -867,6 +867,29 @@ const statements = {
     }
   },
 
+  // ── Newsletter ───────────────────────────────────────────
+  addNewsletterSubscriber: async (email, source = 'home') => {
+    const normalizedEmail = String(email || '').toLowerCase().trim();
+    const normalizedSource = String(source || 'home').trim() || 'home';
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO newsletter_subscribers (email, source)
+         VALUES ($1, $2)
+         ON CONFLICT (email) DO UPDATE SET
+           source = EXCLUDED.source,
+           subscribed_at = NOW()
+         RETURNING *`,
+        [normalizedEmail, normalizedSource]
+      );
+      return rows[0] || null;
+    } catch (err) {
+      if (err.code === '42P01') {
+        throw new Error('La tabla "newsletter_subscribers" no existe. Ejecuta el schema SQL.');
+      }
+      throw err;
+    }
+  },
+
   // ── Token Blacklist ──────────────────────────────────────
   addToBlacklist: async (tokenHash, sessionId, userId, expiresAt, reason = 'logout') => {
     try {

@@ -12,6 +12,7 @@ const setupRoutes = require('./setup.routes');
 const storageRoutes = require('./storage.routes');
 const databaseRoutes = require('./database.routes');
 const seoRoutes = require('./seo.routes');
+const newsletterRoutes = require('./newsletter.routes');
 
 module.exports = {
     authRoutes,
@@ -26,5 +27,6 @@ module.exports = {
     setupRoutes,
     storageRoutes,
     databaseRoutes,
-    seoRoutes
+    seoRoutes,
+    newsletterRoutes
 };

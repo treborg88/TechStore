@@ -29,7 +29,8 @@ const {
     setupRoutes,
     storageRoutes,
     databaseRoutes,
-    seoRoutes
+    seoRoutes,
+    newsletterRoutes
 } = require('./routes');
 
 // Share page utilities
@@ -122,6 +123,7 @@ app.use('/api/verification', verificationRoutes);
 app.use('/api/payments', paymentsRoutes);
 app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/database', databaseRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // --- SEO (robots.txt, sitemap.xml — root level) ---
 app.use('/', seoRoutes);

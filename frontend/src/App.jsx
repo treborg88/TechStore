@@ -66,7 +66,11 @@ function App() {
     promoSettings,
     landingPageConfig,
     navigationConfig,
-    storeModuleConfig
+    storeModuleConfig,
+    searchBarConfig,
+    whyChooseUsConfig,
+    newsletterConfig,
+    footerConfig
   } = useSiteSettings();
 
   // Hook de carrito: estado, CRUD, sync con backend, persistencia
@@ -168,13 +172,16 @@ function App() {
           landingPageConfig={landingPageConfig}
           navigationConfig={navigationConfig}
           storeModuleConfig={storeModuleConfig}
+          searchBarConfig={searchBarConfig}
+          whyChooseUsConfig={whyChooseUsConfig}
+          newsletterConfig={newsletterConfig}
           navigate={navigate}
         />
 
         {/* Footer y ChatBot — solo en tienda, no en páginas SaaS de plataforma */}
         {!IS_SAAS_PLATFORM_PAGE && (
           <>
-            <Footer />
+            <Footer siteName={siteName} footerConfig={footerConfig} />
             <Suspense fallback={null}>
               <ChatBot />
             </Suspense>
