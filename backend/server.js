@@ -34,7 +34,8 @@ const {
 } = require('./routes');
 
 // Share page utilities
-const { statements, dbConfigured, pool } = require('./database');
+const dbAdapter = require('./database');
+const { statements, dbConfigured } = dbAdapter;
 const { buildShareHtml, extractProductIdFromSlug } = require('./sharePage');
 const pkg = require('../package.json');
 
@@ -98,8 +99,8 @@ if (config.SAAS_MODE === 'true') {
 
 // --- Multi-Tenant Middleware (SaaS mode only) ---
 if (config.SAAS_MODE === 'true') {
-    app.use(createTenantMiddleware(pool));
-    app.use(createDbContext(pool));
+    app.use(createTenantMiddleware(() => dbAdapter.pool));
+    app.use(createDbContext(() => dbAdapter.pool));
     console.log('🏢 SaaS multi-tenant mode enabled');
 }
 

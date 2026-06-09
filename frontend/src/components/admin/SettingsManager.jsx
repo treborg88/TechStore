@@ -985,10 +985,12 @@ function SettingsManager() {
             </nav>
 
             <div className="settings-content">
-              <div className="settings-tab-intro">
-                <h3>{tabMeta.title}</h3>
-                <p>{tabMeta.subtitle}</p>
-              </div>
+              {siteTab !== 'database' && (
+                <div className="settings-tab-intro">
+                  <h3>{tabMeta.title}</h3>
+                  <p>{tabMeta.subtitle}</p>
+                </div>
+              )}
 
               {siteTab === 'general' && (
                 <SiteCustomizer

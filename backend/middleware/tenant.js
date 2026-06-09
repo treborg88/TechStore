@@ -13,11 +13,13 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 /**
  * Factory: returns tenant resolution middleware.
  * Requires the pool to query public.tenants.
- * @param {import('pg').Pool} pool - PostgreSQL connection pool
+ * @param {import('pg').Pool|Function} poolOrGetter - PostgreSQL pool or lazy getter returning the current pool
  * @returns {Function} Express middleware
  */
-function createTenantMiddleware(pool) {
+function createTenantMiddleware(poolOrGetter) {
     return async (req, res, next) => {
+        const resolvedPool = typeof poolOrGetter === 'function' ? poolOrGetter() : poolOrGetter;
+
         // Skip if SaaS mode is off
         if (config.SAAS_MODE !== 'true') return next();
 
@@ -60,18 +62,25 @@ function createTenantMiddleware(pool) {
             }
         }
 
+        if (!resolvedPool) {
+            const err = new Error('Base de datos no configurada');
+            err.code = 'DB_NOT_CONFIGURED';
+            err.statusCode = 503;
+            return next(err);
+        }
+
         try {
             let result;
             if (isPlatformHost && subdomain) {
                 // Lookup by slug
-                result = await pool.query(
+                result = await resolvedPool.query(
                     `SELECT id, slug, name, plan_id, status, schema_name, trial_ends_at, custom_domain
                      FROM public.tenants WHERE slug = $1`,
                     [subdomain]
                 );
             } else {
                 // Lookup by custom domain
-                result = await pool.query(
+                result = await resolvedPool.query(
                     `SELECT id, slug, name, plan_id, status, schema_name, trial_ends_at, custom_domain
                      FROM public.tenants WHERE custom_domain = $1`,
                     [host]

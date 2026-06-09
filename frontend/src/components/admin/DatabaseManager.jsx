@@ -1,200 +1,221 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 
-/**
- * DatabaseManager — Backup/Restore panel inside DatabaseSection.
- * Creates unified .tar.gz archives (database.sql + product images).
- * Same-name backup replaces previous to avoid accumulation.
- * Editable name + optional version suffix for keeping multiple versions.
- */
 function DatabaseManager() {
-  // ── State ─────────────────────────────────────────────────
-  const [backups, setBackups] = useState([]);
-  const [storeName, setStoreName] = useState('');
+  const MIN_RESTORE_ANIMATION_MS = 30000;
+
+  const [storeName, setStoreName] = useState('store');
   const [stats, setStats] = useState(null);
   const [imageCount, setImageCount] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loadingStats, setLoadingStats] = useState(false);
+
   const [creating, setCreating] = useState(false);
-  const [restoring, setRestoring] = useState(null);
+  const [restoring, setRestoring] = useState(false);
   const [confirmText, setConfirmText] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [restoreFile, setRestoreFile] = useState(null);
+
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(null);
   const [collapsed, setCollapsed] = useState(true);
 
-  // Backup creation fields
   const [backupName, setBackupName] = useState('');
   const [backupVersion, setBackupVersion] = useState('');
+  const [backupFormat, setBackupFormat] = useState('sql');
+  const [restoreOverlay, setRestoreOverlay] = useState({
+    visible: false,
+    status: 'idle',
+    title: '',
+    subtitle: ''
+  });
 
-  const fileInputRef = useRef(null);
+  const restoreInputRef = useRef(null);
 
-  // Auto-clear alerts after 5s
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
   useEffect(() => {
     if (success || error) {
-      const t = setTimeout(() => { setSuccess(null); setError(null); }, 5000);
+      const t = setTimeout(() => {
+        setSuccess(null);
+        setError(null);
+      }, 5000);
       return () => clearTimeout(t);
     }
   }, [success, error]);
 
-  // Fetch data when panel opens
   useEffect(() => {
-    if (!collapsed) { fetchBackups(); fetchStats(); }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    if (!collapsed) {
+      fetchStats();
+      fetchStoreName();
+    }
   }, [collapsed]);
 
-  // ── API calls ─────────────────────────────────────────────
-
-  /** Fetch backup list + store name (for default backup name). */
-  const fetchBackups = async () => {
+  const fetchStoreName = async () => {
     try {
-      setLoading(true);
       const res = await apiFetch(apiUrl('/database/backups'));
-      if (res.ok) {
-        const data = await res.json();
-        setBackups(data.backups || []);
-        // Set store name as default backup name (only if user hasn't edited it)
-        if (data.storeName && !backupName) setBackupName(data.storeName);
-        if (data.storeName) setStoreName(data.storeName);
-      }
-    } catch (err) { setError(err.message); }
-    finally { setLoading(false); }
+      if (!res.ok) return;
+      const data = await res.json();
+      const nextName = (data.storeName || 'store').replace(/[^a-zA-Z0-9_-]/g, '');
+      setStoreName(nextName || 'store');
+      if (!backupName) setBackupName(nextName || 'store');
+    } catch {
+      // silent fallback
+    }
   };
 
-  /** Fetch live table row counts + image count. */
   const fetchStats = async () => {
     try {
+      setLoadingStats(true);
       const res = await apiFetch(apiUrl('/database/stats'));
-      if (res.ok) {
-        const data = await res.json();
-        setStats(data.stats);
-        setImageCount(data.imageCount || 0);
-      }
-    } catch { /* silent */ }
+      if (!res.ok) return;
+      const data = await res.json();
+      setStats(data.stats);
+      setImageCount(data.imageCount || 0);
+    } catch {
+      // silent
+    } finally {
+      setLoadingStats(false);
+    }
   };
 
-  /** Create a unified .tar.gz backup. Same name overwrites previous. */
+  const buildRequestedName = () => {
+    const name = (backupName || storeName || 'store').replace(/[^a-zA-Z0-9_-]/g, '');
+    const version = (backupVersion || '').replace(/[^a-zA-Z0-9._-]/g, '');
+    return {
+      name: name || 'store',
+      version: version || undefined,
+      includeImages: backupFormat === 'full'
+    };
+  };
+
+  const parseFilename = (disposition, fallbackName) => {
+    const match = disposition?.match(/filename\*?=(?:UTF-8''|"?)([^";]+)/i);
+    if (match?.[1]) return decodeURIComponent(match[1].replace(/"/g, ''));
+    return fallbackName;
+  };
+
   const createBackup = async () => {
     try {
       setCreating(true);
       setError(null);
+
+      const request = buildRequestedName();
       const res = await apiFetch(apiUrl('/database/backup'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: backupName || undefined, version: backupVersion || undefined })
+        body: JSON.stringify(request)
       });
-      const data = await res.json();
-      if (res.ok) {
-        const msg = data.replaced ? ' (reemplazó anterior)' : '';
-        setSuccess(`Backup: ${data.filename} — ${data.imageCount} imgs${msg}`);
-        fetchBackups();
-        if (data.tableStats) setStats(data.tableStats);
-      } else { setError(data.message || 'Error al crear backup'); }
-    } catch (err) { setError(err.message); }
-    finally { setCreating(false); }
-  };
 
-  /** Restore from a .tar.gz or legacy .sql file. */
-  const restoreBackup = async (filename) => {
-    try {
-      setError(null);
-      const res = await apiFetch(apiUrl('/database/restore'), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ filename, confirmText })
-      });
-      const data = await res.json();
-      if (res.ok) {
-        const imgMsg = data.imagesRestored ? ` + ${data.imageCount} imágenes` : '';
-        setSuccess(`Restaurado: ${filename}${imgMsg}`);
-        setRestoring(null);
-        setConfirmText('');
-        fetchBackups();
-        fetchStats();
-      } else { setError(data.message || 'Error al restaurar'); }
-    } catch (err) { setError(err.message); }
-  };
-
-  /** Delete a single backup file. */
-  const deleteBackup = async (filename) => {
-    if (!window.confirm(`¿Eliminar "${filename}"?`)) return;
-    try {
-      const res = await apiFetch(apiUrl(`/database/backups/${encodeURIComponent(filename)}`), { method: 'DELETE' });
-      if (res.ok) {
-        setSuccess('Backup eliminado');
-        setBackups(prev => prev.filter(b => b.filename !== filename));
-      } else {
-        const data = await res.json();
-        setError(data.message || 'Error al eliminar');
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.message || 'Error al crear backup');
       }
-    } catch (err) { setError(err.message); }
+
+      const blob = await res.blob();
+      const fallbackExt = request.includeImages ? '.tar.gz' : '.sql';
+      const fallback = `${request.name}${request.version ? `-${request.version}` : ''}${fallbackExt}`;
+      const filename = parseFilename(res.headers.get('content-disposition'), fallback);
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+
+      setSuccess(`Backup descargado en tu dispositivo: ${filename}`);
+      fetchStats();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCreating(false);
+    }
   };
 
-  /** Download backup with type filter: data (full), sql, or images. */
-  const downloadBackup = (filename, type = 'data') => {
-    const url = apiUrl(`/database/backups/${encodeURIComponent(filename)}/download?type=${type}`);
-    window.open(url, '_blank');
-  };
-
-  /** Upload a .tar.gz or .sql file. Same-name overwrites. */
-  const uploadBackup = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (!file.name.endsWith('.sql') && !file.name.endsWith('.tar.gz')) {
-      setError('Solo se permiten archivos .tar.gz o .sql');
+  const restoreBackup = async () => {
+    if (!restoreFile) {
+      setError('Selecciona un archivo .tar.gz, .tar o .sql para restaurar.');
       return;
     }
+
     try {
-      setUploading(true);
+      const startedAt = Date.now();
+      setRestoring(true);
       setError(null);
+      setRestoreOverlay({
+        visible: true,
+        status: 'running',
+        title: 'Estamos preparando tu tienda',
+        subtitle: 'Aplicando datos, validando estructura y afinando todo para abrir.'
+      });
+
       const formData = new FormData();
-      formData.append('backupFile', file);
-      const res = await apiFetch(apiUrl('/database/backups/upload'), { method: 'POST', body: formData });
-      const data = await res.json();
-      if (res.ok) {
-        setSuccess(`Subido: ${data.filename}`);
-        fetchBackups();
-      } else { setError(data.message || 'Error al subir'); }
-    } catch (err) { setError(err.message); }
-    finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
+      formData.append('backupFile', restoreFile);
+      formData.append('confirmText', confirmText);
+
+      const res = await apiFetch(apiUrl('/database/restore'), {
+        method: 'POST',
+        body: formData
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al restaurar backup');
+      }
+
+      const elapsed = Date.now() - startedAt;
+      const waitRemaining = Math.max(0, MIN_RESTORE_ANIMATION_MS - elapsed);
+      if (waitRemaining > 0) {
+        await sleep(waitRemaining);
+      }
+
+      setRestoreOverlay({
+        visible: true,
+        status: 'success',
+        title: 'Restauracion completada con exito',
+        subtitle: 'Tu tienda ya esta lista. Actualizaremos la pagina para mostrar los cambios.'
+      });
+
+      setSuccess(`Restauración completada desde: ${restoreFile.name}`);
+      setConfirmText('');
+      setRestoreFile(null);
+      if (restoreInputRef.current) restoreInputRef.current.value = '';
+      fetchStats();
+
+      setTimeout(() => {
+        window.location.reload();
+      }, 1800);
+    } catch (err) {
+      setRestoreOverlay({
+        visible: false,
+        status: 'idle',
+        title: '',
+        subtitle: ''
+      });
+      setError(err.message);
+    } finally {
+      setRestoring(false);
     }
   };
 
-  // ── Helpers ───────────────────────────────────────────────
-
-  const formatSize = (bytes) => {
-    if (!bytes) return '0 B';
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  const formatDate = () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   };
 
-  const formatDate = (dateStr) => {
-    const d = new Date(dateStr);
-    const diff = Date.now() - d;
-    if (diff < 60000) return 'hace un momento';
-    if (diff < 3600000) return `hace ${Math.floor(diff / 60000)} min`;
-    if (diff < 86400000) return `hace ${Math.floor(diff / 3600000)}h`;
-    return d.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  };
-
-  /** Check if creating this backup will overwrite an existing file. */
-  const willReplace = () => {
-    const name = (backupName || storeName || 'eonsclover').replace(/[^a-zA-Z0-9_-]/g, '');
-    const ver = backupVersion ? `-${backupVersion.replace(/[^a-zA-Z0-9._-]/g, '')}` : '';
-    const fn = `${name}${ver}.tar.gz`;
-    return backups.some(b => b.filename === fn) ? fn : null;
-  };
-
-  // ── Stat labels ───────────────────────────────────────────
   const statLabels = {
-    users: '👥 Usuarios', products: '📦 Productos', product_images: '🖼️ Imgs DB',
-    orders: '📋 Órdenes', order_items: '📝 Items', cart: '🛒 Carrito',
-    app_settings: '⚙️ Ajustes', verification_codes: '🔑 Códigos'
+    users: '👥 Usuarios',
+    products: '📦 Productos',
+    product_images: '🖼️ Imgs DB',
+    orders: '📋 Órdenes',
+    order_items: '📝 Items',
+    cart: '🛒 Carrito',
+    app_settings: '⚙️ Ajustes',
+    verification_codes: '🔑 Códigos'
   };
 
-  // ── Styles ────────────────────────────────────────────────
   const s = {
     wrapper: { marginTop: '24px', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' },
     header: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', background: '#f9fafb', cursor: 'pointer', userSelect: 'none' },
@@ -205,210 +226,228 @@ function DatabaseManager() {
     statCard: { padding: '8px 12px', borderRadius: '6px', background: '#f3f4f6', textAlign: 'center', fontSize: '12px' },
     statLabel: { color: '#6b7280', marginBottom: '2px' },
     statValue: { fontWeight: 700, fontSize: '16px', color: '#111827' },
-    // Backup creation form
     createForm: { display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '16px', padding: '12px', borderRadius: '8px', background: '#f0fdf4', border: '1px solid #bbf7d0' },
     fieldGroup: { display: 'flex', flexDirection: 'column', gap: '3px' },
     fieldLabel: { fontSize: '11px', fontWeight: 600, color: '#374151' },
-    input: { padding: '7px 10px', borderRadius: '5px', border: '1px solid #d1d5db', fontSize: '13px', width: '160px' },
+    input: { padding: '7px 10px', borderRadius: '5px', border: '1px solid #d1d5db', fontSize: '13px', width: '170px' },
     inputSmall: { padding: '7px 10px', borderRadius: '5px', border: '1px solid #d1d5db', fontSize: '13px', width: '100px' },
-    replaceHint: { fontSize: '11px', color: '#b45309', fontWeight: 500, marginLeft: '4px' },
-    // Buttons
-    actions: { display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '16px' },
+    helper: { fontSize: '11px', color: '#6b7280' },
     btn: (bg = '#111827', fg = '#fff', border = 'none') => ({
-      padding: '8px 14px', borderRadius: '6px', border, background: bg, color: fg,
-      fontSize: '13px', fontWeight: 500, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '6px'
+      padding: '8px 14px',
+      borderRadius: '6px',
+      border,
+      background: bg,
+      color: fg,
+      fontSize: '13px',
+      fontWeight: 500,
+      cursor: 'pointer',
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '6px'
     }),
-    smBtn: (bg, fg, border = 'none') => ({
-      padding: '5px 10px', borderRadius: '4px', border, background: bg, color: fg,
-      fontSize: '12px', fontWeight: 500, cursor: 'pointer'
-    }),
-    // List
-    list: { display: 'flex', flexDirection: 'column', gap: '8px' },
-    item: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: '6px', border: '1px solid #e5e7eb', background: '#fff', flexWrap: 'wrap', gap: '8px' },
-    itemInfo: { display: 'flex', flexDirection: 'column', gap: '2px', minWidth: '200px' },
-    itemName: { fontSize: '13px', fontWeight: 600, color: '#111827', wordBreak: 'break-all' },
-    itemMeta: { fontSize: '12px', color: '#6b7280' },
-    badge: (bg, fg) => ({ display: 'inline-flex', alignItems: 'center', gap: '3px', padding: '2px 8px', borderRadius: '10px', background: bg, color: fg, fontSize: '11px', fontWeight: 600, marginLeft: '6px' }),
-    itemActions: { display: 'flex', gap: '4px', flexWrap: 'wrap' },
-    // Restore modal
-    restoreModal: { marginTop: '8px', padding: '12px', borderRadius: '6px', border: '1px solid #fbbf24', background: '#fffbeb' },
-    inputRow: { display: 'flex', gap: '8px', alignItems: 'center', marginTop: '8px' },
-    // Alerts
+    restoreBox: { marginTop: '12px', padding: '12px', borderRadius: '8px', border: '1px solid #fde68a', background: '#fffbeb' },
     alert: (type) => ({
-      padding: '10px 14px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px', fontWeight: 500,
+      padding: '10px 14px',
+      borderRadius: '6px',
+      marginBottom: '12px',
+      fontSize: '13px',
+      fontWeight: 500,
       background: type === 'error' ? '#fee2e2' : '#d1fae5',
       color: type === 'error' ? '#991b1b' : '#065f46',
       border: `1px solid ${type === 'error' ? '#fca5a5' : '#6ee7b7'}`
-    })
+    }),
+    overlay: {
+      position: 'fixed',
+      inset: 0,
+      zIndex: 9999,
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '20px',
+      backdropFilter: 'blur(10px)',
+      background: 'radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.25), transparent 40%), radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.2), transparent 45%), rgba(15, 23, 42, 0.68)'
+    },
+    overlayCard: {
+      width: 'min(560px, 100%)',
+      borderRadius: '20px',
+      border: '1px solid rgba(255,255,255,0.2)',
+      background: 'linear-gradient(165deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06))',
+      color: '#f8fafc',
+      boxShadow: '0 25px 60px rgba(2, 6, 23, 0.45)',
+      padding: '26px 24px',
+      textAlign: 'center',
+      position: 'relative',
+      overflow: 'hidden'
+    },
+    overlayTitle: {
+      fontSize: 'clamp(22px, 4vw, 34px)',
+      fontWeight: 800,
+      margin: '0 0 8px'
+    },
+    overlaySubtitle: {
+      margin: '0 auto 18px',
+      maxWidth: '460px',
+      color: '#e2e8f0',
+      fontSize: '14px',
+      lineHeight: 1.45
+    },
+    orbField: {
+      position: 'relative',
+      width: '220px',
+      height: '220px',
+      margin: '12px auto 8px'
+    }
   };
 
-  const replacingFile = willReplace();
-
   return (
-    <div style={s.wrapper}>
-      {/* Collapsible header */}
-      <div style={s.header} onClick={() => setCollapsed(p => !p)}>
-        <span style={s.headerTitle}>💾 Gestor de Backups</span>
-        <span style={s.chevron(!collapsed)}>▼</span>
+    <>
+      <style>{`
+        @keyframes restore-spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        @keyframes restore-pulse {
+          0%, 100% { transform: scale(0.92); opacity: 0.55; }
+          50% { transform: scale(1.08); opacity: 1; }
+        }
+        @keyframes restore-wave {
+          0% { transform: scale(0.4); opacity: 0.75; }
+          100% { transform: scale(1.35); opacity: 0; }
+        }
+        @keyframes restore-fade-up {
+          from { transform: translateY(8px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+      `}</style>
+
+      <div style={s.wrapper}>
+        <div style={s.header} onClick={() => setCollapsed((p) => !p)}>
+          <span style={s.headerTitle}>💾 Gestor de Backups</span>
+          <span style={s.chevron(!collapsed)}>▼</span>
+        </div>
+
+        {!collapsed && (
+          <div style={s.body}>
+            {error && <div style={s.alert('error')}>❌ {error}</div>}
+            {success && <div style={s.alert('success')}>✅ {success}</div>}
+
+            {stats && (
+              <>
+                <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#374151' }}>
+                  📊 Estado Actual {imageCount > 0 && <span style={{ fontWeight: 400, color: '#6b7280' }}>· 🖼️ {imageCount} imágenes en disco</span>}
+                </h4>
+                <div style={s.statsGrid}>
+                  {Object.entries(stats).map(([t, c]) => (
+                    <div key={t} style={s.statCard}>
+                      <div style={s.statLabel}>{statLabels[t] || t}</div>
+                      <div style={s.statValue}>{c >= 0 ? c : '—'}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {!stats && loadingStats && <p style={{ fontSize: '13px', color: '#6b7280' }}>Cargando estado actual...</p>}
+
+            <div style={s.createForm}>
+              <div style={s.fieldGroup}>
+                <span style={s.fieldLabel}>Nombre</span>
+                <input
+                  type="text"
+                  style={s.input}
+                  value={backupName}
+                  onChange={(e) => setBackupName(e.target.value)}
+                  placeholder={storeName}
+                />
+              </div>
+              <div style={s.fieldGroup}>
+                <span style={s.fieldLabel}>Versión (opcional)</span>
+                <input
+                  type="text"
+                  style={s.inputSmall}
+                  value={backupVersion}
+                  onChange={(e) => setBackupVersion(e.target.value)}
+                  placeholder="v1.0"
+                />
+              </div>
+              <div style={s.fieldGroup}>
+                <span style={s.fieldLabel}>Contenido</span>
+                <select
+                  style={{ ...s.inputSmall, width: '180px' }}
+                  value={backupFormat}
+                  onChange={(e) => setBackupFormat(e.target.value)}
+                >
+                  <option value="sql">SQL</option>
+                  <option value="full">SQL + Imágenes</option>
+                </select>
+              </div>
+              <button type="button" onClick={createBackup} disabled={creating} style={s.btn(creating ? '#9ca3af' : '#059669', '#fff')}>
+                {creating ? '⏳ Creando...' : '📥 Crear y Descargar Backup'}
+              </button>
+              <span style={s.helper}>Formato: nombre + versión(opcional) + fecha ({formatDate()})</span>
+            </div>
+
+            <div style={s.restoreBox}>
+              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#92400e' }}>♻️ Restaurar desde dispositivo</h4>
+              <p style={{ margin: '0 0 8px', fontSize: '12px', color: '#92400e' }}>
+                El archivo se procesa temporalmente para restaurar y luego se elimina del servidor.
+              </p>
+
+              <input
+                ref={restoreInputRef}
+                type="file"
+                accept=".sql,.tar,.tar.gz,.gz"
+                onChange={(e) => setRestoreFile(e.target.files?.[0] || null)}
+                style={{ marginBottom: '8px' }}
+              />
+
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <input
+                  type="text"
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  placeholder='Escribe "RESTAURAR"'
+                  style={{ ...s.input, width: '180px' }}
+                />
+                <button
+                  type="button"
+                  onClick={restoreBackup}
+                  disabled={!restoreFile || confirmText !== 'RESTAURAR' || restoring}
+                  style={s.btn(confirmText === 'RESTAURAR' && restoreFile && !restoring ? '#dc2626' : '#d1d5db', confirmText === 'RESTAURAR' && restoreFile && !restoring ? '#fff' : '#6b7280')}
+                >
+                  {restoring ? '⏳ Restaurando...' : '✅ Confirmar Restauración'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+        )}
       </div>
 
-      {!collapsed && (
-        <div style={s.body}>
-          {/* Alerts */}
-          {error && <div style={s.alert('error')}>❌ {error}</div>}
-          {success && <div style={s.alert('success')}>✅ {success}</div>}
+      {restoreOverlay.visible && (
+        <div style={s.overlay}>
+          <div style={s.overlayCard}>
+            <div style={{ position: 'absolute', inset: '-35% auto auto -20%', width: '260px', height: '260px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(245, 158, 11, 0.38), transparent 70%)', animation: 'restore-pulse 3s ease-in-out infinite' }} />
+            <div style={{ position: 'absolute', inset: 'auto -18% -40% auto', width: '260px', height: '260px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.34), transparent 72%)', animation: 'restore-pulse 3.7s ease-in-out infinite' }} />
 
-          {/* Live stats */}
-          {stats && (
-            <>
-              <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#374151' }}>
-                📊 Estado Actual {imageCount > 0 && <span style={{ fontWeight: 400, color: '#6b7280' }}>· 🖼️ {imageCount} imágenes en disco</span>}
-              </h4>
-              <div style={s.statsGrid}>
-                {Object.entries(stats).map(([t, c]) => (
-                  <div key={t} style={s.statCard}>
-                    <div style={s.statLabel}>{statLabels[t] || t}</div>
-                    <div style={s.statValue}>{c >= 0 ? c : '—'}</div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
+            <h3 style={{ ...s.overlayTitle, animation: 'restore-fade-up 500ms ease-out both' }}>{restoreOverlay.title}</h3>
+            <p style={{ ...s.overlaySubtitle, animation: 'restore-fade-up 650ms ease-out both' }}>{restoreOverlay.subtitle}</p>
 
-          {/* ── Backup creation form ──────────────────────────── */}
-          <div style={s.createForm}>
-            <div style={s.fieldGroup}>
-              <span style={s.fieldLabel}>Nombre</span>
-              <input
-                type="text"
-                style={s.input}
-                value={backupName}
-                onChange={(e) => setBackupName(e.target.value)}
-                placeholder={storeName || 'eonsclover'}
-              />
+            <div style={s.orbField}>
+              <div style={{ position: 'absolute', inset: 0, borderRadius: '999px', border: '2px solid rgba(255,255,255,0.25)', animation: 'restore-spin 4s linear infinite' }} />
+              <div style={{ position: 'absolute', inset: '16px', borderRadius: '999px', border: '1px dashed rgba(255,255,255,0.4)', animation: 'restore-spin 6s linear reverse infinite' }} />
+              <div style={{ position: 'absolute', inset: '44px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(255,255,255,0.96), rgba(209,250,229,0.75) 55%, rgba(16,185,129,0.35) 100%)', boxShadow: '0 0 42px rgba(209, 250, 229, 0.8)', animation: 'restore-pulse 2.2s ease-in-out infinite' }} />
+              <div style={{ position: 'absolute', inset: '26px', borderRadius: '999px', border: '2px solid rgba(255,255,255,0.22)', animation: 'restore-wave 2.6s ease-out infinite' }} />
+              <div style={{ position: 'absolute', inset: '26px', borderRadius: '999px', border: '2px solid rgba(255,255,255,0.22)', animation: 'restore-wave 2.6s ease-out infinite 1.3s' }} />
             </div>
-            <div style={s.fieldGroup}>
-              <span style={s.fieldLabel}>Versión (opcional)</span>
-              <input
-                type="text"
-                style={s.inputSmall}
-                value={backupVersion}
-                onChange={(e) => setBackupVersion(e.target.value)}
-                placeholder="v1.0"
-              />
-            </div>
-            <button
-              type="button"
-              onClick={createBackup}
-              disabled={creating}
-              style={s.btn(creating ? '#9ca3af' : '#059669', '#fff')}
-            >
-              {creating ? '⏳ Creando...' : '📥 Crear Backup'}
-            </button>
-            {replacingFile && (
-              <span style={s.replaceHint}>⚠ Reemplazará: {replacingFile}</span>
-            )}
-          </div>
 
-          {/* Action buttons row */}
-          <div style={s.actions}>
-            <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploading} style={s.btn('#2563eb', '#fff')}>
-              {uploading ? '⏳ Subiendo...' : '📤 Subir Backup'}
-            </button>
-            <button type="button" onClick={() => { fetchBackups(); fetchStats(); }} disabled={loading} style={s.btn('#fff', '#374151', '1px solid #d1d5db')}>
-              🔄 Refrescar
-            </button>
-            {/* Hidden file input — single file, .tar.gz or .sql */}
-            <input ref={fileInputRef} type="file" accept=".sql,.tar.gz,.gz" style={{ display: 'none' }} onChange={uploadBackup} />
-          </div>
-
-          {/* ── Backup list ───────────────────────────────────── */}
-          <h4 style={{ margin: '0 0 8px', fontSize: '13px', color: '#374151' }}>
-            📁 Backups ({backups.length})
-          </h4>
-
-          {loading && <p style={{ fontSize: '13px', color: '#6b7280' }}>Cargando...</p>}
-          {!loading && backups.length === 0 && (
-            <p style={{ fontSize: '13px', color: '#9ca3af', fontStyle: 'italic' }}>No hay backups. Crea uno para comenzar.</p>
-          )}
-
-          <div style={s.list}>
-            {backups.map(b => (
-              <div key={b.filename}>
-                <div style={s.item}>
-                  <div style={s.itemInfo}>
-                    <span style={s.itemName}>
-                      {b.isArchive ? '📦' : '📄'} {b.filename}
-                      {/* Content badges */}
-                      {b.hasSql && <span style={s.badge('#d1fae5', '#065f46')}>SQL ✓</span>}
-                      {b.imageCount > 0
-                        ? <span style={s.badge('#dbeafe', '#1e40af')}>🖼️ {b.imageCount}</span>
-                        : b.isArchive && <span style={s.badge('#f3f4f6', '#9ca3af')}>sin imgs</span>
-                      }
-                    </span>
-                    <span style={s.itemMeta}>{formatSize(b.size)} · {formatDate(b.date)}</span>
-                  </div>
-
-                  <div style={s.itemActions}>
-                    {/* Restore */}
-                    <button type="button" onClick={() => { setRestoring(restoring === b.filename ? null : b.filename); setConfirmText(''); }} style={s.smBtn('#fbbf24', '#78350f')}>
-                      ♻️ Restaurar
-                    </button>
-                    {/* Download — Completo (default) */}
-                    <button type="button" onClick={() => downloadBackup(b.filename, 'data')} style={s.smBtn('#e0e7ff', '#3730a3')} title="Descargar completo (SQL + imágenes)">
-                      ⬇️ Completo
-                    </button>
-                    {/* Download — SQL only */}
-                    {b.hasSql && b.isArchive && (
-                      <button type="button" onClick={() => downloadBackup(b.filename, 'sql')} style={s.smBtn('#f0fdf4', '#166534')} title="Descargar solo SQL">
-                        ⬇️ SQL
-                      </button>
-                    )}
-                    {/* Download — Images only */}
-                    {b.imageCount > 0 && b.isArchive && (
-                      <button type="button" onClick={() => downloadBackup(b.filename, 'images')} style={s.smBtn('#fef3c7', '#92400e')} title="Descargar solo imágenes">
-                        ⬇️ 🖼️
-                      </button>
-                    )}
-                    {/* Delete */}
-                    <button type="button" onClick={() => deleteBackup(b.filename)} style={s.smBtn('#fee2e2', '#991b1b')}>🗑️</button>
-                  </div>
-                </div>
-
-                {/* Restore confirmation */}
-                {restoring === b.filename && (
-                  <div style={s.restoreModal}>
-                    <p style={{ margin: 0, fontSize: '13px', color: '#92400e', lineHeight: '1.4' }}>
-                      ⚠️ <strong>Esto reemplazará TODOS los datos actuales</strong>. Se creará un backup de seguridad automático.
-                    </p>
-                    {b.imageCount > 0 && (
-                      <p style={{ margin: '6px 0 0', fontSize: '12px', color: '#1e40af', fontWeight: 500 }}>
-                        🖼️ Se restaurarán {b.imageCount} imágenes de productos.
-                      </p>
-                    )}
-                    <div style={s.inputRow}>
-                      <input
-                        type="text" value={confirmText} onChange={(e) => setConfirmText(e.target.value)}
-                        placeholder='Escribe "RESTAURAR"'
-                        style={{ flex: 1, padding: '6px 10px', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '13px' }}
-                      />
-                      <button type="button" onClick={() => restoreBackup(b.filename)} disabled={confirmText !== 'RESTAURAR'}
-                        style={s.smBtn(confirmText === 'RESTAURAR' ? '#dc2626' : '#d1d5db', confirmText === 'RESTAURAR' ? '#fff' : '#9ca3af')}>
-                        Confirmar
-                      </button>
-                      <button type="button" onClick={() => { setRestoring(null); setConfirmText(''); }}
-                        style={s.smBtn('#fff', '#374151', '1px solid #d1d5db')}>
-                        Cancelar
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            ))}
+            <p style={{ margin: '8px 0 0', fontSize: '13px', letterSpacing: '0.02em', color: '#d1fae5' }}>
+              {restoreOverlay.status === 'success' ? 'Todo quedo sincronizado.' : 'No cierres esta ventana, estamos finalizando detalles.'}
+            </p>
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 

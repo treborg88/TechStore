@@ -2,7 +2,8 @@
 // Plans listing, slug availability, and tenant registration.
 const { Router } = require('express');
 const jwt = require('jsonwebtoken');
-const { pool, statements } = require('../../database');
+const db = require('../../database');
+const { statements } = db;
 const config = require('../../config');
 const { provisionTenant, validateSlug } = require('../../services/tenant/provisioner');
 const { getSettingsMap } = require('../../services/email.service');
@@ -13,7 +14,7 @@ const router = Router();
 // GET /api/saas/plans — Active plans for pricing page
 router.get('/plans', async (_req, res) => {
   try {
-    const result = await pool.query(
+    const result = await db.pool.query(
       `SELECT id, name, price_monthly, max_products, max_orders_month, max_storage_mb, features
        FROM public.plans WHERE is_active = true ORDER BY sort_order`
     );
@@ -36,7 +37,7 @@ router.get('/check-slug/:slug', async (req, res) => {
     }
 
     // Check DB uniqueness
-    const result = await pool.query(
+    const result = await db.pool.query(
       'SELECT id FROM public.tenants WHERE slug = $1',
       [slug]
     );
@@ -53,7 +54,7 @@ router.get('/check-email', async (req, res) => {
     const email = (req.query.email || '').trim().toLowerCase();
     if (!email) return res.status(400).json({ message: 'Email requerido' });
 
-    const result = await pool.query(
+    const result = await db.pool.query(
       'SELECT id FROM public.tenants WHERE LOWER(owner_email) = $1',
       [email]
     );
@@ -121,7 +122,7 @@ router.post('/register', async (req, res) => {
   }
 
   try {
-    const { tenantId } = await provisionTenant(pool, {
+    const { tenantId } = await provisionTenant(db.pool, {
       slug,
       name: businessName,
       ownerEmail,

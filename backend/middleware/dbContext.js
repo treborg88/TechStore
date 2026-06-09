@@ -8,10 +8,10 @@ const config = require('../config');
 
 /**
  * Factory: returns dbContext middleware.
- * @param {import('pg').Pool} pool - PostgreSQL connection pool
+ * @param {import('pg').Pool|Function} poolOrGetter - PostgreSQL pool or lazy getter returning the current pool
  * @returns {Function} Express middleware
  */
-function createDbContext(pool) {
+function createDbContext(poolOrGetter) {
     // Import tenantContext from the database module (AsyncLocalStorage instance)
     const { tenantContext } = require('../database');
 
@@ -19,6 +19,14 @@ function createDbContext(pool) {
         // Only wire tenant schema in SaaS mode with a resolved tenant
         if (config.SAAS_MODE !== 'true' || !req.tenant) {
             return next();
+        }
+
+        const resolvedPool = typeof poolOrGetter === 'function' ? poolOrGetter() : poolOrGetter;
+        if (!resolvedPool) {
+            const err = new Error('Base de datos no configurada');
+            err.code = 'DB_NOT_CONFIGURED';
+            err.statusCode = 503;
+            return next(err);
         }
 
         // Validate schema name (prevent injection — only allows tenant_<slug> format)
@@ -57,7 +65,7 @@ function createDbContext(pool) {
         };
 
         try {
-            client = await pool.connect();
+            client = await resolvedPool.connect();
             await client.query('BEGIN');
             await client.query(`SET LOCAL search_path TO "${schemaName}", public`);
             req.dbClient = client;

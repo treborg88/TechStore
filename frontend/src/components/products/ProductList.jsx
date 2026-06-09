@@ -687,7 +687,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 																		}} />
 																		{/* Color picker — only for color_swatch attribute types */}
 																		{isColorType(attr.type) && (
-																			<input type="color" className="variant-color-picker" value={attr.color_hex || '#000000'} title="Color del botón" onChange={(e) => {
+																			<input type="color" className="variant-color-picker" value={normalizeHexColor(attr.color_hex, '#000000')} title="Color del botón" onChange={(e) => {
 																				const updated = [...editingVariant.attributes];
 																				updated[idx] = { ...updated[idx], color_hex: e.target.value };
 																				setEditingVariant(prev => ({ ...prev, attributes: updated }));
@@ -789,7 +789,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 												}} />
 												{/* Color picker — only for color_swatch attribute types */}
 												{isColorType(attr.type) && (
-													<input type="color" className="variant-color-picker" value={attr.color_hex || '#000000'} title="Color del botón" onChange={(e) => {
+													<input type="color" className="variant-color-picker" value={normalizeHexColor(attr.color_hex, '#000000')} title="Color del botón" onChange={(e) => {
 														const updated = updateAttrRow(newVariant.attributes, null, idx, 'color_hex', e.target.value);
 														setNewVariant(prev => ({ ...prev, attributes: updated }));
 													}} />

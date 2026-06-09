@@ -5,7 +5,9 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const router = express.Router();
 const config = require('../../config');
-const { pool, withTenantSchema } = require('../../database');
+const db = require('../../database');
+const { withTenantSchema } = db;
+const backupService = require('../../services/backup.service');
 const nodemailer = require('nodemailer');
 
 // Direct env-var transporter for OTP — bypasses DB settings query (pre-auth context)
@@ -163,14 +165,14 @@ router.get('/tenants', async (req, res) => {
         const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
         // Count total
-        const countResult = await pool.query(
+        const countResult = await db.pool.query(
             `SELECT COUNT(*) FROM public.tenants t ${where}`, params
         );
         const total = parseInt(countResult.rows[0].count);
 
         // Fetch tenants with plan info
         params.push(parseInt(limit), offset);
-        const result = await pool.query(`
+        const result = await db.pool.query(`
             SELECT t.*, p.name AS plan_name, p.price_monthly,
                    s.status AS subscription_status, s.current_period_end
             FROM public.tenants t
@@ -193,13 +195,48 @@ router.get('/tenants', async (req, res) => {
     }
 });
 
+router.post('/database/backup/all-tenants', async (req, res) => {
+    try {
+        const { name, version, includePublicSchema = true } = req.body || {};
+        const result = await backupService.createBusinessWideBackup({
+            name,
+            version,
+            includePublicSchema
+        });
+        res.json(result);
+    } catch (err) {
+        console.error('SuperAdmin all-tenants backup error:', err);
+        res.status(500).json({ message: 'Error al crear backup de todos los tenants' });
+    }
+});
+
+router.post('/database/restore/all-tenants', async (req, res) => {
+    try {
+        const { filename, confirmText, includePublicSchema = true } = req.body || {};
+        if (!filename) {
+            return res.status(400).json({ message: 'filename es requerido' });
+        }
+
+        const result = await backupService.restoreBusinessWideBackup({
+            filename,
+            confirmText,
+            includePublicSchema
+        });
+
+        res.json(result);
+    } catch (err) {
+        console.error('SuperAdmin all-tenants restore error:', err);
+        res.status(500).json({ message: err.message || 'Error al restaurar backup de todos los tenants' });
+    }
+});
+
 // ── GET /tenants/:id — Tenant detail with usage ──────────────────────────────
 router.get('/tenants/:id', async (req, res) => {
     try {
         const { id } = req.params;
 
         // Tenant + plan + subscription
-        const tenantResult = await pool.query(`
+        const tenantResult = await db.pool.query(`
             SELECT t.*, p.name AS plan_name, p.price_monthly,
                    p.max_products, p.max_orders_month, p.max_storage_mb,
                    s.status AS subscription_status, s.current_period_start,
@@ -233,7 +270,7 @@ router.get('/tenants/:id', async (req, res) => {
         } catch { /* Schema may not exist yet */ }
 
         // Recent audit log entries
-        const auditResult = await pool.query(
+        const auditResult = await db.pool.query(
             `SELECT * FROM public.audit_log WHERE tenant_id = $1 ORDER BY created_at DESC LIMIT 20`,
             [id]
         );
@@ -255,7 +292,7 @@ router.put('/tenants/:id/status', async (req, res) => {
             return res.status(400).json({ message: `Estado inválido. Válidos: ${validStatuses.join(', ')}` });
         }
 
-        const result = await pool.query(
+        const result = await db.pool.query(
             `UPDATE public.tenants SET status = $1, updated_at = NOW() WHERE id = $2 RETURNING slug, status`,
             [status, id]
         );
@@ -268,7 +305,7 @@ router.put('/tenants/:id/status', async (req, res) => {
         invalidateTenantCache(result.rows[0].slug);
 
         // Audit log
-        await pool.query(
+        await db.pool.query(
             `INSERT INTO public.audit_log (tenant_id, action, actor, details) VALUES ($1, $2, $3, $4)`,
             [id, 'status_change', config.SUPER_ADMIN_EMAIL || 'superadmin', JSON.stringify({ new_status: status })]
         );
@@ -287,13 +324,13 @@ router.put('/tenants/:id/plan', async (req, res) => {
         const { plan_id } = req.body;
 
         // Verify plan exists
-        const planCheck = await pool.query('SELECT id FROM public.plans WHERE id = $1 AND is_active = true', [plan_id]);
+        const planCheck = await db.pool.query('SELECT id FROM public.plans WHERE id = $1 AND is_active = true', [plan_id]);
         if (!planCheck.rows.length) {
             return res.status(400).json({ message: 'Plan no encontrado o inactivo' });
         }
 
         // Update tenant + subscription in transaction
-        const client = await pool.connect();
+        const client = await db.pool.connect();
         try {
             await client.query('BEGIN');
             await client.query('UPDATE public.tenants SET plan_id = $1, updated_at = NOW() WHERE id = $2', [plan_id, id]);
@@ -323,7 +360,7 @@ router.post('/tenants/:id/impersonate', async (req, res) => {
         const { id } = req.params;
 
         // Fetch tenant
-        const tenantResult = await pool.query('SELECT * FROM public.tenants WHERE id = $1', [id]);
+        const tenantResult = await db.pool.query('SELECT * FROM public.tenants WHERE id = $1', [id]);
         if (!tenantResult.rows.length) {
             return res.status(404).json({ message: 'Tenant no encontrado' });
         }
@@ -353,7 +390,7 @@ router.post('/tenants/:id/impersonate', async (req, res) => {
         );
 
         // Audit log
-        await pool.query(
+        await db.pool.query(
             `INSERT INTO public.audit_log (tenant_id, action, actor, details) VALUES ($1, $2, $3, $4)`,
             [id, 'impersonate', config.SUPER_ADMIN_EMAIL || 'superadmin', JSON.stringify({ admin_email: adminUser.email })]
         );
@@ -379,13 +416,12 @@ router.delete('/tenants/:id', async (req, res) => {
             return res.status(400).json({ message: 'Confirma la eliminación enviando { confirm: true }' });
         }
 
-        const tenantResult = await pool.query('SELECT slug, schema_name FROM public.tenants WHERE id = $1', [id]);
+        const tenantResult = await db.pool.query('SELECT slug, schema_name FROM public.tenants WHERE id = $1', [id]);
         if (!tenantResult.rows.length) {
             return res.status(404).json({ message: 'Tenant no encontrado' });
         }
 
         const { deprovisionTenant } = require('../../services/tenant');
-        const db = require('../../database');
         await deprovisionTenant(db.pool, { 
             slug: tenantResult.rows[0].slug, 
             confirm: `DELETE_${tenantResult.rows[0].slug.toUpperCase()}` 
@@ -411,27 +447,27 @@ router.get('/metrics', async (req, res) => {
     try {
         const [tenantCounts, planCounts, mrr, trialAlerts] = await Promise.all([
             // Tenant counts by status
-            pool.query(`
+            db.pool.query(`
                 SELECT status, COUNT(*) AS count
                 FROM public.tenants
                 GROUP BY status
             `),
             // Tenant counts by plan
-            pool.query(`
+            db.pool.query(`
                 SELECT t.plan_id, p.name AS plan_name, COUNT(*) AS count
                 FROM public.tenants t
                 LEFT JOIN public.plans p ON t.plan_id = p.id
                 GROUP BY t.plan_id, p.name
             `),
             // Monthly recurring revenue (active tenants only)
-            pool.query(`
+            db.pool.query(`
                 SELECT COALESCE(SUM(p.price_monthly), 0) AS mrr
                 FROM public.tenants t
                 JOIN public.plans p ON t.plan_id = p.id
                 WHERE t.status IN ('active', 'trial')
             `),
             // Trials expiring within 3 days
-            pool.query(`
+            db.pool.query(`
                 SELECT id, slug, name, owner_email, trial_ends_at
                 FROM public.tenants
                 WHERE status = 'trial'
@@ -467,7 +503,7 @@ router.get('/metrics', async (req, res) => {
 router.get('/database/schemas', async (req, res) => {
     try {
         // Fetch only public + tenant_* schemas
-        const schemasResult = await pool.query(`
+        const schemasResult = await db.pool.query(`
             SELECT schema_name FROM information_schema.schemata
             WHERE schema_name = 'public' OR schema_name LIKE 'tenant_%'
             ORDER BY schema_name
@@ -475,7 +511,7 @@ router.get('/database/schemas', async (req, res) => {
 
         const result = {};
         for (const { schema_name } of schemasResult.rows) {
-            const tablesResult = await pool.query(`
+            const tablesResult = await db.pool.query(`
                 SELECT table_name FROM information_schema.tables
                 WHERE table_schema = $1 AND table_type = 'BASE TABLE'
                 ORDER BY table_name
@@ -507,7 +543,7 @@ router.get('/database/:schema/table/:table', async (req, res) => {
         }
 
         // Verify the table actually exists in the schema before querying
-        const exists = await pool.query(
+        const exists = await db.pool.query(
             `SELECT 1 FROM information_schema.tables
              WHERE table_schema = $1 AND table_name = $2 AND table_type = 'BASE TABLE'`,
             [schema, table]
@@ -516,10 +552,10 @@ router.get('/database/:schema/table/:table', async (req, res) => {
             return res.status(404).json({ message: 'Tabla no encontrada' });
         }
 
-        const countResult = await pool.query(`SELECT COUNT(*) FROM "${schema}"."${table}"`);
+        const countResult = await db.pool.query(`SELECT COUNT(*) FROM "${schema}"."${table}"`);
         const total = parseInt(countResult.rows[0].count);
 
-        const dataResult = await pool.query(
+        const dataResult = await db.pool.query(
             `SELECT * FROM "${schema}"."${table}" LIMIT $1 OFFSET $2`,
             [limit, offset]
         );
@@ -551,7 +587,7 @@ router.get('/audit-log', async (req, res) => {
         }
 
         params.push(parseInt(limit), offset);
-        const result = await pool.query(`
+        const result = await db.pool.query(`
             SELECT a.*, t.slug AS tenant_slug, t.name AS tenant_name
             FROM public.audit_log a
             LEFT JOIN public.tenants t ON a.tenant_id = t.id

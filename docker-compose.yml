@@ -76,6 +76,8 @@ services:
     volumes:
       # Persist uploaded images (postgres mode)
       - uploads:/app/backend/uploads
+      # Persist backup archives across container restarts
+      - backups:/app/backend/backups
       # Persist logs
       - ./logs:/app/backend/logs
     networks:
@@ -135,6 +137,7 @@ services:
 volumes:
   pgdata:
   uploads:
+  backups:
 
 networks:
   eonsclover:
