@@ -19,9 +19,9 @@ const _sendOtpEmail = async (to, code) => {
         auth: { user: config.EMAIL_USER, pass: config.EMAIL_PASS }
     });
     await transporter.sendMail({
-        from: `EonsClover Admin <${config.EMAIL_USER}>`,
+        from: `${config.BRAND} Admin <${config.EMAIL_USER}>`,
         to,
-        subject: '\uD83D\uDD10 C\u00f3digo de acceso \u2014 EonsClover Super Admin',
+        subject: `\uD83D\uDD10 C\u00f3digo de acceso \u2014 ${config.BRAND} Super Admin`,
         html: `
             <div style="font-family:Inter,sans-serif;max-width:480px;margin:0 auto;padding:32px;">
                 <h2 style="color:#0f172a;margin-bottom:8px;">C\u00f3digo de autenticaci\u00f3n</h2>

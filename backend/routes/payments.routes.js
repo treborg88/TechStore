@@ -1,6 +1,7 @@
 ﻿// routes/payments.routes.js - Stripe and PayPal payment processing
 const express = require('express');
 const router = express.Router();
+const config = require('../config');
 const { 
     STRIPE_SECRET_KEY, 
     STRIPE_PUBLISHABLE_KEY, 
@@ -8,7 +9,7 @@ const {
     PAYPAL_CLIENT_ID,
     PAYPAL_CLIENT_SECRET,
     PAYPAL_MODE
-} = require('../config');
+} = config;
 const { statements } = require('../database');
 const { authenticateToken } = require('../middleware/auth');
 const { decryptSetting } = require('../services/encryption.service');
@@ -488,7 +489,7 @@ router.post('/paypal/create-order', async (req, res) => {
         return res.status(503).json({ message: 'PayPal no está configurado. Configure las credenciales en Ajustes > Pagos.' });
     }
     
-    const { amount, currency = 'USD', orderId, description = 'Compra en Eonsclover' } = req.body;
+    const { amount, currency = 'USD', orderId, description = `Compra en ${config.BRAND}` } = req.body;
     
     if (!amount || amount <= 0) {
         return res.status(400).json({ message: 'Monto inválido' });

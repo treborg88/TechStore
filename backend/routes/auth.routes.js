@@ -287,14 +287,14 @@ router.post('/forgot-password', async (req, res) => {
         await statements.createVerificationCode(email.toLowerCase(), code, 'password_reset', expiresAt);
 
         const mailOptions = {
-            from: process.env.EMAIL_USER || 'noreply@eonsclover.com',
+            from: process.env.EMAIL_USER || `noreply@${config.BRAND}.com`,
             to: email,
-            subject: 'Restablecer contraseña - Eonsclover',
+            subject: `Restablecer contraseña - ${config.BRAND}`,
             text: `Tu código para restablecer la contraseña es: ${code}. Expira en 10 minutos.`,
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
                     <h2 style="color: #007bff;">Restablecer Contraseña</h2>
-                    <p>Has solicitado restablecer tu contraseña en Eonsclover.</p>
+                    <p>Has solicitado restablecer tu contraseña en ${config.BRAND}.</p>
                     <p>Tu código de verificación es:</p>
                     <h1 style="letter-spacing: 5px; background: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">${code}</h1>
                     <p>Este código expira en 10 minutos.</p>

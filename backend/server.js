@@ -157,14 +157,14 @@ const getShareSettings = async () => {
         let seoConfig = {};
         try { seoConfig = settingsMap.seoConfig ? JSON.parse(settingsMap.seoConfig) : {}; } catch { /* ignore */ }
         _shareSettingsCache = {
-            siteName: settingsMap.siteName || 'Eonsclover',
+            siteName: settingsMap.siteName || config.BRAND,
             currency: settingsMap.currencyCode || 'DOP',
             ogImage: seoConfig.ogImage || '',
             locale: seoConfig.locale || 'es_DO'
         };
         _shareSettingsCacheTime = now;
     } catch (_err) {
-        _shareSettingsCache = { siteName: 'Eonsclover', currency: 'DOP', ogImage: '', locale: 'es_DO' };
+        _shareSettingsCache = { siteName: config.BRAND, currency: 'DOP', ogImage: '', locale: 'es_DO' };
     }
     return _shareSettingsCache;
 };

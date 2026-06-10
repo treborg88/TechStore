@@ -7,6 +7,7 @@ const { authenticateToken, requireAdmin } = require('../middleware/auth');
 const { singleImageUpload } = require('../middleware/upload');
 const { encryptSetting } = require('../services/encryption.service');
 const { addSiteDomain } = require('../config/cors');
+const config = require('../config');
 
 // Public settings that can be exposed to the frontend (no sensitive data)
 const PUBLIC_SETTINGS = [
@@ -142,7 +143,7 @@ router.get('/public', async (req, res) => {
         }
 
         if (settingsObj.footerConfig === undefined) {
-            settingsObj.footerConfig = '{"brandMessage":"Tu tienda de confianza para todos los dispositivos electrónicos y accesorios.","quickLinksTitle":"Enlaces Rápidos","quickLinks":[{"label":"Inicio","href":"/","enabled":true},{"label":"Productos","href":"/tienda","enabled":true},{"label":"Ofertas","href":"/tienda?promo=1","enabled":true},{"label":"Sobre Nosotros","href":"/contacto","enabled":true}],"supportTitle":"Atención al Cliente","supportLinks":[{"label":"Contáctanos","href":"/contacto","enabled":true},{"label":"Devoluciones","href":"/contacto","enabled":true},{"label":"Preguntas Frecuentes","href":"/contacto","enabled":true},{"label":"Estado del Pedido","href":"/orders","enabled":true}],"socialTitle":"Síguenos","socialLinks":[{"icon":"📘","href":"","enabled":true},{"icon":"📱","href":"","enabled":true},{"icon":"📷","href":"","enabled":true},{"icon":"🐦","href":"","enabled":true}],"copyrightText":"© 2026 Eonsclover. Todos los derechos reservados."}';
+            settingsObj.footerConfig = JSON.stringify({"brandMessage":"Tu tienda de confianza para todos los dispositivos electr\u00f3nicos y accesorios.","quickLinksTitle":"Enlaces R\u00e1pidos","quickLinks":[{"label":"Inicio","href":"/","enabled":true},{"label":"Productos","href":"/tienda","enabled":true},{"label":"Ofertas","href":"/tienda?promo=1","enabled":true},{"label":"Sobre Nosotros","href":"/contacto","enabled":true}],"supportTitle":"Atenci\u00f3n al Cliente","supportLinks":[{"label":"Cont\u00e1ctanos","href":"/contacto","enabled":true},{"label":"Devoluciones","href":"/contacto","enabled":true},{"label":"Preguntas Frecuentes","href":"/contacto","enabled":true},{"label":"Estado del Pedido","href":"/orders","enabled":true}],"socialTitle":"S\u00edguenos","socialLinks":[{"icon":"\uD83D\uDCD8","href":"","enabled":true},{"icon":"\uD83D\uDCF1","href":"","enabled":true},{"icon":"\uD83D\uDCF7","href":"","enabled":true},{"icon":"\uD83D\uDC26","href":"","enabled":true}],"copyrightText":"\u00a9 2026 " + config.BRAND + ". Todos los derechos reservados."});
             try {
                 await statements.updateSetting('footerConfig', settingsObj.footerConfig);
             } catch (healError) {

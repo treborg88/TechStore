@@ -4,7 +4,8 @@ const router = express.Router();
 
 const { statements } = require('../database');
 const { sendMailWithSettings, getSettingsMap } = require('../services/email.service');
-const { EMAIL_USER, TEST_BYPASS_EMAIL } = require('../config');
+const config = require('../config');
+const { EMAIL_USER, TEST_BYPASS_EMAIL } = config;
 
 // Returns true when the email matches a TEST_BYPASS_EMAIL entry.
 // Entries can be exact addresses (test@example.com) or domain suffixes (@example.com).
@@ -76,15 +77,15 @@ router.post('/send-code', async (req, res) => {
 
         // Send email
         const mailOptions = {
-            from: EMAIL_USER || 'noreply@eonsclover.com',
+            from: EMAIL_USER || `noreply@${config.BRAND}.com`,
             to: normalizedEmail,
-            subject: 'Tu código de verificación - Eonsclover',
+            subject: `Tu código de verificación - ${config.BRAND}`,
             text: `Tu código de verificación es: ${code}. Este código expira en 10 minutos.`,
             html: `
                 <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
                     <h2 style="color: #007bff;">Código de Verificación</h2>
                     <p>Hola,</p>
-                    <p>Tu código de verificación para Eonsclover es:</p>
+                    <p>Tu código de verificación para ${config.BRAND} es:</p>
                     <h1 style="letter-spacing: 5px; background: #f4f4f4; padding: 10px; display: inline-block; border-radius: 5px;">${code}</h1>
                     <p>Este código expira en 10 minutos.</p>
                     <p>Si no solicitaste este código, puedes ignorar este correo.</p>

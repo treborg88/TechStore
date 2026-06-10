@@ -20,6 +20,7 @@ if (!JWT_SECRET) {
 
 module.exports = {
     PORT: process.env.PORT || 5001,
+    BRAND: process.env.BRAND || 'Add brand',
     JWT_SECRET,
     SETTINGS_ENCRYPTION_SECRET: process.env.SETTINGS_ENCRYPTION_SECRET || JWT_SECRET,
     EMAIL_USER: process.env.EMAIL_USER,
