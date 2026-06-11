@@ -10,7 +10,7 @@ const isLocalhost = typeof window !== 'undefined' &&
 const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
 const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
 const hostParts = hostname.split('.');
-const SYSTEM_SLUGS = ['app', 'admin', 'www', 'staging'];
+const SYSTEM_SLUGS = ['app', 'admin', 'www', 'staging', 'database'];
 
 const isAdminPath = !isLocalhost && pathname.startsWith('/admin');
 const isAppPath = !isLocalhost && pathname.startsWith('/app');

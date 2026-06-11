@@ -34,7 +34,7 @@ function createTenantMiddleware(poolOrGetter) {
         const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
 
         // Bypass: system subdomains and root/localhost on platform domain
-        const systemSlugs = ['app', 'admin', 'staging', 'www'];
+        const systemSlugs = ['app', 'admin', 'staging', 'www', 'database'];
         if (isPlatformHost && (!subdomain || systemSlugs.includes(subdomain))) {
             return next();
         }
