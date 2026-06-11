@@ -345,7 +345,7 @@ function Carousel() {
                     {CAROUSEL_SLIDES.map((slide, i) => (
                         <div key={i} style={{ minWidth: `${100 / visible}%`, padding: visible === 2 ? '0 18px' : '0 6px', flex: 'none' }}>
                             <div style={{ ...glass, borderRadius: '24px', overflow: 'hidden', border: `1px solid ${slide.border}` }}>
-                                <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: 'auto', display: 'block' }} />
+                                <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: 'auto', maxHeight: '420px', objectFit: 'contain', objectPosition: 'top', display: 'block' }} />
                                 <div style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                                     <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{slide.icon}</span>
                                     <div style={{ minWidth: 0 }}>
