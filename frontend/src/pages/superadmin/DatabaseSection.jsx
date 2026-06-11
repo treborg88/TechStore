@@ -4,8 +4,8 @@
 
 import { useState, useEffect } from 'react';
 
-// Adminer runs as a Docker sidecar on port 8080
-const ADMINER_BASE = 'http://localhost:8080';
+// Adminer runs as a Docker sidecar — accessible via subdomain
+const ADMINER_BASE = 'https://database.eonsclover.com';
 
 // Ordered list for the public (platform) schema
 const PUBLIC_TABLES = ['tenants', 'subscriptions', 'plans', 'audit_log', 'schema_migrations', '_schema_version'];
