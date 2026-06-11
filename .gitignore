@@ -4,7 +4,8 @@ node_modules/
 # Production build
 dist/
 build/
-Saas/
+Saas
+!/backend/routes/saas/
 tests
 
 # Environment variables
