@@ -17,7 +17,7 @@ function GlobalStyles() {
         link.id = 'saas-inter-font';
         if (!document.getElementById('saas-inter-font')) document.head.appendChild(link);
 
-        // Utility classes (hover effects, gradient text)
+        // Utility classes (hover effects, gradient text) + mobile responsive
         const style = document.createElement('style');
         style.id = 'saas-landing-global';
         style.textContent = `
@@ -31,6 +31,24 @@ function GlobalStyles() {
             }
             .hover-lift { transition: transform 0.3s; }
             .hover-lift:hover { transform: translateY(-8px); }
+
+            /* ── Mobile responsive ─────────────────────────────────── */
+            @media (max-width: 768px) {
+                body { overflow-x: hidden; }
+                .saas-nav-links { display: none !important; }
+                .saas-nav-cta { display: none !important; }
+                .saas-hero-grid { grid-template-columns: 1fr !important; }
+                .saas-hero-image { order: -1; }
+                .saas-features-grid { grid-template-columns: 1fr !important; }
+                .saas-pricing-grid { grid-template-columns: 1fr !important; }
+                .saas-comparison-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+                .saas-comparison-table { min-width: 500px; font-size: 0.75rem; }
+                .saas-section-heading { font-size: 2rem !important; }
+                .saas-hero-heading { font-size: clamp(1.6rem, 5vw, 3rem) !important; }
+                .saas-demo-grid { grid-template-columns: 1fr !important; }
+                .saas-carousel-controls button { top: 8rem !important; width: 2.5rem !important; height: 2.5rem !important; }
+                .saas-glob-blob { max-width: 90vw !important; max-height: 90vw !important; }
+            }
         `;
         if (!document.getElementById('saas-landing-global')) document.head.appendChild(style);
 
@@ -156,14 +174,14 @@ function Navbar() {
                     <span style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff' }}>EonsClover</span>
                 </Link>
                 {/* Nav links */}
-                <nav style={{ display: 'flex', alignItems: 'center', gap: '2rem', fontSize: '0.95rem' }}>
+                <nav className="saas-nav-links" style={{ display: 'flex', alignItems: 'center', gap: '2rem', fontSize: '0.95rem' }}>
                     <a href="#hero" style={{ color: 'rgba(255,255,255,0.7)' }}>Dashboard</a>
                     <a href="#features" style={{ color: 'rgba(255,255,255,0.7)' }}>Características</a>
                     <a href="#pricing" style={{ color: 'rgba(255,255,255,0.7)' }}>Precios</a>
                     <a href="#faq" style={{ color: 'rgba(255,255,255,0.7)' }}>FAQ</a>
                 </nav>
                 {/* CTA buttons */}
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <div className="saas-nav-cta" style={{ display: 'flex', gap: '0.75rem' }}>
                     <Link to="/login" style={{ padding: '0.5rem 1.25rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', background: 'transparent', fontSize: '0.9rem' }}>
                         Iniciar Sesión
                     </Link>
@@ -340,19 +358,19 @@ const FAQ_ITEMS = [
 // ── Home page (all sections) ───────────────────────────────────────────────────
 function SaaSHome() {
     return (
-        <div>
+        <div className="saas-root" style={{ overflowX: 'hidden' }}>
             {/* ── Hero ──────────────────────────────────────────────────────── */}
             <section id="hero" style={{ position: 'relative', overflow: 'hidden', padding: '9rem 1.5rem 6rem' }}>
                 <TrefoilCanvas />
                 {/* Glow blob */}
-                <div style={{ position: 'absolute', width: '500px', height: '500px', background: 'rgba(34,211,238,0.18)', filter: 'blur(120px)', borderRadius: '999px', zIndex: 0, top: '2.5rem', left: '5rem' }} />
+                <div className="saas-glob-blob" style={{ position: 'absolute', width: '500px', height: '500px', background: 'rgba(34,211,238,0.18)', filter: 'blur(120px)', borderRadius: '999px', zIndex: 0, top: '2.5rem', left: '5rem' }} />
 
-                <div style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
+                <div className="saas-hero-grid" style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
                     <div>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px', ...glass, fontSize: '0.875rem', color: '#22d3ee', marginBottom: '1.5rem' }}>
                             Plataforma Todo-en-Uno de Ecommerce para Tecnología
                         </div>
-                        <h2 style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, lineHeight: 1.2, margin: '0 0 2rem', color: '#fff' }}>
+                        <h2 className="saas-hero-heading" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, lineHeight: 1.2, margin: '0 0 2rem', color: '#fff' }}>
                             Crea Tu{' '}
                             <span className="gradient-text">Tienda Online</span>
                             {' '}y Administra Tu Negocio Desde Cualquier Dispositivo
@@ -371,7 +389,7 @@ function SaaSHome() {
                     </div>
 
                     {/* Hero image */}
-                    <div style={{ position: 'relative' }}>
+                    <div className="saas-hero-image" style={{ position: 'relative' }}>
                         <div style={{ position: 'absolute', top: '-2.5rem', right: '-2.5rem', width: '18rem', height: '18rem', background: 'rgba(168,85,247,0.2)', filter: 'blur(120px)', borderRadius: '9999px' }} />
                         <div style={{ position: 'absolute', bottom: '-2.5rem', left: '-2.5rem', width: '15rem', height: '15rem', background: 'rgba(34,211,238,0.15)', filter: 'blur(100px)', borderRadius: '9999px' }} />
                         <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
@@ -385,12 +403,12 @@ function SaaSHome() {
             <section id="features" style={{ padding: '6rem 1.5rem' }}>
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', maxWidth: '48rem', margin: '0 auto 3rem' }}>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1.5rem', color: '#fff' }}>Todo lo que necesitas para vender online</h2>
+                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1.5rem', color: '#fff' }}>Todo lo que necesitas para vender online</h2>
                         <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
                             Potentes herramientas de ecommerce diseñadas para simplificar tus operaciones y aumentar la productividad.
                         </p>
                     </div>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }} className="saas-features-grid">
                         {/* Catálogo */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
                             <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🛍️</div>
@@ -477,7 +495,7 @@ function SaaSHome() {
             {/* ── Workflow ───────────────────────────────────────────────────── */}
             <section style={{ padding: '6rem 1.5rem' }}>
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-                    <h2 style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '4rem', color: '#fff' }}>Lanza Tu Negocio En Minutos</h2>
+                    <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '4rem', color: '#fff' }}>Lanza Tu Negocio En Minutos</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem' }}>
                         {[
                             { n: '1', title: 'Crear Tienda', desc: 'Configura tu perfil de negocio, productos y categorías.' },
@@ -501,7 +519,7 @@ function SaaSHome() {
             <section style={{ padding: '6rem 1.5rem' }}>
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 700, marginBottom: '1.5rem', color: '#fff' }}>Así se vería tu tienda online</h2>
+                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, marginBottom: '1.5rem', color: '#fff' }}>Así se vería tu tienda online</h2>
                         <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.65)' }}>Una interfaz moderna y profesional que impresiona a tus clientes</p>
                         <div style={{ marginTop: '2.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem' }}>
                             {[
@@ -528,7 +546,7 @@ function SaaSHome() {
                                 <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tu Tienda Online — eonsclover.com</span>
                             </div>
                             <img src="/imagenes/Site home page.png" alt="Vista de la tienda online con versión desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
-                            <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                            <div className="saas-demo-grid" style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                 <div>
                                     <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>🛍️ Tienda Profesional</h4>
                                     <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Homepage moderna con catálogo de productos, categorías, búsqueda y carrito de compras.</p>
@@ -555,7 +573,7 @@ function SaaSHome() {
                                 <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Panel de Administración — admin.eonsclover.com</span>
                             </div>
                             <img src="/imagenes/Admin dashboard.png" alt="Panel de administración con vista desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
-                            <div style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
+                            <div className="saas-demo-grid" style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                 <div>
                                     <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>📊 Dashboard Completo</h4>
                                     <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Visualiza ingresos totales, órdenes pendientes, productos en stock y usuarios registrados en tiempo real.</p>
@@ -586,10 +604,10 @@ function SaaSHome() {
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
                         <p style={{ color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600 }}>Precios</p>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Precios Asequibles Siempre</h2>
+                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Precios Asequibles Siempre</h2>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem', alignItems: 'center' }}>
+                    <div className="saas-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem', alignItems: 'center' }}>
                         {PLANS.map((plan, i) => (
                             <div key={i} style={plan.featured ? {
                                 borderRadius: '32px', padding: '2rem',
@@ -624,9 +642,9 @@ function SaaSHome() {
 
                     {/* Comparison table */}
                     <div style={{ marginTop: '6rem' }}>
-                        <h3 style={{ fontSize: '2.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#fff' }}>Comparación Detallada</h3>
+                        <h3 className="saas-section-heading" style={{ fontSize: '2.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#fff' }}>Comparación Detallada</h3>
                         <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden' }}>
-                            <div style={{ overflowX: 'auto' }}>
+                            <div className="saas-comparison-wrap" style={{ overflowX: 'auto' }}>
                                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
@@ -684,7 +702,7 @@ function SaaSHome() {
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
                         <p style={{ color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600 }}>Preguntas Frecuentes</p>
-                        <h2 style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Todo Lo Que Necesitas Saber</h2>
+                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Todo Lo Que Necesitas Saber</h2>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                         {FAQ_ITEMS.map((faq, i) => (
