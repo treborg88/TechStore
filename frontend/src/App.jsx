@@ -1,10 +1,11 @@
 import { Suspense, lazy, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import './App.css';
 import './components/auth/LoginPage.css';
 import { getCurrentUser, logout, isSessionExpired } from './services/authService';
 import { Toaster } from 'react-hot-toast';
-import { API_URL, IS_LANDING, IS_ONBOARDING, IS_SUPER_ADMIN, IS_TENANT } from './config';
+import { API_URL, IS_LANDING, IS_ONBOARDING, IS_SUPER_ADMIN, IS_TENANT, TENANT_SLUG, PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from './config';
 
 // SaaS system subdomains (landing, onboarding, admin) use their own layout — skip store shell
 const IS_SAAS_PLATFORM_PAGE = (IS_LANDING && !IS_TENANT) || IS_ONBOARDING || IS_SUPER_ADMIN;
@@ -33,12 +34,33 @@ function App() {
   // Setup mode: null = checking, true = needs setup, false = ready
   const [setupMode, setSetupMode] = useState(null);
 
-  // Check backend health on mount to detect setup mode
+  // Tenant validation for subdomain stores
+  const [tenantValid, setTenantValid] = useState(null); // null=checking, true|false
+
+  // Check backend health + tenant validity on mount
   useEffect(() => {
     fetch(`${API_URL}/health`)
       .then(r => r.json())
       .then(data => setSetupMode(data.status === 'setup'))
-      .catch(() => setSetupMode(false)); // if backend unreachable, show normal app
+      .catch(() => setSetupMode(false));
+
+    // If we're on a tenant subdomain, verify the tenant actually exists
+    if (IS_TENANT && TENANT_SLUG) {
+      fetch('/api/saas/tenant-exists')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.exists) {
+            // Invalid tenant — redirect to landing page with toast
+            const landingUrl = `${PLATFORM_PROTOCOL}//${PLATFORM_DOMAIN}/?toast=store-not-found&slug=${encodeURIComponent(TENANT_SLUG)}`;
+            window.location.replace(landingUrl);
+          } else {
+            setTenantValid(true);
+          }
+        })
+        .catch(() => setTenantValid(true)); // allow on network error
+    } else {
+      setTenantValid(true); // not a tenant subdomain, no check needed
+    }
   }, []);
 
   // Estado de usuario en App para romper dependencia circular entre useAuth y useCart
@@ -88,9 +110,9 @@ function App() {
 
   // ── Early returns AFTER all hooks (React Rules of Hooks) ──
 
-  // Show spinner while checking backend health
-  if (setupMode === null) {
-    return <LoadingSpinner fullPage message="Verificando estado del servidor..." />;
+  // Show spinner while checking backend health OR tenant validity
+  if (setupMode === null || tenantValid === null) {
+    return <LoadingSpinner fullPage message="Verificando..." />;
   }
 
   // Show setup wizard when backend has no DB configured

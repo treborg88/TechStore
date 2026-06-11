@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
 
 const registerUrl = `${PLATFORM_PROTOCOL}//app.${PLATFORM_DOMAIN}/register`;
@@ -860,6 +861,22 @@ function LandingLayout({ children }) {
 
 /** Routes shown on the root domain (SaaS landing) */
 export default function SaaSLandingRoutes() {
+    // Show toast when redirected from invalid subdomain
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const toastType = params.get('toast');
+        const slug = params.get('slug');
+        if (toastType === 'store-not-found') {
+            toast.error(slug
+                ? `La tienda "${slug}.${PLATFORM_DOMAIN}" no existe`
+                : 'Esa tienda no existe', { duration: 6000 });
+            // Clean URL without reload
+            const url = new URL(window.location);
+            url.searchParams.delete('toast');
+            url.searchParams.delete('slug');
+            window.history.replaceState({}, '', url);
+        }
+    }, []);
     return (
         <div className="saas-root" style={{ fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif", background: '#050816', color: '#fff', minHeight: '100vh' }}>
             <GlobalStyles />

@@ -65,6 +65,30 @@ router.get('/check-email', async (req, res) => {
   }
 });
 
+// GET /api/saas/tenant-exists — Check if the current subdomain belongs to a valid tenant
+router.get('/tenant-exists', async (req, res) => {
+  try {
+    const host = req.get('host') || '';
+    const parts = host.split('.');
+    const platformDomain = config.PLATFORM_DOMAIN;
+    const isPlatformHost = host.endsWith(`.${platformDomain}`);
+    const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
+
+    if (!subdomain) {
+      return res.json({ exists: false, reason: 'not_a_subdomain' });
+    }
+
+    const result = await db.pool.query(
+      'SELECT id, slug, name FROM public.tenants WHERE slug = $1',
+      [subdomain]
+    );
+    res.json({ exists: result.rows.length > 0 });
+  } catch (err) {
+    console.error('[saas/tenant-exists]', err);
+    res.status(500).json({ message: 'Error al verificar tenant' });
+  }
+});
+
 // POST /api/saas/register — Create a new tenant (store)
 // Accepts either ownerEmail+ownerPassword (form flow) or oauth_token (SSO flow).
 router.post('/register', async (req, res) => {
