@@ -69,11 +69,13 @@ Usuario (owner) → Tienda (tenant) → Productos → Órdenes → Pagos
 │   │   ├── postgres.js         # pg Pool + AsyncLocalStorage
 │   │   ├── schema.sql          # 9 tablas + RPCs
 │   │   ├── seed.sql            # Admin + ~90 settings
-│   │   └── seed-demo-*.sql     # Datos demo por tema
+│   │   ├── seed-demo-*.sql     # Datos demo por tema
+│   │   └── themes/             # applyTheme(): colores CSS por preset
 │   ├── middleware/             # auth, csrf, rateLimiter, upload, tenant, dbContext, planLimits
-│   ├── routes/                 # auth, products, cart, orders, users, settings, verification,
-│   │   │                       # payments, chatbot, seo, database, setup, storage, newsletter
-│   │   └── saas/               # public.routes.js, subscription.routes.js, superadmin.routes.js
+│   ├── routes/                 # auth(9ep), products(8ep), cart(5ep), orders(12ep),
+│   │   │                       # users, settings, verification, payments, chatbot,
+│   │   │                       # seo, database, setup, storage, newsletter
+│   │   └── saas/               # public, subscription, superadmin
 │   └── services/               # email, encryption, backup, llm/, tenant/provisioner.js
 ├── frontend/src/
 │   ├── App.jsx                 # State hub (auth, cart, products, settings)
@@ -159,6 +161,13 @@ Usuario (owner) → Tienda (tenant) → Productos → Órdenes → Pagos
 2. Si es página nueva, agregar ruta lazy en `AppRoutes.jsx`
 3. Si necesita datos del backend, usar `apiFetch(apiUrl('/...'))`
 4. Si guarda estado, crear hook en `frontend/src/hooks/`
+
+**Eliminar endpoint o feature limpiamente:**
+1. Buscar todas las referencias con `grep` / `vscode_listCodeUsages` (imports, rutas, hooks)
+2. Eliminar archivo de ruta + su export en `routes/index.js` + su `app.use()` en `server.js`
+3. Si tenía seed data, limpiar `seed.sql` o `seed-demo-*.sql`
+4. Si el frontend consumía ese endpoint, eliminar el `apiFetch()` huérfano
+5. Correr ESLint y tests para detectar imports rotos
 
 **Deploy a staging:**
 ```bash
