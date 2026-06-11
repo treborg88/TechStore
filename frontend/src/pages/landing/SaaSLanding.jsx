@@ -204,7 +204,13 @@ function Navbar() {
                 {/* Mobile hamburger (tipo libro) */}
                 <button className="saas-menu-btn" aria-label="Abrir menú" onClick={() => setMenuOpen(!menuOpen)}
                     style={{ display: 'none', background: 'none', border: 'none', color: '#fff', fontSize: '1.6rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1, zIndex: 51 }}>
-                    {menuOpen ? '✕' : '📖'}
+                    {menuOpen ? '✕' : (
+                        <svg width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                            <line x1="1" y1="1" x2="23" y2="1" />
+                            <line x1="1" y1="9" x2="23" y2="9" />
+                            <line x1="1" y1="17" x2="23" y2="17" />
+                        </svg>
+                    )}
                 </button>
             </div>
 
@@ -279,6 +285,8 @@ function Carousel() {
     const [idx, setIdx] = useState(0);
     const [visible, setVisible] = useState(1);
     const timerRef = useRef(null);
+    const trackRef = useRef(null);
+    const touchStart = useRef(null);
     const n = CAROUSEL_SLIDES.length;
 
     useEffect(() => {
@@ -290,48 +298,59 @@ function Carousel() {
 
     const maxIdx = n - visible;
 
-    const startTimer = () => {
+    // Auto-advance timer
+    useEffect(() => {
+        timerRef.current = setInterval(() => setIdx(prev => prev >= maxIdx ? 0 : prev + 1), 5000);
+        return () => clearInterval(timerRef.current);
+    }, [maxIdx]);
+
+    const move = (dir) => {
+        if (dir > 0) setIdx(prev => prev >= maxIdx ? 0 : prev + 1);
+        else setIdx(prev => prev <= 0 ? maxIdx : prev - 1);
         clearInterval(timerRef.current);
         timerRef.current = setInterval(() => setIdx(prev => prev >= maxIdx ? 0 : prev + 1), 5000);
     };
 
-    useEffect(() => {
-        startTimer();
-        return () => clearInterval(timerRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [maxIdx]);
-
-    const move = (dir) => {
-        setIdx(prev => {
-            const next = prev + dir;
-            if (next > maxIdx) return 0;
-            if (next < 0) return maxIdx;
-            return next;
-        });
-        startTimer();
+    // Touch swipe handlers
+    const handleTouchStart = (e) => {
+        touchStart.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    };
+    const handleTouchEnd = (e) => {
+        if (!touchStart.current) return;
+        const dx = e.changedTouches[0].clientX - touchStart.current.x;
+        const dy = e.changedTouches[0].clientY - touchStart.current.y;
+        // Only swipe if horizontal drag > vertical and > 40px
+        if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
+            move(dx < 0 ? 1 : -1);
+        }
+        touchStart.current = null;
     };
 
-    const goTo = (i) => {
-        setIdx(Math.min(i, maxIdx));
-        startTimer();
-    };
-
-    // translateX: each slide is 100/visible % of container width
     const translatePct = idx * (100 / visible);
 
     return (
         <div style={{ position: 'relative', marginTop: '5rem' }}>
-            <div style={{ overflow: 'hidden' }}>
-                <div style={{ display: 'flex', transform: `translateX(-${translatePct}%)`, transition: 'transform 0.7s ease-in-out' }}>
+            {/* Prev/Next */}
+            <button onClick={() => move(-1)} aria-label="Anterior" className="saas-carousel-btn saas-carousel-prev"
+                style={{ position: 'absolute', left: '-0.5rem', top: '50%', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+            <button onClick={() => move(1)} aria-label="Siguiente" className="saas-carousel-btn saas-carousel-next"
+                style={{ position: 'absolute', right: '-0.5rem', top: '50%', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+
+            {/* Track with touch events */}
+            <div style={{ overflow: 'hidden', margin: '0 2.5rem', touchAction: 'pan-y' }}>
+                <div ref={trackRef}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                    style={{ display: 'flex', transform: `translateX(-${translatePct}%)`, transition: 'transform 0.5s ease-in-out' }}>
                     {CAROUSEL_SLIDES.map((slide, i) => (
-                        <div key={i} style={{ minWidth: `${100 / visible}%`, padding: visible === 2 ? '0 26px' : '0', flex: 'none' }}>
-                            <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden', border: `1px solid ${slide.border}` }}>
-                                <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: '208px', objectFit: 'cover', objectPosition: 'top' }} />
-                                <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                    <span style={{ fontSize: '1.5rem' }}>{slide.icon}</span>
-                                    <div>
-                                        <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, color: '#fff' }}>{slide.title}</h3>
-                                        <p style={{ margin: '0.25rem 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '0.875rem' }}>{slide.desc}</p>
+                        <div key={i} style={{ minWidth: `${100 / visible}%`, padding: visible === 2 ? '0 18px' : '0 6px', flex: 'none' }}>
+                            <div style={{ ...glass, borderRadius: '24px', overflow: 'hidden', border: `1px solid ${slide.border}` }}>
+                                <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: 'auto', display: 'block' }} />
+                                <div style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                    <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{slide.icon}</span>
+                                    <div style={{ minWidth: 0 }}>
+                                        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#fff' }}>{slide.title}</h3>
+                                        <p style={{ margin: '0.2rem 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.3 }}>{slide.desc}</p>
                                     </div>
                                 </div>
                             </div>
@@ -340,18 +359,17 @@ function Carousel() {
                 </div>
             </div>
 
-            {/* Prev/Next */}
-            <div className="saas-carousel-controls">
-                <button onClick={() => move(-1)} aria-label="Anterior" style={{ position: 'absolute', left: '1rem', top: '7rem', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)' }}>‹</button>
-                <button onClick={() => move(1)} aria-label="Siguiente" style={{ position: 'absolute', right: '1rem', top: '7rem', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)' }}>›</button>
-            </div>
-
             {/* Dots */}
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.5rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '0.4rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
                 {CAROUSEL_SLIDES.map((_, i) => {
                     const active = visible === 2 ? (i === idx || i === idx + 1) : i === idx;
                     return (
-                        <button key={i} onClick={() => goTo(i)} style={{ width: active ? '24px' : '10px', height: '10px', borderRadius: '9999px', background: active ? '#22d3ee' : 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
+                        <button key={i} aria-label={`Slide ${i + 1}`} onClick={() => {
+                            setIdx(Math.min(i, maxIdx));
+                            clearInterval(timerRef.current);
+                            timerRef.current = setInterval(() => setIdx(prev => prev >= maxIdx ? 0 : prev + 1), 5000);
+                        }}
+                        style={{ width: active ? '20px' : '8px', height: '8px', borderRadius: '9999px', background: active ? '#22d3ee' : 'rgba(255,255,255,0.3)', border: 'none', cursor: 'pointer', transition: 'all 0.3s', padding: 0 }} />
                     );
                 })}
             </div>
