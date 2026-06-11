@@ -165,6 +165,14 @@ async function provisionTenant(pool, { slug, name, ownerEmail, ownerPassword, pl
         // For blank, fall back to tech-blue colors.
         await applyTheme(client, themeId === 'blank' ? 'tech-blue' : themeId);
 
+        // 3e. Override siteName with the user-entered store name.
+        //     seed.sql sets a hardcoded default ('Eonsclover'); this replaces it
+        //     with the actual business name chosen during onboarding.
+        await client.query(
+            `UPDATE app_settings SET value = $1 WHERE id = 'siteName'`,
+            [name]
+        );
+
         // 4. Create tenant admin (overwrite the generic admin from seed.sql)
         await client.query(
             `INSERT INTO users (name, email, password, role, is_active)
