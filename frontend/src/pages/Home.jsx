@@ -37,26 +37,6 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const startX = useRef(0);
   const scrollLeft = useRef(0);
 
-  // Detectar si las categorías caben en la pantalla (sin overflow)
-  const [categoriesFitOnScreen, setCategoriesFitOnScreen] = useState(true);
-
-  useEffect(() => {
-    const el = categoriesScrollRef.current;
-    if (!el) return;
-
-    const checkFit = () => {
-      setCategoriesFitOnScreen(el.scrollWidth <= el.clientWidth);
-    };
-
-    checkFit();
-
-    // Re-evaluar en resize
-    const observer = new ResizeObserver(checkFit);
-    observer.observe(el.parentElement);
-
-    return () => observer.disconnect();
-  }, [categories, filterStyle]);
-
   // Ref para el scroll de productos
   const productsScrollRef = useRef(null);
   const isDraggingProducts = useRef(false);
@@ -289,6 +269,26 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     if (hasTodos) return list;
     return [DEFAULT_CATEGORY_FILTERS_CONFIG.categories[0], ...list];
   }, [categoryConfig.categories]);
+
+  // Detectar si las categorías caben en la pantalla (sin overflow)
+  const [categoriesFitOnScreen, setCategoriesFitOnScreen] = useState(true);
+
+  useEffect(() => {
+    const el = categoriesScrollRef.current;
+    if (!el) return;
+
+    const checkFit = () => {
+      setCategoriesFitOnScreen(el.scrollWidth <= el.clientWidth);
+    };
+
+    checkFit();
+
+    // Re-evaluar en resize
+    const observer = new ResizeObserver(checkFit);
+    observer.observe(el.parentElement);
+
+    return () => observer.disconnect();
+  }, [categories, filterStyle]);
 
   const categoryStyleVars = useMemo(() => {
     if (categoryConfig.useDefault) return {};
