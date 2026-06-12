@@ -1,0 +1,60 @@
+.impersonation-banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  background: linear-gradient(135deg, #dc2626, #ea580c);
+  color: white;
+  font-family: Inter, system-ui, sans-serif;
+  box-shadow: 0 4px 20px rgba(220, 38, 38, 0.3);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from { transform: translateY(-100%); }
+  to   { transform: translateY(0); }
+}
+
+.impersonation-banner-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 10px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.impersonation-banner-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.impersonation-banner-text {
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.impersonation-banner-text strong {
+  font-weight: 700;
+}
+
+.impersonation-banner-btn {
+  flex-shrink: 0;
+  padding: 6px 16px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255,255,255,0.12);
+  color: white;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.impersonation-banner-btn:hover {
+  background: rgba(255,255,255,0.25);
+}

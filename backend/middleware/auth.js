@@ -111,10 +111,16 @@ const authenticateToken = async (req, res, next) => {
         }
 
         // SaaS: reject tokens from a different tenant
+        // Skip check for impersonation tokens (they are cross-tenant by design)
         if (config.SAAS_MODE === 'true' && req.tenant) {
-            if (user.tenantId && user.tenantId !== req.tenant.id) {
+            if (user.tenantId && user.tenantId !== req.tenant.id && !user.impersonatedBy) {
                 return res.status(401).json({ message: 'Token no válido para esta tienda' });
             }
+        }
+
+        // Mark req as impersonated for downstream use
+        if (user.impersonatedBy) {
+            req.isImpersonated = true;
         }
 
         req.user = user;
