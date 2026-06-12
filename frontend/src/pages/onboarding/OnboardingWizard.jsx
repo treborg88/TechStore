@@ -299,9 +299,18 @@ export default function OnboardingWizard() {
             setEmailError('');
         }
 
-        // Password length
+        // Password validation — must match backend PASSWORD_REGEX
         if (password.length < 8) {
             setStep1Error('La contraseña debe tener al menos 8 caracteres.');
+            valid = false;
+        } else if (!/[a-z]/.test(password)) {
+            setStep1Error('La contraseña debe tener al menos una minúscula.');
+            valid = false;
+        } else if (!/[A-Z]/.test(password)) {
+            setStep1Error('La contraseña debe tener al menos una mayúscula.');
+            valid = false;
+        } else if (!/[0-9]/.test(password)) {
+            setStep1Error('La contraseña debe tener al menos un número.');
             valid = false;
         } else if (password !== confirmPassword) {
             setMatchError('Las contraseñas no coinciden.');

@@ -269,6 +269,54 @@ function Footer() {
 }
 
 // ── Image Carousel ─────────────────────────────────────────────────────────────
+
+// ── Demo stores button with dropdown ──────────────────────────────────────────
+const DEMO_STORES = [
+    { name: 'Tech Azul', slug: 'tienda-azul', desc: 'Tecnología · Electrónica', color: '#2563eb' },
+    { name: 'Esmeralda', slug: 'tienda-esmeralda', desc: 'Salud · Orgánicos', color: '#059669' },
+    { name: 'Rosa', slug: 'tienda-rosa', desc: 'Belleza · Flores', color: '#be185d' },
+    { name: 'Ámbar', slug: 'tienda-ambar', desc: 'Café · Artesanal', color: '#b45309' },
+    { name: 'Carbón', slug: 'tienda-carbon', desc: 'Automotriz · Tools', color: '#374151' },
+];
+
+function DemoStoresButton() {
+    const [open, setOpen] = useState(false);
+    const containerRef = useRef(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const close = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false); };
+        document.addEventListener('click', close);
+        return () => document.removeEventListener('click', close);
+    }, [open]);
+
+    return (
+        <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
+            <button onClick={() => setOpen(!open)} style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                Ver Demo {open ? '▲' : '▼'}
+            </button>
+            {open && (
+                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.5rem', ...glass, borderRadius: '16px', minWidth: '240px', zIndex: 60, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                    <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiendas Demo</div>
+                    {DEMO_STORES.map(store => (
+                        <a key={store.slug} href={`${PLATFORM_PROTOCOL}//${store.slug}.${PLATFORM_DOMAIN}`} target="_blank" rel="noopener"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.7rem 0.75rem', borderRadius: '10px', color: '#fff', textDecoration: 'none', fontSize: '0.875rem', transition: 'background 0.15s' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: store.color, flexShrink: 0 }} />
+                            <div style={{ minWidth: 0 }}>
+                                <div style={{ fontWeight: 600 }}>{store.name}</div>
+                                <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>{store.desc}</div>
+                            </div>
+                        </a>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// ── Image Carousel ─────────────────────────────────────────────────────────────
 const CAROUSEL_SLIDES = [
     { img: '/imagenes/Site home page.png', alt: 'Página principal de la tienda', icon: '🏪', title: 'Página Principal', desc: 'Catálogo, categorías y búsqueda — lista para vender.', border: 'rgba(34,211,238,0.2)' },
     { img: '/imagenes/Admin dashboard.png', alt: 'Panel de administración', icon: '📊', title: 'Panel de Administración', desc: 'KPIs en tiempo real: ingresos, órdenes e inventario.', border: 'rgba(139,92,246,0.2)' },
@@ -437,9 +485,7 @@ function SaaSHome() {
                             <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700, fontSize: '1.125rem' }}>
                                 Iniciar Prueba Gratuita
                             </a>
-                            <button style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '1rem' }}>
-                                Ver Demo
-                            </button>
+                            <DemoStoresButton />
                         </div>
                     </div>
 
@@ -744,9 +790,7 @@ function SaaSHome() {
                             <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700 }}>
                                 Iniciar Prueba Gratuita
                             </a>
-                            <button style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-                                Ver Demo
-                            </button>
+                            <DemoStoresButton />
                         </div>
                     </div>
                 </div>
