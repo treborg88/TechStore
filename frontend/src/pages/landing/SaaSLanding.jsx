@@ -2,6 +2,7 @@
 // Dark theme with glassmorphism, trefoil animation — matches EonsClover HTML design
 
 import { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
@@ -280,22 +281,36 @@ const DEMO_STORES = [
 
 function DemoStoresButton() {
     const [open, setOpen] = useState(false);
-    const containerRef = useRef(null);
+    const btnRef = useRef(null);
+    const menuRef = useRef(null);
 
     useEffect(() => {
         if (!open) return;
-        const close = (e) => { if (containerRef.current && !containerRef.current.contains(e.target)) setOpen(false); };
+        const close = (e) => {
+            if (btnRef.current && btnRef.current.contains(e.target)) return;
+            if (menuRef.current && menuRef.current.contains(e.target)) return;
+            setOpen(false);
+        };
         document.addEventListener('click', close);
         return () => document.removeEventListener('click', close);
     }, [open]);
 
+    // Position dropdown below the button
+    const [coords, setCoords] = useState({ top: 0, left: 0 });
+    useEffect(() => {
+        if (open && btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setCoords({ top: rect.bottom + 6, left: rect.left });
+        }
+    }, [open]);
+
     return (
-        <div ref={containerRef} style={{ position: 'relative', display: 'inline-block' }}>
-            <button onClick={() => setOpen(!open)} style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+        <>
+            <button ref={btnRef} onClick={() => setOpen(!open)} style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                 Ver Demo {open ? '▲' : '▼'}
             </button>
-            {open && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.5rem', background: 'rgba(5,8,22,0.98)', backdropFilter: 'blur(20px)', borderRadius: '16px', minWidth: '260px', zIndex: 200, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 16px 40px rgba(0,0,0,0.6)' }}>
+            {open && createPortal(
+                <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, background: 'rgba(5,8,22,0.98)', backdropFilter: 'blur(24px)', borderRadius: '16px', minWidth: '260px', zIndex: 9999, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
                     <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiendas Demo</div>
                     {DEMO_STORES.map(store => (
                         <a key={store.slug} href={`${PLATFORM_PROTOCOL}//${store.slug}.${PLATFORM_DOMAIN}`} target="_blank" rel="noopener"
@@ -309,9 +324,10 @@ function DemoStoresButton() {
                             </div>
                         </a>
                     ))}
-                </div>
+                </div>,
+                document.body
             )}
-        </div>
+        </>
     );
 }
 
