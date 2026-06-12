@@ -882,10 +882,16 @@ ul {
 
 /* ── Filter style variants ────────────────────────────────── */
 
-/* Pills/tabs/bubbles: compact chips that fit on screen — center them */
+/* Pills/tabs/bubbles: compact chips — center when they fit on screen */
 .filter-style-pills .categories-grid-scroll,
 .filter-style-tabs .categories-grid-scroll,
 .filter-style-bubbles .categories-grid-scroll {
+  justify-content: flex-start;
+}
+/* When categories fit on screen, center them */
+.filter-style-pills .categories-grid-scroll.categories-fit-center,
+.filter-style-tabs .categories-grid-scroll.categories-fit-center,
+.filter-style-bubbles .categories-grid-scroll.categories-fit-center {
   justify-content: center;
 }
 /* Images: center when fits, fallback to start when overflow (safe keeps Todos reachable) */
