@@ -272,11 +272,10 @@ function Footer() {
 
 // ── Demo stores button with dropdown ──────────────────────────────────────────
 const DEMO_STORES = [
-    { name: 'Tech Azul', slug: 'tienda-azul', desc: 'Tecnología · Electrónica', color: '#2563eb' },
-    { name: 'Esmeralda', slug: 'tienda-esmeralda', desc: 'Salud · Orgánicos', color: '#059669' },
-    { name: 'Rosa', slug: 'tienda-rosa', desc: 'Belleza · Flores', color: '#be185d' },
-    { name: 'Ámbar', slug: 'tienda-ambar', desc: 'Café · Artesanal', color: '#b45309' },
-    { name: 'Carbón', slug: 'tienda-carbon', desc: 'Automotriz · Tools', color: '#374151' },
+    { name: 'Tech Azul', slug: 'tiendaazul', desc: 'Tecnología · Electrónica', color: '#2563eb' },
+    { name: 'Esmeralda', slug: 'esmeralda', desc: 'Salud · Orgánicos', color: '#059669' },
+    { name: 'Rosa', slug: 'rosa', desc: 'Belleza · Flores', color: '#be185d' },
+    { name: 'Ámbar', slug: 'ambar', desc: 'Café · Artesanal', color: '#b45309' },
 ];
 
 function DemoStoresButton() {
@@ -296,7 +295,7 @@ function DemoStoresButton() {
                 Ver Demo {open ? '▲' : '▼'}
             </button>
             {open && (
-                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.5rem', ...glass, borderRadius: '16px', minWidth: '240px', zIndex: 60, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: '0.5rem', background: 'rgba(5,8,22,0.98)', backdropFilter: 'blur(20px)', borderRadius: '16px', minWidth: '260px', zIndex: 200, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px', border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 16px 40px rgba(0,0,0,0.6)' }}>
                     <div style={{ padding: '0.5rem 0.75rem', fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tiendas Demo</div>
                     {DEMO_STORES.map(store => (
                         <a key={store.slug} href={`${PLATFORM_PROTOCOL}//${store.slug}.${PLATFORM_DOMAIN}`} target="_blank" rel="noopener"
@@ -304,7 +303,7 @@ function DemoStoresButton() {
                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.08)'}
                             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                             <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: store.color, flexShrink: 0 }} />
-                            <div style={{ minWidth: 0 }}>
+                            <div>
                                 <div style={{ fontWeight: 600 }}>{store.name}</div>
                                 <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.45)' }}>{store.desc}</div>
                             </div>
