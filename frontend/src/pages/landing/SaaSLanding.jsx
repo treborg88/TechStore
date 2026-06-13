@@ -493,6 +493,21 @@ const FAQ_ITEMS = [
 
 // ── Home page (all sections) ───────────────────────────────────────────────────
 function SaaSHome() {
+    // Show toast for store-not-found redirects
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const toastType = params.get('toast');
+        const slug = params.get('slug') || '';
+        if (toastType === 'store-not-found' && slug) {
+            toast.error(`La tienda "${decodeURIComponent(slug)}" no existe o aún no está configurada.`);
+            // Clean URL
+            const url = new URL(window.location);
+            url.searchParams.delete('toast');
+            url.searchParams.delete('slug');
+            window.history.replaceState({}, '', url.toString());
+        }
+    }, []);
+
     return (
         <div className="saas-root" style={{ overflowX: 'hidden' }}>
             {/* ── Hero ──────────────────────────────────────────────────────── */}
