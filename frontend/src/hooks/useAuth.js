@@ -77,6 +77,16 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
     setTimeout(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }), 0);
   };
 
+  // Impersonation helpers
+  const isImpersonating = sessionStorage.getItem('isImpersonating') === 'true';
+
+  const stopImpersonating = () => {
+    sessionStorage.removeItem('isImpersonating');
+    logout();
+    setUser(null);
+    clearCartItems();
+  };
+
   // Navegación al panel de admin
   const handleAdminNav = (event) => {
     event.preventDefault();
@@ -120,6 +130,8 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
     handleLogout,
     handleLoginSuccess,
     handleCheckoutLoginSuccess,
-    handleAdminNav
+    handleAdminNav,
+    isImpersonating,
+    stopImpersonating
   };
 }
