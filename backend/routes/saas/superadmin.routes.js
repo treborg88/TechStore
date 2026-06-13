@@ -366,14 +366,31 @@ router.post('/tenants/:id/impersonate', async (req, res) => {
         }
         const tenant = tenantResult.rows[0];
 
-        // Find admin user in tenant schema
+        // Find admin user in tenant schema; create one if none exists
+        let adminUser;
         const adminResult = await withTenantSchema(tenant.schema_name, (client) =>
             client.query(`SELECT id, email, name FROM users WHERE role = 'admin' LIMIT 1`)
         );
         if (!adminResult.rows.length) {
-            return res.status(404).json({ message: 'No hay usuario admin en este tenant' });
+            // Create a temporary admin user for impersonation
+            await withTenantSchema(tenant.schema_name, (client) =>
+                client.query(
+                    `INSERT INTO users (name, email, password, role, is_active, created_at)
+                     VALUES ($1, $2, $3, 'admin', true, NOW())
+                     ON CONFLICT (email) DO NOTHING`,
+                    ['Impersonated Admin', `impersonated@${tenant.slug}.local`, crypto.randomUUID()]
+                )
+            );
+            const newAdmin = await withTenantSchema(tenant.schema_name, (client) =>
+                client.query(`SELECT id, email, name FROM users WHERE role = 'admin' LIMIT 1`)
+            );
+            if (!newAdmin.rows.length) {
+                return res.status(500).json({ message: 'No se pudo crear usuario admin para este tenant' });
+            }
+            adminUser = newAdmin.rows[0];
+        } else {
+            adminUser = adminResult.rows[0];
         }
-        const adminUser = adminResult.rows[0];
 
         // Generate short-lived impersonation token (1h)
         const token = jwt.sign(

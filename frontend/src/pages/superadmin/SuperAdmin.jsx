@@ -131,7 +131,9 @@ function TenantDetailModal({ tenantId, onClose, onRefresh }) {
         try {
             const result = await superAdminFetch(`/tenants/${tenantId}/impersonate`, { method: 'POST' });
             window.open(result.redirectUrl, '_blank');
-        } catch { /* error */ } finally { setActionLoading(''); }
+        } catch (err) {
+            alert(err.message || 'Error al impersonar este tenant');
+        } finally { setActionLoading(''); }
     };
 
     const handleDelete = async () => {

@@ -147,7 +147,7 @@ const optionalAuth = async (req, res, next) => {
         if (!err) {
             // SaaS: skip tokens from a different tenant
             if (config.SAAS_MODE === 'true' && req.tenant) {
-                if (user.tenantId && user.tenantId !== req.tenant.id) return next();
+                if (user.tenantId && user.tenantId !== req.tenant.id && !user.impersonatedBy) return next();
             }
             req.user = user;
             req.token = token;
