@@ -27,6 +27,7 @@ import AppRoutes from './routes/AppRoutes';
 const Footer = lazy(() => import('./components/common/Footer'));
 const ChatBot = lazy(() => import('./components/chatbot/ChatBot'));
 const SetupWizard = lazy(() => import('./components/setup/SetupWizard'));
+const ImpersonationBanner = lazy(() => import('./components/common/ImpersonationBanner'));
 
 function App() {
   const navigate = useNavigate();
@@ -36,6 +37,36 @@ function App() {
 
   // Tenant validation for subdomain stores
   const [tenantValid, setTenantValid] = useState(null); // null=checking, true|false
+
+  // Handle impersonation token from URL (?token=xxx)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    if (token && !localStorage.getItem('authToken')) {
+      localStorage.setItem('authToken', token);
+      // Clean URL: remove ?token=xxx without full page reload
+      const clean = window.location.pathname + window.location.hash;
+      window.history.replaceState({}, '', clean);
+      // Mark as impersonating so useAuth can detect it
+      sessionStorage.setItem('isImpersonating', 'true');
+      // Log CSRF from cookie for the new token session
+      import('./services/apiClient').then(m => m.refreshCsrfToken());
+      // Reload to pick up the new auth state
+      window.location.reload();
+      return; // stop — we're reloading
+    }
+    // Clean up stale impersonation flag if token expired
+    const storedToken = localStorage.getItem('authToken');
+    if (storedToken && sessionStorage.getItem('isImpersonating')) {
+      try {
+        const payload = JSON.parse(atob(storedToken.split('.')[1]));
+        if (payload.exp * 1000 < Date.now()) {
+          localStorage.removeItem('authToken');
+          sessionStorage.removeItem('isImpersonating');
+        }
+      } catch { /* invalid token, ignore */ }
+    }
+  }, []);
 
   // Check backend health + tenant validity on mount
   useEffect(() => {
@@ -127,6 +158,13 @@ function App() {
   return (
     <>
       <Toaster position="top-right" />
+      
+      {/* Impersonation banner — appears when admin impersonates a tenant */}
+      {!IS_SAAS_PLATFORM_PAGE && (
+        <Suspense fallback={null}>
+          <ImpersonationBanner />
+        </Suspense>
+      )}
 
       {/* Overlay de logout con spinner */}
       {isLoggingOut && (
