@@ -132,9 +132,9 @@
     export const isSessionExpired = () => {
     const sessionStartTime = localStorage.getItem('sessionStartTime');
     if (!sessionStartTime) {
-        // If no timestamp exists but user data exists, session is considered expired
-        const userData = localStorage.getItem('userData');
-        return !!userData;
+        // No timestamp means no session — not expired, just absent
+        // (impersonation token sets sessionStartTime before reload)
+        return false;
     }
     const elapsed = Date.now() - parseInt(sessionStartTime, 10);
     return elapsed >= SESSION_DURATION_MS;
