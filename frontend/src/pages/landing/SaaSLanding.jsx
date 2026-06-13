@@ -40,10 +40,11 @@ function GlobalStyles() {
                 .saas-nav-links { display: none !important; }
                 .saas-nav-cta { display: none !important; }
                 .saas-menu-btn { display: flex !important; }
-                .saas-hero-grid { grid-template-columns: 1fr !important; }
-                .saas-hero-image { order: -1; }
+                .saas-hero-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
+                .saas-hero-image { order: -1; margin-top: -2rem !important; }
                 .saas-features-grid { grid-template-columns: 1fr !important; }
                 .saas-pricing-grid { grid-template-columns: 1fr !important; }
+                .saas-pricing-grid > div { transform: none !important; }
                 .saas-comparison-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
                 .saas-comparison-table { min-width: 500px; font-size: 0.75rem; }
                 .saas-section-heading { font-size: 2rem !important; }
@@ -51,12 +52,29 @@ function GlobalStyles() {
                 .saas-demo-grid { grid-template-columns: 1fr !important; }
                 .saas-carousel-controls button { width: 2.5rem !important; height: 2.5rem !important; }
                 .saas-glob-blob { max-width: 90vw !important; max-height: 90vw !important; }
-                #hero { padding: 5rem 1rem 3rem !important; }
+                #hero { padding: 4rem 1rem 2.5rem !important; }
+                /* Smaller hero text + tighter CTA on mobile */
+                #hero .saas-hero-heading + p { font-size: 1rem !important; }
+                section[id="pricing"] { padding: 4rem 1rem !important; }
+                section[id="faq"] { padding: 4rem 1rem !important; }
+                section { padding-left: 1rem !important; padding-right: 1rem !important; }
+                .saas-root img { max-width: 100%; height: auto; }
+                .hover-lift { padding: 1.25rem !important; }
+                /* Carousel: reduce margins on mobile */
+                .saas-carousel-btn { width: 2.2rem !important; height: 2.2rem !important; font-size: 1rem !important; }
             }
 
             /* ── PC wide feel (simulated 110% zoom) ──────────────── */
             @media (min-width: 769px) {
                 #hero { padding: 10rem 2rem 7rem !important; }
+                .saas-root { font-size: 106%; }
+                .saas-section-heading { font-size: 3.3rem !important; }
+                .saas-hero-heading { font-size: clamp(2.2rem, 4.5vw, 3.3rem) !important; }
+                section[id="pricing"] .saas-section-heading { font-size: 3.3rem !important; }
+                .saas-pricing-grid { gap: 2.5rem !important; }
+                .saas-root p { line-height: 1.7; }
+                /* Content containers slightly wider */
+                [style*="max-width: 1280px"] { max-width: 1340px !important; }
             }
         `;
         if (!document.getElementById('saas-landing-global')) document.head.appendChild(style);
