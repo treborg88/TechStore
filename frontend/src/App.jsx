@@ -43,17 +43,37 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     if (token && !localStorage.getItem('authToken')) {
-      localStorage.setItem('authToken', token);
-      // Clean URL: remove ?token=xxx without full page reload
-      const clean = window.location.pathname + window.location.hash;
-      window.history.replaceState({}, '', clean);
-      // Mark as impersonating so useAuth can detect it
-      sessionStorage.setItem('isImpersonating', 'true');
-      // Log CSRF from cookie for the new token session
-      import('./services/apiClient').then(m => m.refreshCsrfToken());
-      // Reload to pick up the new auth state
-      window.location.reload();
-      return; // stop — we're reloading
+      try {
+        // Decode JWT to build user object for getCurrentUser()
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        localStorage.setItem('authToken', token);
+        // Build userData from JWT payload so getCurrentUser() works
+        const userData = {
+          id: payload.id,
+          email: payload.impersonatedBy || payload.email || 'impersonated@tenant',
+          name: payload.tenantSlug || payload.name || 'Impersonated Admin',
+          role: payload.role || 'admin',
+          tenantSlug: payload.tenantSlug,
+          impersonatedBy: payload.impersonatedBy,
+          isImpersonating: true,
+        };
+        localStorage.setItem('userData', JSON.stringify(userData));
+        // Set sessionStartTime so isSessionExpired() doesn't immediately log out
+        localStorage.setItem('sessionStartTime', String(Date.now()));
+        // Clean URL: remove ?token=xxx without full page reload
+        const clean = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, '', clean);
+        // Mark as impersonating so ImpersonationBanner can detect it
+        sessionStorage.setItem('isImpersonating', 'true');
+        // Fetch fresh CSRF cookie
+        import('./services/apiClient').then(m => m.refreshCsrfToken());
+        // Reload to pick up the new auth state
+        window.location.reload();
+        return;
+      } catch (e) {
+        console.error('Invalid impersonation token:', e);
+        localStorage.removeItem('authToken');
+      }
     }
     // Clean up stale impersonation flag if token expired
     const storedToken = localStorage.getItem('authToken');
@@ -62,6 +82,7 @@ function App() {
         const payload = JSON.parse(atob(storedToken.split('.')[1]));
         if (payload.exp * 1000 < Date.now()) {
           localStorage.removeItem('authToken');
+          localStorage.removeItem('userData');
           sessionStorage.removeItem('isImpersonating');
         }
       } catch { /* invalid token, ignore */ }
