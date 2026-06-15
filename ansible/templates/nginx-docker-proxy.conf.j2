@@ -9,7 +9,7 @@ resolver 127.0.0.11 ipv6=off valid=10s;
 # ── Adminer: database.eonsclover.com → adminer:8080 ────────────────────
 server {
     listen 80;
-    server_name database.{{ domain | default('eonsclover.com') }};
+    server_name database.{{ domain | default('eonsclover.com') }} database.{{ domain | default('eonsclover') }}.local;
 
     location / {
         set                $adminer_upstream adminer:8080;
@@ -46,7 +46,7 @@ server {
 # ── HTTP only (Cloudflare Flexible — SSL terminates at CF) ─
 server {
     listen 80 default_server;
-    server_name {{ domain | default('_') }} *.{{ domain | default('_') }};
+    server_name {{ domain | default('_') }} *.{{ domain | default('_') }} {{ domain | default('eonsclover') }}.local *.{{ domain | default('eonsclover') }}.local;
 {% endif %}
 
     # ── Security headers ──────────────────────────────────

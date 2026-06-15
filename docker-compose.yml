@@ -63,11 +63,12 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER:-eonsclover}:${POSTGRES_PASSWORD:-eonsclover}@database:5432/${POSTGRES_DB:-eonsclover}
       # CORS wildcard for all subdomains (local dev)
       CORS_ORIGIN: ${CORS_ORIGIN:-*.eonsclover.local}
+      # Override PLATFORM_DOMAIN for local dev (.env has eonsclover.com for production)
+      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-eonsclover.local}
       # Test bypass: these emails skip real email sending and accept code 000000.
       # Remove or leave empty in production.
       TEST_BYPASS_EMAIL: ${TEST_BYPASS_EMAIL:-test@playwright.local,@test.local}
-      # All other SaaS vars (SAAS_MODE, PLATFORM_DOMAIN, SUPER_ADMIN_SECRET, etc.)
-      # come from env_file: ./backend/.env — do not override here
+      # Remaining SaaS vars (SUPER_ADMIN_SECRET, etc.) come from env_file: ./backend/.env
     depends_on:
       database:
         condition: service_healthy
