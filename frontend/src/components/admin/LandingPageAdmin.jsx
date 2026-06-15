@@ -1,37 +1,55 @@
-// LandingPageAdmin.jsx - Panel de administración para la landing page
-// Permite configurar: activar/desactivar, estilos globales, secciones (contenido, orden, toggle)
+// LandingPageAdmin.jsx — Panel de administración para la landing page
+// Diseño: barra de navegación horizontal con iconos + sidebar + preview en vivo
+// Sigue el mismo patrón visual que SiteCustomizer.jsx (sección "General")
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DEFAULT_LANDING_PAGE_CONFIG, cloneLandingPageConfig } from '../../utils/landingPageDefaults';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { LANDING_TEMPLATE_OPTIONS, applyLandingTemplatePreset } from '../../utils/landingPageTemplates';
 import toast from 'react-hot-toast';
+import './LandingPageAdmin.css';
 
 /* ═══════════════ CONSTANTES ═══════════════ */
 
-/** Nombres legibles para cada tipo de sección */
 const SECTION_LABELS = {
-  hero: '🎯 Hero (Encabezado)',
-  valueProposition: '💎 Propuesta de Valor',
-  productHighlight: '📸 Producto Destacado',
-  trustBanner: '🏆 Banner de Confianza',
-  featuredProduct: '⭐ Producto Estrella',
-  howItWorks: '📋 Cómo Funciona',
-  productShowcase: '🛍️ Vitrina de Productos',
-  testimonials: '💬 Testimonios',
-  leadCapture: '📧 Captura de Leads',
-  finalCta: '🚀 CTA Final',
+  hero: 'Hero',
+  valueProposition: 'Propuesta de Valor',
+  productHighlight: 'Producto Destacado',
+  trustBanner: 'Banner de Confianza',
+  featuredProduct: 'Producto Estrella',
+  howItWorks: 'Cómo Funciona',
+  productShowcase: 'Vitrina de Productos',
+  testimonials: 'Testimonios',
+  leadCapture: 'Captura de Leads',
+  finalCta: 'CTA Final',
 };
+
+const SECTION_ICONS = {
+  hero: '🎯',
+  valueProposition: '💎',
+  productHighlight: '📸',
+  trustBanner: '🏆',
+  featuredProduct: '⭐',
+  howItWorks: '📋',
+  productShowcase: '🛍️',
+  testimonials: '💬',
+  leadCapture: '📧',
+  finalCta: '🚀',
+};
+
+/** Paneles principales del editor */
+const PANELS = [
+  { id: 'config', icon: '⚙️', label: 'Config' },
+  { id: 'globalStyles', icon: '🎨', label: 'Estilos' },
+  { id: 'sections', icon: '📋', label: 'Secciones' },
+];
 
 /* ═══════════════ HELPERS ═══════════════ */
 
-/** Actualiza un campo anidado en la configuración */
 const updateNestedField = (config, sectionId, path, value) => {
   const next = cloneLandingPageConfig(config);
   const sectionIdx = next.sections.findIndex(s => s.id === sectionId);
   if (sectionIdx < 0) return next;
-
-  // path = 'data.title' or 'styles.bgColor'
   const parts = path.split('.');
   let target = next.sections[sectionIdx];
   for (let i = 0; i < parts.length - 1; i++) {
@@ -41,11 +59,9 @@ const updateNestedField = (config, sectionId, path, value) => {
   return next;
 };
 
-/** Normaliza un producto del catálogo al formato usado por la landing */
 const mapCatalogProductToLanding = (product) => {
   const salePrice = Number(product?.price) || 0;
   const originalPrice = Number(product?.originalPrice ?? product?.compareAtPrice ?? product?.price) || salePrice;
-
   return {
     productId: product?.id ?? null,
     name: product?.name || '',
@@ -63,106 +79,82 @@ const mapCatalogProductToLanding = (product) => {
 
 /* ═══════════════ SUB-COMPONENTES ═══════════════ */
 
-/** Input color con preview */
 const ColorInput = ({ label, value, onChange }) => {
   const normalizedValue = typeof value === 'string' ? value.trim() : '';
   const isHexColor = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(normalizedValue);
-
   return (
-    <div className="form-group" style={{ flex: '1 1 200px' }}>
-      <label>{label}</label>
-      <div className="color-input-wrapper">
-        <input type="color" value={isHexColor ? normalizedValue : '#000000'} onChange={(e) => onChange(e.target.value)} />
+    <div className="lp-form-group" style={{ flex: '1 1 200px' }}>
+      <label className="lp-field-label">{label}</label>
+      <div className="lp-color-input-wrap">
+        <input type="color" value={isHexColor ? normalizedValue : '#000000'}
+          onChange={(e) => onChange(e.target.value)} className="lp-color-picker" />
         <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)}
-          style={{ marginLeft: 8, flex: 1, padding: '4px 8px', fontSize: '0.85rem', border: '1px solid #ddd', borderRadius: 4 }} />
+          className="lp-text-input" style={{ marginLeft: 6, flex: 1 }} />
       </div>
     </div>
   );
 };
 
-/** Input texto simple */
 const TextInput = ({ label, value, onChange, placeholder, type = 'text' }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    <input type={type} value={value ?? ''} onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
-      placeholder={placeholder} className="form-control" />
+  <div className="lp-form-group">
+    <label className="lp-field-label">{label}</label>
+    <input type={type} value={value ?? ''}
+      onChange={(e) => onChange(type === 'number' ? Number(e.target.value) : e.target.value)}
+      placeholder={placeholder} className="lp-text-input" />
   </div>
 );
 
-/** Textarea */
 const TextArea = ({ label, value, onChange, rows = 3 }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    <textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)} rows={rows} className="form-control" />
+  <div className="lp-form-group">
+    <label className="lp-field-label">{label}</label>
+    <textarea value={value ?? ''} onChange={(e) => onChange(e.target.value)}
+      rows={rows} className="lp-textarea" />
   </div>
 );
 
-/** Input de imagen (URL + upload de archivo) */
 const ImageInput = ({ label, value, onChange, onUpload, isUploading = false }) => (
-  <div className="form-group">
-    <label>{label}</label>
-    <input
-      type="text"
-      value={value ?? ''}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder="https://..."
-      className="form-control"
-    />
-    <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file && onUpload) onUpload(file);
-          e.target.value = '';
-        }}
-        disabled={isUploading}
-      />
-      {isUploading && <small style={{ opacity: 0.8 }}>Subiendo imagen...</small>}
+  <div className="lp-form-group">
+    <label className="lp-field-label">{label}</label>
+    <input type="text" value={value ?? ''} onChange={(e) => onChange(e.target.value)}
+      placeholder="https://..." className="lp-text-input" />
+    <div className="lp-upload-row">
+      <input type="file" accept="image/*" className="lp-file-input"
+        onChange={(e) => { const f = e.target.files?.[0]; if (f && onUpload) onUpload(f); e.target.value = ''; }}
+        disabled={isUploading} />
+      {isUploading && <small style={{ opacity: 0.8 }}>Subiendo...</small>}
     </div>
     {value && (
-      <div style={{ marginTop: 8 }}>
-        <img src={value} alt="preview" style={{ width: 45, height: 45, objectFit: 'cover', borderRadius: 8, border: '1px solid #ddd' }} />
-      </div>
+      <img src={value} alt="preview" className="lp-img-preview" />
     )}
   </div>
 );
 
-/* ═══════════════ EDITORES POR TIPO DE SECCIÓN ═══════════════ */
+/* ═══════════════ EDITORES POR SECCIÓN ═══════════════ */
 
-/** Editor genérico de estilos (colores de la sección) */
 const StylesEditor = ({ styles, onStyleChange }) => {
   if (!styles) return null;
   return (
-    <div style={{ marginTop: 12 }}>
-      <p className="section-description" style={{ marginBottom: 8 }}>Colores de la sección:</p>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+    <div className="lp-section-styles">
+      <p className="lp-subsection-label">Colores de la sección</p>
+      <div className="lp-style-grid">
         {Object.entries(styles).map(([key, val]) => {
-          // Solo mostrar inputs de color para valores que parecen colores
           const isColor = typeof val === 'string' && (val.startsWith('#') || val.startsWith('rgb'));
           if (!isColor) return null;
-          // Formatear label: camelCase → palabras
           const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
           return <ColorInput key={key} label={label} value={val} onChange={(v) => onStyleChange(key, v)} />;
         })}
       </div>
-      {/* Campos no-color (shadows, gradients, etc.) */}
       {Object.entries(styles).map(([key, val]) => {
         if (typeof val === 'number') {
           const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-          return (
-            <TextInput key={key} label={label} value={val} type="number"
-              onChange={(v) => onStyleChange(key, v)} />
-          );
+          return <TextInput key={key} label={label} value={val} type="number"
+            onChange={(v) => onStyleChange(key, v)} />;
         }
         const isColor = typeof val === 'string' && (val.startsWith('#') || val.startsWith('rgb'));
         if (typeof val === 'string' && !isColor && val !== '') {
           const label = key.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase());
-          return (
-            <TextInput key={key} label={label} value={val}
-              onChange={(v) => onStyleChange(key, v)} />
-          );
+          return <TextInput key={key} label={label} value={val}
+            onChange={(v) => onStyleChange(key, v)} />;
         }
         return null;
       })}
@@ -170,15 +162,10 @@ const StylesEditor = ({ styles, onStyleChange }) => {
   );
 };
 
-/** Editor para Hero */
 const HeroEditor = ({ data, onDataChange, onImageUpload, isImageUploading, availableProducts = [], productsLoading = false }) => {
   const handleSelectHeroProduct = (productId) => {
     const selected = availableProducts.find((p) => String(p.id) === String(productId));
-    if (!selected) {
-      onDataChange('productId', null);
-      return;
-    }
-
+    if (!selected) { onDataChange('productId', null); return; }
     const mapped = mapCatalogProductToLanding(selected);
     onDataChange('productId', mapped.productId);
     onDataChange('title', mapped.productName || mapped.name || data.title);
@@ -189,84 +176,67 @@ const HeroEditor = ({ data, onDataChange, onImageUpload, isImageUploading, avail
   };
 
   return (
-    <>
-      <div className="settings-grid">
-        <div className="form-group">
-          <label>Seleccionar producto del catálogo (opcional)</label>
-          <select
-            value={data.productId ?? ''}
-            onChange={(e) => handleSelectHeroProduct(e.target.value)}
-            className="form-control"
-            disabled={productsLoading}
-          >
-            <option value="">{productsLoading ? 'Cargando productos...' : 'Ninguno (manual)'}</option>
-            {availableProducts.map((product) => (
-              <option key={product.id} value={product.id}>{product.name}</option>
-            ))}
-          </select>
-        </div>
-        <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-        <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
-        <TextInput label="Texto del botón CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
-        <TextInput label="Enlace del CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} placeholder="/" />
-        <ImageInput
-          label="Imagen"
-          value={data.image}
-          onChange={(v) => onDataChange('image', v)}
-          onUpload={(file) => onImageUpload && onImageUpload('image', file)}
-          isUploading={isImageUploading ? isImageUploading('image') : false}
-        />
-        <TextInput label="Texto del badge" value={data.badgeText} onChange={(v) => onDataChange('badgeText', v)} />
-        <div className="form-group">
-          <label>Layout</label>
-          <select value={data.layout || 'text-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="form-control">
-            <option value="text-left">Texto izquierda</option>
-            <option value="text-right">Texto derecha</option>
-          </select>
-        </div>
+    <div className="lp-editor-section">
+      <div className="lp-form-group">
+        <label className="lp-field-label">Producto del catálogo (opcional)</label>
+        <select value={data.productId ?? ''} onChange={(e) => handleSelectHeroProduct(e.target.value)}
+          className="lp-text-input" disabled={productsLoading}>
+          <option value="">{productsLoading ? 'Cargando...' : 'Ninguno (manual)'}</option>
+          {availableProducts.map((p) => (
+            <option key={p.id} value={p.id}>{p.name}</option>
+          ))}
+        </select>
       </div>
-    </>
+      <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
+      <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
+      <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
+      <TextInput label="Enlace CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} placeholder="/" />
+      <ImageInput label="Imagen" value={data.image} onChange={(v) => onDataChange('image', v)}
+        onUpload={(file) => onImageUpload && onImageUpload('image', file)}
+        isUploading={isImageUploading ? isImageUploading('image') : false} />
+      <TextInput label="Texto del badge" value={data.badgeText} onChange={(v) => onDataChange('badgeText', v)} />
+      <div className="lp-form-group">
+        <label className="lp-field-label">Layout</label>
+        <select value={data.layout || 'text-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="lp-text-input">
+          <option value="text-left">Texto izquierda</option>
+          <option value="text-right">Texto derecha</option>
+        </select>
+      </div>
+    </div>
   );
 };
 
-/** Editor para Value Proposition */
 const ValuePropositionEditor = ({ data, onDataChange, onArrayChange }) => (
-  <>
-    <div className="settings-grid">
-      <TextInput label="Label superior" value={data.label} onChange={(v) => onDataChange('label', v)} />
-      <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-      <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
-    </div>
-    <h4 style={{ marginTop: 16 }}>Puntos ({(data.points || []).length})</h4>
+  <div className="lp-editor-section">
+    <TextInput label="Label superior" value={data.label} onChange={(v) => onDataChange('label', v)} />
+    <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
+    <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
+    <p className="lp-subsection-label">Puntos ({(data.points || []).length})</p>
     {(data.points || []).map((point, i) => (
-      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, padding: 8, background: '#f8f9fa', borderRadius: 6 }}>
-        <input type="text" value={point.icon || ''} onChange={(e) => onArrayChange('points', i, 'icon', e.target.value)}
-          style={{ width: 40, textAlign: 'center' }} placeholder="🔥" />
-        <input type="text" value={point.title || ''} onChange={(e) => onArrayChange('points', i, 'title', e.target.value)}
-          style={{ flex: 1 }} placeholder="Título" className="form-control" />
-        <input type="text" value={point.description || ''} onChange={(e) => onArrayChange('points', i, 'description', e.target.value)}
-          style={{ flex: 2 }} placeholder="Descripción (opcional)" className="form-control" />
-        <button type="button" onClick={() => {
-          const next = [...(data.points || [])];
-          next.splice(i, 1);
-          onDataChange('points', next);
-        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
+      <div key={i} className="lp-array-item">
+        <div className="lp-array-fields">
+          <input type="text" value={point.icon || ''} onChange={(e) => onArrayChange('points', i, 'icon', e.target.value)}
+            className="lp-text-input lp-emoji-input" placeholder="🔥" />
+          <input type="text" value={point.title || ''} onChange={(e) => onArrayChange('points', i, 'title', e.target.value)}
+            className="lp-text-input" placeholder="Título" />
+          <input type="text" value={point.description || ''} onChange={(e) => onArrayChange('points', i, 'description', e.target.value)}
+            className="lp-text-input" placeholder="Descripción" />
+        </div>
+        <button type="button" className="lp-array-del"
+          onClick={() => { const next = [...(data.points || [])]; next.splice(i, 1); onDataChange('points', next); }}>✕</button>
       </div>
     ))}
-    <button type="button" onClick={() => onDataChange('points', [...(data.points || []), { icon: '✨', title: '', description: '' }])}
-      style={{ marginTop: 4, padding: '4px 12px', fontSize: '0.85rem', cursor: 'pointer' }}>+ Agregar punto</button>
-  </>
+    <button type="button" className="lp-add-btn"
+      onClick={() => onDataChange('points', [...(data.points || []), { icon: '✨', title: '', description: '' }])}>
+      + Agregar punto
+    </button>
+  </div>
 );
 
-/** Editor para Product Highlight */
 const ProductHighlightEditor = ({ data, onDataChange, onImageUpload, isImageUploading, availableProducts = [], productsLoading = false }) => {
-  const handleSelectHighlightProduct = (productId) => {
+  const handleSelect = (productId) => {
     const selected = availableProducts.find((p) => String(p.id) === String(productId));
-    if (!selected) {
-      onDataChange('productId', null);
-      return;
-    }
-
+    if (!selected) { onDataChange('productId', null); return; }
     const mapped = mapCatalogProductToLanding(selected);
     onDataChange('productId', mapped.productId);
     onDataChange('label', mapped.category || data.label);
@@ -278,19 +248,13 @@ const ProductHighlightEditor = ({ data, onDataChange, onImageUpload, isImageUplo
   };
 
   return (
-    <div className="settings-grid">
-      <div className="form-group">
-        <label>Seleccionar producto del catálogo (opcional)</label>
-        <select
-          value={data.productId ?? ''}
-          onChange={(e) => handleSelectHighlightProduct(e.target.value)}
-          className="form-control"
-          disabled={productsLoading}
-        >
-          <option value="">{productsLoading ? 'Cargando productos...' : 'Ninguno (manual)'}</option>
-          {availableProducts.map((product) => (
-            <option key={product.id} value={product.id}>{product.name}</option>
-          ))}
+    <div className="lp-editor-section">
+      <div className="lp-form-group">
+        <label className="lp-field-label">Producto del catálogo</label>
+        <select value={data.productId ?? ''} onChange={(e) => handleSelect(e.target.value)}
+          className="lp-text-input" disabled={productsLoading}>
+          <option value="">{productsLoading ? 'Cargando...' : 'Ninguno (manual)'}</option>
+          {availableProducts.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
         </select>
       </div>
       <TextInput label="Label" value={data.label} onChange={(v) => onDataChange('label', v)} />
@@ -298,16 +262,12 @@ const ProductHighlightEditor = ({ data, onDataChange, onImageUpload, isImageUplo
       <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
       <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
       <TextInput label="Enlace CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} />
-      <ImageInput
-        label="Imagen"
-        value={data.image}
-        onChange={(v) => onDataChange('image', v)}
+      <ImageInput label="Imagen" value={data.image} onChange={(v) => onDataChange('image', v)}
         onUpload={(file) => onImageUpload && onImageUpload('image', file)}
-        isUploading={isImageUploading ? isImageUploading('image') : false}
-      />
-      <div className="form-group">
-        <label>Layout</label>
-        <select value={data.layout || 'image-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="form-control">
+        isUploading={isImageUploading ? isImageUploading('image') : false} />
+      <div className="lp-form-group">
+        <label className="lp-field-label">Layout</label>
+        <select value={data.layout || 'image-left'} onChange={(e) => onDataChange('layout', e.target.value)} className="lp-text-input">
           <option value="image-left">Imagen izquierda</option>
           <option value="image-right">Imagen derecha</option>
         </select>
@@ -316,264 +276,189 @@ const ProductHighlightEditor = ({ data, onDataChange, onImageUpload, isImageUplo
   );
 };
 
-/** Editor para Trust Banner */
 const TrustBannerEditor = ({ data, onDataChange }) => (
-  <div className="settings-grid">
+  <div className="lp-editor-section">
     <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
     <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
   </div>
 );
 
-/** Editor para Featured Product */
 const FeaturedProductEditor = ({ data, onDataChange, onArrayChange, availableProducts = [], productsLoading = false, onImageUpload, isImageUploading }) => {
-  const patchFeaturedProduct = (patch) => {
-    Object.entries(patch).forEach(([key, value]) => {
-      onDataChange(key, value);
-    });
-  };
-
-  const handleSelectFeaturedProduct = (productId) => {
+  const handleSelect = (productId) => {
     const selected = availableProducts.find((p) => String(p.id) === String(productId));
-    if (!selected) {
-      onDataChange('productId', null);
-      return;
-    }
-
+    if (!selected) { onDataChange('productId', null); return; }
     const mapped = mapCatalogProductToLanding(selected);
-    patchFeaturedProduct({
-      productId: mapped.productId,
-      productName: mapped.productName,
-      description: mapped.description,
-      image: mapped.image,
-      originalPrice: mapped.originalPrice,
-      salePrice: mapped.salePrice,
-      ctaText: data.ctaText || mapped.ctaText || 'Ver Producto',
-      ctaLink: mapped.ctaLink
-    });
+    Object.entries({
+      productId: mapped.productId, productName: mapped.productName,
+      description: mapped.description, image: mapped.image,
+      originalPrice: mapped.originalPrice, salePrice: mapped.salePrice,
+      ctaText: data.ctaText || mapped.ctaText || 'Ver Producto', ctaLink: mapped.ctaLink
+    }).forEach(([k, v]) => onDataChange(k, v));
   };
 
   return (
-    <>
-      <div className="settings-grid">
-        <TextInput label="Label" value={data.label} onChange={(v) => onDataChange('label', v)} />
-        <div className="form-group">
-          <label>Seleccionar producto del catálogo</label>
-          <select
-            value={data.productId ?? ''}
-            onChange={(e) => handleSelectFeaturedProduct(e.target.value)}
-            className="form-control"
-            disabled={productsLoading}
-          >
-            <option value="">{productsLoading ? 'Cargando productos...' : 'Seleccionar producto...'}</option>
-            {availableProducts.map((product) => (
-              <option key={product.id} value={product.id}>{product.name}</option>
-            ))}
-          </select>
+    <div className="lp-editor-section">
+      <TextInput label="Label" value={data.label} onChange={(v) => onDataChange('label', v)} />
+      <div className="lp-form-group">
+        <label className="lp-field-label">Producto del catálogo</label>
+        <select value={data.productId ?? ''} onChange={(e) => handleSelect(e.target.value)}
+          className="lp-text-input" disabled={productsLoading}>
+          <option value="">{productsLoading ? 'Cargando...' : 'Seleccionar...'}</option>
+          {availableProducts.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
+        </select>
+      </div>
+      <TextInput label="Nombre" value={data.productName} onChange={(v) => onDataChange('productName', v)} />
+      <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
+      <ImageInput label="Imagen" value={data.image} onChange={(v) => onDataChange('image', v)}
+        onUpload={(file) => onImageUpload && onImageUpload('image', file)}
+        isUploading={isImageUploading ? isImageUploading('image') : false} />
+      <TextInput label="Precio original" value={data.originalPrice} type="number" onChange={(v) => onDataChange('originalPrice', v)} />
+      <TextInput label="Precio venta" value={data.salePrice} type="number" onChange={(v) => onDataChange('salePrice', v)} />
+      <TextInput label="Badge" value={data.badgeText} onChange={(v) => onDataChange('badgeText', v)} />
+      <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
+      <TextInput label="Enlace CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} />
+      <p className="lp-subsection-label">Especificaciones ({(data.specs || []).length})</p>
+      {(data.specs || []).map((spec, i) => (
+        <div key={i} className="lp-array-item">
+          <div className="lp-array-fields lp-array-fields--2col">
+            <input type="text" value={spec.key || ''} onChange={(e) => onArrayChange('specs', i, 'key', e.target.value)}
+              className="lp-text-input" placeholder="Propiedad" />
+            <input type="text" value={spec.value || ''} onChange={(e) => onArrayChange('specs', i, 'value', e.target.value)}
+              className="lp-text-input" placeholder="Valor" />
+          </div>
+          <button type="button" className="lp-array-del"
+            onClick={() => { const next = [...(data.specs || [])]; next.splice(i, 1); onDataChange('specs', next); }}>✕</button>
         </div>
-        <TextInput label="Nombre del producto" value={data.productName} onChange={(v) => onDataChange('productName', v)} />
-        <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
-        <ImageInput
-          label="Imagen"
-          value={data.image}
-          onChange={(v) => onDataChange('image', v)}
-          onUpload={(file) => onImageUpload && onImageUpload('image', file)}
-          isUploading={isImageUploading ? isImageUploading('image') : false}
-        />
-        <TextInput label="Precio original" value={data.originalPrice} type="number" onChange={(v) => onDataChange('originalPrice', v)} />
-        <TextInput label="Precio de venta" value={data.salePrice} type="number" onChange={(v) => onDataChange('salePrice', v)} />
-        <TextInput label="Badge" value={data.badgeText} onChange={(v) => onDataChange('badgeText', v)} />
-        <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
-        <TextInput label="Enlace CTA" value={data.ctaLink} onChange={(v) => onDataChange('ctaLink', v)} />
-      </div>
-    <h4 style={{ marginTop: 16 }}>Especificaciones ({(data.specs || []).length})</h4>
-    {(data.specs || []).map((spec, i) => (
-      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, padding: 8, background: '#f8f9fa', borderRadius: 6 }}>
-        <input type="text" value={spec.key || ''} onChange={(e) => onArrayChange('specs', i, 'key', e.target.value)}
-          style={{ flex: 1 }} placeholder="Propiedad" className="form-control" />
-        <input type="text" value={spec.value || ''} onChange={(e) => onArrayChange('specs', i, 'value', e.target.value)}
-          style={{ flex: 1 }} placeholder="Valor" className="form-control" />
-        <button type="button" onClick={() => {
-          const next = [...(data.specs || [])];
-          next.splice(i, 1);
-          onDataChange('specs', next);
-        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
-      </div>
-    ))}
-    <button type="button" onClick={() => onDataChange('specs', [...(data.specs || []), { key: '', value: '' }])}
-      style={{ marginTop: 4, padding: '4px 12px', fontSize: '0.85rem', cursor: 'pointer' }}>+ Agregar especificación</button>
-    </>
+      ))}
+      <button type="button" className="lp-add-btn"
+        onClick={() => onDataChange('specs', [...(data.specs || []), { key: '', value: '' }])}>
+        + Agregar especificación
+      </button>
+    </div>
   );
 };
 
-/** Editor para How It Works */
 const HowItWorksEditor = ({ data, onDataChange, onArrayChange }) => (
-  <>
+  <div className="lp-editor-section">
     <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-    <h4 style={{ marginTop: 16 }}>Pasos ({(data.steps || []).length})</h4>
+    <p className="lp-subsection-label">Pasos ({(data.steps || []).length})</p>
     {(data.steps || []).map((step, i) => (
-      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 8, padding: 8, background: '#f8f9fa', borderRadius: 6 }}>
-        <input type="text" value={step.number || ''} onChange={(e) => onArrayChange('steps', i, 'number', e.target.value)}
-          style={{ width: 40, textAlign: 'center' }} placeholder="#" className="form-control" />
-        <input type="text" value={step.title || ''} onChange={(e) => onArrayChange('steps', i, 'title', e.target.value)}
-          style={{ flex: 1 }} placeholder="Título" className="form-control" />
-        <input type="text" value={step.description || ''} onChange={(e) => onArrayChange('steps', i, 'description', e.target.value)}
-          style={{ flex: 2 }} placeholder="Descripción" className="form-control" />
-        <button type="button" onClick={() => {
-          const next = [...(data.steps || [])];
-          next.splice(i, 1);
-          onDataChange('steps', next);
-        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
+      <div key={i} className="lp-array-item">
+        <div className="lp-array-fields">
+          <input type="text" value={step.number || ''} onChange={(e) => onArrayChange('steps', i, 'number', e.target.value)}
+            className="lp-text-input lp-step-input" placeholder="#" />
+          <input type="text" value={step.title || ''} onChange={(e) => onArrayChange('steps', i, 'title', e.target.value)}
+            className="lp-text-input" placeholder="Título" />
+          <input type="text" value={step.description || ''} onChange={(e) => onArrayChange('steps', i, 'description', e.target.value)}
+            className="lp-text-input" placeholder="Descripción" />
+        </div>
+        <button type="button" className="lp-array-del"
+          onClick={() => { const next = [...(data.steps || [])]; next.splice(i, 1); onDataChange('steps', next); }}>✕</button>
       </div>
     ))}
-    <button type="button" onClick={() => onDataChange('steps', [...(data.steps || []), { number: String((data.steps || []).length + 1), title: '', description: '' }])}
-      style={{ marginTop: 4, padding: '4px 12px', fontSize: '0.85rem', cursor: 'pointer' }}>+ Agregar paso</button>
-  </>
+    <button type="button" className="lp-add-btn"
+      onClick={() => onDataChange('steps', [...(data.steps || []), { number: String((data.steps || []).length + 1), title: '', description: '' }])}>
+      + Agregar paso
+    </button>
+  </div>
 );
 
-/** Editor para Product Showcase */
 const ProductShowcaseEditor = ({ data, onDataChange, availableProducts = [], productsLoading = false, onProductImageUpload, isImageUploading }) => {
-  // Handler para actualizar un producto individual del showcase
   const updateProduct = (index, field, value) => {
+    if (typeof field === 'object') {
+      // Patch object
+      const next = [...(data.products || [])];
+      next[index] = { ...next[index], ...field };
+      onDataChange('products', next);
+      return;
+    }
     const next = [...(data.products || [])];
     next[index] = { ...next[index], [field]: value };
     onDataChange('products', next);
   };
 
-  // Aplica varios cambios del producto en una sola actualización para evitar pisar estado en lote.
-  const patchProduct = (index, patch) => {
-    const next = [...(data.products || [])];
-    next[index] = { ...next[index], ...patch };
-    onDataChange('products', next);
-  };
-
-  // Handler para actualizar features de un producto
-  const updateProductFeature = (prodIdx, featIdx, value) => {
-    const next = [...(data.products || [])];
-    const features = [...(next[prodIdx].features || [])];
-    features[featIdx] = value;
-    next[prodIdx] = { ...next[prodIdx], features };
-    onDataChange('products', next);
-  };
-
   const selectCatalogProduct = (index, productId) => {
     const selected = availableProducts.find((p) => String(p.id) === String(productId));
-    if (!selected) {
-      updateProduct(index, 'productId', null);
-      return;
-    }
-
+    if (!selected) { updateProduct(index, 'productId', null); return; }
     const mapped = mapCatalogProductToLanding(selected);
-    patchProduct(index, {
-      productId: mapped.productId,
-      name: mapped.name,
-      category: mapped.category,
-      description: mapped.description,
-      image: mapped.image,
-      originalPrice: mapped.originalPrice,
-      salePrice: mapped.salePrice,
-      ctaText: mapped.ctaText,
-      ctaLink: mapped.ctaLink,
-      features: mapped.features
-    });
+    updateProduct(index, mapped);
   };
 
   return (
-    <>
-      <div className="settings-grid">
-        <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-        <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
-      </div>
-      <h4 style={{ marginTop: 16 }}>Productos ({(data.products || []).length})</h4>
+    <div className="lp-editor-section">
+      <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
+      <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
+      <p className="lp-subsection-label">Productos ({(data.products || []).length})</p>
       {(data.products || []).map((product, i) => (
-        <details key={i} style={{ marginBottom: 12, border: '1px solid #e9ecef', borderRadius: 8, padding: 12, background: '#fafafa' }}>
-          <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+        <details key={i} className="lp-collapsible-item">
+          <summary className="lp-collapsible-summary">
             {product.name || `Producto ${i + 1}`}
-            <button type="button" onClick={(e) => { e.preventDefault(); const next = [...(data.products || [])]; next.splice(i, 1); onDataChange('products', next); }}
-              style={{ float: 'right', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem' }}>🗑️</button>
+            <button type="button" className="lp-array-del"
+              onClick={(e) => { e.stopPropagation(); const next = [...(data.products || [])]; next.splice(i, 1); onDataChange('products', next); }}>✕</button>
           </summary>
-          <div className="settings-grid" style={{ marginTop: 12 }}>
-            <div className="form-group">
-              <label>Seleccionar producto del catálogo</label>
-              <select
-                value={product.productId ?? ''}
-                onChange={(e) => selectCatalogProduct(i, e.target.value)}
-                className="form-control"
-                disabled={productsLoading}
-              >
-                <option value="">{productsLoading ? 'Cargando productos...' : 'Seleccionar producto...'}</option>
-                {availableProducts.map((catalogProduct) => (
-                  <option key={catalogProduct.id} value={catalogProduct.id}>{catalogProduct.name}</option>
-                ))}
+          <div className="lp-collapsible-body">
+            <div className="lp-form-group">
+              <label className="lp-field-label">Producto del catálogo</label>
+              <select value={product.productId ?? ''} onChange={(e) => selectCatalogProduct(i, e.target.value)}
+                className="lp-text-input" disabled={productsLoading}>
+                <option value="">{productsLoading ? 'Cargando...' : 'Seleccionar...'}</option>
+                {availableProducts.map((p) => (<option key={p.id} value={p.id}>{p.name}</option>))}
               </select>
             </div>
             <TextInput label="Nombre" value={product.name} onChange={(v) => updateProduct(i, 'name', v)} />
             <TextInput label="Categoría" value={product.category} onChange={(v) => updateProduct(i, 'category', v)} />
             <TextArea label="Descripción" value={product.description} onChange={(v) => updateProduct(i, 'description', v)} rows={2} />
-            <ImageInput
-              label="Imagen"
-              value={product.image}
-              onChange={(v) => updateProduct(i, 'image', v)}
+            <ImageInput label="Imagen" value={product.image} onChange={(v) => updateProduct(i, 'image', v)}
               onUpload={(file) => onProductImageUpload && onProductImageUpload(i, file)}
-              isUploading={isImageUploading ? isImageUploading(`products.${i}.image`) : false}
-            />
+              isUploading={isImageUploading ? isImageUploading(`products.${i}.image`) : false} />
             <TextInput label="Precio original" value={product.originalPrice} type="number" onChange={(v) => updateProduct(i, 'originalPrice', v)} />
-            <TextInput label="Precio de venta" value={product.salePrice} type="number" onChange={(v) => updateProduct(i, 'salePrice', v)} />
+            <TextInput label="Precio venta" value={product.salePrice} type="number" onChange={(v) => updateProduct(i, 'salePrice', v)} />
             <TextInput label="Badge" value={product.badgeText} onChange={(v) => updateProduct(i, 'badgeText', v)} />
             <TextInput label="Texto CTA" value={product.ctaText} onChange={(v) => updateProduct(i, 'ctaText', v)} />
             <TextInput label="Enlace CTA" value={product.ctaLink} onChange={(v) => updateProduct(i, 'ctaLink', v)} />
           </div>
-          <h5 style={{ marginTop: 12 }}>Características</h5>
-          {(product.features || []).map((feat, j) => (
-            <div key={j} style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
-              <input type="text" value={feat || ''} onChange={(e) => updateProductFeature(i, j, e.target.value)}
-                style={{ flex: 1 }} placeholder="Característica" className="form-control" />
-              <button type="button" onClick={() => { const feats = [...(product.features || [])]; feats.splice(j, 1); updateProduct(i, 'features', feats); }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer' }}>🗑️</button>
-            </div>
-          ))}
-          <button type="button" onClick={() => updateProduct(i, 'features', [...(product.features || []), ''])}
-            style={{ marginTop: 4, padding: '2px 8px', fontSize: '0.8rem', cursor: 'pointer' }}>+ Característica</button>
         </details>
       ))}
-      <button type="button" onClick={() => onDataChange('products', [...(data.products || []), {
-        name: '', description: '', category: '', image: '', features: [],
-        originalPrice: 0, salePrice: 0, badgeText: '', badgeColor: '#ff6b35', ctaText: 'Ver Producto', ctaLink: '/'
-      }])} style={{ marginTop: 4, padding: '4px 12px', fontSize: '0.85rem', cursor: 'pointer' }}>+ Agregar producto</button>
-    </>
+      <button type="button" className="lp-add-btn"
+        onClick={() => onDataChange('products', [...(data.products || []), {
+          name: '', description: '', category: '', image: '', features: [],
+          originalPrice: 0, salePrice: 0, badgeText: '', badgeColor: '#ff6b35', ctaText: 'Ver Producto', ctaLink: '/'
+        }])}>
+        + Agregar producto
+      </button>
+    </div>
   );
 };
 
-/** Editor para Testimonials */
 const TestimonialsEditor = ({ data, onDataChange, onArrayChange }) => (
-  <>
-    <div className="settings-grid">
-      <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
-      <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
-    </div>
-    <h4 style={{ marginTop: 16 }}>Testimonios ({(data.items || []).length})</h4>
+  <div className="lp-editor-section">
+    <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
+    <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
+    <p className="lp-subsection-label">Testimonios ({(data.items || []).length})</p>
     {(data.items || []).map((item, i) => (
-      <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginBottom: 8, padding: 8, background: '#f8f9fa', borderRadius: 6, flexWrap: 'wrap' }}>
-        <textarea value={item.quote || ''} onChange={(e) => onArrayChange('items', i, 'quote', e.target.value)}
-          style={{ flex: '2 1 200px', minHeight: 50 }} placeholder="Cita..." className="form-control" />
-        <input type="text" value={item.author || ''} onChange={(e) => onArrayChange('items', i, 'author', e.target.value)}
-          style={{ flex: '1 1 120px' }} placeholder="Autor" className="form-control" />
-        <input type="number" value={item.rating ?? 5} min={1} max={5} onChange={(e) => onArrayChange('items', i, 'rating', Number(e.target.value))}
-          style={{ width: 60 }} className="form-control" />
-        <button type="button" onClick={() => {
-          const next = [...(data.items || [])];
-          next.splice(i, 1);
-          onDataChange('items', next);
-        }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>🗑️</button>
+      <div key={i} className="lp-array-item">
+        <div className="lp-array-fields">
+          <textarea value={item.quote || ''} onChange={(e) => onArrayChange('items', i, 'quote', e.target.value)}
+            className="lp-textarea" placeholder="Cita..." rows={2} />
+          <input type="text" value={item.author || ''} onChange={(e) => onArrayChange('items', i, 'author', e.target.value)}
+            className="lp-text-input" placeholder="Autor" />
+          <input type="number" value={item.rating ?? 5} min={1} max={5}
+            onChange={(e) => onArrayChange('items', i, 'rating', Number(e.target.value))}
+            className="lp-text-input" style={{ width: 60 }} />
+        </div>
+        <button type="button" className="lp-array-del"
+          onClick={() => { const next = [...(data.items || [])]; next.splice(i, 1); onDataChange('items', next); }}>✕</button>
       </div>
     ))}
-    <button type="button" onClick={() => onDataChange('items', [...(data.items || []), { quote: '', author: '', avatar: '', rating: 5 }])}
-      style={{ marginTop: 4, padding: '4px 12px', fontSize: '0.85rem', cursor: 'pointer' }}>+ Agregar testimonio</button>
-  </>
+    <button type="button" className="lp-add-btn"
+      onClick={() => onDataChange('items', [...(data.items || []), { quote: '', author: '', avatar: '', rating: 5 }])}>
+      + Agregar testimonio
+    </button>
+  </div>
 );
 
-/** Editor para Lead Capture */
 const LeadCaptureEditor = ({ data, onDataChange }) => (
-  <div className="settings-grid">
+  <div className="lp-editor-section">
     <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
     <TextArea label="Descripción" value={data.description} onChange={(v) => onDataChange('description', v)} />
     <TextArea label="Texto About" value={data.aboutText} onChange={(v) => onDataChange('aboutText', v)} />
@@ -582,9 +467,8 @@ const LeadCaptureEditor = ({ data, onDataChange }) => (
   </div>
 );
 
-/** Editor para Final CTA */
 const FinalCtaEditor = ({ data, onDataChange }) => (
-  <div className="settings-grid">
+  <div className="lp-editor-section">
     <TextInput label="Título" value={data.title} onChange={(v) => onDataChange('title', v)} />
     <TextInput label="Subtítulo" value={data.subtitle} onChange={(v) => onDataChange('subtitle', v)} />
     <TextInput label="Texto CTA" value={data.ctaText} onChange={(v) => onDataChange('ctaText', v)} />
@@ -592,7 +476,6 @@ const FinalCtaEditor = ({ data, onDataChange }) => (
   </div>
 );
 
-/** Mapa de editores por tipo de sección */
 const SECTION_EDITORS = {
   hero: HeroEditor,
   valueProposition: ValuePropositionEditor,
@@ -606,42 +489,58 @@ const SECTION_EDITORS = {
   finalCta: FinalCtaEditor,
 };
 
+/* ── Mini card for section list ── */
+const SectionPreviewCard = ({ section, index, onMove, onToggle }) => {
+  const icon = SECTION_ICONS[section.type] || '📄';
+  const label = SECTION_LABELS[section.type] || section.type;
+  const totalSections = 10; // approximate max
+
+  return (
+    <div className={`lp-section-card ${section.enabled ? '' : 'disabled'}`}>
+      <div className="lp-section-card-reorder">
+        <button type="button" disabled={index === 0}
+          onClick={() => onMove(index, -1)} className="lp-reorder-btn" title="Mover arriba">↑</button>
+        <button type="button" disabled={index === totalSections - 1}
+          onClick={() => onMove(index, 1)} className="lp-reorder-btn" title="Mover abajo">↓</button>
+      </div>
+      <label className="lp-section-card-toggle">
+        <input type="checkbox" checked={section.enabled} onChange={() => onToggle(section.id)} />
+        <span className="lp-toggle-slider"></span>
+      </label>
+      <span className="lp-section-card-icon">{icon}</span>
+      <span className="lp-section-card-label">{label}</span>
+    </div>
+  );
+};
+
 /* ═══════════════ COMPONENTE PRINCIPAL ═══════════════ */
 
 function LandingPageAdmin({ settings, setSettings }) {
+  const [activePanel, setActivePanel] = useState('config');
   const [openSections, setOpenSections] = useState({});
   const [availableProducts, setAvailableProducts] = useState([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [imageUploadingKey, setImageUploadingKey] = useState('');
 
-  // Extraer y clonar la configuración actual de la landing page
   const config = settings.landingPageConfig || cloneLandingPageConfig(null);
 
-  // Cargar productos disponibles para poder seleccionarlos en la landing
+  // Cargar productos disponibles para secciones que los referencian
   useEffect(() => {
     let mounted = true;
-
     const fetchAvailableProducts = async () => {
       setProductsLoading(true);
       try {
-        let page = 1;
-        let totalPages = 1;
+        let page = 1, totalPages = 1;
         const allProducts = [];
-
         do {
           const res = await apiFetch(apiUrl(`/products?page=${page}&limit=100`));
           if (!res.ok) break;
-
           const payload = await res.json();
-          const pageData = Array.isArray(payload?.data)
-            ? payload.data
-            : (Array.isArray(payload) ? payload : []);
-
+          const pageData = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : []);
           allProducts.push(...pageData);
           totalPages = Number(payload?.totalPages) || 1;
           page += 1;
         } while (page <= totalPages && page <= 20);
-
         if (mounted) {
           const unique = [];
           const seen = new Set();
@@ -654,17 +553,15 @@ function LandingPageAdmin({ settings, setSettings }) {
           setAvailableProducts(unique);
         }
       } catch (err) {
-        console.error('Error cargando productos para landing:', err);
+        console.error('Error cargando productos:', err);
       } finally {
         if (mounted) setProductsLoading(false);
       }
     };
-
     fetchAvailableProducts();
     return () => { mounted = false; };
   }, []);
 
-  // Handler genérico para actualizar la configuración completa
   const updateConfig = useCallback((updater) => {
     setSettings(prev => ({
       ...prev,
@@ -674,24 +571,20 @@ function LandingPageAdmin({ settings, setSettings }) {
     }));
   }, [setSettings]);
 
-  // Toggle sección colapsable
   const toggleSection = (id) => {
     setOpenSections(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
-  // Mover sección arriba o abajo
   const moveSection = (index, direction) => {
     updateConfig(prev => {
       const next = cloneLandingPageConfig(prev);
       const newIdx = index + direction;
       if (newIdx < 0 || newIdx >= next.sections.length) return next;
-      // Swap de secciones
       [next.sections[index], next.sections[newIdx]] = [next.sections[newIdx], next.sections[index]];
       return next;
     });
   };
 
-  // Toggle habilitado/deshabilitado de una sección
   const toggleSectionEnabled = (sectionId) => {
     updateConfig(prev => {
       const next = cloneLandingPageConfig(prev);
@@ -701,17 +594,14 @@ function LandingPageAdmin({ settings, setSettings }) {
     });
   };
 
-  // Actualizar campo de data de una sección
   const updateSectionData = useCallback((sectionId, field, value) => {
     updateConfig(prev => updateNestedField(prev, sectionId, `data.${field}`, value));
   }, [updateConfig]);
 
-  // Actualizar campo de styles de una sección
   const updateSectionStyle = (sectionId, field, value) => {
     updateConfig(prev => updateNestedField(prev, sectionId, `styles.${field}`, value));
   };
 
-  // Actualizar un item dentro de un array de data (points, steps, specs, items)
   const updateSectionArrayItem = useCallback((sectionId, arrayField, index, field, value) => {
     updateConfig(prev => {
       const next = cloneLandingPageConfig(prev);
@@ -725,16 +615,8 @@ function LandingPageAdmin({ settings, setSettings }) {
   const uploadImageToSettingsStorage = useCallback(async (file) => {
     const formData = new FormData();
     formData.append('image', file);
-
-    const response = await apiFetch(apiUrl('/settings/upload'), {
-      method: 'POST',
-      body: formData
-    });
-
-    if (!response.ok) {
-      throw new Error('Error al subir imagen');
-    }
-
+    const response = await apiFetch(apiUrl('/settings/upload'), { method: 'POST', body: formData });
+    if (!response.ok) throw new Error('Error al subir imagen');
     const data = await response.json();
     if (!data?.url) throw new Error('La subida no devolvió URL');
     return data.url;
@@ -749,7 +631,7 @@ function LandingPageAdmin({ settings, setSettings }) {
       updateSectionData(sectionId, field, url);
       toast.success('Imagen subida correctamente', { id: uploadToast });
     } catch (err) {
-      console.error('Error subiendo imagen de landing:', err);
+      console.error('Error subiendo imagen:', err);
       toast.error('No se pudo subir la imagen', { id: uploadToast });
     } finally {
       setImageUploadingKey('');
@@ -765,126 +647,166 @@ function LandingPageAdmin({ settings, setSettings }) {
       updateSectionArrayItem(sectionId, arrayField, index, field, url);
       toast.success('Imagen subida correctamente', { id: uploadToast });
     } catch (err) {
-      console.error('Error subiendo imagen de landing:', err);
+      console.error('Error subiendo imagen:', err);
       toast.error('No se pudo subir la imagen', { id: uploadToast });
     } finally {
       setImageUploadingKey('');
     }
   }, [updateSectionArrayItem, uploadImageToSettingsStorage]);
 
+  const enabledSections = useMemo(() =>
+    (config.sections || []).filter(s => s.enabled),
+    [config.sections]
+  );
+
+  /** Navegación horizontal: paneles fijos + dinámicos para cada sección */
+  const sectionNavItems = useMemo(() => {
+    const items = [...PANELS];
+    (config.sections || []).forEach((section) => {
+      const icon = SECTION_ICONS[section.type] || '📄';
+      const label = SECTION_LABELS[section.type] || section.type;
+      items.push({ id: `section-${section.id}`, icon, label, isSection: true });
+    });
+    return items;
+  }, [config.sections]);
+
   return (
-    <div>
-      {/* ── Control maestro ──────────────────────────── */}
-      <section className="settings-section">
-        <h3 className="section-header">🚀 Landing Page</h3>
-        <p className="section-description">
-          Configura una página de destino independiente en <code>{config.route || '/landing'}</code>. Cuando esté activada, los usuarios podrán acceder desde el enlace configurado.
-        </p>
+    <div className="lp-app">
+      {/* ── Barra de navegación horizontal ── */}
+      <nav className="lp-section-nav" aria-label="Secciones de la landing page">
+        {sectionNavItems.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            title={item.label}
+            className={`lp-nav-btn${activePanel === item.id ? ' active' : ''}`}
+            onClick={() => activePanel === `section-${item.sectionId}` ? setOpenSections(prev => ({ ...prev, [item.sectionId]: !prev[item.sectionId] })) : setActivePanel(item.id)}
+          >
+            <span className="lp-nav-icon" aria-hidden="true">{item.icon}</span>
+            <span className="lp-nav-label">{item.label}</span>
+          </button>
+        ))}
+      </nav>
 
-        {/* Toggle principal */}
-        <div className="form-group" style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-          <label className="toggle-switch">
-            <input type="checkbox" checked={config.enabled || false}
-              onChange={() => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), enabled: !prev.enabled }))} />
-            <span className="toggle-slider"></span>
-          </label>
-          <span style={{ fontWeight: 600 }}>{config.enabled ? '✅ Activada' : '❌ Desactivada'}</span>
-        </div>
+      {/* ── Cuerpo: sidebar + preview ── */}
+      <div className="lp-body">
+        {/* ── SIDEBAR ── */}
+        <div className="lp-sidebar">
+          {/* ── PANEL: Config ── */}
+          {activePanel === 'config' && (
+            <div className="lp-panel">
+              <p className="lp-panel-label">Landing Page</p>
 
-        {/* Título y ruta */}
-        <div className="settings-grid">
-          <TextInput label="Título de la página" value={config.pageTitle}
-            onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), pageTitle: v }))} />
-          <TextInput label="Ruta URL" value={config.route}
-            onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), route: v }))} placeholder="/landing" />
-          <div className="form-group">
-            <label>Plantilla visual</label>
-            <select
-              value={config.templateId || 'modern-minimal'}
-              onChange={(e) => {
-                const selectedTemplateId = e.target.value;
-                updateConfig(prev => applyLandingTemplatePreset(prev, selectedTemplateId));
-              }}
-              className="form-control"
-            >
-              {LANDING_TEMPLATE_OPTIONS.map((option) => (
-                <option key={option.id} value={option.id}>{option.name}</option>
-              ))}
-            </select>
-            <small style={{ opacity: 0.75 }}>
-              Al cambiar plantilla se aplican estilos base que luego puedes personalizar en esta misma configuración.
-            </small>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Estilos globales ─────────────────────────── */}
-      <section className="settings-section collapsible">
-        <button type="button" className="section-toggle" onClick={() => toggleSection('globalStyles')}>
-          <span>🎨 Estilos Globales</span>
-          <span className="toggle-indicator">{openSections.globalStyles ? '−' : '+'}</span>
-        </button>
-        {openSections.globalStyles && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 12 }}>
-            <ColorInput label="Color oscuro" value={config.globalStyles?.darkColor}
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, darkColor: v } }))} />
-            <ColorInput label="Color claro" value={config.globalStyles?.lightColor}
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, lightColor: v } }))} />
-            <ColorInput label="Color de acento" value={config.globalStyles?.accentColor}
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, accentColor: v } }))} />
-            <ColorInput label="Color de texto" value={config.globalStyles?.textColor}
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, textColor: v } }))} />
-            <ColorInput label="Color de títulos" value={config.globalStyles?.headingColor}
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, headingColor: v } }))} />
-            <TextInput label="Ancho máximo (px)" value={config.globalStyles?.maxWidth} type="number"
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, maxWidth: v } }))} />
-            <TextInput label="Padding sección (px)" value={config.globalStyles?.sectionPadding} type="number"
-              onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, sectionPadding: v } }))} />
-          </div>
-        )}
-      </section>
-
-      {/* ── Secciones individuales ───────────────────── */}
-      <h3 style={{ margin: '24px 0 12px', fontSize: '1.1rem' }}>Secciones ({config.sections?.length || 0})</h3>
-      <p className="section-description" style={{ marginBottom: 16 }}>
-        Usa las flechas ↑↓ para reordenar. Activa o desactiva cada sección individualmente.
-      </p>
-
-      {(config.sections || []).map((section, index) => {
-        const SectionEditor = SECTION_EDITORS[section.type];
-        const isOpen = openSections[section.id];
-        return (
-          <section key={section.id} className="settings-section collapsible" style={{ marginBottom: 8, opacity: section.enabled ? 1 : 0.6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* Flechas de reordenamiento */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <button type="button" disabled={index === 0}
-                  onClick={() => moveSection(index, -1)}
-                  style={{ background: 'none', border: '1px solid #ddd', borderRadius: 4, cursor: index === 0 ? 'default' : 'pointer', padding: '0 6px', fontSize: '0.8rem', opacity: index === 0 ? 0.3 : 1 }}>
-                  ↑
-                </button>
-                <button type="button" disabled={index === (config.sections?.length || 0) - 1}
-                  onClick={() => moveSection(index, 1)}
-                  style={{ background: 'none', border: '1px solid #ddd', borderRadius: 4, cursor: index === (config.sections?.length || 0) - 1 ? 'default' : 'pointer', padding: '0 6px', fontSize: '0.8rem', opacity: index === (config.sections?.length || 0) - 1 ? 0.3 : 1 }}>
-                  ↓
-                </button>
+              <div className="lp-toggle-row">
+                <div className="lp-toggle-info">
+                  <span className="lp-toggle-title">Activar Landing Page</span>
+                  <span className="lp-toggle-desc">Ruta: <code>{config.route || '/landing'}</code></span>
+                </div>
+                <div className={`lp-toggle${config.enabled ? ' on' : ''}`} role="switch"
+                  aria-checked={!!config.enabled}
+                  onClick={() => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), enabled: !prev.enabled }))}>
+                  <div className="lp-toggle-thumb" />
+                </div>
               </div>
 
-              {/* Toggle activar/desactivar sección */}
-              <label className="toggle-switch" style={{ marginRight: 4 }}>
-                <input type="checkbox" checked={section.enabled} onChange={() => toggleSectionEnabled(section.id)} />
-                <span className="toggle-slider"></span>
-              </label>
+              <div className="lp-panel-divider" />
 
-              {/* Botón expandir/colapsar */}
-              <button type="button" className="section-toggle" onClick={() => toggleSection(section.id)} style={{ flex: 1 }}>
-                <span>{SECTION_LABELS[section.type] || section.type}</span>
-                <span className="toggle-indicator">{isOpen ? '−' : '+'}</span>
+              <div className="lp-form-group">
+                <label className="lp-field-label">Título de la página</label>
+                <input type="text" className="lp-text-input" value={config.pageTitle || ''}
+                  onChange={(e) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), pageTitle: e.target.value }))} />
+              </div>
+
+              <div className="lp-form-group">
+                <label className="lp-field-label">Ruta URL</label>
+                <input type="text" className="lp-text-input" value={config.route || '/landing'}
+                  onChange={(e) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), route: e.target.value }))}
+                  placeholder="/landing" />
+              </div>
+
+              <div className="lp-form-group">
+                <label className="lp-field-label">Plantilla visual</label>
+                <select value={config.templateId || 'modern-minimal'}
+                  onChange={(e) => updateConfig(prev => applyLandingTemplatePreset(prev, e.target.value))}
+                  className="lp-text-input">
+                  {LANDING_TEMPLATE_OPTIONS.map((opt) => (
+                    <option key={opt.id} value={opt.id}>{opt.name}</option>
+                  ))}
+                </select>
+                <p className="lp-field-hint">Al cambiar plantilla se aplican estilos base.</p>
+              </div>
+
+              <div className="lp-panel-divider" />
+              <button type="button" className="lp-reset-btn"
+                onClick={() => {
+                  if (window.confirm('¿Restablecer toda la configuración de la landing page?')) {
+                    updateConfig(cloneLandingPageConfig(null));
+                  }
+                }}>
+                🔄 Restablecer valores por defecto
               </button>
             </div>
+          )}
 
-            {isOpen && SectionEditor && (
-              <div style={{ marginTop: 16, paddingLeft: 48 }}>
+          {/* ── PANEL: Global Styles ── */}
+          {activePanel === 'globalStyles' && (
+            <div className="lp-panel">
+              <p className="lp-panel-label">Estilos Globales</p>
+              <p className="lp-panel-hint">Colores y dimensiones base de la landing page.</p>
+              <div className="lp-style-section">
+                <ColorInput label="Color oscuro" value={config.globalStyles?.darkColor}
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, darkColor: v } }))} />
+                <ColorInput label="Color claro" value={config.globalStyles?.lightColor}
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, lightColor: v } }))} />
+                <ColorInput label="Color de acento" value={config.globalStyles?.accentColor}
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, accentColor: v } }))} />
+                <ColorInput label="Color de texto" value={config.globalStyles?.textColor}
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, textColor: v } }))} />
+                <ColorInput label="Color de títulos" value={config.globalStyles?.headingColor}
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, headingColor: v } }))} />
+              </div>
+              <div className="lp-panel-divider" />
+              <div className="lp-style-section">
+                <TextInput label="Ancho máximo (px)" value={config.globalStyles?.maxWidth} type="number"
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, maxWidth: v } }))} />
+                <TextInput label="Padding sección (px)" value={config.globalStyles?.sectionPadding} type="number"
+                  onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, sectionPadding: v } }))} />
+              </div>
+            </div>
+          )}
+
+          {/* ── PANEL: Secciones ── */}
+          {activePanel === 'sections' && (
+            <div className="lp-panel">
+              <p className="lp-panel-label">Secciones</p>
+              <p className="lp-panel-hint">Reordena, activa o desactiva secciones.</p>
+              <div className="lp-section-card-list">
+                {(config.sections || []).map((section, index) => (
+                  <SectionPreviewCard
+                    key={section.id}
+                    section={section}
+                    index={index}
+                    onMove={moveSection}
+                    onToggle={toggleSectionEnabled}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── PANELES DINÁMICOS: Secciones individuales ── */}
+          {(config.sections || []).map(section => {
+            if (activePanel !== `section-${section.id}`) return null;
+            const SectionEditor = SECTION_EDITORS[section.type];
+            if (!SectionEditor) return (
+              <div className="lp-panel" key={section.id}>
+                <p className="lp-panel-label">{SECTION_LABELS[section.type] || section.type}</p>
+                <p className="lp-panel-hint">No hay editor disponible para esta sección.</p>
+              </div>
+            );
+            return (
+              <div className="lp-panel lp-panel--scroll" key={section.id}>
+                <p className="lp-panel-label">{SECTION_LABELS[section.type] || section.type}</p>
                 <SectionEditor
                   data={section.data || {}}
                   onDataChange={(field, value) => updateSectionData(section.id, field, value)}
@@ -895,25 +817,222 @@ function LandingPageAdmin({ settings, setSettings }) {
                   availableProducts={availableProducts}
                   productsLoading={productsLoading}
                 />
+                <div className="lp-panel-divider" />
                 <StylesEditor
                   styles={section.styles}
                   onStyleChange={(field, value) => updateSectionStyle(section.id, field, value)}
                 />
               </div>
-            )}
-          </section>
-        );
-      })}
+            );
+          })}
+        </div>
 
-      {/* ── Restablecer valores por defecto ──────────── */}
-      <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px solid #e9ecef' }}>
-        <button type="button" onClick={() => {
-          if (window.confirm('¿Restablecer toda la configuración de la landing page a los valores por defecto?')) {
-            updateConfig(cloneLandingPageConfig(null));
-          }
-        }} style={{ padding: '8px 16px', fontSize: '0.9rem', cursor: 'pointer', background: '#dc3545', color: '#fff', border: 'none', borderRadius: 6 }}>
-          🔄 Restablecer valores por defecto
-        </button>
+        {/* ── PREVIEW ── */}
+        <div className="lp-preview-area">
+          <div className="lp-preview-topbar">
+            <span className="lp-preview-title">Vista previa</span>
+            <span className="lp-preview-badge">
+              {config.enabled ? '✅ Activada' : '❌ Desactivada'}
+              {' · '}
+              {enabledSections.length} sección(es) activa(s)
+            </span>
+          </div>
+          <div className="lp-preview-scroll">
+            <div className="lp-preview-container">
+              {/* Renderizado de la landing en miniatura */}
+              <div className="lp-landing-preview" style={{
+                '--lp-dark': config.globalStyles?.darkColor || '#111827',
+                '--lp-light': config.globalStyles?.lightColor || '#ffffff',
+                '--lp-accent': config.globalStyles?.accentColor || '#2563eb',
+                '--lp-text': config.globalStyles?.textColor || '#111827',
+                '--lp-heading': config.globalStyles?.headingColor || '#0f172a',
+                maxWidth: config.globalStyles?.maxWidth ? `${config.globalStyles.maxWidth}px` : '1200px',
+                margin: '0 auto',
+              }}>
+                {enabledSections.length === 0 && (
+                  <div className="lp-preview-empty">
+                    <p>No hay secciones activas.</p>
+                    <p className="lp-preview-empty-hint">Activa secciones en el panel "Secciones" para ver la vista previa.</p>
+                  </div>
+                )}
+                {enabledSections.map((section) => (
+                  <div key={section.id} className="lp-preview-section">
+                    <div className="lp-preview-section-badge">{SECTION_ICONS[section.type] || '📄'} {SECTION_LABELS[section.type] || section.type}</div>
+
+                    {/* Hero */}
+                    {section.type === 'hero' && (
+                      <div className="lp-prev-hero" style={{
+                        background: section.styles?.bgColor || 'var(--lp-dark)',
+                        color: section.styles?.textColor || 'var(--lp-light)',
+                        minHeight: `${section.styles?.minHeight || 400}px`,
+                        display: 'flex', alignItems: 'center', padding: '40px',
+                        textAlign: section.data?.layout === 'text-right' ? 'right' : 'left',
+                        flexDirection: section.data?.layout === 'text-right' ? 'row-reverse' : 'row',
+                        gap: 24
+                      }}>
+                        <div style={{ flex: 1 }}>
+                          <h3 style={{ fontSize: '1.6rem', margin: '0 0 8px', fontWeight: 700 }}>{section.data?.title || 'Título del Hero'}</h3>
+                          <p style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0 0 16px' }}>{section.data?.subtitle || 'Subtítulo del hero'}</p>
+                          <span style={{ display: 'inline-block', padding: '8px 20px', borderRadius: 6, background: section.styles?.ctaBgColor || 'var(--lp-accent)', color: section.styles?.ctaTextColor || 'var(--lp-light)', fontSize: '0.8rem', fontWeight: 600 }}>{section.data?.ctaText || 'Comprar Ahora'}</span>
+                        </div>
+                        {section.data?.image && (
+                          <div style={{ flex: '0 0 40%' }}>
+                            <img src={section.data.image} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8 }} />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Value Proposition */}
+                    {section.type === 'valueProposition' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-light)', color: section.styles?.textColor || 'var(--lp-text)', padding: '40px 24px' }}>
+                        <p style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', opacity: 0.6, margin: '0 0 4px' }}>{section.data?.label || 'Nuestras Ventajas'}</p>
+                        <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem' }}>{section.data?.title || '¿Por qué elegirnos?'}</h3>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.75, margin: '0 0 16px' }}>{section.data?.description || ''}</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: 12 }}>
+                          {(section.data?.points || []).slice(0, 4).map((p, i) => (
+                            <div key={i} style={{ background: section.styles?.cardBgColor || '#f8fafc', borderRadius: 8, padding: 12, textAlign: 'center', border: `1px solid ${section.styles?.cardBorderColor || '#e5e7eb'}` }}>
+                              <div style={{ fontSize: '1.4rem', marginBottom: 4 }}>{p.icon || '✨'}</div>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 600 }}>{p.title || ''}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Product Highlight */}
+                    {section.type === 'productHighlight' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-light)', color: section.styles?.textColor || 'var(--lp-text)', padding: '40px 24px' }}>
+                        <div style={{ display: 'flex', gap: 20, alignItems: 'center', flexDirection: section.data?.layout === 'image-right' ? 'row-reverse' : 'row' }}>
+                          <div style={{ flex: 1 }}>
+                            <p style={{ fontSize: '0.7rem', textTransform: 'uppercase', opacity: 0.6, margin: '0 0 4px' }}>{section.data?.label || ''}</p>
+                            <h3 style={{ margin: '0 0 6px', fontSize: '1.2rem' }}>{section.data?.title || 'Producto Destacado'}</h3>
+                            <p style={{ fontSize: '0.8rem', opacity: 0.75, margin: '0 0 12px' }}>{section.data?.description || ''}</p>
+                            <span style={{ display: 'inline-block', padding: '6px 16px', borderRadius: 6, background: section.styles?.ctaBgColor || 'var(--lp-accent)', color: section.styles?.ctaTextColor || 'var(--lp-light)', fontSize: '0.75rem', fontWeight: 600 }}>{section.data?.ctaText || 'Ver Más'}</span>
+                          </div>
+                          {section.data?.image && (
+                            <div style={{ flex: '0 0 35%' }}>
+                              <img src={section.data.image} alt="" style={{ width: '100%', height: 120, objectFit: 'cover', borderRadius: 8 }} />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Trust Banner */}
+                    {section.type === 'trustBanner' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-accent)', color: section.styles?.textColor || 'var(--lp-light)', padding: '30px 24px', textAlign: 'center' }}>
+                        <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem' }}>{section.data?.title || 'Valorado por clientes'}</h3>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.85, margin: 0 }}>{section.data?.subtitle || ''}</p>
+                      </div>
+                    )}
+
+                    {/* Featured Product */}
+                    {section.type === 'featuredProduct' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-light)', color: section.styles?.textColor || 'var(--lp-text)', padding: '40px 24px' }}>
+                        <p style={{ fontSize: '0.7rem', textTransform: 'uppercase', opacity: 0.6, margin: '0 0 4px' }}>{section.data?.label || 'El mejor producto'}</p>
+                        <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem' }}>{section.data?.productName || 'Producto'}</h3>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.75, margin: '0 0 12px' }}>{section.data?.description || ''}</p>
+                        {section.data?.salePrice > 0 && (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+                            {section.data?.originalPrice > section.data?.salePrice && (
+                              <span style={{ fontSize: '0.8rem', textDecoration: 'line-through', opacity: 0.5 }}>${Number(section.data.originalPrice).toFixed(2)}</span>
+                            )}
+                            <span style={{ fontSize: '1.4rem', fontWeight: 700, color: section.styles?.priceSaleColor || 'var(--lp-accent)' }}>${Number(section.data.salePrice).toFixed(2)}</span>
+                            {section.data?.badgeText && (
+                              <span style={{ fontSize: '0.65rem', padding: '2px 8px', borderRadius: 4, background: '#ff6b35', color: '#fff', fontWeight: 600 }}>{section.data.badgeText}</span>
+                            )}
+                          </div>
+                        )}
+                        {(section.data?.specs || []).slice(0, 3).map((spec, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 6, fontSize: '0.75rem', marginBottom: 2 }}>
+                            <span style={{ opacity: 0.6 }}>{spec.key}:</span>
+                            <span>{spec.value}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* How It Works */}
+                    {section.type === 'howItWorks' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-light)', color: section.styles?.textColor || 'var(--lp-text)', padding: '40px 24px' }}>
+                        <h3 style={{ margin: '0 0 16px', fontSize: '1.1rem', textAlign: 'center' }}>{section.data?.title || '¿Cómo Funciona?'}</h3>
+                        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          {(section.data?.steps || []).slice(0, 3).map((step, i) => (
+                            <div key={i} style={{ flex: 1, minWidth: 120, maxWidth: 180, textAlign: 'center', padding: 12, borderRadius: 8, background: section.styles?.stepCardBg || '#f8fafc', border: `1px solid ${section.styles?.stepCardBorder || '#e5e7eb'}` }}>
+                              <div style={{ width: 28, height: 28, borderRadius: '50%', background: section.styles?.stepNumberBg || 'var(--lp-accent)', color: section.styles?.stepNumberColor || '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, margin: '0 auto 6px' }}>{step.number || i + 1}</div>
+                              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 2 }}>{step.title || ''}</div>
+                              <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>{step.description || ''}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Product Showcase */}
+                    {section.type === 'productShowcase' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-light)', color: section.styles?.textColor || 'var(--lp-text)', padding: '40px 24px' }}>
+                        <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem', textAlign: 'center' }}>{section.data?.title || 'Productos Destacados'}</h3>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.75, margin: '0 0 16px', textAlign: 'center' }}>{section.data?.subtitle || ''}</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 12 }}>
+                          {(section.data?.products || []).slice(0, 4).map((p, i) => (
+                            <div key={i} style={{ background: section.styles?.cardBgColor || '#fff', borderRadius: 8, padding: 10, border: `1px solid ${section.styles?.cardBorderColor || '#e5e7eb'}`, boxShadow: section.styles?.cardShadow || 'none' }}>
+                              {p.image && <img src={p.image} alt="" style={{ width: '100%', height: 60, objectFit: 'cover', borderRadius: 4, marginBottom: 6 }} />}
+                              <div style={{ fontSize: '0.75rem', fontWeight: 600, marginBottom: 2 }}>{p.name || 'Producto'}</div>
+                              <div style={{ fontSize: '0.65rem', opacity: 0.6, marginBottom: 4 }}>{p.category || ''}</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: section.styles?.ctaBgColor || 'var(--lp-accent)' }}>${Number(p.salePrice || 0).toFixed(2)}</div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Testimonials */}
+                    {section.type === 'testimonials' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-light)', color: section.styles?.textColor || 'var(--lp-text)', padding: '40px 24px' }}>
+                        <h3 style={{ margin: '0 0 4px', fontSize: '1.1rem', textAlign: 'center' }}>{section.data?.title || 'Testimonios'}</h3>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.75, margin: '0 0 16px', textAlign: 'center' }}>{section.data?.subtitle || ''}</p>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 12 }}>
+                          {(section.data?.items || []).slice(0, 3).map((item, i) => (
+                            <div key={i} style={{ background: section.styles?.cardBgColor || '#fff', borderRadius: 8, padding: 12, border: `1px solid ${section.styles?.cardBorderColor || '#e5e7eb'}` }}>
+                              <div style={{ fontSize: '0.7rem', fontStyle: 'italic', marginBottom: 8, opacity: 0.85, lineHeight: 1.4 }}>"{item.quote || ''}"</div>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 600 }}>- {item.author || ''}</div>
+                              {item.rating && (
+                                <div style={{ fontSize: '0.7rem', color: section.styles?.starColor || '#f59e0b', marginTop: 4 }}>{'★'.repeat(Math.min(item.rating, 5))}{'☆'.repeat(Math.max(0, 5 - item.rating))}</div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Lead Capture */}
+                    {section.type === 'leadCapture' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-dark)', color: section.styles?.textColor || 'var(--lp-light)', padding: '40px 24px', textAlign: 'center' }}>
+                        <h3 style={{ margin: '0 0 6px', fontSize: '1.1rem' }}>{section.data?.title || '¡Obtén descuento!'}</h3>
+                        <p style={{ fontSize: '0.8rem', opacity: 0.85, margin: '0 0 16px' }}>{section.data?.description || ''}</p>
+                        <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+                          <input type="email" placeholder="Tu correo" readOnly
+                            style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid rgba(255,255,255,0.3)', background: 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.8rem' }} />
+                          <span style={{ padding: '8px 16px', borderRadius: 6, background: section.styles?.submitBgColor || 'var(--lp-accent)', color: section.styles?.submitTextColor || '#fff', fontSize: '0.8rem', fontWeight: 600, cursor: 'default' }}>{section.data?.submitText || 'Enviar'}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Final CTA */}
+                    {section.type === 'finalCta' && (
+                      <div className="lp-prev-section-block" style={{ background: section.styles?.bgColor || 'var(--lp-dark)', color: section.styles?.textColor || 'var(--lp-light)', padding: '50px 24px', textAlign: 'center' }}>
+                        <h3 style={{ margin: '0 0 4px', fontSize: '1.3rem' }}>{section.data?.title || '¿Qué esperas?'}</h3>
+                        <p style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0 0 20px' }}>{section.data?.subtitle || ''}</p>
+                        <span style={{ display: 'inline-block', padding: '10px 24px', borderRadius: 6, background: section.styles?.ctaBgColor || 'var(--lp-accent)', color: section.styles?.ctaTextColor || 'var(--lp-light)', fontSize: '0.85rem', fontWeight: 700 }}>{section.data?.ctaText || 'Ir a la Tienda'}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

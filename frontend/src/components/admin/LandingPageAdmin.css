@@ -1,0 +1,697 @@
+/* LandingPageAdmin.css — Split-panel landing page editor
+   Sigue el mismo patrón visual que SiteCustomizer.css (sección "General") */
+
+/* ── Main app layout ── */
+.lp-app {
+  display: flex;
+  flex-direction: column;
+  min-height: 540px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+/* Full-width section nav bar at the top */
+.lp-section-nav {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.lp-section-nav::-webkit-scrollbar { display: none; }
+
+.lp-nav-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 10px 18px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.lp-nav-btn:hover {
+  color: #374151;
+  background: #f9fafb;
+}
+
+.lp-nav-btn.active {
+  color: #2563eb;
+  border-bottom-color: #2563eb;
+  background: #f0f7ff;
+}
+
+.lp-nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.lp-nav-label {
+  font-size: 9px;
+  max-width: 70px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Body row: sidebar + preview */
+.lp-body {
+  display: flex;
+  flex-direction: row;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ── */
+.lp-sidebar {
+  width: 280px;
+  flex-shrink: 0;
+  background: #f9fafb;
+  border-right: 1px solid #e5e7eb;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.lp-panel {
+  flex: 1;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+}
+
+.lp-panel--scroll {
+  overflow-y: auto;
+}
+
+.lp-panel-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9ca3af;
+  margin: 0;
+}
+
+.lp-panel-hint {
+  font-size: 11.5px;
+  color: #6b7280;
+  margin: 0 0 4px;
+  line-height: 1.4;
+}
+
+.lp-panel-divider {
+  height: 1px;
+  background: #e5e7eb;
+  margin: 4px 0;
+}
+
+/* ── Toggle switch (replicates sc-home-toggle) ── */
+.lp-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lp-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lp-toggle-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1f2937;
+}
+
+.lp-toggle-desc {
+  font-size: 10.5px;
+  color: #6b7280;
+  line-height: 1.4;
+}
+
+.lp-toggle-desc code {
+  font-size: 10px;
+  background: #e5e7eb;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.lp-toggle {
+  width: 38px;
+  height: 22px;
+  border-radius: 11px;
+  background: #d1d5db;
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.lp-toggle.on {
+  background: #6366f1;
+}
+
+.lp-toggle-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.lp-toggle.on .lp-toggle-thumb {
+  transform: translateX(16px);
+}
+
+/* Toggle slider for section cards */
+.lp-toggle-slider {
+  display: inline-block;
+  width: 28px;
+  height: 16px;
+  border-radius: 8px;
+  background: #d1d5db;
+  position: relative;
+  transition: background 0.2s;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lp-toggle-slider::after {
+  content: '';
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #fff;
+  top: 2px;
+  left: 2px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+}
+
+input:checked + .lp-toggle-slider {
+  background: #6366f1;
+}
+
+input:checked + .lp-toggle-slider::after {
+  transform: translateX(12px);
+}
+
+/* ── Form elements ── */
+.lp-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-field-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.lp-field-hint {
+  font-size: 10px;
+  color: #9ca3af;
+  margin: 2px 0 0;
+  line-height: 1.3;
+}
+
+.lp-text-input {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  color: #111827;
+  background: #fafafa;
+  width: 100%;
+  transition: border-color 0.15s;
+}
+
+.lp-text-input:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+}
+
+.lp-textarea {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 0.84rem;
+  color: #111827;
+  background: #fafafa;
+  width: 100%;
+  resize: vertical;
+  min-height: 50px;
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+.lp-textarea:focus {
+  outline: none;
+  border-color: #6366f1;
+  background: #fff;
+}
+
+.lp-color-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lp-color-picker {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  position: absolute;
+  pointer-events: none;
+}
+
+/* Custom color swatch that triggers the hidden picker */
+.lp-form-group:has(.lp-color-picker) .lp-color-input-wrap {
+  position: relative;
+}
+
+.lp-form-group:has(.lp-color-picker) .lp-color-input-wrap::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.12);
+  background: attr(data-color);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* Actually use a clickable swatch approach like SiteCustomizer */
+.lp-color-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Color input wrapper: hidden input + visible swatch */
+.lp-color-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.lp-color-picker {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  left: 0;
+  top: 0;
+}
+
+.lp-color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid rgba(0,0,0,0.12);
+  flex-shrink: 0;
+}
+
+.lp-color-hex {
+  font-size: 10.5px;
+  font-family: "Courier New", monospace;
+  color: #9ca3af;
+}
+
+/* Upload row */
+.lp-upload-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.lp-file-input {
+  font-size: 0.78rem;
+  color: #374151;
+}
+
+.lp-img-preview {
+  width: 45px;
+  height: 45px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+}
+
+/* ── Array items (points, steps, specs, testimonials) ── */
+.lp-array-item {
+  display: flex;
+  gap: 6px;
+  align-items: flex-start;
+  margin-bottom: 6px;
+  padding: 6px 8px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.lp-array-fields {
+  display: flex;
+  gap: 6px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+
+.lp-array-fields--2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.lp-array-del {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 4px;
+  width: 22px;
+  height: 22px;
+  cursor: pointer;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+  flex-shrink: 0;
+}
+
+.lp-array-del:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.lp-emoji-input {
+  width: 44px;
+  text-align: center;
+}
+
+.lp-step-input {
+  width: 36px;
+  text-align: center;
+}
+
+.lp-add-btn {
+  padding: 4px 12px;
+  font-size: 0.8rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.12s;
+  width: fit-content;
+}
+
+.lp-add-btn:hover {
+  background: #ede9fe;
+  border-color: #a5b4fc;
+  color: #4f46e5;
+}
+
+.lp-subsection-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin: 8px 0 4px;
+}
+
+/* ── Styles editor ── */
+.lp-section-styles {
+  margin-top: 4px;
+}
+
+.lp-style-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.lp-style-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── Reset button ── */
+.lp-reset-btn {
+  padding: 6px 12px;
+  font-size: 0.82rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.12s;
+  text-align: center;
+}
+
+.lp-reset-btn:hover {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+/* ── Section card list ── */
+.lp-section-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lp-section-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  transition: border-color 0.12s;
+}
+
+.lp-section-card.disabled {
+  opacity: 0.55;
+}
+
+.lp-section-card-reorder {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.lp-reorder-btn {
+  background: none;
+  border: 1px solid #e5e7eb;
+  border-radius: 3px;
+  width: 18px;
+  height: 14px;
+  cursor: pointer;
+  font-size: 9px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  color: #9ca3af;
+}
+
+.lp-reorder-btn:hover:not(:disabled) {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.lp-reorder-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.lp-section-card-toggle {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lp-section-card-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.lp-section-card-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.lp-section-card-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: #374151;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Collapsible items (product showcase) ── */
+.lp-collapsible-item {
+  margin-bottom: 8px;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.lp-collapsible-summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 8px 10px;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lp-collapsible-body {
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ── PREVIEW AREA ── */
+.lp-preview-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #f3f4f6;
+  min-width: 0;
+}
+
+.lp-preview-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.lp-preview-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.lp-preview-badge {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.lp-preview-scroll {
+  flex: 1;
+  overflow: auto;
+  padding: 14px;
+}
+
+.lp-preview-container {
+  margin: 0 auto;
+  max-width: 780px;
+}
+
+/* Landing preview mock */
+.lp-landing-preview {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  background: var(--lp-light, #ffffff);
+}
+
+.lp-preview-empty {
+  padding: 60px 24px;
+  text-align: center;
+  color: #6b7280;
+}
+
+.lp-preview-empty p {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+.lp-preview-empty-hint {
+  font-size: 0.8rem !important;
+  opacity: 0.7;
+}
+
+/* ── Preview section rendering ── */
+.lp-preview-section {
+  position: relative;
+}
+
+.lp-preview-section-badge {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  color: #6366f1;
+  background: rgba(255,255,255,0.9);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid #e5e7eb;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.lp-prev-hero {
+  position: relative;
+}
+
+.lp-prev-section-block {
+  position: relative;
+}
