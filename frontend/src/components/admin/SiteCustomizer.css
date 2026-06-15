@@ -70,7 +70,7 @@
 
 /* ── SIDEBAR ── */
 .sc-sidebar {
-  width: 280px;
+  width: 320px;
   flex-shrink: 0;
   background: #f9fafb;
   border-right: 1px solid #e5e7eb;

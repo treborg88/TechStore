@@ -266,7 +266,7 @@ function SettingsManager() {
     }
   }, [activeSection, location.hash]);
 
-  const ADVANCED_ONLY_TABS = ['cards', 'filters', 'ecommerce', 'email', 'database', 'chatbot', 'landing'];
+  const ADVANCED_ONLY_TABS = ['cards', 'filters', 'ecommerce', 'email', 'database', 'chatbot'];
 
   useEffect(() => {
     if (uiMode === 'quick' && ADVANCED_ONLY_TABS.includes(siteTab)) {
@@ -961,6 +961,7 @@ function SettingsManager() {
               <div className="settings-nav-group">
                 <p className="settings-nav-group-title">Nucleo de Sitio</p>
                 {renderTabButton('general', '🎨 General')}
+                {renderTabButton('landing', '🚀 Landing Page')}
                 {renderTabButton('store', '🛍️ Tienda')}
               </div>
 
@@ -978,7 +979,6 @@ function SettingsManager() {
                 {isAdvancedMode && renderTabButton('email', '✉️ Correo')}
                 {isAdvancedMode && renderTabButton('database', '🗄️ Base de datos')}
                 {isAdvancedMode && renderTabButton('chatbot', '🤖 Chatbot')}
-                {isAdvancedMode && renderTabButton('landing', '🚀 Landing Page')}
                 {renderTabButton('invoice', '🧾 Factura PDF')}
                 {renderTabButton('seo', '🔎 SEO')}
               </div>
