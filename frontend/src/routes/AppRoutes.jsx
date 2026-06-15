@@ -244,6 +244,7 @@ function AppRoutes({
             <LoginPage 
               onLoginSuccess={handleLoginSuccess} 
               onBackToHome={() => navigate('/')}
+              siteName={siteName}
             />
           ) : (
             <Navigate to="/" />

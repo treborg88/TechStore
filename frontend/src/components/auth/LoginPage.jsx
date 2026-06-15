@@ -6,7 +6,7 @@ import EmailVerification from './EmailVerification';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { useSeo } from '../../hooks/useSeo';
 
-export default function LoginPage({ onLoginSuccess, onBackToHome, prefillEmail = '', lockEmail = false, embedded = false, hideRegister = false }) {
+export default function LoginPage({ onLoginSuccess, onBackToHome, prefillEmail = '', lockEmail = false, embedded = false, hideRegister = false, siteName }) {
 // SEO dinámico para login (solo si no es embedded)
 useSeo(embedded ? null : 'login');
 const [isRegister, setIsRegister] = useState(false);
@@ -303,7 +303,7 @@ return (
                 style={{ cursor: 'pointer' }}
                 title="Volver al inicio"
             >
-                <h1>🛍️ Eonsclover</h1>
+                <h1>🛍️ {siteName || 'Eonsclover'}</h1>
             </div>
         )}
 
