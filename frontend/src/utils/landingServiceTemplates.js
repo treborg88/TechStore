@@ -33,15 +33,15 @@ const DENTAL = {
         subtitle: 'Atención odontológica integral para niños y adultos, con diagnósticos precisos y un equipo que te acompaña en cada paso.',
         ctaText: 'Agendar cita',
         ctaLink: '/contacto',
-        image: '',
+        image: 'https://images.unsplash.com/photo-1629909613654-28e377c37b09?w=800&h=500&fit=crop',
         badgeText: 'Odontología familiar',
         badgeColor: '#d97706'
       },
       styles: {
         bgColor: '#155e75',
-        bgGradient: '',
+        bgGradient: 'linear-gradient(145deg, #155e75 0%, #0e3b4e 100%)',
         textColor: '#ffffff',
-        ctaBgColor: '#155e75',
+        ctaBgColor: '#d97706',
         ctaTextColor: '#ffffff',
         minHeight: 500
       }
@@ -53,10 +53,10 @@ const DENTAL = {
         title: '¿Por qué elegirnos?',
         description: 'Brindamos atención odontológica de calidad con diagnósticos integrales y tratamientos óptimos.',
         points: [
-          { icon: '🦷', iconImage: '', title: 'Odontología preventiva', description: 'Limpiezas, fluorización y educación para cuidar tu sonrisa.' },
-          { icon: '😁', iconImage: '', title: 'Ortodoncia', description: 'Brackets y alineadores para una mordida funcional y estética.' },
-          { icon: '🔬', iconImage: '', title: 'Endodoncia', description: 'Tratamientos de conducto con precisión y mínima molestia.' },
-          { icon: '⭐', iconImage: '', title: 'Estética dental', description: 'Blanqueamientos y carillas para realzar tu sonrisa.' }
+          { icon: '🦷', iconImage: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=80&h=80&fit=crop', title: 'Odontología preventiva', description: 'Limpiezas, fluorización y educación para cuidar tu sonrisa.' },
+          { icon: '😁', iconImage: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=80&h=80&fit=crop', title: 'Ortodoncia', description: 'Brackets y alineadores para una mordida funcional y estética.' },
+          { icon: '🔬', iconImage: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=80&h=80&fit=crop', title: 'Endodoncia', description: 'Tratamientos de conducto con precisión y mínima molestia.' },
+          { icon: '⭐', iconImage: 'https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=80&h=80&fit=crop', title: 'Estética dental', description: 'Blanqueamientos y carillas para realzar tu sonrisa.' }
         ]
       },
       styles: {
@@ -77,7 +77,7 @@ const DENTAL = {
         description: 'Somos un equipo comprometido con la salud bucal de toda la familia, combinando tecnología moderna con un trato cálido y personalizado. Cada tratamiento comienza con un diagnóstico completo, para ofrecerte un plan claro y adaptado a tus necesidades.',
         ctaText: 'Conoce más',
         ctaLink: '/contacto',
-        image: ''
+        image: 'https://images.unsplash.com/photo-1588776814546-1ffcf47267a5?w=800&h=500&fit=crop'
       },
       styles: {
         bgColor: '#ffffff',
@@ -90,7 +90,6 @@ const DENTAL = {
       type: 'trustBanner',
       data: {
         title: '+12 años de experiencia · +3,000 pacientes atendidos · 98% satisfacción',
-        subtitle: 'Atención especializada para niños y adultos en un ambiente cálido y de confianza.'
       },
       styles: {
         bgColor: '#d97706',
@@ -166,15 +165,15 @@ const LEGAL = {
         subtitle: 'Asesoría jurídica integral para personas y empresas, con un equipo que traduce la ley en soluciones concretas.',
         ctaText: 'Solicitar consulta',
         ctaLink: '/contacto',
-        image: '',
+        image: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=800&h=500&fit=crop',
         badgeText: 'Bufete de abogados',
         badgeColor: '#d97706'
       },
       styles: {
         bgColor: '#1e293b',
-        bgGradient: '',
+        bgGradient: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)',
         textColor: '#ffffff',
-        ctaBgColor: '#1e293b',
+        ctaBgColor: '#d97706',
         ctaTextColor: '#ffffff',
         minHeight: 500
       }
@@ -186,10 +185,10 @@ const LEGAL = {
         title: 'Cubrimos todas las ramas del derecho',
         description: 'Ofrecemos asesoría legal honesta y efectiva, protegiendo los derechos e intereses de cada cliente.',
         points: [
-          { icon: '⚖️', iconImage: '', title: 'Derecho civil', description: 'Contratos, demandas y conflictos entre particulares.' },
-          { icon: '💼', iconImage: '', title: 'Derecho laboral', description: 'Defensa de derechos para empleados y empleadores.' },
-          { icon: '🔨', iconImage: '', title: 'Derecho penal', description: 'Representación legal sólida en procesos penales.' },
-          { icon: '🏠', iconImage: '', title: 'Derecho inmobiliario', description: 'Compraventas, alquileres y títulos de propiedad.' }
+          { icon: '⚖️', iconImage: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=80&h=80&fit=crop', title: 'Derecho civil', description: 'Contratos, demandas y conflictos entre particulares.' },
+          { icon: '💼', iconImage: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?w=80&h=80&fit=crop', title: 'Derecho laboral', description: 'Defensa de derechos para empleados y empleadores.' },
+          { icon: '🔨', iconImage: 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=80&h=80&fit=crop', title: 'Derecho penal', description: 'Representación legal sólida en procesos penales.' },
+          { icon: '🏠', iconImage: 'https://images.unsplash.com/photo-1588195538326-c5b1e9f80a1b?w=80&h=80&fit=crop', title: 'Derecho inmobiliario', description: 'Compraventas, alquileres y títulos de propiedad.' }
         ]
       },
       styles: {
@@ -299,15 +298,15 @@ const SPA = {
         subtitle: 'Terapias de masaje y bienestar diseñadas para relajar tu cuerpo, despejar tu mente y recargar tu energía.',
         ctaText: 'Reservar sesión',
         ctaLink: '/contacto',
-        image: '',
+        image: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=800&h=500&fit=crop',
         badgeText: 'Spa & bienestar',
         badgeColor: '#e11d48'
       },
       styles: {
         bgColor: '#065f46',
-        bgGradient: '',
+        bgGradient: 'linear-gradient(145deg, #065f46 0%, #022c22 100%)',
         textColor: '#ffffff',
-        ctaBgColor: '#065f46',
+        ctaBgColor: '#e11d48',
         ctaTextColor: '#ffffff',
         minHeight: 500
       }
@@ -319,10 +318,10 @@ const SPA = {
         title: 'Tratamientos para tu bienestar',
         description: 'Cada terapia es diseñada por especialistas certificados, usando productos naturales y técnicas probadas.',
         points: [
-          { icon: '🌊', iconImage: '', title: 'Masaje relajante', description: 'Libera tensiones con técnicas suaves.' },
-          { icon: '💪', iconImage: '', title: 'Masaje terapéutico', description: 'Alivio de dolores musculares con trabajo profundo.' },
-          { icon: '🦶', iconImage: '', title: 'Reflexología', description: 'Estimulación de puntos clave para tu bienestar.' },
-          { icon: '🌿', iconImage: '', title: 'Aromaterapia', description: 'Aceites esenciales que potencian la relajación.' }
+          { icon: '🌊', iconImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=80&h=80&fit=crop', title: 'Masaje relajante', description: 'Libera tensiones con técnicas suaves.' },
+          { icon: '💪', iconImage: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=80&h=80&fit=crop', title: 'Masaje terapéutico', description: 'Alivio de dolores musculares con trabajo profundo.' },
+          { icon: '🦶', iconImage: 'https://images.unsplash.com/photo-1540555700478-4be289fbec6d?w=80&h=80&fit=crop', title: 'Reflexología', description: 'Estimulación de puntos clave para tu bienestar.' },
+          { icon: '🌿', iconImage: 'https://images.unsplash.com/photo-1600334089648-b0d9d3028eb2?w=80&h=80&fit=crop', title: 'Aromaterapia', description: 'Aceites esenciales que potencian la relajación.' }
         ]
       },
       styles: {
