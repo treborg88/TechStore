@@ -644,7 +644,7 @@ function SaaSHome() {
             {/* ── Workflow ───────────────────────────────────────────────────── */}
             <section style={{ padding: '6rem 1.5rem' }}>
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
-                    <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '4rem', color: '#fff' }}>Lanza Tu Negocio En Minutos</h2>
+                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '4rem', color: '#fff' }}>Lanza Tu Negocio en Minutos</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem' }}>
                         {[
                             { n: '1', title: 'Crear Tienda', desc: 'Configura tu perfil de negocio, productos y categorías.' },
@@ -790,11 +790,11 @@ function SaaSHome() {
                     </div>
 
                     {/* Comparison table */}
-                    <div style={{ marginTop: '6rem' }}>
+                    <div className="saas-comparison-wrap" style={{ marginTop: '6rem', overflowX: 'auto' }}>
                         <h3 className="saas-section-heading" style={{ fontSize: '2.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#fff' }}>Comparación Detallada</h3>
                         <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden' }}>
-                            <div className="saas-comparison-wrap" style={{ overflowX: 'auto' }}>
-                                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                            <div style={{ overflowX: 'auto' }}>
+                                <table className="saas-comparison-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                                             {['Característica', 'Trial', 'Básico', 'Profesional', 'Premium'].map((h, i) => (

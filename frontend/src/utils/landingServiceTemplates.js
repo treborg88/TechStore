@@ -427,8 +427,15 @@ export function applyServiceTemplate(currentConfig, templateId) {
   next.pageTitle = template.pageTitle;
   next.route = template.route;
 
-  // Replace sections completely with the template's sections
-  next.sections = template.sections.map(section => JSON.parse(JSON.stringify(section)));
+  // Activate the landing page
+  next.enabled = true;
+
+  // Replace sections: add enabled=true and a unique id to each
+  next.sections = template.sections.map((section, idx) => ({
+    ...JSON.parse(JSON.stringify(section)),
+    enabled: true,
+    id: `${section.type}-${idx}-${Date.now()}`
+  }));
 
   return next;
 }
