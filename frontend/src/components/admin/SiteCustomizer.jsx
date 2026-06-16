@@ -1743,7 +1743,7 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
         <div className="sc-preview-scroll">
           <div
             className="sc-preview-wrap"
-            style={{ maxWidth: previewMode === 'mobile' ? '320px' : '100%' }}
+            style={{ maxWidth: previewMode === 'mobile' ? '375px' : '680px' }}
           >
             <div className="sc-site-preview" style={{ background: bg, fontFamily }}>
 
@@ -1880,7 +1880,7 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
 
               {/* ── Search bar ── */}
               {settings.searchBarConfig?.enabled !== false && (
-                <div className="sc-prev-search" style={{ background: bg }}>
+                <div className="sc-prev-search" style={{ background: bg, padding: '8px 64px 20px' }}>
                   <div className="sc-prev-search-bar" style={{ borderColor: primary + '55' }}>
                     <span style={{ color: primary + '88' }}>🔍</span>
                     <span className="sc-prev-search-placeholder" style={{ color: text + '66' }}>
@@ -1891,8 +1891,8 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
               )}
 
               {/* ── Products section ── */}
-              <div className="sc-prev-products" style={{ background: bg, padding: `10px ${ft.gridPadding}px 16px` }}>
-                <h3 className="sc-prev-section-title" style={{ color: text, fontFamily }}>
+              <div className="sc-prev-products" style={{ background: bg, padding: '20px 64px' }}>
+                <h3 className="sc-prev-section-title" style={{ color: text, fontFamily, margin: '0 0 12px' }}>
                   Productos Destacados
                 </h3>
 

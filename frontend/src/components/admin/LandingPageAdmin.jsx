@@ -6,6 +6,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import { DEFAULT_LANDING_PAGE_CONFIG, cloneLandingPageConfig } from '../../utils/landingPageDefaults';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { LANDING_TEMPLATE_OPTIONS, applyLandingTemplatePreset } from '../../utils/landingPageTemplates';
+import { SERVICE_TEMPLATES, applyServiceTemplate } from '../../utils/landingServiceTemplates';
 import toast from 'react-hot-toast';
 import './LandingPageAdmin.css';
 
@@ -40,6 +41,7 @@ const SECTION_ICONS = {
 /** Paneles principales del editor */
 const PANELS = [
   { id: 'config', icon: '⚙️', label: 'Config' },
+  { id: 'templates', icon: '📐', label: 'Plantillas' },
   { id: 'globalStyles', icon: '🎨', label: 'Estilos' },
   { id: 'sections', icon: '📋', label: 'Secciones' },
 ];
@@ -771,6 +773,33 @@ function LandingPageAdmin({ settings, setSettings }) {
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, maxWidth: v } }))} />
                 <TextInput label="Padding sección (px)" value={config.globalStyles?.sectionPadding} type="number"
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, sectionPadding: v } }))} />
+              </div>
+            </div>
+          )}
+
+          {/* ── PANEL: Plantillas ── */}
+          {activePanel === 'templates' && (
+            <div className="lp-panel">
+              <p className="lp-panel-label">Plantillas de Servicios</p>
+              <p className="lp-panel-hint">Selecciona una plantilla para aplicar colores, contenido y secciones completas.</p>
+              <div className="lp-template-grid">
+                {SERVICE_TEMPLATES.map((tmpl) => (
+                  <button
+                    key={tmpl.id}
+                    type="button"
+                    className={`lp-template-card`}
+                    onClick={() => {
+                      if (window.confirm(`¿Aplicar la plantilla "${tmpl.name}"?\n\nSe reemplazarán todas las secciones y estilos actuales.`)) {
+                        updateConfig(prev => applyServiceTemplate(prev, tmpl.id));
+                      }
+                    }}
+                  >
+                    <span className="lp-template-icon">{tmpl.icon}</span>
+                    <span className="lp-template-name">{tmpl.name}</span>
+                    <span className="lp-template-badge">{tmpl.badge}</span>
+                    <span className="lp-template-desc">{tmpl.description}</span>
+                  </button>
+                ))}
               </div>
             </div>
           )}

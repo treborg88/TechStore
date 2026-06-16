@@ -1335,21 +1335,26 @@
 
 .sc-preview-scroll {
   flex: 1;
+  display: flex;
+  justify-content: center;
   overflow: auto;
   padding: 14px;
 }
 
 .sc-preview-wrap {
   transition: max-width 0.2s ease;
-  margin: 0 auto;
+  margin: 0;
+  overflow: auto;
+  transform-origin: top center;
 }
 
 /* Site preview mock */
 .sc-site-preview {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  overflow: hidden;
   box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  max-height: 700px;
+  overflow: auto;
 }
 
 /* ── Header ── */
@@ -1449,17 +1454,20 @@
 
 /* ── Search bar ── */
 .sc-prev-search {
-  padding: 8px 14px;
+  padding: 8px 0 30px;
 }
 
 .sc-prev-search-bar {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 11px;
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 10px 8px 10px 16px;
   border: 1.5px solid;
-  border-radius: 8px;
-  background: #ffffff;
+  border-radius: 50px;
+  background: #f8f9fa;
+  transition: all 0.2s ease;
 }
 
 .sc-prev-search-placeholder {
@@ -1468,13 +1476,13 @@
 
 /* ── Products section ── */
 .sc-prev-products {
-  padding: 10px 14px 16px;
+  padding: 30px 84px;
 }
 
 .sc-prev-section-title {
   font-size: 13px;
   font-weight: 600;
-  margin: 0 0 10px;
+  margin: 0 0 18px;
 }
 
 .sc-prev-grid {
