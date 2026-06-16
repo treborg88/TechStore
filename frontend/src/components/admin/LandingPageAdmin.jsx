@@ -789,9 +789,7 @@ function LandingPageAdmin({ settings, setSettings }) {
                     type="button"
                     className={`lp-template-card`}
                     onClick={() => {
-                      if (window.confirm(`¿Aplicar la plantilla "${tmpl.name}"?\n\nSe reemplazarán todas las secciones y estilos actuales.`)) {
-                        updateConfig(prev => applyServiceTemplate(prev, tmpl.id));
-                      }
+                      updateConfig(prev => applyServiceTemplate(prev, tmpl.id));
                     }}
                   >
                     <span className="lp-template-icon">{tmpl.icon}</span>
