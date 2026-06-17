@@ -8,7 +8,6 @@
   min-height: 540px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
-  overflow: hidden;
   background: #ffffff;
 }
 
@@ -20,8 +19,7 @@
   border-bottom: 1px solid #e5e7eb;
   background: #ffffff;
   flex-shrink: 0;
-  overflow-x: auto;
-  scrollbar-width: none;
+  overflow: hidden;
 }
 .lp-section-nav::-webkit-scrollbar { display: none; }
 
@@ -73,7 +71,6 @@
   flex-direction: row;
   flex: 1;
   min-height: 0;
-  overflow: hidden;
 }
 
 /* ── SIDEBAR ── */
@@ -634,7 +631,8 @@ input:checked + .lp-toggle-slider::after {
 
 .lp-preview-scroll {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 14px;
 }
 
@@ -649,8 +647,6 @@ input:checked + .lp-toggle-slider::after {
   border-radius: 10px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.08);
   background: var(--lp-light, #ffffff);
-  max-height: 700px;
-  overflow: auto;
 }
 
 .lp-preview-empty {
@@ -752,4 +748,110 @@ input:checked + .lp-toggle-slider::after {
   color: #6b7280;
   line-height: 1.4;
   margin-top: 2px;
+}
+
+/* ── Palette styles (same pattern as SiteCustomizer) ── */
+.lp-palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.lp-palette-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+}
+
+.lp-palette-row:hover {
+  border-color: #93c5fd;
+  background: #f0f7ff;
+}
+
+.lp-palette-row.selected {
+  border: 2px solid #2563eb;
+  background: #eff6ff;
+}
+
+.lp-palette-chips {
+  display: flex;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.lp-palette-chip {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+}
+
+.lp-palette-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #374151;
+}
+
+.lp-palette-row.selected .lp-palette-name {
+  color: #1d4ed8;
+}
+
+/* ── Color slots (compact swatch rows) ── */
+.lp-color-slots {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.lp-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.lp-color-swatch-label {
+  position: relative;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.lp-color-swatch-label .lp-color-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.lp-color-swatch-label:hover .lp-color-swatch {
+  transform: scale(1.08);
+}
+
+.lp-color-swatch {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  cursor: pointer;
+  transition: transform 0.12s;
+}
+
+.lp-color-name {
+  font-size: 11px;
+  color: #374151;
+  flex: 1;
+}
+
+.lp-color-hex {
+  font-size: 10px;
+  color: #9ca3af;
+  font-family: "Courier New", monospace;
 }

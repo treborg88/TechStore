@@ -124,6 +124,21 @@ export const COLOR_PALETTES = [
   }
 ];
 
+/**
+ * Map a General-settings color palette to landing-page globalStyles.
+ * Takes a palette's colors (primaryColor, backgroundColor, etc.) and derives
+ * landingPageConfig.globalStyles fields (darkColor, lightColor, accentColor, textColor).
+ */
+export function paletteToLandingStyles(colors) {
+  return {
+    darkColor: colors.secondaryColor || colors.primaryColor || '#111827',
+    lightColor: colors.backgroundColor || '#ffffff',
+    accentColor: colors.accentColor || colors.primaryColor || '#2563eb',
+    textColor: colors.textColor || '#1e293b',
+    headingColor: colors.textColor || '#0f172a',
+  };
+}
+
 // Font options for the font picker panel
 export const FONT_OPTIONS = [
   {

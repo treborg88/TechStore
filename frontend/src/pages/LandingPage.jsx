@@ -15,22 +15,29 @@ const renderHero = (section) => {
   const { data, styles } = section;
   const isReverse = data.layout === 'text-right';
 
+  // Imagen de fondo: usa bgImage del style, o data.image como fallback
+  // para cobertura full-width (como en las plantillas de servicios).
+  const bgImage = styles.bgImage || data.image || null;
+
   // Estilos inline dinámicos desde la configuración
   const sectionStyle = {
     backgroundColor: styles.bgColor,
-    backgroundImage: styles.bgImage ? `url(${styles.bgImage})` : styles.bgGradient || 'none',
+    backgroundImage: bgImage ? `url(${bgImage})` : styles.bgGradient || 'none',
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
     color: styles.textColor,
     minHeight: styles.minHeight || 500,
   };
 
   // Overlay semi-transparente cuando hay imagen de fondo
-  if (styles.bgImage) {
+  if (bgImage || styles.bgImage) {
     sectionStyle.position = 'relative';
   }
 
   return (
     <section className="lp-section lp-hero" style={sectionStyle}>
-      {styles.bgImage && (
+      {bgImage && (
         <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgb(var(--lp-overlay-rgb, 0 0 0) / ${styles.bgOverlayOpacity || 0.5})`, zIndex: 1 }} />
       )}
       <div className={`lp-container lp-split ${isReverse ? 'lp-split--reverse' : ''}`}>
@@ -48,12 +55,17 @@ const renderHero = (section) => {
             </Link>
           )}
         </div>
-        <div className="lp-hero__image">
-          {data.image
-            ? <img src={data.image} alt={data.title} loading="eager" />
-            : <div className="lp-image-placeholder" />
-          }
-        </div>
+        {/* Ocultar la imagen lateral cuando se usa como fondo full-width */}
+        {!bgImage && data.image && (
+          <div className="lp-hero__image">
+            <img src={data.image} alt={data.title} loading="eager" />
+          </div>
+        )}
+        {!data.image && !bgImage && (
+          <div className="lp-hero__image">
+            <div className="lp-image-placeholder" />
+          </div>
+        )}
       </div>
     </section>
   );

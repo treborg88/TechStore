@@ -7,6 +7,7 @@ import { DEFAULT_LANDING_PAGE_CONFIG, cloneLandingPageConfig } from '../../utils
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { LANDING_TEMPLATE_OPTIONS, applyLandingTemplatePreset } from '../../utils/landingPageTemplates';
 import { SERVICE_TEMPLATES, applyServiceTemplate } from '../../utils/landingServiceTemplates';
+import { COLOR_PALETTES, paletteToLandingStyles } from '../../utils/colorPalettes';
 import toast from 'react-hot-toast';
 import './LandingPageAdmin.css';
 
@@ -85,14 +86,14 @@ const ColorInput = ({ label, value, onChange }) => {
   const normalizedValue = typeof value === 'string' ? value.trim() : '';
   const isHexColor = /^#([0-9a-fA-F]{3,4}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(normalizedValue);
   return (
-    <div className="lp-form-group" style={{ flex: '1 1 200px' }}>
-      <label className="lp-field-label">{label}</label>
-      <div className="lp-color-input-wrap">
+    <div className="lp-color-row">
+      <label className="lp-color-swatch-label">
         <input type="color" value={isHexColor ? normalizedValue : '#000000'}
           onChange={(e) => onChange(e.target.value)} className="lp-color-picker" />
-        <input type="text" value={value || ''} onChange={(e) => onChange(e.target.value)}
-          className="lp-text-input" style={{ marginLeft: 6, flex: 1 }} />
-      </div>
+        <span className="lp-color-swatch" style={{ background: isHexColor ? normalizedValue : '#000000' }} />
+      </label>
+      <span className="lp-color-name">{label}</span>
+      <span className="lp-color-hex">{normalizedValue}</span>
     </div>
   );
 };
@@ -750,28 +751,80 @@ function LandingPageAdmin({ settings, setSettings }) {
             </div>
           )}
 
-          {/* ── PANEL: Global Styles ── */}
+          {/* ── PANEL: Global Styles + Palette ── */}
           {activePanel === 'globalStyles' && (
             <div className="lp-panel">
-              <p className="lp-panel-label">Estilos Globales</p>
-              <p className="lp-panel-hint">Colores y dimensiones base de la landing page.</p>
-              <div className="lp-style-section">
-                <ColorInput label="Color oscuro" value={config.globalStyles?.darkColor}
+              <p className="lp-panel-label">Paleta de Colores</p>
+              <p className="lp-panel-hint">Elige una paleta o personaliza colores individualmente.</p>
+
+              {/* Palette presets */}
+              <div className="lp-palette-list">
+                {COLOR_PALETTES.map(pal => {
+                  const gs = config.globalStyles || {};
+                  const isActive =
+                    gs.darkColor === (pal.colors.secondaryColor || pal.colors.primaryColor) &&
+                    gs.lightColor === pal.colors.backgroundColor;
+                  return (
+                    <button
+                      key={pal.id}
+                      type="button"
+                      className={`lp-palette-row${isActive ? ' selected' : ''}`}
+                      onClick={() => {
+                        const lpStyles = paletteToLandingStyles(pal.colors);
+                        updateConfig(prev => ({
+                          ...cloneLandingPageConfig(prev),
+                          globalStyles: { ...prev.globalStyles, ...lpStyles },
+                          // Sync section styles to match the new palette (only for sections
+                          // that still have the same defaults from the previous palette)
+                          sections: (prev.sections || []).map(section => {
+                            const oldGs = prev.globalStyles || {};
+                            const s = section.styles || {};
+                            // Only override bgColor and textColor if they match the old global defaults
+                            const refresh = {};
+                            if (s.bgColor && s.bgColor === oldGs.darkColor) refresh.bgColor = lpStyles.darkColor;
+                            if (s.textColor && s.textColor === oldGs.textColor) refresh.textColor = lpStyles.textColor;
+                            if (s.ctaBgColor && s.ctaBgColor === oldGs.accentColor) refresh.ctaBgColor = lpStyles.accentColor;
+                            return { ...section, styles: { ...s, ...refresh } };
+                          })
+                        }));
+                      }}
+                    >
+                      <div className="lp-palette-chips">
+                        {[
+                          pal.colors.primaryColor,
+                          pal.colors.accentColor,
+                          pal.colors.backgroundColor,
+                          pal.colors.textColor
+                        ].map((c, i) => (
+                          <div key={i} className="lp-palette-chip" style={{ background: c }} />
+                        ))}
+                      </div>
+                      <span className="lp-palette-name">{pal.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div className="lp-panel-divider" />
+              <p className="lp-panel-label">Ajuste Fino</p>
+              <div className="lp-color-slots">
+                <ColorInput label="Oscuro" value={config.globalStyles?.darkColor}
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, darkColor: v } }))} />
-                <ColorInput label="Color claro" value={config.globalStyles?.lightColor}
+                <ColorInput label="Claro" value={config.globalStyles?.lightColor}
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, lightColor: v } }))} />
-                <ColorInput label="Color de acento" value={config.globalStyles?.accentColor}
+                <ColorInput label="Acento" value={config.globalStyles?.accentColor}
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, accentColor: v } }))} />
-                <ColorInput label="Color de texto" value={config.globalStyles?.textColor}
+                <ColorInput label="Texto" value={config.globalStyles?.textColor}
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, textColor: v } }))} />
-                <ColorInput label="Color de títulos" value={config.globalStyles?.headingColor}
+                <ColorInput label="Títulos" value={config.globalStyles?.headingColor}
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, headingColor: v } }))} />
               </div>
               <div className="lp-panel-divider" />
+              <p className="lp-panel-label">Dimensiones</p>
               <div className="lp-style-section">
-                <TextInput label="Ancho máximo (px)" value={config.globalStyles?.maxWidth} type="number"
+                <TextInput label="Ancho máx (px)" value={config.globalStyles?.maxWidth} type="number"
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, maxWidth: v } }))} />
-                <TextInput label="Padding sección (px)" value={config.globalStyles?.sectionPadding} type="number"
+                <TextInput label="Padding secc (px)" value={config.globalStyles?.sectionPadding} type="number"
                   onChange={(v) => updateConfig(prev => ({ ...cloneLandingPageConfig(prev), globalStyles: { ...prev.globalStyles, sectionPadding: v } }))} />
               </div>
             </div>
@@ -886,27 +939,40 @@ function LandingPageAdmin({ settings, setSettings }) {
                   <div key={section.id} className="lp-preview-section">
                     <div className="lp-preview-section-badge">{SECTION_ICONS[section.type] || '📄'} {SECTION_LABELS[section.type] || section.type}</div>
 
-                    {/* Hero */}
+                    {/* Hero — full-width background image */}
                     {section.type === 'hero' && (
                       <div className="lp-prev-hero" style={{
-                        background: section.styles?.bgColor || 'var(--lp-dark)',
-                        color: section.styles?.textColor || 'var(--lp-light)',
-                        minHeight: `${section.styles?.minHeight || 400}px`,
-                        display: 'flex', alignItems: 'center', padding: '40px',
+                        position: 'relative',
+                        minHeight: `${Math.min(section.styles?.minHeight || 400, 380)}px`,
+                        display: 'flex', alignItems: 'center',
+                        padding: '50px 40px',
                         textAlign: section.data?.layout === 'text-right' ? 'right' : 'left',
-                        flexDirection: section.data?.layout === 'text-right' ? 'row-reverse' : 'row',
-                        gap: 24
+                        justifyContent: section.data?.layout === 'text-right' ? 'flex-end' : 'flex-start',
+                        overflow: 'hidden',
+                        color: section.styles?.textColor || 'var(--lp-light)',
+                        background: section.data?.image
+                          ? `url(${section.data.image}) center center / cover no-repeat`
+                          : (section.styles?.bgGradient || section.styles?.bgColor || 'var(--lp-dark)')
                       }}>
-                        <div style={{ flex: 1 }}>
-                          <h3 style={{ fontSize: '1.6rem', margin: '0 0 8px', fontWeight: 700 }}>{section.data?.title || 'Título del Hero'}</h3>
-                          <p style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0 0 16px' }}>{section.data?.subtitle || 'Subtítulo del hero'}</p>
-                          <span style={{ display: 'inline-block', padding: '8px 20px', borderRadius: 6, background: section.styles?.ctaBgColor || 'var(--lp-accent)', color: section.styles?.ctaTextColor || 'var(--lp-light)', fontSize: '0.8rem', fontWeight: 600 }}>{section.data?.ctaText || 'Comprar Ahora'}</span>
+                        {/* Dark overlay */}
+                        <div style={{
+                          position: 'absolute', inset: 0,
+                          background: `rgba(0,0,0,${section.styles?.bgOverlayOpacity ?? 0.5})`,
+                          pointerEvents: 'none', zIndex: 0
+                        }} />
+                        <div style={{ position: 'relative', zIndex: 1, maxWidth: '70%' }}>
+                          {section.data?.badgeText && (
+                            <span style={{
+                              display: 'inline-block', padding: '3px 10px', borderRadius: 4,
+                              background: section.styles?.ctaBgColor || section.data?.badgeColor || 'var(--lp-accent)',
+                              color: '#fff', fontSize: '0.6rem', fontWeight: 700,
+                              textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8
+                            }}>{section.data.badgeText}</span>
+                          )}
+                          <h3 style={{ fontSize: '1.4rem', margin: '0 0 6px', fontWeight: 700, lineHeight: 1.2 }}>{section.data?.title || 'Título del Hero'}</h3>
+                          <p style={{ fontSize: '0.8rem', opacity: 0.9, margin: '0 0 14px', lineHeight: 1.4 }}>{section.data?.subtitle || 'Subtítulo del hero'}</p>
+                          <span style={{ display: 'inline-block', padding: '7px 18px', borderRadius: 6, background: section.styles?.ctaBgColor || 'var(--lp-accent)', color: section.styles?.ctaTextColor || 'var(--lp-light)', fontSize: '0.75rem', fontWeight: 600 }}>{section.data?.ctaText || 'Comprar Ahora'}</span>
                         </div>
-                        {section.data?.image && (
-                          <div style={{ flex: '0 0 40%' }}>
-                            <img src={section.data.image} alt="" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8 }} />
-                          </div>
-                        )}
                       </div>
                     )}
 

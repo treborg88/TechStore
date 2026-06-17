@@ -52,7 +52,7 @@ function GlobalStyles() {
                 .saas-demo-grid { grid-template-columns: 1fr !important; }
                 .saas-carousel-controls button { width: 2.5rem !important; height: 2.5rem !important; }
                 .saas-glob-blob { max-width: 90vw !important; max-height: 90vw !important; }
-                #hero { padding: 4rem 1rem 2.5rem !important; }
+                #hero { padding: 5rem 1rem 2.5rem !important; }
                 /* Smaller hero text + tighter CTA on mobile */
                 #hero .saas-hero-heading + p { font-size: 1rem !important; }
                 section[id="pricing"] { padding: 4rem 1rem !important; }
@@ -62,6 +62,10 @@ function GlobalStyles() {
                 .hover-lift { padding: 1.25rem !important; }
                 /* Carousel: reduce margins on mobile */
                 .saas-carousel-btn { width: 2.2rem !important; height: 2.2rem !important; font-size: 1rem !important; }
+                /* Spec sheet: 2 columns on mobile */
+                .saas-spec-grid { grid-template-columns: repeat(2, 1fr) !important; }
+                /* Feature detail sections stack */
+                .saas-feature-detail { grid-template-columns: 1fr !important; }
             }
 
             /* ── PC wide feel (simulated 110% zoom) ──────────────── */
@@ -429,7 +433,7 @@ function Carousel() {
                             <div style={{ ...glass, borderRadius: '24px', overflow: 'hidden', border: `1px solid ${slide.border}` }}>
                                 <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: 'auto', maxHeight: '420px', objectFit: 'contain', objectPosition: 'top', display: 'block' }} />
                                 <div style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                    <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>{slide.icon}</span>
+                                    <img src={slide.icon} alt="" style={{ width: 28, height: 28, flexShrink: 0, objectFit: 'contain' }} />
                                     <div style={{ minWidth: 0 }}>
                                         <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#fff' }}>{slide.title}</h3>
                                         <p style={{ margin: '0.2rem 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.3 }}>{slide.desc}</p>
@@ -516,7 +520,7 @@ function SaaSHome() {
                 {/* Glow blob */}
                 <div className="saas-glob-blob" style={{ position: 'absolute', width: '500px', height: '500px', background: 'rgba(34,211,238,0.18)', filter: 'blur(120px)', borderRadius: '999px', zIndex: 0, top: '2.5rem', left: '5rem' }} />
 
-                <div className="saas-hero-grid" style={{ maxWidth: '1280px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
+                <div className="saas-hero-grid" style={{ maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
                     <div>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px', ...glass, fontSize: '0.875rem', color: '#22d3ee', marginBottom: '1.5rem' }}>
                             Plataforma Todo-en-Uno de Ecommerce para Tecnología
