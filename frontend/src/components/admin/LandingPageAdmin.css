@@ -8,6 +8,7 @@
   min-height: 540px;
   border: 1px solid #e5e7eb;
   border-radius: 12px;
+  overflow: hidden;
   background: #ffffff;
 }
 
@@ -19,7 +20,8 @@
   border-bottom: 1px solid #e5e7eb;
   background: #ffffff;
   flex-shrink: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
 .lp-section-nav::-webkit-scrollbar { display: none; }
 
@@ -71,6 +73,7 @@
   flex-direction: row;
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 /* ── SIDEBAR ── */
@@ -631,8 +634,7 @@ input:checked + .lp-toggle-slider::after {
 
 .lp-preview-scroll {
   flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
+  overflow: auto;
   padding: 14px;
 }
 
@@ -641,7 +643,7 @@ input:checked + .lp-toggle-slider::after {
   max-width: 780px;
 }
 
-/* Landing preview mock */
+/* Landing preview mock — no inner max-height/overflow to avoid double scrollbars */
 .lp-landing-preview {
   border: 1px solid #e5e7eb;
   border-radius: 10px;

@@ -25,6 +25,7 @@ function GlobalStyles() {
         style.textContent = `
             .saas-root * { box-sizing: border-box; }
             .saas-root a { text-decoration: none; }
+            .saas-root { overflow: hidden; }
             .gradient-text {
                 background: linear-gradient(to right, #22d3ee, #8b5cf6);
                 -webkit-background-clip: text;
