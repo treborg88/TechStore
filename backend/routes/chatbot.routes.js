@@ -85,6 +85,7 @@ const buildSlimSystemPrompt = async (settings) => {
   const allSettings = await statements.getSettings();
   const store = {};
   for (const { id, value } of allSettings) store[id] = value;
+  const storeName = store.siteName || 'esta tienda';
 
   // Personalidad y verbosidad configurables
   const personality = settings.chatbotPersonality || 'friendly';
@@ -103,7 +104,7 @@ const buildSlimSystemPrompt = async (settings) => {
     casual: 'Sé casual y relajado. Usa emojis ocasionalmente.'
   };
 
-  return `Eres el asistente virtual de la tienda "${store.siteName || 'Tienda en línea'}".
+  return `Eres el asistente virtual de la tienda "${storeName}".
 Tu rol es SOLO informar. NO puedes realizar compras, modificar pedidos ni ejecutar acciones.
 
 ${personalityGuide[personality] || personalityGuide.friendly}
@@ -124,7 +125,7 @@ REGLAS ESTRICTAS:
 - Usa SOLO la información del CONTEXTO DINÁMICO proporcionado en cada mensaje.
 
 INFORMACIÓN DE LA TIENDA:
-• Nombre: ${store.siteName || 'Tienda en línea'}
+• Nombre: ${storeName}
 • Teléfono: ${store.contactPhone || store.storePhone || 'Ver página de contacto'}
 • Email: ${store.contactEmail || 'Ver página de contacto'}
 • WhatsApp: ${store.contactWhatsapp || 'No disponible'}
@@ -153,9 +154,15 @@ ${customPrompt ? `INSTRUCCIONES ADICIONALES DEL ADMINISTRADOR:\n${customPrompt}`
 router.get('/config', async (_req, res) => {
   try {
     const settings = await getChatbotSettings();
+    const { statements } = require('../database');
+    const allSettings = await statements.getSettings();
+    const store = {};
+    for (const { id, value } of allSettings) store[id] = value;
+    const siteName = store.siteName || 'tu tienda';
+
     res.json({
       enabled: settings.chatbotEnabled === 'true',
-      greeting: settings.chatbotGreeting || '¡Hola! 👋 ¿En qué puedo ayudarte?',
+      greeting: settings.chatbotGreeting || `¡Hola! Soy el asistente de ${siteName}. ¿En qué puedo ayudarte?`,
       maxMessages: parseInt(settings.chatbotMaxMessages) || 30,
       placeholder: settings.chatbotPlaceholder || 'Escribe tu pregunta...',
       color: settings.chatbotColor || '',
@@ -265,8 +272,8 @@ router.post('/message', chatLimiter, async (req, res) => {
         .map(h => h.content);
       const nameIntro = userName ? `Soy ${userName}. ` : '';
       const summary = summaryLines.length > 0
-        ? `Hola, ${nameIntro}vengo del chatbot de ${store.siteName || 'la tienda'}. Estuve consultando sobre: ${summaryLines.join(' | ')}`
-        : `Hola, ${nameIntro}vengo del chatbot de ${store.siteName || 'la tienda'} y me gustaría hablar con un asesor.`;
+        ? `Hola, ${nameIntro}vengo del chatbot de ${storeName}. Estuve consultando sobre: ${summaryLines.join(' | ')}`
+        : `Hola, ${nameIntro}vengo del chatbot de ${storeName} y me gustaría hablar con un asesor.`;
 
       const whatsappUrl = whatsappNumber
         ? `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(summary)}`

@@ -15,7 +15,7 @@ export const SEO_DEFAULTS = {
   sitemapEnabled: true,
   // --- Per-page title templates ({siteName}, {productName}, {categoryName} son placeholders) ---
   pages: {
-    home:    { titleTemplate: '{siteName} - Tienda Online', description: '' },
+    home:    { titleTemplate: '{siteName}', description: '' },
     store:   { titleTemplate: 'Tienda | {siteName}', description: '' },
     product: { titleTemplate: '{productName} | {siteName}', description: '' },
     cart:    { titleTemplate: 'Carrito | {siteName}', description: '' },
