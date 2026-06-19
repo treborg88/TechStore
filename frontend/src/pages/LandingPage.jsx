@@ -8,6 +8,70 @@ import { cloneLandingPageConfig } from '../utils/landingPageDefaults';
 import { useSeo } from '../hooks/useSeo';
 import './LandingPage.css';
 
+const HeroCarousel = ({ section }) => {
+  const { data, styles } = section;
+  const slideImages = Array.isArray(data.slideImages) ? data.slideImages.filter(Boolean) : [];
+  const hasCarousel = data.slideType === 'reel' && slideImages.length > 0;
+  const slides = hasCarousel ? slideImages : data.image ? [data.image] : [];
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  useEffect(() => {
+    if (!hasCarousel || !data.slideAutoPlay || slides.length < 2) return undefined;
+    const interval = window.setInterval(() => {
+      setActiveIndex((prevIndex) => (prevIndex + 1) % slides.length);
+    }, Math.max(1000, Number(data.slideInterval) * 1000));
+    return () => window.clearInterval(interval);
+  }, [hasCarousel, data.slideAutoPlay, data.slideInterval, slides.length]);
+
+  useEffect(() => {
+    if (!hasCarousel) {
+      setActiveIndex(0);
+      return;
+    }
+    if (slides.length === 0) {
+      setActiveIndex(0);
+      return;
+    }
+    setActiveIndex((prevIndex) => Math.min(prevIndex, slides.length - 1));
+  }, [hasCarousel, slides.length]);
+
+  if (slides.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className={`lp-hero__slides lp-hero__slides--${data.slideTransition || 'fade'} lp-hero__slides--hover-${data.hoverEffect || 'scale'}`}>
+      {slides.map((image, index) => {
+        const isActive = index === activeIndex;
+        return (
+          <div
+            key={`${image}-${index}`}
+            className={`lp-hero__slide${isActive ? ' active' : ''}`}
+            style={{
+              backgroundImage: `url(${image})`,
+              opacity: isActive ? 1 : 0,
+            }}
+          />
+        );
+      })}
+      <div className="lp-hero__overlay" style={{ backgroundColor: `rgba(0,0,0,${styles.bgOverlayOpacity ?? 0.5})` }} />
+      {slides.length > 1 && (
+        <div className="lp-hero__indicators">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              className={`lp-hero__indicator${index === activeIndex ? ' active' : ''}`}
+              onClick={() => setActiveIndex(index)}
+              aria-label={`Ir a la imagen ${index + 1}`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 /* ═══════════════ RENDER FUNCTIONS PER SECTION TYPE ═══════════════ */
 
 /** Hero — Encabezado principal con CTA */
@@ -22,25 +86,15 @@ const renderHero = (section) => {
   // Estilos inline dinámicos desde la configuración
   const sectionStyle = {
     backgroundColor: styles.bgColor,
-    backgroundImage: bgImage ? `url(${bgImage})` : styles.bgGradient || 'none',
-    backgroundSize: 'cover',
-    backgroundPosition: 'center',
-    backgroundRepeat: 'no-repeat',
     color: styles.textColor,
     minHeight: styles.minHeight || 500,
+    position: 'relative'
   };
-
-  // Overlay semi-transparente cuando hay imagen de fondo
-  if (bgImage || styles.bgImage) {
-    sectionStyle.position = 'relative';
-  }
 
   return (
     <section className="lp-section lp-hero" style={sectionStyle}>
-      {bgImage && (
-        <div style={{ position: 'absolute', inset: 0, backgroundColor: `rgb(var(--lp-overlay-rgb, 0 0 0) / ${styles.bgOverlayOpacity || 0.5})`, zIndex: 1 }} />
-      )}
-      <div className={`lp-container lp-split ${isReverse ? 'lp-split--reverse' : ''}`}>
+      <HeroCarousel section={section} />
+      <div className={`lp-hero__content lp-container lp-split ${isReverse ? 'lp-split--reverse' : ''}`}>
         <div className="lp-hero__text">
           {data.badgeText && (
             <span className="lp-hero__badge" style={{ backgroundColor: data.badgeColor || styles.ctaBgColor }}>
@@ -55,13 +109,7 @@ const renderHero = (section) => {
             </Link>
           )}
         </div>
-        {/* Ocultar la imagen lateral cuando se usa como fondo full-width */}
-        {!bgImage && data.image && (
-          <div className="lp-hero__image">
-            <img src={data.image} alt={data.title} loading="eager" />
-          </div>
-        )}
-        {!data.image && !bgImage && (
+        {!data.image && !(data.slideType === 'reel' && Array.isArray(data.slideImages) && data.slideImages.filter(Boolean).length > 0) && (
           <div className="lp-hero__image">
             <div className="lp-image-placeholder" />
           </div>

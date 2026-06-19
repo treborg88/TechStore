@@ -41,7 +41,13 @@ export const DEFAULT_LANDING_PAGE_CONFIG = {
         ctaLink: '/',
         image: '',
         badgeText: '',
-        badgeColor: 'var(--primary-color)'
+        badgeColor: 'var(--primary-color)',
+        slideType: 'single',
+        slideTransition: 'fade',
+        slideAutoPlay: true,
+        slideInterval: 5,
+        hoverEffect: 'scale',
+        slideImages: ['', '', '']
       },
       styles: {
         bgColor: 'var(--secondary-color)',
@@ -51,7 +57,7 @@ export const DEFAULT_LANDING_PAGE_CONFIG = {
         textColor: 'var(--background-color)',
         ctaBgColor: 'var(--primary-color)',
         ctaTextColor: 'var(--background-color)',
-        minHeight: 500
+        minHeight: 520
       }
     },
     {
@@ -217,6 +223,7 @@ export const DEFAULT_LANDING_PAGE_CONFIG = {
       type: 'testimonials',
       enabled: true,
       data: {
+        layout: 'grid',
         title: 'Lo que dicen nuestros clientes',
         subtitle: 'Opiniones reales de compradores verificados.',
         items: [

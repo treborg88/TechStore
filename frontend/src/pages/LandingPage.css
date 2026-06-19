@@ -115,13 +115,99 @@
   min-height: 500px;
   display: flex;
   align-items: center;
-  background-size: cover;
-  background-position: center;
+  position: relative;
+  overflow: hidden;
 }
 
-.lp-hero .lp-container {
+.lp-hero .lp-container,
+.lp-hero__content {
   position: relative;
   z-index: 2;
+  width: 100%;
+}
+
+.lp-hero__slides {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+
+.lp-hero__slide {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  opacity: 0;
+  transform: translateX(0);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.lp-hero__slide.active {
+  opacity: 1;
+}
+
+.lp-hero__slides--fade .lp-hero__slide {
+  transform: scale(1);
+}
+
+.lp-hero__slides--slide .lp-hero__slide {
+  transform: translateX(100%);
+}
+
+.lp-hero__slides--slide .lp-hero__slide.active {
+  transform: translateX(0);
+}
+
+.lp-hero__slides--hover-scale:hover .lp-hero__slide.active {
+  transform: scale(1.03) translateX(0);
+}
+
+.lp-hero__slides--hover-lift:hover .lp-hero__slide.active {
+  transform: translateY(-6px);
+}
+
+.lp-hero__overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+.lp-hero__indicators {
+  position: absolute;
+  bottom: 18px;
+  right: 18px;
+  display: flex;
+  gap: 8px;
+  z-index: 3;
+}
+
+.lp-hero__indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.85);
+  background: rgba(255,255,255,0.35);
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.lp-hero__indicator.active {
+  background: rgba(255,255,255,0.95);
+  transform: scale(1.1);
+}
+
+.lp-hero__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  z-index: 3;
+}
+
+.lp-hero__image {
+  position: relative;
+  z-index: 3;
 }
 
 .lp-hero__text {

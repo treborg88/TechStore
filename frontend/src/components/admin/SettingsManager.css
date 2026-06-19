@@ -401,6 +401,172 @@
   border-bottom: 1px solid #eee;
 }
 
+.settings-section-scroll {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.seo-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.settings-sub-tab {
+  padding: 0.75rem 1rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.settings-sub-tab:hover {
+  background: #f8fafc;
+}
+
+.settings-sub-tab.active {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.settings-sub-tab.secondary {
+  margin-left: auto;
+  color: #b91c1c;
+  background: #fff1f2;
+  border-color: #fee2e2;
+}
+
+.settings-sub-tab.secondary:hover {
+  background: #fef2f2;
+}
+
+.section-description {
+  font-size: 0.9rem;
+  color: #6b7280;
+  line-height: 1.65;
+  margin: 0;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.settings-field label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.settings-field input,
+.settings-field select,
+.settings-field textarea {
+  padding: 0.85rem 0.95rem;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #1f2937;
+  background: #ffffff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.settings-field textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.settings-field input:focus,
+.settings-field select:focus,
+.settings-field textarea:focus {
+  outline: none;
+  border-color: #93c5fd;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+.settings-field small {
+  color: #64748b;
+  font-size: 0.83rem;
+  line-height: 1.4;
+}
+
+.settings-textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.seo-og-preview {
+  margin-top: 0.75rem;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 320px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.seo-og-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.seo-page-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 1rem;
+  margin-bottom: 1rem;
+}
+
+.seo-page-card .seo-page-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.75rem;
+  display: block;
+}
+
+.seo-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.75rem;
+}
+
+.seo-note {
+  color: #475569;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
+.seo-note code {
+  background: #f1f5f9;
+  color: #1f2937;
+  padding: 0.12rem 0.3rem;
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.seo-warning {
+  color: #b91c1c;
+  font-size: 0.85rem;
+}
+
+.seo-toggle-label {
+  font-weight: 600;
+  color: #334155;
+}
+
 .form-group {
   display: flex;
   flex-direction: column;

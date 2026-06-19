@@ -52,7 +52,7 @@ const SeoSection = ({ settings, setSettings }) => {
   return (
     <div className="settings-section-scroll">
       {/* Sub-tabs */}
-      <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+      <div className="seo-tabs">
         {SEO_TABS.map(tab => (
           <button
             key={tab.id}
@@ -63,8 +63,7 @@ const SeoSection = ({ settings, setSettings }) => {
             {tab.label}
           </button>
         ))}
-        <button type="button" onClick={handleReset} className="settings-sub-tab"
-          style={{ marginLeft: 'auto', color: '#ef4444', fontSize: '0.8rem' }}>
+        <button type="button" onClick={handleReset} className="settings-sub-tab secondary">
           🔄 Restablecer
         </button>
       </div>
@@ -73,7 +72,7 @@ const SeoSection = ({ settings, setSettings }) => {
       {activeTab === 'global' && (
         <section className="settings-section">
           <h3>Meta Tags Globales</h3>
-          <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '16px' }}>
+          <p className="section-description">
             Estos valores se aplican a todas las páginas como base. Las páginas individuales pueden sobreescribirlos.
           </p>
 
@@ -112,9 +111,8 @@ const SeoSection = ({ settings, setSettings }) => {
             />
             <small>Se muestra al compartir cualquier página en WhatsApp, Facebook, Twitter, etc.</small>
             {cfg.ogImage && (
-              <div style={{ marginTop: '8px', borderRadius: '8px', overflow: 'hidden', maxWidth: '300px' }}>
-                <img src={cfg.ogImage} alt="OG Preview" style={{ width: '100%', display: 'block' }}
-                  onError={(e) => { e.target.style.display = 'none'; }} />
+              <div className="seo-og-preview">
+                <img src={cfg.ogImage} alt="OG Preview" onError={(e) => { e.target.style.display = 'none'; }} />
               </div>
             )}
           </div>
@@ -160,7 +158,7 @@ const SeoSection = ({ settings, setSettings }) => {
       {activeTab === 'pages' && (
         <section className="settings-section">
           <h3>Títulos por Página</h3>
-          <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '16px' }}>
+          <p className="section-description">
             Personaliza el título de la pestaña del navegador para cada página.
             Usa <code>{'{siteName}'}</code> para el nombre de tu tienda y <code>{'{productName}'}</code> para el nombre del producto.
           </p>
@@ -168,16 +166,11 @@ const SeoSection = ({ settings, setSettings }) => {
           {Object.entries(SEO_PAGE_LABELS).map(([pageKey, label]) => {
             const pageConfig = cfg.pages[pageKey] || SEO_DEFAULTS.pages[pageKey] || {};
             return (
-              <div key={pageKey} style={{
-                padding: '12px', marginBottom: '12px', backgroundColor: '#f9fafb',
-                borderRadius: '8px', border: '1px solid #e5e7eb'
-              }}>
-                <label style={{ fontWeight: 600, fontSize: '0.9rem', color: '#374151' }}>
-                  {label}
-                </label>
-                {/* Title template */}
-                <div className="settings-field" style={{ marginTop: '8px', marginBottom: '8px' }}>
-                  <label style={{ fontSize: '0.8rem', color: '#6b7280' }}>Título de pestaña</label>
+              <div key={pageKey} className="seo-page-card">
+                <span className="seo-page-label">{label}</span>
+
+                <div className="settings-field">
+                  <label>Título de pestaña</label>
                   <input
                     type="text"
                     value={pageConfig.titleTemplate || ''}
@@ -185,11 +178,9 @@ const SeoSection = ({ settings, setSettings }) => {
                     placeholder={SEO_DEFAULTS.pages[pageKey]?.titleTemplate || `${label} | {siteName}`}
                   />
                 </div>
-                {/* Per-page description */}
-                <div className="settings-field" style={{ marginBottom: 0 }}>
-                  <label style={{ fontSize: '0.8rem', color: '#6b7280' }}>
-                    Descripción (deja vacío para usar la global)
-                  </label>
+
+                <div className="settings-field">
+                  <label>Descripción (deja vacío para usar la global)</label>
                   <input
                     type="text"
                     value={pageConfig.description || ''}
@@ -208,7 +199,7 @@ const SeoSection = ({ settings, setSettings }) => {
       {activeTab === 'verification' && (
         <section className="settings-section">
           <h3>Verificación de Buscadores</h3>
-          <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: '16px' }}>
+          <p className="section-description">
             Pega el código de verificación que te proporcionan Google y Bing para conectar sus herramientas.
           </p>
 
@@ -255,7 +246,7 @@ const SeoSection = ({ settings, setSettings }) => {
 
           {/* JSON-LD */}
           <div className="settings-field">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div className="seo-toggle-row">
               <label className="toggle-switch">
                 <input
                   type="checkbox"
@@ -264,16 +255,15 @@ const SeoSection = ({ settings, setSettings }) => {
                 />
                 <span className="toggle-slider"></span>
               </label>
-              <span style={{ fontWeight: 600 }}>JSON-LD (Datos Estructurados)</span>
+              <span className="seo-toggle-label">JSON-LD (Datos Estructurados)</span>
             </div>
-            <small style={{ color: '#6b7280' }}>
+            <small className="seo-note">
               Genera automáticamente datos estructurados (Organization + Product) para Google Rich Results.
             </small>
           </div>
 
-          {/* Sitemap */}
           <div className="settings-field">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+            <div className="seo-toggle-row">
               <label className="toggle-switch">
                 <input
                   type="checkbox"
@@ -284,12 +274,11 @@ const SeoSection = ({ settings, setSettings }) => {
               </label>
               <span style={{ fontWeight: 600 }}>Sitemap XML</span>
             </div>
-            <small style={{ color: '#6b7280' }}>
+            <small className="seo-note">
               Genera un mapa del sitio automático en <code>/api/seo/sitemap.xml</code> con todas las páginas y productos.
             </small>
           </div>
 
-          {/* Custom Head Tags */}
           <div className="settings-field">
             <label>Tags Personalizados en &lt;head&gt;</label>
             <textarea
@@ -297,9 +286,10 @@ const SeoSection = ({ settings, setSettings }) => {
               onChange={(e) => updateField('customHeadTags', e.target.value)}
               placeholder={'<!-- Google Analytics -->\n<script async src="https://www.googletagmanager.com/gtag/js?id=GA_ID"></script>'}
               rows={6}
+              className="settings-textarea"
               style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
             />
-            <small style={{ color: '#ef4444' }}>
+            <small className="seo-warning">
               ⚠️ Solo código HTML válido. Scripts maliciosos pueden afectar la seguridad del sitio.
             </small>
           </div>

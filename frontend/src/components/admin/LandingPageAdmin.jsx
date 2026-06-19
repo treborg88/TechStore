@@ -205,6 +205,46 @@ const HeroEditor = ({ data, onDataChange, onImageUpload, isImageUploading, avail
           <option value="text-right">Texto derecha</option>
         </select>
       </div>
+      <div className="lp-form-group">
+        <label className="lp-field-label">Modo del Hero</label>
+        <select value={data.slideType || 'single'} onChange={(e) => onDataChange('slideType', e.target.value)} className="lp-text-input">
+          <option value="single">Imagen única</option>
+          <option value="reel">Reel de imágenes</option>
+        </select>
+      </div>
+      <div className="lp-form-group">
+        <label className="lp-field-label">Transición</label>
+        <select value={data.slideTransition || 'fade'} onChange={(e) => onDataChange('slideTransition', e.target.value)} className="lp-text-input">
+          <option value="fade">Fade</option>
+          <option value="slide">Slide</option>
+        </select>
+      </div>
+      <div className="lp-form-group">
+        <label className="lp-field-label">Efecto hover</label>
+        <select value={data.hoverEffect || 'scale'} onChange={(e) => onDataChange('hoverEffect', e.target.value)} className="lp-text-input">
+          <option value="none">Ninguno</option>
+          <option value="scale">Zoom sutil</option>
+          <option value="lift">Elevación suave</option>
+        </select>
+      </div>
+      <div className="lp-form-group" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <label className="lp-field-label">Autoplay</label>
+        <label className="lp-switch-label">
+          <input type="checkbox" checked={!!data.slideAutoPlay} onChange={(e) => onDataChange('slideAutoPlay', e.target.checked)} />
+          <span className="lp-switch-slider" />
+        </label>
+      </div>
+      <TextInput label="Intervalo (segundos)" type="number" value={data.slideInterval || 5} onChange={(v) => onDataChange('slideInterval', Number(v) || 5)} />
+      <p className="lp-subsection-label">Imágenes del Hero</p>
+      {(data.slideImages || []).map((image, index) => (
+        <ImageInput key={index} label={`Imagen ${index + 1}`} value={image} onChange={(v) => {
+          const next = [...(data.slideImages || [])];
+          next[index] = v;
+          onDataChange('slideImages', next);
+        }}
+          onUpload={(file) => onImageUpload(`slideImages.${index}`, file)}
+          isUploading={isImageUploading ? isImageUploading(`slideImages.${index}`) : false} />
+      ))}
     </div>
   );
 };
