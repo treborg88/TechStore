@@ -61,12 +61,9 @@ services:
     environment:
       # Docker-internal override — must use 'database' service hostname, not localhost
       DATABASE_URL: postgresql://${POSTGRES_USER:-eonsclover}:${POSTGRES_PASSWORD:-eonsclover}@database:5432/${POSTGRES_DB:-eonsclover}
-      # CORS wildcard for all subdomains (local dev)
-      CORS_ORIGIN: ${CORS_ORIGIN:-*.eonsclover.local}
-      # Override PLATFORM_DOMAIN for local dev (.env has eonsclover.com for production)
-      PLATFORM_DOMAIN: ${PLATFORM_DOMAIN:-eonsclover.local}
-      # Test bypass: these emails skip real email sending and accept code 000000.
-      # Remove or leave empty in production.
+      # Remove PLATFORM_DOMAIN/CORS_ORIGIN overrides so the backend loads them from backend/.env.
+      # The root compose interpolation does not use env_file for these values.
+      # TEST_BYPASS_EMAIL values are still passed via shell env or defaults.
       TEST_BYPASS_EMAIL: ${TEST_BYPASS_EMAIL:-test@playwright.local,@test.local}
       # Remaining SaaS vars (SUPER_ADMIN_SECRET, etc.) come from env_file: ./backend/.env
     depends_on:

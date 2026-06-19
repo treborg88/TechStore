@@ -1,5 +1,36 @@
 ﻿# Eonsclover — AI Project Context
 
+## Local / Remote Development Workflow
+- Working in Visual Studio Code using a Copilot-powered LLM to interact with the code.
+- The primary instance is the local PC. Always work on this instance first.
+- The secondary instance is a remote host used only for production-like testing after local verification.
+- Keep code compatible with both environments: local and remote.
+- Local base URL: `http://eonsclover.local`
+- Remote base URL: `https://eonsclover.com`
+- Both environments should handle both host contexts.
+- For local testing, ensure your machine resolves `eonsclover.local` and related local subdomains to `127.0.0.1`.
+- Add these lines to your Windows `hosts` file when testing locally:
+  ```
+  127.0.0.1 eonsclover.local
+  127.0.0.1 app.eonsclover.local
+  127.0.0.1 admin.eonsclover.local
+  127.0.0.1 database.eonsclover.local
+  ```
+
+### Local instance checklist
+1. Verify Docker Desktop is open.
+2. Confirm Docker containers are running.
+3. Confirm `docker compose up` is active.
+
+### Deployment workflow
+1. update code / add feature / fix bugs
+2. fully test the app locally
+3. update local git
+4. manual test locally
+5. git push branch
+6. remote host git pull
+7. remote host testing
+
 ## 1. Identity
 Eonsclover is a SaaS platform for creating online stores. Users register, get a subdomain (`{slug}.eonsclover.com`), and can immediately sell products. Stack: Express + React + PostgreSQL. Containerized with Docker Compose. Deployed on Oracle Cloud ARM64. **Active branch**: `feat/saas-multitenant`.
 
