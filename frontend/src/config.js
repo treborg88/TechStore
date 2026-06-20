@@ -1,41 +1,58 @@
-﻿// config.js - ConfiguraciÃ³n centralizada de la aplicaciÃ³n
-// URLs loaded from env vars (see .env.example)
-// Production: Nginx proxies /api â†’ backend:5001, so relative paths work on any domain
-// Dev: explicit localhost URLs (no Nginx)
+﻿// config.js - Configuración centralizada de la aplicación
+// All SaaS detection is runtime-only: derives platform domain from the actual hostname.
+// Works identically on production (eonsclover.com), staging (stage1.eonsclover.com), or local.
 
 const isLocalhost = typeof window !== 'undefined' && 
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
 
-// --- SaaS context detection ---
+// --- SaaS context detection (runtime-only, no hardcoded domains) ---
 const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
 const pathname = typeof window !== 'undefined' ? window.location.pathname : '';
 const hostParts = hostname.split('.');
 const SYSTEM_SLUGS = ['app', 'admin', 'www', 'staging', 'database'];
+const DETECTION_SLUGS = ['app', 'admin', 'staging', 'database']; // additional slugs that trigger detection
 
 const isAdminPath = !isLocalhost && pathname.startsWith('/admin');
 const isAppPath = !isLocalhost && pathname.startsWith('/app');
 
+// --- Platform domain detection (MUST come before IS_TENANT/IS_LANDING) ---
+// For "app.eonsclover.com" → "eonsclover.com"
+// For "app.stage1.eonsclover.com" → "stage1.eonsclover.com"
+// For "eonsclover.com" → "eonsclover.com"
+// For "stage1.eonsclover.com" → "stage1.eonsclover.com" (staging platform)
+// The key insight: if the first part is a known system slug, strip it.
+// Otherwise, keep the full hostname as the platform domain.
+export const PLATFORM_DOMAIN = hostname
+    ? (hostParts.length >= 3 && DETECTION_SLUGS.includes(hostParts[0]))
+        ? hostParts.slice(1).join('.')
+        : hostname
+    : '';
+
 // Tenant subdomain: {slug}.domain.com (3+ parts, not a system slug, not localhost)
-export const IS_TENANT = hostParts.length >= 3 && !SYSTEM_SLUGS.includes(hostParts[0]) && !isLocalhost;
+// Also exclude the platform domain itself from being treated as a tenant
+export const IS_TENANT = hostname
+    && hostParts.length >= 3
+    && !SYSTEM_SLUGS.includes(hostParts[0])
+    && !isLocalhost
+    && hostname !== PLATFORM_DOMAIN;
+
 export const TENANT_SLUG = IS_TENANT ? hostParts[0] : null;
 
 // System contexts (SaaS platform pages)
-export const IS_LANDING = !isLocalhost && (hostParts.length <= 2 || hostParts[0] === 'www') && !isAdminPath && !isAppPath;
+// IS_LANDING: bare domain (≤2 parts), www prefix, or the platform domain itself
+export const IS_LANDING = hostname
+    && !isLocalhost
+    && (hostParts.length <= 2 || hostParts[0] === 'www' || hostname === PLATFORM_DOMAIN)
+    && !isAdminPath && !isAppPath;
+
 export const IS_ONBOARDING = !isLocalhost && (hostParts[0] === 'app' || isAppPath);
 // Tenant subdomains own their own /admin route — never treat them as super admin
 export const IS_SUPER_ADMIN = !isLocalhost && !IS_TENANT && (hostParts[0] === 'admin' || isAdminPath);
 
-// Platform domain derived from hostname (e.g. "eonsclover.local" from "app.eonsclover.local")
-// Used to build subdomain URLs dynamically â€” no hardcoded domain strings needed
-export const PLATFORM_DOMAIN = hostParts.length >= 3
-  ? hostParts.slice(1).join('.')
-  : hostParts.join('.');
-
 // Protocol derived from current page (http on local, https on production)
 export const PLATFORM_PROTOCOL = typeof window !== 'undefined' ? window.location.protocol : 'https:';
 
-// Production defaults: relative /api (Nginx proxy) + auto-detect origin
-// No hardcoded domains â€” works on any domain behind Nginx
+// API URL: relative /api in production (Nginx proxy), explicit localhost in dev
 const DEFAULT_API_URL = isLocalhost 
     ? 'http://localhost:5001/api' 
     : '/api';
