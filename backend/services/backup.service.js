@@ -835,6 +835,14 @@ const restoreBusinessWideBackup = async ({ filename, confirmText, restorePublicS
     if (restorePublicSchema) {
       const publicSql = path.join(staged.tempDir, 'public.sql');
       if (fs.existsSync(publicSql)) {
+        // Drop and recreate public schema so INSERTs/COPY don't fail on existing rows
+        await runExec('psql', [
+          '-h', parsed.host,
+          '-p', parsed.port,
+          '-U', parsed.user,
+          '-d', parsed.dbname,
+          '-c', 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+        ], parsed);
         await runExec('psql', [
           '-h', parsed.host,
           '-p', parsed.port,
