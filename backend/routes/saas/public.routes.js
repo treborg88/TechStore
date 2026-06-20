@@ -71,7 +71,9 @@ router.get('/tenant-exists', async (req, res) => {
     const host = req.get('host') || '';
     const parts = host.split('.');
     const platformDomain = config.PLATFORM_DOMAIN;
-    const isPlatformHost = host.endsWith(`.${platformDomain}`);
+    const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain
+      || host.endsWith(`.${platformDomain}.local`) || host === `${platformDomain}.local`
+      || host === 'localhost' || host.endsWith('.local');
     const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
 
     if (!subdomain) {
