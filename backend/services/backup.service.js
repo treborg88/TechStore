@@ -306,7 +306,7 @@ const replaceImagesSafely = async (incomingImagesDir) => {
   }
 };
 
-const stageArchiveForRestore = async ({ backupFilename, storageAdapter }) => {
+const stageArchiveForRestore = async ({ backupFilename, storageAdapter, requireDatabaseSql = true }) => {
   const backupPath = await storageAdapter.getArchivePath(backupFilename);
   const tempDir = await makeTempDir();
 
@@ -323,7 +323,7 @@ const stageArchiveForRestore = async ({ backupFilename, storageAdapter }) => {
       sqlPath = path.join(tempDir, 'database.sql');
       imagesDir = path.join(tempDir, 'products');
       manifest = await readJsonSafe(path.join(tempDir, 'manifest.json'));
-      if (!fs.existsSync(sqlPath)) {
+      if (requireDatabaseSql && !fs.existsSync(sqlPath)) {
         throw new Error('The archive does not contain database.sql');
       }
     }
@@ -756,7 +756,7 @@ const restoreBusinessWideBackup = async ({ filename, confirmText, restorePublicS
   const parsed = parseDbUrl(dbUrl);
   if (!parsed) throw new Error('Invalid DATABASE_URL');
 
-  const staged = await stageArchiveForRestore({ backupFilename: safeFilename, storageAdapter });
+  const staged = await stageArchiveForRestore({ backupFilename: safeFilename, storageAdapter, requireDatabaseSql: false });
   try {
     if (!staged.manifest || staged.manifest.type !== 'business') {
       throw new Error('Archive manifest is not a business-wide backup');
