@@ -33,9 +33,10 @@ function createTenantMiddleware(poolOrGetter) {
         // Extract subdomain for platform hosts: {slug}.eonsclover.com â†’ slug
         const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
 
-        // Bypass: system subdomains and root/localhost on platform domain
+        // Bypass: system subdomains and root/localhost on platform domain.
+        // Also bypass when the host IS the platform domain itself (no subdomain to resolve).
         const systemSlugs = ['app', 'admin', 'staging', 'www', 'database'];
-        if (isPlatformHost && (!subdomain || systemSlugs.includes(subdomain))) {
+        if (isPlatformHost && (host === platformDomain || !subdomain || systemSlugs.includes(subdomain))) {
             return next();
         }
 
