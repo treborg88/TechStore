@@ -788,13 +788,46 @@ const restoreBusinessWideBackup = async ({ filename, confirmText, restorePublicS
       });
 
       await ensureRequiredTenantTables(restoreSchema);
-      await swapSchemasAtomically({
-        parsed,
-        dbName: parsed.dbname,
-        liveSchema: targetSchema,
-        restoredSchema: restoreSchema,
-        previousSchema
-      });
+
+      // Check if the live schema still exists (may have been deleted after backup)
+      const schemaCheck = await runExec('psql', [
+        '-h', parsed.host,
+        '-p', parsed.port,
+        '-U', parsed.user,
+        '-d', parsed.dbname,
+        '-c', `SELECT 1 FROM information_schema.schemata WHERE schema_name = '${targetSchema}'`
+      ], parsed);
+
+      if (schemaCheck.stdout.includes('(1 row)')) {
+        // Live schema exists — perform atomic swap
+        await swapSchemasAtomically({
+          parsed,
+          dbName: parsed.dbname,
+          liveSchema: targetSchema,
+          restoredSchema: restoreSchema,
+          previousSchema
+        });
+      } else {
+        // Live schema was deleted — just rename restored schema into place
+        await runExec('psql', [
+          '-h', parsed.host,
+          '-p', parsed.port,
+          '-U', parsed.user,
+          '-d', parsed.dbname,
+          '-c', `ALTER SCHEMA "${restoreSchema}" RENAME TO "${targetSchema}";`
+        ], parsed);
+        // Re-register the tenant in public.tenants since it was deleted
+        try {
+          await db.pool.query(
+            `INSERT INTO public.tenants (slug, name, owner_email, status, plan_id, schema_name, trial_ends_at)
+             VALUES ($1, $2, $3, 'active', 'trial', $4, NOW() + INTERVAL '14 days')
+             ON CONFLICT (slug) DO UPDATE SET status = 'active', schema_name = $4`,
+            [tenantEntry.slug, tenantEntry.slug, `restored@${tenantEntry.slug}.local`, targetSchema]
+          );
+        } catch (reRegisterErr) {
+          console.warn(`[restore] Could not re-register tenant ${tenantEntry.slug}:`, reRegisterErr.message);
+        }
+      }
 
       results.push({ slug: tenantEntry.slug, schema: targetSchema, previousSchema });
     }
