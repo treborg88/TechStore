@@ -459,6 +459,54 @@ router.delete('/tenants/:id', async (req, res) => {
     }
 });
 
+// ── GET /database/backups — List business-wide backups ────────────────────────
+router.get('/database/backups', async (req, res) => {
+    try {
+        const archives = await backupService.storage.listArchives();
+        const businessBackups = archives.filter(a =>
+            a.filename.startsWith('saas-business-backup')
+        );
+        res.json({ backups: businessBackups });
+    } catch (err) {
+        console.error('List business backups error:', err);
+        res.status(500).json({ message: err.message || 'Error al listar backups' });
+    }
+});
+
+// ── GET /database/backups/:filename/download — Download business backup ───────
+router.get('/database/backups/:filename/download', async (req, res) => {
+    try {
+        const filename = backupService.sanitizeFilename(req.params.filename);
+        if (!filename) return res.status(400).json({ message: 'Nombre de archivo inválido' });
+
+        const filePath = await backupService.storage.getArchivePath(filename);
+        res.setHeader('Content-Type', 'application/gzip');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.download(filePath, filename, (err) => {
+            if (err) {
+                backupService.storage.cleanupDownloadedArchive(filePath).catch(() => {});
+            }
+        });
+    } catch (err) {
+        console.error('Download business backup error:', err);
+        res.status(404).json({ message: err.message || 'Backup no encontrado' });
+    }
+});
+
+// ── DELETE /database/backups/:filename — Delete business backup ───────────────
+router.delete('/database/backups/:filename', async (req, res) => {
+    try {
+        const filename = backupService.sanitizeFilename(req.params.filename);
+        if (!filename) return res.status(400).json({ message: 'Nombre de archivo inválido' });
+
+        await backupService.storage.deleteArchive(filename);
+        res.json({ success: true, message: `Backup ${filename} eliminado` });
+    } catch (err) {
+        console.error('Delete business backup error:', err);
+        res.status(500).json({ message: err.message || 'Error al eliminar backup' });
+    }
+});
+
 // ── GET /metrics — Global platform KPIs ──────────────────────────────────────
 router.get('/metrics', async (req, res) => {
     try {
