@@ -12,7 +12,7 @@ const SLUG_REGEX = /^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$/;
 
 // Reserved slugs that cannot be used as tenant subdomains
 const RESERVED_SLUGS = new Set([
-    'www', 'api', 'admin', 'app', 'mail', 'smtp', 'ftp',
+    'www', 'api', 'admin', 'app', 'database', 'mail', 'smtp', 'ftp',
     'status', 'docs', 'help', 'support', 'billing',
     'static', 'assets', 'cdn', 'media',
 ]);
