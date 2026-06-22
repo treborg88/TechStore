@@ -286,8 +286,8 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
   // Hero computed (matches Home.jsx heroStyleVars logic)
   const heroImage = settings.heroImage ? resolveImageUrl(settings.heroImage) : null;
   const heroTextColor = settings.heroTextColor || '#ffffff';
-  const heroTitle = settings.heroTitle || 'La Mejor Tecnología a Tu Alcance';
-  const heroDesc = settings.heroDescription || 'Descubre nuestra selección de productos.';
+  const heroTitle = settings.heroTitle ?? 'La Mejor Tecnología a Tu Alcance';
+  const heroDesc = settings.heroDescription ?? 'Descubre nuestra selección de productos.';
   const heroPosX = settings.heroPositionX || activeLayoutDef.heroPositionX || 'left';
   const heroAlign = heroPosX === 'center' ? 'center' : heroPosX === 'right' ? 'flex-end' : 'flex-start';
   const heroTextAlign = heroPosX === 'center' ? 'center' : heroPosX === 'right' ? 'right' : 'left';
