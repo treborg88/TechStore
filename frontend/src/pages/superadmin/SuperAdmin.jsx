@@ -7,6 +7,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { API_URL, PLATFORM_DOMAIN } from '../../config';
 import SuperAdminLoginPage from './SuperAdminLoginPage';
 import DatabaseSection from './DatabaseSection';
+import BackupManager from './BackupManager';
 
 // ── Status / plan badge config ────────────────────────────────────────────────
 const STATUS_BADGE = {
@@ -464,13 +465,13 @@ function PlanDistribution({ plans = [] }) {
 
 // ── Quick actions sidebar ─────────────────────────────────────────────────────
 // Only "Actualizar datos" is wired; others are placeholders for future features
-function QuickActions({ onRefresh }) {
+function QuickActions({ onRefresh, setActiveNav }) {
     const actions = [
         { icon: '🔄', label: 'Actualizar datos',         fn: onRefresh },
         { icon: '🏪', label: 'Crear nueva tienda',        fn: null },
         { icon: '📨', label: 'Enviar anuncio global',     fn: null },
         { icon: '📤', label: 'Exportar reporte MRR',      fn: null },
-        { icon: '🗄️', label: 'Respaldo de base de datos', fn: null },
+        { icon: '🗄️', label: 'Respaldo de base de datos', fn: () => setActiveNav('backup') },
     ];
     return (
         <div style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '16px', padding: '20px' }}>
@@ -529,6 +530,7 @@ function Sidebar({ onLogout, totalTenants, activeNav, setActiveNav }) {
         { id: 'security', icon: '🛡️', label: 'Seguridad' },
         { id: 'settings', icon: '⚙️', label: 'Configuración' },
         { id: 'database', icon: '🗄️', label: 'Base de datos' },
+        { id: 'backup',   icon: '💾', label: 'Respaldos' },
         { id: 'logs',     icon: '📋', label: 'Logs' },
     ];
 
@@ -677,6 +679,11 @@ function SuperAdminDashboard() {
                         <DatabaseSection superAdminFetch={superAdminFetch} />
                     )}
 
+                    {/* Backup manager section */}
+                    {activeNav === 'backup' && (
+                        <BackupManager superAdminFetch={superAdminFetch} />
+                    )}
+
                     {/* Dashboard content (KPIs + tables) */}
                     {activeNav === 'dashboard' && (<>
 
@@ -724,7 +731,7 @@ function SuperAdminDashboard() {
 
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                             <PlanDistribution plans={metrics?.plans || []} />
-                            <QuickActions onRefresh={handleRefresh} />
+                            <QuickActions onRefresh={handleRefresh} setActiveNav={setActiveNav} />
                             <AlertsPanel trialAlerts={metrics?.trial_alerts || []} />
                         </div>
                     </div>

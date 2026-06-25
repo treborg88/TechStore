@@ -210,10 +210,10 @@ export function useSiteSettings() {
     }
 
     // Hero settings
-    if (data.heroTitle || data.heroDescription || data.heroImage || data.heroTitleSize || data.heroDescriptionSize || data.heroPositionY || data.heroPositionX || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor || data.heroBannerImage || data.heroImageBgX !== undefined || data.heroImageBgY !== undefined || data.heroImageBgZoom !== undefined || data.heroTextPaddingX !== undefined || data.heroTextPaddingY !== undefined) {
+    if (data.heroTitle !== undefined || data.heroDescription !== undefined || data.heroImage !== undefined || data.heroTitleSize !== undefined || data.heroDescriptionSize !== undefined || data.heroPositionY !== undefined || data.heroPositionX !== undefined || data.heroImageWidth !== undefined || data.heroOverlayOpacity !== undefined || data.heroHeight !== undefined || data.heroTextColor !== undefined || data.heroBannerImage !== undefined || data.heroImageBgX !== undefined || data.heroImageBgY !== undefined || data.heroImageBgZoom !== undefined || data.heroTextPaddingX !== undefined || data.heroTextPaddingY !== undefined) {
       setHeroSettings({
-        title: data.heroTitle || 'La Mejor Tecnología a Tu Alcance',
-        description: data.heroDescription || 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
+        title: data.heroTitle ?? 'La Mejor Tecnología a Tu Alcance',
+        description: data.heroDescription ?? 'Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado.',
         image: data.heroImage || '',
         titleSize: parseFloat(data.heroTitleSize) || 2.1,
         descriptionSize: parseFloat(data.heroDescriptionSize) || 1.05,

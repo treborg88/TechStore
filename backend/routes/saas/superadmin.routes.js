@@ -3,12 +3,28 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
+const fs = require('fs');
+const os = require('os');
+const multer = require('multer');
 const router = express.Router();
 const config = require('../../config');
 const db = require('../../database');
 const { withTenantSchema } = db;
 const backupService = require('../../services/backup.service');
 const nodemailer = require('nodemailer');
+
+const restoreUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, os.tmpdir()),
+    filename: (_req, file, cb) => cb(null, `${Date.now()}-${file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_')}`)
+  }),
+  limits: { fileSize: 500 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const name = (file.originalname || '').toLowerCase();
+    if (name.endsWith('.tar.gz') || name.endsWith('.tar') || name.endsWith('.sql')) return cb(null, true);
+    return cb(new Error('Solo se permiten archivos .tar.gz, .tar o .sql'));
+  }
+}).single('backupFile');
 
 // Direct env-var transporter for OTP — bypasses DB settings query (pre-auth context)
 const _sendOtpEmail = async (to, code) => {
@@ -210,24 +226,57 @@ router.post('/database/backup/all-tenants', async (req, res) => {
     }
 });
 
-router.post('/database/restore/all-tenants', async (req, res) => {
-    try {
-        const { filename, confirmText, includePublicSchema = true } = req.body || {};
-        if (!filename) {
-            return res.status(400).json({ message: 'filename es requerido' });
+router.post('/database/restore/all-tenants', (req, res) => {
+    restoreUpload(req, res, async (err) => {
+        let uploadedPath = null;
+        let cleanupSaved = null;
+        try {
+            // ── Mode 1: File upload (from BackupManager.jsx FormData) ──
+            if (req.file) {
+                uploadedPath = req.file.path;
+                const filename = backupService.sanitizeFilename(req.file.originalname || req.file.filename);
+                if (!filename) {
+                    return res.status(400).json({ message: 'Nombre de archivo inválido' });
+                }
+                const confirmText = req.body?.confirmText;
+                const includePublicSchema = req.body?.includePublicSchema !== 'false';
+                cleanupSaved = await backupService.storage.uploadArchive(uploadedPath, filename);
+                try {
+                    const result = await backupService.restoreBusinessWideBackup({
+                        filename: cleanupSaved.filename,
+                        confirmText,
+                        restorePublicSchema: includePublicSchema
+                    });
+                    return res.json(result);
+                } finally {
+                    await backupService.storage.deleteArchive(cleanupSaved.filename).catch(() => {});
+                }
+            }
+
+            // ── Mode 2: JSON body (filename already on server) ──
+            if (!req.body || !req.body.filename) {
+                return res.status(400).json({ message: 'backupFile es requerido (sube un archivo .tar.gz o envía filename en JSON)' });
+            }
+            const { filename, confirmText, includePublicSchema = true } = req.body;
+            const safeFilename = backupService.sanitizeFilename(filename);
+            if (!safeFilename) {
+                return res.status(400).json({ message: 'Nombre de archivo inválido' });
+            }
+            const result = await backupService.restoreBusinessWideBackup({
+                filename: safeFilename,
+                confirmText,
+                restorePublicSchema: includePublicSchema
+            });
+            return res.json(result);
+        } catch (restoreErr) {
+            console.error('SuperAdmin all-tenants restore error:', restoreErr);
+            return res.status(500).json({ message: restoreErr.message || 'Error al restaurar backup de todos los tenants' });
+        } finally {
+            if (uploadedPath && fs.existsSync(uploadedPath)) {
+                fs.rmSync(uploadedPath, { force: true });
+            }
         }
-
-        const result = await backupService.restoreBusinessWideBackup({
-            filename,
-            confirmText,
-            includePublicSchema
-        });
-
-        res.json(result);
-    } catch (err) {
-        console.error('SuperAdmin all-tenants restore error:', err);
-        res.status(500).json({ message: err.message || 'Error al restaurar backup de todos los tenants' });
-    }
+    });
 });
 
 // ── GET /tenants/:id — Tenant detail with usage ──────────────────────────────
@@ -456,6 +505,54 @@ router.delete('/tenants/:id', async (req, res) => {
             error: err.message,
             stack: err.stack
         });
+    }
+});
+
+// ── GET /database/backups — List business-wide backups ────────────────────────
+router.get('/database/backups', async (req, res) => {
+    try {
+        const archives = await backupService.storage.listArchives();
+        const businessBackups = archives.filter(a =>
+            a.filename.startsWith('saas-business-backup')
+        );
+        res.json({ backups: businessBackups });
+    } catch (err) {
+        console.error('List business backups error:', err);
+        res.status(500).json({ message: err.message || 'Error al listar backups' });
+    }
+});
+
+// ── GET /database/backups/:filename/download — Download business backup ───────
+router.get('/database/backups/:filename/download', async (req, res) => {
+    try {
+        const filename = backupService.sanitizeFilename(req.params.filename);
+        if (!filename) return res.status(400).json({ message: 'Nombre de archivo inválido' });
+
+        const filePath = await backupService.storage.getArchivePath(filename);
+        res.setHeader('Content-Type', 'application/gzip');
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.download(filePath, filename, (err) => {
+            if (err) {
+                backupService.storage.cleanupDownloadedArchive(filePath).catch(() => {});
+            }
+        });
+    } catch (err) {
+        console.error('Download business backup error:', err);
+        res.status(404).json({ message: err.message || 'Backup no encontrado' });
+    }
+});
+
+// ── DELETE /database/backups/:filename — Delete business backup ───────────────
+router.delete('/database/backups/:filename', async (req, res) => {
+    try {
+        const filename = backupService.sanitizeFilename(req.params.filename);
+        if (!filename) return res.status(400).json({ message: 'Nombre de archivo inválido' });
+
+        await backupService.storage.deleteArchive(filename);
+        res.json({ success: true, message: `Backup ${filename} eliminado` });
+    } catch (err) {
+        console.error('Delete business backup error:', err);
+        res.status(500).json({ message: err.message || 'Error al eliminar backup' });
     }
 });
 

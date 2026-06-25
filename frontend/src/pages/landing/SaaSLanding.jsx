@@ -35,9 +35,13 @@ function GlobalStyles() {
             .hover-lift { transition: transform 0.3s; }
             .hover-lift:hover { transform: translateY(-8px); }
 
+            /* ── Global body protection ──────────────────────────── */
+            body { max-width: 100vw; overflow-x: hidden; }
+            img { max-width: 100%; height: auto; }
+
             /* ── Mobile responsive ─────────────────────────────────── */
             @media (max-width: 768px) {
-                body { overflow-x: hidden; }
+                body { overflow-x: hidden; max-width: 100vw; }
                 .saas-nav-links { display: none !important; }
                 .saas-nav-cta { display: none !important; }
                 .saas-menu-btn { display: flex !important; }
@@ -71,6 +75,8 @@ function GlobalStyles() {
 
             /* ── PC wide feel (simulated 110% zoom) ──────────────── */
             @media (min-width: 769px) {
+                .saas-nav-links { display: flex !important; }
+                .saas-nav-cta { display: flex !important; }
                 #hero { padding: 10rem 2rem 7rem !important; }
                 .saas-root { font-size: 106%; }
                 .saas-section-heading { font-size: 3.3rem !important; }
@@ -209,7 +215,7 @@ function Navbar() {
                 </Link>
 
                 {/* Desktop nav links */}
-                <nav className="saas-nav-links" style={{ display: 'flex', alignItems: 'center', gap: '1.75rem', fontSize: '0.9rem' }}>
+                <nav className="saas-nav-links" style={{ alignItems: 'center', gap: '1.75rem', fontSize: '0.9rem' }}>
                     <a href="#hero" style={{ color: 'rgba(255,255,255,0.7)' }}>Dashboard</a>
                     <a href="#features" style={{ color: 'rgba(255,255,255,0.7)' }}>Características</a>
                     <a href="#pricing" style={{ color: 'rgba(255,255,255,0.7)' }}>Precios</a>
@@ -217,7 +223,7 @@ function Navbar() {
                 </nav>
 
                 {/* Desktop CTA */}
-                <div className="saas-nav-cta" style={{ display: 'flex', gap: '0.6rem' }}>
+                <div className="saas-nav-cta" style={{ gap: '0.6rem' }}>
                     <Link to="/login" style={{ padding: '0.45rem 1.1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', background: 'transparent', fontSize: '0.85rem' }}>
                         Iniciar Sesión
                     </Link>

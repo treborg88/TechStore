@@ -11,15 +11,6 @@ const { validatePassword, PASSWORD_POLICY_MESSAGE } = require('../../utils');
 
 const router = Router();
 
-// GET /api/saas/platform — Returns the platform domain config for frontend runtime use
-router.get('/platform', (_req, res) => {
-  res.json({
-    platformDomain: config.PLATFORM_DOMAIN,
-    saasMode: config.SAAS_MODE === 'true' || config.SAAS_MODE === true,
-    systemSlugs: ['app', 'admin', 'www', 'staging', 'database'],
-  });
-});
-
 // GET /api/saas/plans — Active plans for pricing page
 router.get('/plans', async (_req, res) => {
   try {
@@ -80,7 +71,9 @@ router.get('/tenant-exists', async (req, res) => {
     const host = req.get('host') || '';
     const parts = host.split('.');
     const platformDomain = config.PLATFORM_DOMAIN;
-    const isPlatformHost = host.endsWith(`.${platformDomain}`);
+    const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain
+      || host.endsWith(`.${platformDomain}.local`) || host === `${platformDomain}.local`
+      || host === 'localhost' || host.endsWith('.local');
     const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;
 
     if (!subdomain) {

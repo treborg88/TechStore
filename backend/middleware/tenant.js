@@ -28,7 +28,9 @@ function createTenantMiddleware(poolOrGetter) {
 
         // Determine if this is a known platform domain (*.eonsclover.local or localhost)
         const platformDomain = config.PLATFORM_DOMAIN;
-        const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain || host === 'localhost';
+        const isPlatformHost = host.endsWith(`.${platformDomain}`) || host === platformDomain || host === 'localhost'
+            || host.endsWith(`.${platformDomain}.local`) || host === `${platformDomain}.local`
+            || host.endsWith('.local');
 
         // Extract subdomain for platform hosts: {slug}.eonsclover.com â†’ slug
         const subdomain = isPlatformHost && parts.length >= 3 ? parts[0] : null;

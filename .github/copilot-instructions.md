@@ -32,7 +32,7 @@
 7. remote host testing
 
 ## 1. Identity
-Eonsclover is a SaaS platform for creating online stores. Users register, get a subdomain (`{slug}.eonsclover.com`), and can immediately sell products. Stack: Express + React + PostgreSQL. Containerized with Docker Compose. Deployed on Oracle Cloud ARM64. **Active branch**: `feat/saas-multitenant`.
+Eonsclover is a SaaS platform for creating online stores. Users register, get a subdomain (`{slug}.eonsclover.com`), and can immediately sell products. Stack: Express + React + PostgreSQL. Containerized with Docker Compose. Deployed on Oracle Cloud ARM64. **Active branch**: `main`. Backups: `backend/backups/`. Images: `backend/uploads/products/`.
 
 ## 2. Architecture
 ```
@@ -62,9 +62,15 @@ User → Nginx (:80) → React SPA (frontend container)
 ## 5. Repository Map
 ```
 backend/                  Express API
-  routes/                 REST endpoints (products, orders, cart, settings, auth, saas/*)
-  middleware/             Auth, tenant resolution, CSRF, plan limits, rate limiter, upload
-  services/               Business logic (provisioner, email, backup, encryption, llm/*, tenant/*)
+  routes/                 REST endpoints
+    auth.routes.js (2 ep), database.routes.js (6 ep), products.routes.js (5 ep),
+    orders.routes.js (3 ep), cart.routes.js (4 ep), settings.routes.js (3 ep),
+    seo.routes.js (2 ep), storage.routes.js (1 ep), payments.routes.js (2 ep),
+    chatbot.routes.js (1 ep), newsletter.routes.js (1 ep), users.routes.js (1 ep),
+    setup.routes.js (1 ep), verification.routes.js (1 ep)
+    saas/  subscription.routes.js, public.routes.js, superadmin.routes.js
+  middleware/             Auth (JWT), tenant resolution, CSRF, plan limits, rate limiter, upload
+  services/               Provisioner, email, backup (pg_dump/restore), encryption, theme-applier
   database/               schema.sql, seed.sql, seed-demo-*.sql, themes/, _rebuild_seeds.mjs
 frontend/                 React SPA
   src/components/admin/   SettingsManager, SiteCustomizer, LandingPageAdmin, DatabaseSection, etc.
@@ -109,11 +115,14 @@ docker/                   Dockerfile.backend, Dockerfile.frontend, nginx-proxy.c
 ## 9. Recurring Procedures
 - **Add a setting**: 1) Add default in `SettingsManager` state, 2) Add `else if` in `buildTypedData`, 3) Add field in the relevant component, 4) Include in `handleSave` payload.
 - **Add a landing page section**: 1) Add default in `landingPageDefaults.js`, 2) Create editor sub-component, 3) Register in `SECTION_EDITORS` + `SECTION_LABELS` + `SECTION_ICONS`.
-- **Deploy locally**: `docker compose up -d --build` (rebuilds all containers).
+- **Add a Super Admin feature**: 1) Create component in `pages/superadmin/`, 2) Add to `NAV_SYSTEM` array in `SuperAdmin.jsx`, 3) Render on `activeNav === 'your-id'`, 4) Wire QuickActions button with `setActiveNav`.
+- **Remove an endpoint/feature cleanly**: 1) Remove route handler from routes file, 2) Check `routes/index.js` for orphaned `app.use('/path', router)`, 3) Search frontend for all callers (`grep` endpoint path in `frontend/src/`), 4) Remove imports/components that only served that feature, 5) Remove nav/sidebar entries, 6) If removing a service function, verify no other callers exist.
+- **Deploy locally**: `docker compose up -d --build`.
 - **Deploy to staging**: `git push` → SSH into server → `git pull` → `docker compose up -d --build`.
 
-## 10. Recent Activity (2026-06-18)
-- Fixed `siteName` override in provisioner: after `seed.sql` hardcodes `siteName = 'Eonsclover'`, the user's entered store name now properly overwrites it via `UPDATE app_settings`.
-- Added `default_server` to the main nginx server block to prevent Adminer block from becoming the Nginx default server.
-- Removed nested overflow constraints from LandingPageAdmin CSS (`lp-app`, `lp-body`, `lp-preview-scroll`) to eliminate double scrollbar.
+## 10. Recent Activity (2026-06-20)
+- Implemented full platform backup UI: `BackupManager.jsx` + list/download/delete REST endpoints + wired into SuperAdmin sidebar and QuickActions.
+- Fixed `POST /api/superadmin/database/restore/all-tenants` to accept file uploads via multer (was JSON-only, causing "filename es requerido" error).
+- `siteName` override in provisioner: after `seed.sql` hardcodes `siteName = 'Eonsclover'`, provisioner now overwrites it with user's entered store name.
+- Added `default_server` to main nginx server block to prevent Adminer block from capturing unknown subdomains.
 - Both frontend and backend `systemSlugs` now include `'database'` for consistency.

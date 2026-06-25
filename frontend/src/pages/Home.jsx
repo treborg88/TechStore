@@ -615,8 +615,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
         )}
         <div className="container hero-container">
           <div className="hero-content">
-            <h2 className="hero-title">{heroSettings?.title || "La Mejor Tecnología a Tu Alcance"}</h2>
-            <p className="hero-text">{heroSettings?.description || "Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado."}</p>
+            <h2 className="hero-title">{heroSettings?.title ?? "La Mejor Tecnología a Tu Alcance"}</h2>
+            <p className="hero-text">{heroSettings?.description ?? "Descubre nuestra selección de smartphones y accesorios con las mejores ofertas del mercado."}</p>
           </div>
         </div>
       </section>
