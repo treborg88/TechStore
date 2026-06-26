@@ -1871,7 +1871,7 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
                     return (
                       <div key={i} className={`sc-prev-cat-chip sc-prev-cat-chip--${filterStyle}`} style={chipStyle}>
                         {filterStyle !== 'tabs' && cat.icon && <span style={{ lineHeight: 1 }}>{cat.icon}</span>}
-                        <span>{cat.name || cat}</span>
+                        <span>{cat.name || '(sin nombre)'}</span>
                       </div>
                     );
                   })}
