@@ -445,17 +445,33 @@ export default function SiteCustomizer({ settings, onChange, onBulkChange, onIma
   });
 
   const setCatItem = (idx, field, val) => {
-    const updated = catList.map((c, i) => i === idx ? { ...c, [field]: val } : c);
+    let updated = catList.map((c, i) => i === idx ? { ...c, [field]: val } : c);
+    // When the name changes, auto-update slug from name (simple slugify)
+    if (field === 'name') {
+      updated = updated.map((c, i) => i === idx ? { ...c, slug: slugify(val) } : c);
+    }
     markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: updated } });
   };
 
   const addCatItem = () => {
     const id = `cat-${Date.now()}`;
-    markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: [...catList, { id, name: 'Nueva', icon: '📌', slug: id, image: '' }] } });
+    const name = 'Nueva';
+    markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: [...catList, { id, name, icon: '📌', slug: slugify(name), image: '' }] } });
   };
 
   const removeCatItem = (idx) => {
     markAndBulk({ categoryFiltersConfig: { ...catCfg, useDefault: false, categories: catList.filter((_, i) => i !== idx) } });
+  };
+
+  // Simple slugify: lowercase, replace non-alphanumeric with hyphens, collapse multiple hyphens
+  const slugify = (str) => {
+    if (!str) return `cat-${Date.now()}`;
+    return String(str)
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9áéíóúüñ\s-]/g, '')
+      .replace(/[\s-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || `cat-${Date.now()}`;
   };
 
   const filterStyle = catCfg.filterStyle || 'cards';
