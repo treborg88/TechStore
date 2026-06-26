@@ -856,15 +856,6 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 									))}
 								</select>
 							</label>
-							<label>Nueva categoría (opcional)
-								<input
-									type="text"
-									autoComplete="off"
-									value={customCategory}
-									onChange={(event) => handleCustomCategoryChange(event.target.value)}
-									placeholder="Escribe para crear una nueva categoría"
-								/>
-							</label>
 						</div>
 						<div className="form-row">
 							<label>Precio
