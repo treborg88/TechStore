@@ -14,6 +14,17 @@ import { resolveImageUrl } from '../../utils/resolveImageUrl';
 export default function AdminDashboard({ products, onRefresh, onForceRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️', categoryFilterSettings }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
+	const prevTabRef = useRef(activeTab);
+
+	// When switching to the products tab, force-refresh everything (todos, page 1)
+	// so the admin list is never contaminated by a category/search filter applied
+	// in the Home/store frontend (which shares the same global products state).
+	useEffect(() => {
+		if (activeTab === 'products' && prevTabRef.current !== 'products') {
+			onForceRefresh();
+		}
+		prevTabRef.current = activeTab;
+	}, [activeTab, onForceRefresh]);
 	
 	// Orders management states (paginated — for Orders tab)
 	const [orders, setOrders] = useState([]);
