@@ -29,6 +29,8 @@ function blankProduct() {
 	};
 }
 
+const ADMIN_PAGE_SIZE = 20;
+
 export default function ProductList({ products, onRefresh, isLoading, pagination, currencyCode, onForceRefresh, categoryFilterSettings }) {
 	const [newProduct, setNewProduct] = useState(blankProduct());
 	const [customCategory, setCustomCategory] = useState('');
@@ -37,6 +39,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [newImageUrlsForEdit, setNewImageUrlsForEdit] = useState(['']);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [filters, setFilters] = useState({ search: '', category: 'all', visibility: 'all' });
+	const [adminPage, setAdminPage] = useState(1);
 	const [showAddForm, setShowAddForm] = useState(false);
 	const [showCreateUrlPanel, setShowCreateUrlPanel] = useState(false);
 	const [showEditUrlPanel, setShowEditUrlPanel] = useState(false);
@@ -132,6 +135,19 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 			return matchesCategory && matchesSearch && matchesVisibility;
 		});
 	}, [products, filters]);
+
+	// Reset to page 1 when filters change
+	useEffect(() => {
+		setAdminPage(1);
+	}, [filters]);
+
+	// Client-side pagination over filteredProducts
+	const adminTotalPages = Math.max(1, Math.ceil(filteredProducts.length / ADMIN_PAGE_SIZE));
+	const safeAdminPage = Math.min(adminPage, adminTotalPages);
+	const pageProducts = useMemo(() => {
+		const start = (safeAdminPage - 1) * ADMIN_PAGE_SIZE;
+		return filteredProducts.slice(start, start + ADMIN_PAGE_SIZE);
+	}, [filteredProducts, safeAdminPage]);
 
 	const handleFieldChange = (field, value) => {
 		if (field === 'category') {
@@ -939,6 +955,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 					<h3>Listado actual</h3>
 					<span>
 						{filteredProducts.length} / {products.length} productos
+						{adminTotalPages > 1 && <> &mdash; Pág {safeAdminPage} de {adminTotalPages}</>}
 						{onForceRefresh && (
 							<button
 								type="button"
@@ -1013,7 +1030,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 								</tr>
 							</thead>
 							<tbody>
-								{filteredProducts.map((product) => {
+								{pageProducts.map((product) => {
 									const isEditing = editingProduct?.id === product.id;
 									const handleRowClick = () => {
 										if (!isEditing) startEditing(product);
@@ -1266,7 +1283,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 
 						{/* Mobile list view */}
 						<div className="mobile-only">
-							{filteredProducts.map((product) => {
+							{pageProducts.map((product) => {
 								const isEditing = editingProduct?.id === product.id;
 								const isExpanded = isEditing;
 							const mainImage = (() => {
@@ -1498,20 +1515,20 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 					</div>
 				)}
 
-				{pagination && (
+				{adminTotalPages > 1 && (
 					<div className="pagination-controls">
 						<button 
 							className="admin-btn ghost"
-							disabled={pagination.page === 1}
-							onClick={() => onRefresh(filters.category, pagination.page - 1)}
+							disabled={safeAdminPage <= 1}
+							onClick={() => setAdminPage(safeAdminPage - 1)}
 						>
 							&laquo; Anterior
 						</button>
-						<span>Página {pagination.page} de {pagination.totalPages}</span>
+						<span>Página {safeAdminPage} de {adminTotalPages}</span>
 						<button 
 							className="admin-btn ghost"
-							disabled={pagination.page === pagination.totalPages}
-							onClick={() => onRefresh(filters.category, pagination.page + 1)}
+							disabled={safeAdminPage >= adminTotalPages}
+							onClick={() => setAdminPage(safeAdminPage + 1)}
 						>
 							Siguiente &raquo;
 						</button>
