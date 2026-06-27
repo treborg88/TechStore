@@ -56,21 +56,26 @@ function GlobalStyles() {
                 .saas-hero-heading { font-size: clamp(1.6rem, 5vw, 3rem) !important; }
                 .saas-demo-grid { grid-template-columns: 1fr !important; }
                 .saas-carousel-controls button { width: 2.5rem !important; height: 2.5rem !important; }
-                .saas-glob-blob { max-width: 90vw !important; max-height: 90vw !important; }
+                .saas-glob-blob { max-width: 90vw !important; max-height: 90vw !important; left: -20vw !important; }
                 #hero { padding: 5rem 1rem 2.5rem !important; }
-                /* Smaller hero text + tighter CTA on mobile */
                 #hero .saas-hero-heading + p { font-size: 1rem !important; }
                 section[id="pricing"] { padding: 4rem 1rem !important; }
                 section[id="faq"] { padding: 4rem 1rem !important; }
                 section { padding-left: 1rem !important; padding-right: 1rem !important; }
                 .saas-root img { max-width: 100%; height: auto; }
                 .hover-lift { padding: 1.25rem !important; }
-                /* Carousel: reduce margins on mobile */
                 .saas-carousel-btn { width: 2.2rem !important; height: 2.2rem !important; font-size: 1rem !important; }
-                /* Spec sheet: 2 columns on mobile */
                 .saas-spec-grid { grid-template-columns: repeat(2, 1fr) !important; }
-                /* Feature detail sections stack */
                 .saas-feature-detail { grid-template-columns: 1fr !important; }
+                /* Extra mobile fixes */
+                #hero .saas-hero-grid > div:first-child { order: 1; }
+                #hero .saas-hero-image { order: 0; margin-top: -3rem !important; }
+                .saas-pricing-grid > div { padding: 1.5rem !important; }
+                [style*="padding: 6rem 2.5rem"] { padding: 3rem 1.25rem !important; }
+                [style*="font-size: 3rem"][style*="font-weight: 700"] { font-size: 2rem !important; }
+                .saas-root ul li { word-break: break-word; }
+                .saas-root table { min-width: unset !important; }
+                .saas-mobile-menu { width: 100vw; margin-left: -1rem; padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
             }
 
             /* ── PC wide feel (simulated 110% zoom) ──────────────── */
@@ -234,7 +239,7 @@ function Navbar() {
 
                 {/* Mobile hamburger (tipo libro) */}
                 <button className="saas-menu-btn" aria-label="Abrir menú" onClick={() => setMenuOpen(!menuOpen)}
-                    style={{ display: 'none', background: 'none', border: 'none', color: '#fff', fontSize: '1.6rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1, zIndex: 51 }}>
+                    style={{ display: 'none', background: 'none', border: 'none', color: '#fff', fontSize: '1.6rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1, zIndex: 51, minWidth: '44px', minHeight: '44px', justifyContent: 'center', alignItems: 'center' }}>
                     {menuOpen ? '✕' : (
                         <svg width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                             <line x1="1" y1="1" x2="23" y2="1" />
@@ -525,7 +530,7 @@ function SaaSHome() {
             <section id="hero" style={{ position: 'relative', overflow: 'hidden', padding: '9rem 1.5rem 6rem' }}>
                 <TrefoilCanvas />
                 {/* Glow blob */}
-                <div className="saas-glob-blob" style={{ position: 'absolute', width: '500px', height: '500px', background: 'rgba(34,211,238,0.18)', filter: 'blur(120px)', borderRadius: '999px', zIndex: 0, top: '2.5rem', left: '5rem' }} />
+                <div className="saas-glob-blob" style={{ position: 'absolute', width: '500px', height: '500px', background: 'rgba(34,211,238,0.18)', filter: 'blur(120px)', borderRadius: '999px', zIndex: 0, top: '2.5rem', left: '5rem', maxWidth: '100vw' }} />
 
                 <div className="saas-hero-grid" style={{ maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
                     <div>
