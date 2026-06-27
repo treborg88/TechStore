@@ -1,25 +1,30 @@
 // useProducts.js - Hook para gestión de productos, paginación y stock
+// Siempre obtiene TODOS los productos sin filtros — cada página aplica su propio
+// filtrado (categoría, búsqueda, orden) del lado del cliente para evitar que
+// los filtros de una página contaminen el estado global compartido.
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { API_URL } from '../config';
 import { apiFetch } from '../services/apiClient';
-import { buildProductsCacheKey, getCacheItem, setCacheItem, removeCacheItem } from '../utils/cacheStorage';
+import { getCacheItem, setCacheItem, removeCacheItem } from '../utils/cacheStorage';
 
+const PRODUCTS_CACHE_KEY_ALL = 'products_cache_v3_all';
 const PRODUCTS_CACHE_FRESH_MS = 2 * 60 * 1000;
 const PRODUCTS_CACHE_MAX_STALE_MS = 12 * 60 * 60 * 1000;
 const PRODUCTS_REVALIDATE_COOLDOWN_MS = 30 * 1000;
+const PRODUCTS_PAGE_LIMIT = 200; // fetch up to 200 products for client-side filtering
 
 /**
  * Hook que encapsula toda la lógica de productos:
- * - Estado de productos, paginación, carga y errores
- * - Fetch con caché en localStorage (10 min de frescura)
+ * - Estado de todos los productos (sin filtrar), paginación, carga y errores
+ * - Fetch con caché en localStorage
  * - Actualización local de stock (para sincronía con carrito)
+ * - Cada página aplica sus propios filtros (categoría, búsqueda, orden) localmente
  */
 export function useProducts() {
   const [products, setProducts] = useState([]);
-  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 1 });
+  const [pagination, setPagination] = useState({ page: 1, limit: PRODUCTS_PAGE_LIMIT, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const lastRequestRef = useRef({ category: 'todos', page: 1, search: '', sort: '' });
 
   // Modifica el stock local de un producto por delta (+/-)
   const updateProductStock = useCallback((productId, delta) => {
@@ -57,14 +62,10 @@ export function useProducts() {
     )));
   }, []);
 
-  // Fetch de productos con caché en localStorage
-  const fetchProducts = useCallback(async (category = 'todos', page = 1, options = {}) => {
-    const { force = false, search = '', sort = '' } = options;
-    lastRequestRef.current = { category, page, search, sort };
-    const cacheKey = buildProductsCacheKey(category, page, search, sort);
-
+  // Fetch de TODOS los productos (sin filtros) con caché en localStorage
+  const fetchProducts = useCallback(async (force = false) => {
     try {
-      const cachedData = getCacheItem(cacheKey);
+      const cachedData = getCacheItem(PRODUCTS_CACHE_KEY_ALL);
       const now = new Date().getTime();
       const hasCached = !!cachedData?.data;
       const cacheAge = hasCached ? (now - (cachedData.timestamp || 0)) : Number.POSITIVE_INFINITY;
@@ -74,18 +75,23 @@ export function useProducts() {
       const shouldThrottleRevalidate = (now - lastValidatedAt) < PRODUCTS_REVALIDATE_COOLDOWN_MS;
 
       if (isCacheTooOld) {
-        removeCacheItem(cacheKey);
+        removeCacheItem(PRODUCTS_CACHE_KEY_ALL);
       }
 
-      // Cargar del caché si existe
+      // Mostrar datos cacheados inmediatamente
       if (hasCached && !isCacheTooOld) {
         setProducts(cachedData.data);
-        setPagination(cachedData.pagination);
+        setPagination({
+          page: 1,
+          limit: PRODUCTS_PAGE_LIMIT,
+          total: cachedData.data.length,
+          totalPages: 1
+        });
         setLoading(false);
         setError(null);
       }
 
-      // Política balanceada: revalidar en background, pero con throttle para evitar ruido
+      // Revalidación en background con throttle
       if (!force && hasCached && isCacheFresh && shouldThrottleRevalidate) {
         return;
       }
@@ -97,19 +103,9 @@ export function useProducts() {
       }
 
       const queryParams = new URLSearchParams({
-        page: page.toString(),
-        limit: '20'
+        page: '1',
+        limit: String(PRODUCTS_PAGE_LIMIT)
       });
-
-      if (category !== 'todos') {
-        queryParams.append('category', category);
-      }
-      if (search) {
-        queryParams.append('search', search);
-      }
-      if (sort) {
-        queryParams.append('sort', sort);
-      }
 
       const url = `${API_URL}/products?${queryParams}`;
       const response = await apiFetch(url);
@@ -123,23 +119,17 @@ export function useProducts() {
       if (result.data) {
         setProducts(result.data);
         setPagination({
-          page: result.page,
-          limit: result.limit,
-          total: result.total,
-          totalPages: result.totalPages
+          page: 1,
+          limit: PRODUCTS_PAGE_LIMIT,
+          total: result.data.length,
+          totalPages: 1
         });
 
         // Guardar en caché
-        setCacheItem(cacheKey, {
+        setCacheItem(PRODUCTS_CACHE_KEY_ALL, {
           timestamp: new Date().getTime(),
           lastValidatedAt: new Date().getTime(),
-          data: result.data,
-          pagination: {
-            page: result.page,
-            limit: result.limit,
-            total: result.total,
-            totalPages: result.totalPages
-          }
+          data: result.data
         });
       } else {
         setProducts(Array.isArray(result) ? result : []);
@@ -148,34 +138,28 @@ export function useProducts() {
       setLoading(false);
     } catch (err) {
       console.error('Error fetching products:', err);
-      if (!getCacheItem(cacheKey)) {
+      if (!getCacheItem(PRODUCTS_CACHE_KEY_ALL)) {
         setError('No se pudieron cargar los productos. Por favor, inténtalo de nuevo más tarde.');
       }
       setLoading(false);
     }
   }, []);
 
-  // Fuerza recarga completa: limpia caché localStorage y vuelve a buscar desde todos/página 1
+  // Fuerza recarga completa: limpia caché y vuelve a buscar
   const forceRefreshProducts = useCallback(async () => {
-    // Remove all products cache entries (all categories/pages/search combinations)
-    const prefix = 'products_cache_v3_';
-    Object.keys(localStorage)
-      .filter((k) => k.startsWith(prefix))
-      .forEach((k) => localStorage.removeItem(k));
-    // Always reset to all-products view so admin CRUD changes are immediately visible
-    await fetchProducts('todos', 1, { force: true });
+    removeCacheItem(PRODUCTS_CACHE_KEY_ALL);
+    await fetchProducts(true);
   }, [fetchProducts]);
 
   // Fetch inicial de productos
   useEffect(() => {
-    fetchProducts('todos');
+    fetchProducts(false);
   }, [fetchProducts]);
 
-  // Revalidación al volver al tab/app para evitar datos visualmente desactualizados
+  // Revalidación al volver al tab/app
   useEffect(() => {
     const revalidateOnFocus = () => {
-      const { category, page, search, sort } = lastRequestRef.current;
-      fetchProducts(category, page, { force: false, search, sort });
+      fetchProducts(false);
     };
 
     const handleVisibilityChange = () => {

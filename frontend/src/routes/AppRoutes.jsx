@@ -101,8 +101,6 @@ function AppRoutes({
               loading={loading} 
               error={error} 
               addToCart={addToCart} 
-              fetchProducts={fetchProducts}
-              pagination={pagination}
               heroSettings={heroSettings}
               categoryFilterSettings={categoryFilterSettings}
               productCardSettings={productCardSettings}
@@ -124,8 +122,6 @@ function AppRoutes({
               loading={loading} 
               error={error} 
               addToCart={addToCart} 
-              fetchProducts={fetchProducts}
-              pagination={pagination}
               heroSettings={heroSettings}
               categoryFilterSettings={categoryFilterSettings}
               productCardSettings={productCardSettings}

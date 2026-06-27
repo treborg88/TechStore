@@ -18,7 +18,9 @@ const HERO_IMAGE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 const IMG_SIZE_STEPS = [40, 54, 68, 80, 90, 110, 134, 162, 196, 234];
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function Home({ products, loading, error, addToCart, fetchProducts, pagination, heroSettings, categoryFilterSettings, productCardSettings, promoSettings, searchBarConfig, whyChooseUsConfig, newsletterConfig }) {
+const HOME_PAGE_SIZE = 20;
+
+function Home({ products, loading, error, addToCart, heroSettings, categoryFilterSettings, productCardSettings, promoSettings, searchBarConfig, whyChooseUsConfig, newsletterConfig }) {
   // SEO dinámico para la página principal
   useSeo('home');
   const [selectedCategory, setSelectedCategory] = useState('todos');
@@ -27,9 +29,7 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
   const [sortBy, setSortBy] = useState('');
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef(null);
-  
-  // Debounce ref for server-side search
-  const searchTimerRef = useRef(null);
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Ref para el scroll de categorías
   const categoriesScrollRef = useRef(null);
@@ -388,9 +388,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     const valid = categories.some((category) => category?.slug === selectedCategory);
     if (!valid) {
       setSelectedCategory('todos');
-      fetchProducts('todos');
     }
-  }, [categories, selectedCategory, fetchProducts]);
+  }, [categories, selectedCategory]);
 
   // Funciones para drag con mouse en categorías
   const handleMouseDown = (e) => {
@@ -452,41 +451,87 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
     productsScrollRef.current.scrollLeft = scrollLeftProducts.current - walk;
   };
 
-  // Filter only hidden products client-side; search is now server-side
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedCategory, searchQuery, sortBy]);
+
+  // Client-side filtered + paginated products
   const filteredProducts = useMemo(() => {
-    return products.filter(p => !p.is_hidden);
-  }, [products]);
+    let result = products.filter(p => !p.is_hidden);
+
+    // Category filter
+    if (selectedCategory !== 'todos') {
+      result = result.filter(p => p.category === selectedCategory);
+    }
+
+    // Search filter
+    const searchTerm = searchQuery.trim().toLowerCase();
+    if (searchTerm.length > 0) {
+      result = result.filter(p =>
+        p.name.toLowerCase().includes(searchTerm) ||
+        (p.description ?? '').toLowerCase().includes(searchTerm)
+      );
+    }
+
+    // Sort
+    switch (sortBy) {
+      case 'oldest':
+        result.sort((a, b) => new Date(a.created_at || 0) - new Date(b.created_at || 0));
+        break;
+      case 'price_asc':
+        result.sort((a, b) => Number(a.price) - Number(b.price));
+        break;
+      case 'price_desc':
+        result.sort((a, b) => Number(b.price) - Number(a.price));
+        break;
+      case 'name_asc':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name_desc':
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+      default: // 'Más recientes'
+        result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+
+    return result;
+  }, [products, selectedCategory, searchQuery, sortBy]);
+
+  // Pagination derived from filtered products
+  const homePagination = useMemo(() => {
+    const total = filteredProducts.length;
+    const totalPages = Math.max(1, Math.ceil(total / HOME_PAGE_SIZE));
+    const safePage = Math.min(currentPage, totalPages);
+    return { page: safePage, limit: HOME_PAGE_SIZE, total, totalPages };
+  }, [filteredProducts, currentPage]);
+
+  // Current page slice
+  const pageProducts = useMemo(() => {
+    const start = (homePagination.page - 1) * HOME_PAGE_SIZE;
+    return filteredProducts.slice(start, start + HOME_PAGE_SIZE);
+  }, [filteredProducts, homePagination]);
 
   // Clear search when changing category
   const handleCategoryChangeWithClear = (categorySlug) => {
     setSearchQuery('');
-    clearTimeout(searchTimerRef.current);
     setSelectedCategory(categorySlug);
-    fetchProducts(categorySlug, 1, { search: '', sort: sortBy });
   };
 
-  // Debounced server-side search handler
+  // Immediate search (no server round-trip)
   const handleSearchChange = (e) => {
-    const value = e.target.value;
-    setSearchQuery(value);
-    clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      fetchProducts(selectedCategory, 1, { search: value.trim(), sort: sortBy, force: true });
-    }, 400);
+    setSearchQuery(e.target.value);
   };
 
-  // Clear search input and re-fetch
+  // Clear search input
   const handleSearchClear = () => {
     setSearchQuery('');
-    clearTimeout(searchTimerRef.current);
-    fetchProducts(selectedCategory, 1, { search: '', sort: sortBy, force: true });
   };
 
   // Sort change handler
   const handleSortChange = (value) => {
     setSortBy(value);
     setSortDropdownOpen(false);
-    fetchProducts(selectedCategory, 1, { search: searchQuery, sort: value, force: true });
   };
 
   // Close sort dropdown on outside click
@@ -715,9 +760,9 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
               )}
             </div>
           </div>
-          {(searchQuery || sortBy) && pagination && (
+          {(searchQuery || sortBy) && (
             <p className="search-results-count">
-              {pagination.total} producto{pagination.total !== 1 ? 's' : ''} encontrado{pagination.total !== 1 ? 's' : ''}
+              {homePagination.total} producto{homePagination.total !== 1 ? 's' : ''} encontrado{homePagination.total !== 1 ? 's' : ''}
             </p>
           )}
         </div>
@@ -744,8 +789,8 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                 onMouseUp={handleProductsMouseUp}
                 onMouseMove={handleProductsMouseMove}
               >
-                {filteredProducts.length > 0 ? (
-                  filteredProducts.map(product => (
+                {pageProducts.length > 0 ? (
+                  pageProducts.map(product => (
                     <div key={product.id} className={`product-card ${productCardOrientationClass}`}>
                       <ProductImageGallery
                         images={product.images || product.image}
@@ -775,26 +820,26 @@ function Home({ products, loading, error, addToCart, fetchProducts, pagination, 
                   ))
                 ) : (
                   <div className="no-products-message">
-                    {searchQuery ? 'No se encontraron productos con tu búsqueda.' : 'No hay productos disponibles.'}
+                    {searchQuery ? `No se encontraron productos${selectedCategory !== 'todos' ? ` en "${selectedCategory}"` : ''} con tu búsqueda.` : selectedCategory !== 'todos' ? `No hay productos en "${selectedCategory}".` : 'No hay productos disponibles.'}
                   </div>
                 )}
               </div>
             </div>
             
-            {pagination && (
+            {homePagination.totalPages > 1 && (
                 <div className="pagination-controls">
                     <button 
                         className="secondary-button"
-                        disabled={pagination.page === 1}
-                        onClick={() => fetchProducts(selectedCategory, pagination.page - 1, { search: searchQuery, sort: sortBy })}
+                        disabled={homePagination.page === 1}
+                        onClick={() => setCurrentPage(homePagination.page - 1)}
                     >
                         &laquo; Anterior
                     </button>
-                    <span>Página {pagination.page} de {pagination.totalPages}</span>
+                    <span>Página {homePagination.page} de {homePagination.totalPages}</span>
                     <button 
                         className="secondary-button"
-                        disabled={pagination.page === pagination.totalPages}
-                        onClick={() => fetchProducts(selectedCategory, pagination.page + 1, { search: searchQuery, sort: sortBy })}
+                        disabled={homePagination.page === homePagination.totalPages}
+                        onClick={() => setCurrentPage(homePagination.page + 1)}
                     >
                         Siguiente &raquo;
                     </button>
