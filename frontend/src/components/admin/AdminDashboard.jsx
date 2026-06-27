@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -14,13 +14,6 @@ import { resolveImageUrl } from '../../utils/resolveImageUrl';
 export default function AdminDashboard({ products, onRefresh, onForceRefresh, isLoading, pagination, currencyCode, siteName = 'Mi Tienda Online', siteIcon = '🛍️', categoryFilterSettings }) {
 	// Tab state
 	const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'products', 'users', 'orders'
-	const prevTabRef = useRef(activeTab);
-
-	// Products are always fetched as ALL (no category/search filters applied globally),
-	// so each page's filters are fully independent. No need to force-refresh on tab switch.
-	useEffect(() => {
-		prevTabRef.current = activeTab;
-	}, [activeTab]);
 	
 	// Orders management states (paginated — for Orders tab)
 	const [orders, setOrders] = useState([]);
