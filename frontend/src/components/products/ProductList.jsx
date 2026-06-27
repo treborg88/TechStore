@@ -482,8 +482,23 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 		}
 		setVariantPanel(productId);
 		setEditingVariant(null);
-		setNewVariant({ sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] });
 		await loadVariants(productId);
+		// Auto pre-fill new variant form with parent product data
+		// so the main product effectively becomes the first variant template.
+		// Subsequent variants also inherit parent data via handleConvertParentToVariant.
+		const product = editingProduct;
+		if (product) {
+			const firstImage = product.images?.[0];
+			const imageUrl = firstImage ? resolveImageUrl(firstImage.image_path) : '';
+			setNewVariant({
+				sku: '',
+				price: product.price ?? '',
+				stock: product.stock ?? 0,
+				image_url: imageUrl,
+				imageFile: null,
+				attributes: [{ type: '', value: '', color_hex: '' }],
+			});
+		}
 	};
 
 	const handleCreateVariant = async (productId) => {
@@ -1033,7 +1048,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 								{pageProducts.map((product) => {
 									const isEditing = editingProduct?.id === product.id;
 									const handleRowClick = () => {
-										if (!isEditing) startEditing(product);
+										if (isEditing) {
+											cancelEditing();
+										} else {
+											startEditing(product);
+										}
 									};
 									return (
 										<Fragment key={product.id}>
