@@ -54,11 +54,11 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] };
 	const [newVariant, setNewVariant] = useState(blankVariant);
 
-	
-function truncateUrl(url, maxLen = 28) {
-  if (!url) return '';
-  return url.length > maxLen ? url.slice(0, maxLen) + '�' : url;
-}
+	const truncateUrl = (url, maxLen = 28) => {
+		if (!url) return '';
+		return url.length > maxLen ? url.slice(0, maxLen) + '…' : url;
+	};
+
 	const confirmAction = (message) => {
 		return new Promise((resolve) => {
 			toast((t) => (
@@ -1201,6 +1201,7 @@ function truncateUrl(url, maxLen = 28) {
 																						✕
 																					</button>
 																				)}
+																				<span className="image-url-text" title={img.image_path}>{truncateUrl(img.image_path, 28)}</span>
 																			</div>
 																		))}
 																	</div>
@@ -1437,6 +1438,7 @@ function truncateUrl(url, maxLen = 28) {
 																		✕
 																	</button>
 																)}
+																<span className="image-url-text" title={img.image_path}>{truncateUrl(img.image_path, 28)}</span>
 															</div>
 														))}
 													</div>

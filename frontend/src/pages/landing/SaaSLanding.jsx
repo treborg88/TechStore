@@ -25,7 +25,7 @@ function GlobalStyles() {
         style.textContent = `
             .saas-root * { box-sizing: border-box; }
             .saas-root a { text-decoration: none; }
-            .saas-root { overflow: hidden; }
+            .saas-root { overflow: hidden; font-size: 110%; }
             .gradient-text {
                 background: linear-gradient(to right, #22d3ee, #8b5cf6);
                 -webkit-background-clip: text;
@@ -46,7 +46,7 @@ function GlobalStyles() {
                 .saas-nav-cta { display: none !important; }
                 .saas-menu-btn { display: flex !important; }
                 .saas-hero-grid { grid-template-columns: 1fr !important; gap: 1.5rem !important; }
-                .saas-hero-image { order: -1; margin-top: -2rem !important; }
+                .saas-hero-image { order: -1; margin-top: -1rem !important; }
                 .saas-features-grid { grid-template-columns: 1fr !important; }
                 .saas-pricing-grid { grid-template-columns: 1fr !important; }
                 .saas-pricing-grid > div { transform: none !important; }
@@ -445,7 +445,7 @@ function Carousel() {
                             <div style={{ ...glass, borderRadius: '24px', overflow: 'hidden', border: `1px solid ${slide.border}` }}>
                                 <img src={slide.img} alt={slide.alt} style={{ width: '100%', height: 'auto', maxHeight: '420px', objectFit: 'contain', objectPosition: 'top', display: 'block' }} />
                                 <div style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                                    <img src={slide.icon} alt="" style={{ width: 28, height: 28, flexShrink: 0, objectFit: 'contain' }} />
+                                    <span style={{ fontSize: 28, marginRight: 8 }}>{slide.icon}</span>
                                     <div style={{ minWidth: 0 }}>
                                         <h3 style={{ fontSize: '0.95rem', fontWeight: 600, margin: 0, color: '#fff' }}>{slide.title}</h3>
                                         <p style={{ margin: '0.2rem 0 0', color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.3 }}>{slide.desc}</p>
