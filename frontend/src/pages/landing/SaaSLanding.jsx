@@ -1,5 +1,5 @@
-﻿// SaaSLanding.jsx - Public marketing landing page (platform root domain)
-// Dark theme with glassmorphism, trefoil animation — matches EonsClover HTML design
+// SaaSLanding.jsx - Public marketing landing page (platform root domain)
+// Dark theme with glassmorphism, trefoil animation � matches EonsClover HTML design
 
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
@@ -9,7 +9,7 @@ import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
 
 const registerUrl = `${PLATFORM_PROTOCOL}//app.${PLATFORM_DOMAIN}/register`;
 
-// ── Global styles injector (font + CSS helpers not expressible inline) ─────────
+// -- Global styles injector (font + CSS helpers not expressible inline) ---------
 function GlobalStyles() {
     useEffect(() => {
         // Inter font
@@ -35,11 +35,11 @@ function GlobalStyles() {
             .hover-lift { transition: transform 0.3s; }
             .hover-lift:hover { transform: translateY(-8px); }
 
-            /* ── Global body protection ──────────────────────────── */
+            /* -- Global body protection ---------------------------- */
             body { max-width: 100vw; overflow-x: hidden; }
             img { max-width: 100%; height: auto; }
 
-            /* ── Mobile responsive ─────────────────────────────────── */
+            /* -- Mobile responsive ----------------------------------- */
             @media (max-width: 768px) {
                 body { overflow-x: hidden; max-width: 100vw; }
                 .saas-nav-links { display: none !important; }
@@ -78,7 +78,7 @@ function GlobalStyles() {
                 .saas-mobile-menu { width: 100vw; margin-left: -1rem; padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
             }
 
-            /* ── PC wide feel (simulated 110% zoom) ──────────────── */
+            /* -- PC wide feel (simulated 110% zoom) ---------------- */
             @media (min-width: 769px) {
                 .saas-nav-links { display: flex !important; }
                 .saas-nav-cta { display: flex !important; }
@@ -100,14 +100,14 @@ function GlobalStyles() {
     return null;
 }
 
-// ── Design tokens ──────────────────────────────────────────────────────────────
+// -- Design tokens --------------------------------------------------------------
 const glass = {
     background: 'rgba(255,255,255,0.05)',
     backdropFilter: 'blur(14px)',
     border: '1px solid rgba(255,255,255,0.08)',
 };
 
-// ── EonsClover SVG Logo ─────────────────────────────────────────────────────────
+// -- EonsClover SVG Logo ---------------------------------------------------------
 function LogoSvg() {
     return (
         <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -131,7 +131,7 @@ function LogoSvg() {
     );
 }
 
-// ── Trefoil knot canvas animation ─────────────────────────────────────────────
+// -- Trefoil knot canvas animation ---------------------------------------------
 function TrefoilCanvas() {
     const canvasRef = useRef(null);
 
@@ -206,13 +206,13 @@ function TrefoilCanvas() {
     );
 }
 
-// ── Navbar ─────────────────────────────────────────────────────────────────────
+// -- Navbar ---------------------------------------------------------------------
 function Navbar() {
     const [menuOpen, setMenuOpen] = useState(false);
 
     return (
         <header style={{ position: 'fixed', top: 0, left: 0, width: '100%', zIndex: 50, borderBottom: '1px solid rgba(255,255,255,0.1)', background: 'rgba(5,8,22,0.8)', backdropFilter: 'blur(20px)' }}>
-            <div style={{ maxWidth: '1280px', margin: '0 auto', padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ maxWidth: '1160px', margin: '0 auto', padding: '0.75rem 1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 {/* Logo */}
                 <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', textDecoration: 'none', zIndex: 51 }}>
                     <LogoSvg />
@@ -222,7 +222,7 @@ function Navbar() {
                 {/* Desktop nav links */}
                 <nav className="saas-nav-links" style={{ alignItems: 'center', gap: '1.75rem', fontSize: '0.9rem' }}>
                     <a href="#hero" style={{ color: 'rgba(255,255,255,0.7)' }}>Dashboard</a>
-                    <a href="#features" style={{ color: 'rgba(255,255,255,0.7)' }}>Características</a>
+                    <a href="#features" style={{ color: 'rgba(255,255,255,0.7)' }}>Caracter�sticas</a>
                     <a href="#pricing" style={{ color: 'rgba(255,255,255,0.7)' }}>Precios</a>
                     <a href="#faq" style={{ color: 'rgba(255,255,255,0.7)' }}>FAQ</a>
                 </nav>
@@ -230,7 +230,7 @@ function Navbar() {
                 {/* Desktop CTA */}
                 <div className="saas-nav-cta" style={{ gap: '0.6rem' }}>
                     <Link to="/login" style={{ padding: '0.45rem 1.1rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', background: 'transparent', fontSize: '0.85rem' }}>
-                        Iniciar Sesión
+                        Iniciar Sesi�n
                     </Link>
                     <a href={registerUrl} style={{ padding: '0.45rem 1.1rem', borderRadius: '10px', background: '#22d3ee', color: '#000', fontWeight: 600, fontSize: '0.85rem' }}>
                         Prueba Gratuita
@@ -238,9 +238,9 @@ function Navbar() {
                 </div>
 
                 {/* Mobile hamburger (tipo libro) */}
-                <button className="saas-menu-btn" aria-label="Abrir menú" onClick={() => setMenuOpen(!menuOpen)}
+                <button className="saas-menu-btn" aria-label="Abrir men�" onClick={() => setMenuOpen(!menuOpen)}
                     style={{ display: 'none', background: 'none', border: 'none', color: '#fff', fontSize: '1.6rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1, zIndex: 51, minWidth: '44px', minHeight: '44px', justifyContent: 'center', alignItems: 'center' }}>
-                    {menuOpen ? '✕' : (
+                    {menuOpen ? '?' : (
                         <svg width="24" height="18" viewBox="0 0 24 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                             <line x1="1" y1="1" x2="23" y2="1" />
                             <line x1="1" y1="9" x2="23" y2="9" />
@@ -253,13 +253,13 @@ function Navbar() {
             {/* Mobile dropdown menu */}
             {menuOpen && (
                 <div className="saas-mobile-menu" style={{ background: 'rgba(5,8,22,0.98)', backdropFilter: 'blur(24px)', borderTop: '1px solid rgba(255,255,255,0.08)', padding: '1rem 1.5rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                    <a href="#hero" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>🏠 Dashboard</a>
-                    <a href="#features" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>✨ Características</a>
-                    <a href="#pricing" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>💎 Precios</a>
-                    <a href="#faq" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>❓ FAQ</a>
+                    <a href="#hero" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>?? Dashboard</a>
+                    <a href="#features" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>? Caracter�sticas</a>
+                    <a href="#pricing" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>?? Precios</a>
+                    <a href="#faq" onClick={() => setMenuOpen(false)} style={{ color: 'rgba(255,255,255,0.85)', fontSize: '1.05rem', padding: '0.5rem 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>? FAQ</a>
                     <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>
                         <Link to="/login" onClick={() => setMenuOpen(false)} style={{ flex: 1, textAlign: 'center', padding: '0.6rem', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.15)', color: '#fff', background: 'transparent', fontSize: '0.9rem' }}>
-                            Iniciar Sesión
+                            Iniciar Sesi�n
                         </Link>
                         <a href={registerUrl} onClick={() => setMenuOpen(false)} style={{ flex: 1, textAlign: 'center', padding: '0.6rem', borderRadius: '10px', background: '#22d3ee', color: '#000', fontWeight: 600, fontSize: '0.9rem' }}>
                             Prueba Gratuita
@@ -271,20 +271,20 @@ function Navbar() {
     );
 }
 
-// ── Footer ─────────────────────────────────────────────────────────────────────
+// -- Footer ---------------------------------------------------------------------
 function Footer() {
     return (
         <footer style={{ borderTop: '1px solid rgba(255,255,255,0.1)', padding: '2.5rem 1.5rem', color: 'rgba(255,255,255,0.5)' }}>
-            <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2rem' }}>
+            <div style={{ maxWidth: '1160px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: '2rem' }}>
                 <div>
                     <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#fff', margin: '0 0 0.75rem' }}>EonsClover</h3>
-                    <p style={{ maxWidth: '28rem', margin: 0, lineHeight: 1.6 }}>Plataforma SaaS moderna para ecommerce y gestión de negocios tecnológicos.</p>
+                    <p style={{ maxWidth: '28rem', margin: 0, lineHeight: 1.6 }}>Plataforma SaaS moderna para ecommerce y gesti�n de negocios tecnol�gicos.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '2.5rem' }}>
                     <div>
                         <h4 style={{ color: '#fff', fontWeight: 600, marginBottom: '1rem' }}>Producto</h4>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.9rem' }}>
-                            <span>Características</span>
+                            <span>Caracter�sticas</span>
                             <span>Precios</span>
                             <span>Integraciones</span>
                         </div>
@@ -303,14 +303,14 @@ function Footer() {
     );
 }
 
-// ── Image Carousel ─────────────────────────────────────────────────────────────
+// -- Image Carousel -------------------------------------------------------------
 
-// ── Demo stores button with dropdown ──────────────────────────────────────────
+// -- Demo stores button with dropdown ------------------------------------------
 const DEMO_STORES = [
-    { name: 'Tech Azul', slug: 'tiendaazul', desc: 'Tecnología · Electrónica', color: '#2563eb' },
-    { name: 'Esmeralda', slug: 'esmeralda', desc: 'Salud · Orgánicos', color: '#059669' },
-    { name: 'Rosa', slug: 'rosa', desc: 'Belleza · Flores', color: '#be185d' },
-    { name: 'Ámbar', slug: 'ambar', desc: 'Café · Artesanal', color: '#b45309' },
+    { name: 'Tech Azul', slug: 'tiendaazul', desc: 'Tecnolog�a � Electr�nica', color: '#2563eb' },
+    { name: 'Esmeralda', slug: 'esmeralda', desc: 'Salud � Org�nicos', color: '#059669' },
+    { name: 'Rosa', slug: 'rosa', desc: 'Belleza � Flores', color: '#be185d' },
+    { name: '�mbar', slug: 'ambar', desc: 'Caf� � Artesanal', color: '#b45309' },
 ];
 
 function DemoStoresButton() {
@@ -341,7 +341,7 @@ function DemoStoresButton() {
     return (
         <>
             <button ref={btnRef} onClick={() => setOpen(!open)} style={{ padding: '1rem 2rem', borderRadius: '16px', ...glass, color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                Ver Demo {open ? '▲' : '▼'}
+                Ver Demo {open ? '?' : '?'}
             </button>
             {open && createPortal(
                 <div ref={menuRef} style={{ position: 'fixed', top: coords.top, left: coords.left, background: 'rgba(5,8,22,0.98)', backdropFilter: 'blur(24px)', borderRadius: '16px', minWidth: '260px', zIndex: 9999, padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '2px', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 20px 50px rgba(0,0,0,0.8)' }}>
@@ -365,18 +365,18 @@ function DemoStoresButton() {
     );
 }
 
-// ── Image Carousel ─────────────────────────────────────────────────────────────
+// -- Image Carousel -------------------------------------------------------------
 const CAROUSEL_SLIDES = [
-    { img: '/imagenes/Site home page.png', alt: 'Página principal de la tienda', icon: '🏪', title: 'Página Principal', desc: 'Catálogo, categorías y búsqueda — lista para vender.', border: 'rgba(34,211,238,0.2)' },
-    { img: '/imagenes/Admin dashboard.png', alt: 'Panel de administración', icon: '📊', title: 'Panel de Administración', desc: 'KPIs en tiempo real: ingresos, órdenes e inventario.', border: 'rgba(139,92,246,0.2)' },
-    { img: '/imagenes/product page.png', alt: 'Página de producto', icon: '📦', title: 'Página de Producto', desc: 'Galería, variantes y precio con botón de compra destacado.', border: 'rgba(34,211,238,0.2)' },
-    { img: '/imagenes/proceso de checkout paso 2 informacion de envio.png', alt: 'Proceso de checkout', icon: '🛒', title: 'Checkout — Envío', desc: 'Dirección y opciones de entrega en un paso claro.', border: 'rgba(74,222,128,0.2)' },
-    { img: '/imagenes/metodos de pagos.png', alt: 'Métodos de pago', icon: '💳', title: 'Métodos de Pago', desc: 'Stripe, PayPal, transferencia y contra entrega.', border: 'rgba(250,204,21,0.2)' },
-    { img: '/imagenes/confirmacion de pedidos.png', alt: 'Confirmación de pedido', icon: '✅', title: 'Confirmación de Pedido', desc: 'Resumen del pedido y factura PDF enviada al cliente.', border: 'rgba(74,222,128,0.2)' },
-    { img: '/imagenes/order tracking.png', alt: 'Seguimiento de pedido', icon: '🚚', title: 'Seguimiento de Envío', desc: 'Rastreo en tiempo real con notificaciones automáticas.', border: 'rgba(34,211,238,0.2)' },
-    { img: '/imagenes/revision de pedido.png', alt: 'Revisión de pedido', icon: '🔍', title: 'Revisión del Pedido', desc: 'Productos, descuentos y total antes de confirmar.', border: 'rgba(139,92,246,0.2)' },
-    { img: '/imagenes/order page.png', alt: 'Gestión de órdenes', icon: '📋', title: 'Gestión de Órdenes', desc: 'Filtra, actualiza y gestiona todos tus pedidos.', border: 'rgba(250,204,21,0.2)' },
-    { img: '/imagenes/site setting.png', alt: 'Configuración del sitio', icon: '⚙️', title: 'Configuración de la Tienda', desc: 'Logo, colores, dominio y opciones desde un panel intuitivo.', border: 'rgba(236,72,153,0.2)' },
+    { img: '/imagenes/Site home page.png', alt: 'P�gina principal de la tienda', icon: '??', title: 'P�gina Principal', desc: 'Cat�logo, categor�as y b�squeda � lista para vender.', border: 'rgba(34,211,238,0.2)' },
+    { img: '/imagenes/Admin dashboard.png', alt: 'Panel de administraci�n', icon: '??', title: 'Panel de Administraci�n', desc: 'KPIs en tiempo real: ingresos, �rdenes e inventario.', border: 'rgba(139,92,246,0.2)' },
+    { img: '/imagenes/product page.png', alt: 'P�gina de producto', icon: '??', title: 'P�gina de Producto', desc: 'Galer�a, variantes y precio con bot�n de compra destacado.', border: 'rgba(34,211,238,0.2)' },
+    { img: '/imagenes/proceso de checkout paso 2 informacion de envio.png', alt: 'Proceso de checkout', icon: '??', title: 'Checkout � Env�o', desc: 'Direcci�n y opciones de entrega en un paso claro.', border: 'rgba(74,222,128,0.2)' },
+    { img: '/imagenes/metodos de pagos.png', alt: 'M�todos de pago', icon: '??', title: 'M�todos de Pago', desc: 'Stripe, PayPal, transferencia y contra entrega.', border: 'rgba(250,204,21,0.2)' },
+    { img: '/imagenes/confirmacion de pedidos.png', alt: 'Confirmaci�n de pedido', icon: '?', title: 'Confirmaci�n de Pedido', desc: 'Resumen del pedido y factura PDF enviada al cliente.', border: 'rgba(74,222,128,0.2)' },
+    { img: '/imagenes/order tracking.png', alt: 'Seguimiento de pedido', icon: '??', title: 'Seguimiento de Env�o', desc: 'Rastreo en tiempo real con notificaciones autom�ticas.', border: 'rgba(34,211,238,0.2)' },
+    { img: '/imagenes/revision de pedido.png', alt: 'Revisi�n de pedido', icon: '??', title: 'Revisi�n del Pedido', desc: 'Productos, descuentos y total antes de confirmar.', border: 'rgba(139,92,246,0.2)' },
+    { img: '/imagenes/order page.png', alt: 'Gesti�n de �rdenes', icon: '??', title: 'Gesti�n de �rdenes', desc: 'Filtra, actualiza y gestiona todos tus pedidos.', border: 'rgba(250,204,21,0.2)' },
+    { img: '/imagenes/site setting.png', alt: 'Configuraci�n del sitio', icon: '??', title: 'Configuraci�n de la Tienda', desc: 'Logo, colores, dominio y opciones desde un panel intuitivo.', border: 'rgba(236,72,153,0.2)' },
 ];
 
 function Carousel() {
@@ -430,9 +430,9 @@ function Carousel() {
         <div style={{ position: 'relative', marginTop: '5rem' }}>
             {/* Prev/Next */}
             <button onClick={() => move(-1)} aria-label="Anterior" className="saas-carousel-btn saas-carousel-prev"
-                style={{ position: 'absolute', left: '-0.5rem', top: '50%', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
+                style={{ position: 'absolute', left: '-0.5rem', top: '50%', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>�</button>
             <button onClick={() => move(1)} aria-label="Siguiente" className="saas-carousel-btn saas-carousel-next"
-                style={{ position: 'absolute', right: '-0.5rem', top: '50%', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
+                style={{ position: 'absolute', right: '-0.5rem', top: '50%', transform: 'translateY(-50%)', width: '3rem', height: '3rem', ...glass, borderRadius: '9999px', color: '#fff', fontSize: '1.25rem', cursor: 'pointer', zIndex: 10, border: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>�</button>
 
             {/* Track with touch events */}
             <div style={{ overflow: 'hidden', margin: '0 2.5rem', touchAction: 'pan-y' }}>
@@ -475,39 +475,39 @@ function Carousel() {
     );
 }
 
-// ── Static pricing plans ───────────────────────────────────────────────────────
+// -- Static pricing plans -------------------------------------------------------
 const PLANS = [
-    { name: 'Trial', subtitle: 'Prueba gratuita', price: '$0', items: ['📦 20 Productos', '🛒 50 Órdenes/mes', '💾 200 MB Almacenamiento', '✅ Funcionalidades Básicas'], btnText: 'Comenzar Prueba', featured: false, dark: false },
-    { name: 'Básico', subtitle: 'Para comenzar', price: '$19', items: ['📦 100 Productos', '🛒 500 Órdenes/mes', '💾 1000 MB Almacenamiento', '✅ Funcionalidades Estándar'], btnText: 'Elegir Plan', featured: false, dark: true },
-    { name: 'Profesional', subtitle: 'Para negocios en crecimiento', price: '$49', items: ['📦 500 Productos', '🛒 2000 Órdenes/mes', '💾 5000 MB Almacenamiento', '✅ Funcionalidades Avanzadas'], btnText: 'Elegir Plan', featured: true, dark: true },
-    { name: 'Premium', subtitle: 'Todo incluido', price: '$99', items: ['📦 Productos Ilimitados', '🛒 Órdenes Ilimitadas', '💾 20000 MB Almacenamiento', '✅ Todas las Funcionalidades'], btnText: 'Elegir Plan', featured: false, dark: true },
+    { name: 'Trial', subtitle: 'Prueba gratuita', price: '$0', items: ['?? 20 Productos', '?? 50 �rdenes/mes', '?? 200 MB Almacenamiento', '? Funcionalidades B�sicas'], btnText: 'Comenzar Prueba', featured: false, dark: false },
+    { name: 'B�sico', subtitle: 'Para comenzar', price: '$19', items: ['?? 100 Productos', '?? 500 �rdenes/mes', '?? 1000 MB Almacenamiento', '? Funcionalidades Est�ndar'], btnText: 'Elegir Plan', featured: false, dark: true },
+    { name: 'Profesional', subtitle: 'Para negocios en crecimiento', price: '$49', items: ['?? 500 Productos', '?? 2000 �rdenes/mes', '?? 5000 MB Almacenamiento', '? Funcionalidades Avanzadas'], btnText: 'Elegir Plan', featured: true, dark: true },
+    { name: 'Premium', subtitle: 'Todo incluido', price: '$99', items: ['?? Productos Ilimitados', '?? �rdenes Ilimitadas', '?? 20000 MB Almacenamiento', '? Todas las Funcionalidades'], btnText: 'Elegir Plan', featured: false, dark: true },
 ];
 
 const COMPARISON_ROWS = [
-    ['Productos', '20', '100', '500', '∞'],
-    ['Órdenes/mes', '50', '500', '2000', '∞'],
+    ['Productos', '20', '100', '500', '8'],
+    ['�rdenes/mes', '50', '500', '2000', '8'],
     ['Almacenamiento', '200 MB', '1000 MB', '5000 MB', '20000 MB'],
-    ['Catálogo de productos', '✅', '✅', '✅', '✅'],
-    ['Gestión de pedidos', '✅', '✅', '✅', '✅'],
-    ['Chatbot IA', '✅', '✅', '✅', '✅'],
-    ['Facturas por email', '—', '✅', '✅', '✅'],
-    ['Seguimiento de envíos', '—', '—', '✅', '✅'],
-    ['Variantes de producto', '—', '—', '✅', '✅'],
-    ['Dominio personalizado', '—', '—', '✅', '✅'],
-    ['Todas las funcionalidades', '—', '—', '—', '✅'],
+    ['Cat�logo de productos', '?', '?', '?', '?'],
+    ['Gesti�n de pedidos', '?', '?', '?', '?'],
+    ['Chatbot IA', '?', '?', '?', '?'],
+    ['Facturas por email', '�', '?', '?', '?'],
+    ['Seguimiento de env�os', '�', '�', '?', '?'],
+    ['Variantes de producto', '�', '�', '?', '?'],
+    ['Dominio personalizado', '�', '�', '?', '?'],
+    ['Todas las funcionalidades', '�', '�', '�', '?'],
 ];
 
 const FAQ_ITEMS = [
-    { q: '¿Cómo funciona el respaldo de base de datos?', a: 'Desde el panel de administración puedes generar un respaldo completo de tu base de datos con un solo clic y descargarlo al instante. También puedes programar copias automáticas diarias o semanales, y restaurar cualquier respaldo anterior en caso de necesitarlo.' },
-    { q: '¿Mis clientes pueden rastrear su pedido sin tener una cuenta?', a: 'Sí. El módulo de trackeo permite consultar el estado de una orden ingresando únicamente el número de orden o los datos del comprador (nombre, email o teléfono). No es necesario estar registrado, lo que reduce la fricción y mejora la experiencia de compra.' },
-    { q: '¿Cómo funciona el mapa de rutas de envío?', a: 'Cada envío activo puede visualizarse en un mapa interactivo con la ruta desde tu bodega hasta la dirección del cliente. La plataforma integra Google Maps y Leaflet, permitiéndote ver la ubicación estimada del paquete y compartir el enlace de seguimiento con tu cliente en tiempo real.' },
-    { q: '¿Qué métodos de pago puedo aceptar?', a: 'Eonsclover soporta Stripe, PayPal, transferencia bancaria y pago contra entrega. Puedes activar o desactivar cada método desde la configuración de tu tienda sin necesidad de código, y todos los pagos en línea están cifrados y cumplen con el estándar PCI DSS.' },
-    { q: '¿El chatbot de IA requiere configuración técnica?', a: 'No. Solo debes elegir uno de los 5 proveedores de IA compatibles (como OpenAI, Gemini u otros), ingresar tu clave de API desde el panel y activarlo. El chatbot comienza a responder preguntas de tus clientes automáticamente las 24 horas del día, sin necesidad de programación.' },
-    { q: '¿Las facturas se generan solas con cada venta?', a: 'Sí. Al confirmarse un pago, el sistema genera automáticamente una factura en PDF y la envía por email al cliente junto con el resumen del pedido. Tú también puedes descargar o reenviar cualquier factura desde el historial de órdenes en el panel de administración.' },
-    { q: '¿Cómo manejo el stock cuando un producto tiene variantes?', a: 'Cada variante (talla, color, modelo, etc.) lleva su propio contador de inventario. El sistema descuenta el stock automáticamente con cada venta y te notifica cuando una variante alcanza el umbral mínimo que tú defines, evitando sobrevender productos agotados.' },
+    { q: '�C�mo funciona el respaldo de base de datos?', a: 'Desde el panel de administraci�n puedes generar un respaldo completo de tu base de datos con un solo clic y descargarlo al instante. Tambi�n puedes programar copias autom�ticas diarias o semanales, y restaurar cualquier respaldo anterior en caso de necesitarlo.' },
+    { q: '�Mis clientes pueden rastrear su pedido sin tener una cuenta?', a: 'S�. El m�dulo de trackeo permite consultar el estado de una orden ingresando �nicamente el n�mero de orden o los datos del comprador (nombre, email o tel�fono). No es necesario estar registrado, lo que reduce la fricci�n y mejora la experiencia de compra.' },
+    { q: '�C�mo funciona el mapa de rutas de env�o?', a: 'Cada env�o activo puede visualizarse en un mapa interactivo con la ruta desde tu bodega hasta la direcci�n del cliente. La plataforma integra Google Maps y Leaflet, permiti�ndote ver la ubicaci�n estimada del paquete y compartir el enlace de seguimiento con tu cliente en tiempo real.' },
+    { q: '�Qu� m�todos de pago puedo aceptar?', a: 'Eonsclover soporta Stripe, PayPal, transferencia bancaria y pago contra entrega. Puedes activar o desactivar cada m�todo desde la configuraci�n de tu tienda sin necesidad de c�digo, y todos los pagos en l�nea est�n cifrados y cumplen con el est�ndar PCI DSS.' },
+    { q: '�El chatbot de IA requiere configuraci�n t�cnica?', a: 'No. Solo debes elegir uno de los 5 proveedores de IA compatibles (como OpenAI, Gemini u otros), ingresar tu clave de API desde el panel y activarlo. El chatbot comienza a responder preguntas de tus clientes autom�ticamente las 24 horas del d�a, sin necesidad de programaci�n.' },
+    { q: '�Las facturas se generan solas con cada venta?', a: 'S�. Al confirmarse un pago, el sistema genera autom�ticamente una factura en PDF y la env�a por email al cliente junto con el resumen del pedido. T� tambi�n puedes descargar o reenviar cualquier factura desde el historial de �rdenes en el panel de administraci�n.' },
+    { q: '�C�mo manejo el stock cuando un producto tiene variantes?', a: 'Cada variante (talla, color, modelo, etc.) lleva su propio contador de inventario. El sistema descuenta el stock autom�ticamente con cada venta y te notifica cuando una variante alcanza el umbral m�nimo que t� defines, evitando sobrevender productos agotados.' },
 ];
 
-// ── Home page (all sections) ───────────────────────────────────────────────────
+// -- Home page (all sections) ---------------------------------------------------
 function SaaSHome() {
     // Show toast for store-not-found redirects
     useEffect(() => {
@@ -515,7 +515,7 @@ function SaaSHome() {
         const toastType = params.get('toast');
         const slug = params.get('slug') || '';
         if (toastType === 'store-not-found' && slug) {
-            toast.error(`La tienda "${decodeURIComponent(slug)}" no existe o aún no está configurada.`);
+            toast.error(`La tienda "${decodeURIComponent(slug)}" no existe o a�n no est� configurada.`);
             // Clean URL
             const url = new URL(window.location);
             url.searchParams.delete('toast');
@@ -526,7 +526,7 @@ function SaaSHome() {
 
     return (
         <div className="saas-root" style={{ overflowX: 'hidden' }}>
-            {/* ── Hero ──────────────────────────────────────────────────────── */}
+            {/* -- Hero -------------------------------------------------------- */}
             <section id="hero" style={{ position: 'relative', overflow: 'hidden', padding: '9rem 1.5rem 6rem' }}>
                 <TrefoilCanvas />
                 {/* Glow blob */}
@@ -535,7 +535,7 @@ function SaaSHome() {
                 <div className="saas-hero-grid" style={{ maxWidth: '1400px', margin: '0 auto', position: 'relative', zIndex: 10, display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '3rem', alignItems: 'center' }}>
                     <div>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', borderRadius: '9999px', ...glass, fontSize: '0.875rem', color: '#22d3ee', marginBottom: '1.5rem' }}>
-                            Plataforma Todo-en-Uno de Ecommerce para Tecnología
+                            Plataforma Todo-en-Uno de Ecommerce para Tecnolog�a
                         </div>
                         <h2 className="saas-hero-heading" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', fontWeight: 800, lineHeight: 1.2, margin: '0 0 2rem', color: '#fff' }}>
                             Crea Tu{' '}
@@ -543,7 +543,7 @@ function SaaSHome() {
                             {' '}y Administra Tu Negocio Desde Cualquier Dispositivo
                         </h2>
                         <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, margin: '0 0 2.5rem' }}>
-                            Crea tu tienda online, automatiza tu tienda, recibe pedidos en línea y controla tu negocio desde cualquier lugar.
+                            Crea tu tienda online, automatiza tu tienda, recibe pedidos en l�nea y controla tu negocio desde cualquier lugar.
                         </p>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem' }}>
                             <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700, fontSize: '1.125rem' }}>
@@ -564,107 +564,107 @@ function SaaSHome() {
                 </div>
             </section>
 
-            {/* ── Features ──────────────────────────────────────────────────── */}
+            {/* -- Features ---------------------------------------------------- */}
             <section id="features" style={{ padding: '6rem 1.5rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', maxWidth: '48rem', margin: '0 auto 3rem' }}>
                         <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, margin: '0 0 1.5rem', color: '#fff' }}>Todo lo que necesitas para vender online</h2>
                         <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>
-                            Potentes herramientas de ecommerce diseñadas para simplificar tus operaciones y aumentar la productividad.
+                            Potentes herramientas de ecommerce dise�adas para simplificar tus operaciones y aumentar la productividad.
                         </p>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '2rem' }} className="saas-features-grid">
-                        {/* Catálogo */}
+                        {/* Cat�logo */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🛍️</div>
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Catálogo Completo</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Productos con variantes, imágenes múltiples, categorías y búsqueda avanzada para tus clientes.</p>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>???</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Cat�logo Completo</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Productos con variantes, im�genes m�ltiples, categor�as y b�squeda avanzada para tus clientes.</p>
                         </div>
                         {/* Checkout */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(74,222,128,0.2)' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🛒</div>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>??</div>
                             <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Checkout Completo y Moderno</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Flujo de compra optimizado: carrito, dirección de envío, métodos de pago y confirmación — todo en pasos claros que aumentan la conversión.</p>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Flujo de compra optimizado: carrito, direcci�n de env�o, m�todos de pago y confirmaci�n � todo en pasos claros que aumentan la conversi�n.</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem', flexWrap: 'wrap' }}>
                                 <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(74,222,128,0.2)', color: '#86efac' }}>Carrito</span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(34,211,238,0.2)', color: '#67e8f9' }}>Dirección</span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>?</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(34,211,238,0.2)', color: '#67e8f9' }}>Direcci�n</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>?</span>
                                 <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(139,92,246,0.2)', color: '#c4b5fd' }}>Pago</span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>→</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>?</span>
                                 <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(250,204,21,0.2)', color: '#fde047' }}>Confirmado</span>
                             </div>
                         </div>
                         {/* Pagos */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>💳</div>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>??</div>
                             <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Pagos Integrados</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Stripe, PayPal, transferencia bancaria y contra entrega. Acepta pagos de forma segura desde el primer día.</p>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Stripe, PayPal, transferencia bancaria y contra entrega. Acepta pagos de forma segura desde el primer d�a.</p>
                         </div>
                         {/* Inventario */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>📦</div>
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Gestión de Inventario</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Rastrea stock automáticamente con alertas de inventario bajo y herramientas completas de gestión de productos.</p>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>??</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Gesti�n de Inventario</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Rastrea stock autom�ticamente con alertas de inventario bajo y herramientas completas de gesti�n de productos.</p>
                         </div>
                         {/* Chatbot */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🤖</div>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>??</div>
                             <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Chatbot IA</h3>
                             <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Asistente inteligente para tus clientes disponible 24/7, con soporte para 5 proveedores de inteligencia artificial.</p>
                         </div>
                         {/* Facturas */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>📧</div>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>??</div>
                             <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Facturas y Seguimiento</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Facturas PDF automáticas, emails de confirmación y tracking de envíos en tiempo real para tus clientes.</p>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: 0 }}>Facturas PDF autom�ticas, emails de confirmaci�n y tracking de env�os en tiempo real para tus clientes.</p>
                         </div>
                         {/* DB backup */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(96,165,250,0.2)' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🗄️</div>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>???</div>
                             <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Respaldo de Base de Datos</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Realiza copias de seguridad de tu base de datos con un solo clic. Descarga, restaura o programa respaldos automáticos para proteger tu negocio en todo momento.</p>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Realiza copias de seguridad de tu base de datos con un solo clic. Descarga, restaura o programa respaldos autom�ticos para proteger tu negocio en todo momento.</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
                                 <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(96,165,250,0.2)', color: '#93c5fd' }}>Un clic</span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc' }}>Automático</span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(34,211,238,0.2)', color: '#67e8f9' }}>Restauración</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>�</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(99,102,241,0.2)', color: '#a5b4fc' }}>Autom�tico</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>�</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(34,211,238,0.2)', color: '#67e8f9' }}>Restauraci�n</span>
                             </div>
                         </div>
                         {/* Map */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(52,211,153,0.2)' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🗺️</div>
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Rutas de Envío con Mapa</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Visualiza la ubicación de los envíos en tiempo real con rutas interactivas usando Google Maps y Leaflet. Optimiza las entregas y mantén a tus clientes informados.</p>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>???</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Rutas de Env�o con Mapa</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Visualiza la ubicaci�n de los env�os en tiempo real con rutas interactivas usando Google Maps y Leaflet. Optimiza las entregas y mant�n a tus clientes informados.</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.75rem' }}>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(52,211,153,0.2)', color: '#6ee7b7' }}>📍 Google Maps</span>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(74,222,128,0.2)', color: '#86efac' }}>🌿 Leaflet</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(52,211,153,0.2)', color: '#6ee7b7' }}>?? Google Maps</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(74,222,128,0.2)', color: '#86efac' }}>?? Leaflet</span>
                             </div>
                         </div>
                         {/* Order tracking */}
                         <div className="hover-lift" style={{ ...glass, borderRadius: '24px', padding: '2rem', border: '1px solid rgba(251,146,60,0.2)' }}>
-                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>🔍</div>
-                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Trackeo de Órdenes</h3>
-                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Consulta el estado de cualquier pedido por número de orden o datos del usuario. Seguimiento claro y transparente para ti y tus clientes en cada etapa del proceso.</p>
+                            <div style={{ fontSize: '2.5rem', marginBottom: '1.5rem' }}>??</div>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 600, margin: '0 0 1rem', color: '#fff' }}>Trackeo de �rdenes</h3>
+                            <p style={{ color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, margin: '0 0 1.5rem' }}>Consulta el estado de cualquier pedido por n�mero de orden o datos del usuario. Seguimiento claro y transparente para ti y tus clientes en cada etapa del proceso.</p>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.75rem' }}>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(251,146,60,0.2)', color: '#fdba74' }}># Nº de Orden</span>
-                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>•</span>
-                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(250,204,21,0.2)', color: '#fde047' }}>👤 Datos Usuario</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(251,146,60,0.2)', color: '#fdba74' }}># N� de Orden</span>
+                                <span style={{ color: 'rgba(255,255,255,0.3)' }}>�</span>
+                                <span style={{ padding: '0.25rem 0.75rem', borderRadius: '9999px', background: 'rgba(250,204,21,0.2)', color: '#fde047' }}>?? Datos Usuario</span>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
 
-            {/* ── Workflow ───────────────────────────────────────────────────── */}
+            {/* -- Workflow ----------------------------------------------------- */}
             <section style={{ padding: '6rem 1.5rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
                         <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, textAlign: 'center', marginBottom: '4rem', color: '#fff' }}>Lanza Tu Negocio en Minutos</h2>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem' }}>
                         {[
-                            { n: '1', title: 'Crear Tienda', desc: 'Configura tu perfil de negocio, productos y categorías.' },
-                            { n: '2', title: 'Subir Productos', desc: 'Agrega inventario, imágenes, descripciones y precios.' },
+                            { n: '1', title: 'Crear Tienda', desc: 'Configura tu perfil de negocio, productos y categor�as.' },
+                            { n: '2', title: 'Subir Productos', desc: 'Agrega inventario, im�genes, descripciones y precios.' },
                             { n: '3', title: 'Recibir Pedidos', desc: 'Gestiona compras, pagos y solicitudes de clientes.' },
                             { n: '4', title: 'Analizar Crecimiento', desc: 'Monitorea reportes de ventas y optimiza el rendimiento de tu negocio.' },
                         ].map(item => (
@@ -680,19 +680,19 @@ function SaaSHome() {
                 </div>
             </section>
 
-            {/* ── Demo Images ───────────────────────────────────────────────── */}
+            {/* -- Demo Images ------------------------------------------------- */}
             <section style={{ padding: '6rem 1.5rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, marginBottom: '1.5rem', color: '#fff' }}>Así se vería tu tienda online</h2>
+                        <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, marginBottom: '1.5rem', color: '#fff' }}>As� se ver�a tu tienda online</h2>
                         <p style={{ fontSize: '1.125rem', color: 'rgba(255,255,255,0.65)' }}>Una interfaz moderna y profesional que impresiona a tus clientes</p>
                         <div style={{ marginTop: '2.5rem', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '1rem' }}>
                             {[
-                                { icon: '🎨', text: 'Colores personalizables' },
-                                { icon: '🖼️', text: 'Tu propio logo' },
-                                { icon: '🔤', text: 'Tipografías a tu estilo' },
-                                { icon: '🌐', text: 'Dominio propio' },
-                                { icon: '✏️', text: 'Textos y banners editables' },
+                                { icon: '??', text: 'Colores personalizables' },
+                                { icon: '???', text: 'Tu propio logo' },
+                                { icon: '??', text: 'Tipograf�as a tu estilo' },
+                                { icon: '??', text: 'Dominio propio' },
+                                { icon: '??', text: 'Textos y banners editables' },
                             ].map(b => (
                                 <div key={b.text} style={{ ...glass, padding: '0.75rem 1.25rem', borderRadius: '16px', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.875rem', color: 'rgba(255,255,255,0.8)' }}>
                                     <span style={{ fontSize: '1.25rem' }}>{b.icon}</span> {b.text}
@@ -708,20 +708,20 @@ function SaaSHome() {
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#f87171' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#facc15' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#4ade80' }} />
-                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tu Tienda Online — eonsclover.com</span>
+                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Tu Tienda Online � eonsclover.com</span>
                             </div>
-                            <img src="/imagenes/Site home page.png" alt="Vista de la tienda online con versión desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
+                            <img src="/imagenes/Site home page.png" alt="Vista de la tienda online con versi�n desktop y m�vil" style={{ width: '100%', objectFit: 'cover' }} />
                             <div className="saas-demo-grid" style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                 <div>
-                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>🛍️ Tienda Profesional</h4>
-                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Homepage moderna con catálogo de productos, categorías, búsqueda y carrito de compras.</p>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>??? Tienda Profesional</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Homepage moderna con cat�logo de productos, categor�as, b�squeda y carrito de compras.</p>
                                 </div>
                                 <div>
-                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>📱 100% Responsive</h4>
-                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Diseño adaptativo perfecto para desktop, tablet y móvil. Tus clientes compran desde cualquier dispositivo.</p>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>?? 100% Responsive</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Dise�o adaptativo perfecto para desktop, tablet y m�vil. Tus clientes compran desde cualquier dispositivo.</p>
                                 </div>
                                 <div>
-                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>⚡ Lista al Instante</h4>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#67e8f9', margin: '0 0 0.5rem' }}>? Lista al Instante</h4>
                                     <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Configura tu tienda en minutos con tu logo, colores, productos y comienza a vender de inmediato.</p>
                                 </div>
                             </div>
@@ -735,21 +735,21 @@ function SaaSHome() {
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#f87171' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#facc15' }} />
                                 <div style={{ width: '0.75rem', height: '0.75rem', borderRadius: '9999px', background: '#4ade80' }} />
-                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Panel de Administración — admin.eonsclover.com</span>
+                                <span style={{ marginLeft: '1rem', color: 'rgba(255,255,255,0.4)', fontSize: '0.875rem' }}>Panel de Administraci�n � admin.eonsclover.com</span>
                             </div>
-                            <img src="/imagenes/Admin dashboard.png" alt="Panel de administración con vista desktop y móvil" style={{ width: '100%', objectFit: 'cover' }} />
+                            <img src="/imagenes/Admin dashboard.png" alt="Panel de administraci�n con vista desktop y m�vil" style={{ width: '100%', objectFit: 'cover' }} />
                             <div className="saas-demo-grid" style={{ padding: '2rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
                                 <div>
-                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>📊 Dashboard Completo</h4>
-                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Visualiza ingresos totales, órdenes pendientes, productos en stock y usuarios registrados en tiempo real.</p>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>?? Dashboard Completo</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Visualiza ingresos totales, �rdenes pendientes, productos en stock y usuarios registrados en tiempo real.</p>
                                 </div>
                                 <div>
-                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>📈 Ventas por Período</h4>
-                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Gráficos de ventas por día, semana, mes y año. Identifica tendencias y optimiza tu estrategia comercial.</p>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>?? Ventas por Per�odo</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Gr�ficos de ventas por d�a, semana, mes y a�o. Identifica tendencias y optimiza tu estrategia comercial.</p>
                                 </div>
                                 <div>
-                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>🏆 Productos Más Vendidos</h4>
-                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Ranking en tiempo real de tus mejores productos para enfocar tus esfuerzos donde más genera.</p>
+                                    <h4 style={{ fontSize: '1.125rem', fontWeight: 600, color: '#c4b5fd', margin: '0 0 0.5rem' }}>?? Productos M�s Vendidos</h4>
+                                    <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.875rem', lineHeight: 1.6, margin: 0 }}>Ranking en tiempo real de tus mejores productos para enfocar tus esfuerzos donde m�s genera.</p>
                                 </div>
                             </div>
                         </div>
@@ -757,16 +757,16 @@ function SaaSHome() {
                 </div>
             </section>
 
-            {/* ── Carousel ──────────────────────────────────────────────────── */}
+            {/* -- Carousel ---------------------------------------------------- */}
             <section style={{ padding: '4rem 1.5rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
                     <Carousel />
                 </div>
             </section>
 
-            {/* ── Pricing ───────────────────────────────────────────────────── */}
+            {/* -- Pricing ----------------------------------------------------- */}
             <section id="pricing" style={{ padding: '6rem 1.5rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
                         <p style={{ color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600 }}>Precios</p>
                         <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Precios Asequibles Siempre</h2>
@@ -807,13 +807,13 @@ function SaaSHome() {
 
                     {/* Comparison table */}
                     <div className="saas-comparison-wrap" style={{ marginTop: '6rem', overflowX: 'auto' }}>
-                        <h3 className="saas-section-heading" style={{ fontSize: '2.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#fff' }}>Comparación Detallada</h3>
+                        <h3 className="saas-section-heading" style={{ fontSize: '2.5rem', fontWeight: 700, textAlign: 'center', marginBottom: '3rem', color: '#fff' }}>Comparaci�n Detallada</h3>
                         <div style={{ ...glass, borderRadius: '32px', overflow: 'hidden' }}>
                             <div style={{ overflowX: 'auto' }}>
                                 <table className="saas-comparison-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                            {['Característica', 'Trial', 'Básico', 'Profesional', 'Premium'].map((h, i) => (
+                                            {['Caracter�stica', 'Trial', 'B�sico', 'Profesional', 'Premium'].map((h, i) => (
                                                 <th key={i} style={{ padding: '1.5rem', textAlign: i === 0 ? 'left' : 'center', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
                                             ))}
                                         </tr>
@@ -825,7 +825,7 @@ function SaaSHome() {
                                                     <td key={ci} style={{
                                                         padding: '1.5rem',
                                                         textAlign: ci === 0 ? 'left' : 'center',
-                                                        color: cell === '✅' ? '#4ade80' : cell === '—' ? '#f87171' : ci === 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.7)',
+                                                        color: cell === '?' ? '#4ade80' : cell === '�' ? '#f87171' : ci === 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.7)',
                                                         whiteSpace: 'nowrap',
                                                     }}>{cell}</td>
                                                 ))}
@@ -839,16 +839,16 @@ function SaaSHome() {
                 </div>
             </section>
 
-            {/* ── CTA ───────────────────────────────────────────────────────── */}
+            {/* -- CTA --------------------------------------------------------- */}
             <section style={{ padding: '0 1.5rem 6rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto', borderRadius: '40px', overflow: 'hidden', position: 'relative', background: 'linear-gradient(to right, rgba(6,182,212,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(255,255,255,0.1)' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto', borderRadius: '40px', overflow: 'hidden', position: 'relative', background: 'linear-gradient(to right, rgba(6,182,212,0.2), rgba(139,92,246,0.2))', border: '1px solid rgba(255,255,255,0.1)' }}>
                     <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)' }} />
                     <div style={{ position: 'relative', zIndex: 10, padding: '6rem 2.5rem', textAlign: 'center' }}>
                         <h2 style={{ fontSize: '3rem', fontWeight: 700, maxWidth: '64rem', margin: '0 auto 2rem', lineHeight: 1.2, color: '#fff' }}>
-                            Comienza a Gestionar Tu Negocio de Tecnología Más Inteligente Hoy
+                            Comienza a Gestionar Tu Negocio de Tecnolog�a M�s Inteligente Hoy
                         </h2>
                         <p style={{ fontSize: '1.25rem', color: 'rgba(255,255,255,0.7)', maxWidth: '48rem', margin: '0 auto 2.5rem', lineHeight: 1.6 }}>
-                            Únete a miles de negocios modernos usando EonsClover para automatizar operaciones y crecer más rápido.
+                            �nete a miles de negocios modernos usando EonsClover para automatizar operaciones y crecer m�s r�pido.
                         </p>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
                             <a href={registerUrl} style={{ padding: '1rem 2rem', borderRadius: '16px', background: '#22d3ee', color: '#000', fontWeight: 700 }}>
@@ -860,9 +860,9 @@ function SaaSHome() {
                 </div>
             </section>
 
-            {/* ── FAQ ───────────────────────────────────────────────────────── */}
+            {/* -- FAQ --------------------------------------------------------- */}
             <section id="faq" style={{ padding: '6rem 1.5rem' }}>
-                <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ maxWidth: '1160px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
                         <p style={{ color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.1em', margin: '0 0 1rem', fontSize: '0.875rem', fontWeight: 600 }}>Preguntas Frecuentes</p>
                         <h2 className="saas-section-heading" style={{ fontSize: '3rem', fontWeight: 700, margin: 0, color: '#fff' }}>Todo Lo Que Necesitas Saber</h2>
@@ -881,7 +881,7 @@ function SaaSHome() {
     );
 }
 
-// ── Login page (redirect to tenant subdomain) ──────────────────────────────────
+// -- Login page (redirect to tenant subdomain) ----------------------------------
 function LoginPage() {
     const [slug, setSlug] = useState('');
     const [error, setError] = useState('');
@@ -897,7 +897,7 @@ function LoginPage() {
         <section style={{ minHeight: '70vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '2rem 1.5rem' }}>
             <div style={{ width: '100%', maxWidth: '440px' }}>
                 <div style={{ ...glass, borderRadius: '24px', padding: '2.5rem' }}>
-                    <h2 style={{ fontSize: '1.75rem', fontWeight: 700, textAlign: 'center', margin: '0 0 0.5rem', color: '#fff' }}>Iniciar sesión</h2>
+                    <h2 style={{ fontSize: '1.75rem', fontWeight: 700, textAlign: 'center', margin: '0 0 0.5rem', color: '#fff' }}>Iniciar sesi�n</h2>
                     <p style={{ textAlign: 'center', color: 'rgba(255,255,255,0.6)', marginBottom: '2rem', fontSize: '0.9rem' }}>
                         Ingresa el nombre de tu tienda para acceder.
                     </p>
@@ -917,12 +917,12 @@ function LoginPage() {
                         </div>
                         {error && <p style={{ color: '#f87171', fontSize: '0.85rem', margin: '0 0 0.75rem' }}>{error}</p>}
                         <button type="submit" style={{ width: '100%', padding: '0.85rem', borderRadius: '12px', background: '#22d3ee', color: '#000', fontWeight: 700, border: 'none', cursor: 'pointer', fontSize: '1rem' }}>
-                            Ir a mi tienda →
+                            Ir a mi tienda ?
                         </button>
                     </form>
                     <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
                         <p style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
-                            ¿No tienes tienda?{' '}
+                            �No tienes tienda?{' '}
                             <a href={registerUrl} style={{ color: '#22d3ee', fontWeight: 500 }}>Crear una gratis</a>
                         </p>
                     </div>
@@ -932,7 +932,7 @@ function LoginPage() {
     );
 }
 
-// ── Login page wrapper for SaaS dark theme ──────────────────────────────────────
+// -- Login page wrapper for SaaS dark theme --------------------------------------
 function SaaSLoginPage() {
     return (
         <div>
@@ -956,7 +956,7 @@ function SaaSLoginPage() {
     );
 }
 
-// ── Layout with nav + footer ───────────────────────────────────────────────────
+// -- Layout with nav + footer ---------------------------------------------------
 function LandingLayout({ children }) {
     return (
         <>
