@@ -50,6 +50,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [attributeTypes, setAttributeTypes] = useState([]);
 	const [isLoadingVariants, setIsLoadingVariants] = useState(false);
 	const [editingVariant, setEditingVariant] = useState(null); // variant being edited inline
+	const [showDescInVariant, setShowDescInVariant] = useState(false); // collapsible description in variant edit
 	// New variant form (blank template)
 		const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '', color_hex: '' }], description: '', imageFiles: [], imageUrls: [''] };
 	const [newVariant, setNewVariant] = useState(blankVariant);
@@ -708,14 +709,24 @@ function truncateUrl(url, maxLen = 28) {
 														/* Inline edit mode — full editing with parent pre-fill */
 														<div className="variant-edit-inline">
 															<div className="variant-edit-fields">
-																<label className="variant-desc-label">Descripción
-																	<RichTextEditor
-																		value={editingVariant.description || ''}
-																		onChange={(html) => setEditingVariant(prev => ({ ...prev, description: html }))}
-																		placeholder="Descripción de la variante (dejar vacío = hereda del producto)..."
-																		minHeight={100}
-																	/>
-																</label>
+																<div className="variant-desc-label variant-desc-collapsible">
+																	<button
+																		type="button"
+																		className="variant-desc-toggle"
+																		onClick={() => setShowDescInVariant(prev => !prev)}
+																	>
+																		<span>📝 Descripción</span>
+																		<span className="collapsible-icon">{showDescInVariant ? '−' : '+'}</span>
+																	</button>
+																	{showDescInVariant && (
+																		<RichTextEditor
+																			value={editingVariant.description || ''}
+																			onChange={(html) => setEditingVariant(prev => ({ ...prev, description: html }))}
+																			placeholder="Descripción de la variante (dejar vacío = hereda del producto)..."
+																			minHeight={100}
+																		/>
+																	)}
+																</div>
 																<label>SKU
 																	<input type="text" value={editingVariant.sku || ''} onChange={(e) => setEditingVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="SKU" />
 																</label>
@@ -861,6 +872,7 @@ function truncateUrl(url, maxLen = 28) {
 																		imageUrls: [''],
 																		attributes: v.attributes.length > 0 ? v.attributes : [{ type: '', value: '', color_hex: '' }],
 																	});
+																	setShowDescInVariant(false);
 																}}>✏️</button>
 																<button type="button" className="admin-btn danger" onClick={() => handleDeleteVariant(productId, v.id)}>🗑️</button>
 															</div>

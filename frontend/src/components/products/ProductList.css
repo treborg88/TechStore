@@ -681,6 +681,39 @@
   min-width: 0;
 }
 
+/* Collapsible description toggle */
+.variant-desc-collapsible {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.variant-desc-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 6px 10px;
+  background: var(--bg-secondary, #f8f9fa);
+  border: 1px solid var(--border-color, #e0e0e0);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-color, #333);
+  transition: background 0.2s;
+}
+
+.variant-desc-toggle:hover {
+  background: var(--hover-bg, #eef0f2);
+}
+
+.variant-desc-toggle .collapsible-icon {
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
 .variant-active-label {
   flex-direction: row !important;
   align-items: center;
