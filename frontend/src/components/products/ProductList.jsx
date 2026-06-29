@@ -480,6 +480,22 @@ function truncateUrl(url, maxLen = 28) {
 		}
 	}, []);
 
+	// Build a pre-filled newVariant object from parent product data
+	const getParentPrefill = () => {
+		const product = editingProduct;
+		if (!product) return blankVariant;
+		const firstImage = product.images?.[0];
+		const imageUrl = firstImage ? resolveImageUrl(firstImage.image_path) : '';
+		return {
+			sku: '',
+			price: product.price ?? '',
+			stock: product.stock ?? 0,
+			image_url: imageUrl,
+			imageFile: null,
+			attributes: [{ type: '', value: '', color_hex: '' }],
+		};
+	};
+
 	const toggleVariantPanel = async (productId) => {
 		if (variantPanel === productId) {
 			setVariantPanel(null);
@@ -490,20 +506,7 @@ function truncateUrl(url, maxLen = 28) {
 		await loadVariants(productId);
 		// Auto pre-fill new variant form with parent product data
 		// so the main product effectively becomes the first variant template.
-		// Subsequent variants also inherit parent data via handleConvertParentToVariant.
-		const product = editingProduct;
-		if (product) {
-			const firstImage = product.images?.[0];
-			const imageUrl = firstImage ? resolveImageUrl(firstImage.image_path) : '';
-			setNewVariant({
-				sku: '',
-				price: product.price ?? '',
-				stock: product.stock ?? 0,
-				image_url: imageUrl,
-				imageFile: null,
-				attributes: [{ type: '', value: '', color_hex: '' }],
-			});
-		}
+		setNewVariant(getParentPrefill());
 	};
 
 	const handleCreateVariant = async (productId) => {
@@ -535,7 +538,7 @@ function truncateUrl(url, maxLen = 28) {
 				throw new Error(data.message || 'Error creando variante');
 			}
 			toast.success('Variante creada');
-			setNewVariant({ sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] });
+			setNewVariant(getParentPrefill());
 			await loadVariants(productId);
 			// Force refresh to update has_variants flag in product list
 			if (onForceRefresh) onForceRefresh(); else await onRefresh();
@@ -625,19 +628,9 @@ function truncateUrl(url, maxLen = 28) {
 		return data.image_url;
 	};
 
-	// Pre-fill new variant form with parent product data (convert parent to variant)
 	const handleConvertParentToVariant = () => {
 		if (!editingProduct) return;
-		const firstImage = editingProduct.images?.[0];
-		const imageUrl = firstImage ? resolveImageUrl(firstImage.image_path) : '';
-		setNewVariant({
-			sku: '',
-			price: editingProduct.price ?? '',
-			stock: editingProduct.stock ?? 0,
-			image_url: imageUrl,
-			imageFile: null,
-			attributes: [{ type: '', value: '', color_hex: '' }],
-		});
+		setNewVariant(getParentPrefill());
 		toast.success('Datos del producto copiados. Asigna los atributos y crea la variante.');
 	};
 
