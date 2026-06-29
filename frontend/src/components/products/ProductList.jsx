@@ -609,6 +609,11 @@ function truncateUrl(url, maxLen = 28) {
 	};
 	const addAttrRow = (list) => [...list, { type: '', value: '', color_hex: '' }];
 	const removeAttrRow = (list, idx) => list.length > 1 ? list.filter((_, i) => i !== idx) : list;
+	// Normalize hex color, returning fallback if invalid
+	const normalizeHexColor = (hex, fallback = '#000000') => {
+		if (!hex || !/^#[0-9a-fA-F]{3,8}$/.test(hex)) return fallback;
+		return hex;
+	};
 	// Check if an attribute type uses color swatch display
 	const isColorType = (typeName) => attributeTypes.some(t => t.name === typeName && t.display_type === 'color_swatch');
 
