@@ -283,7 +283,15 @@ async function createOrderCore({
         }
 
         // Snapshot the first gallery image so order history is independent of future product changes
-        const imageUrl = await statements.getFirstProductImage(product.id) || product.image || null;
+        // Priority: variant_gallery > variant_single > product_gallery > product_legacy
+        let imageUrl;
+        if (item.variant_id) {
+            const variantImg = await statements.getFirstVariantImage(item.variant_id);
+            imageUrl = variantImg || variant?.image_url || null;
+        }
+        if (!imageUrl) {
+            imageUrl = await statements.getFirstProductImage(product.id) || product.image || null;
+        }
 
         txItemDetails.push({
             product_id: product.id,

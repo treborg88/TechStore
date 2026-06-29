@@ -348,7 +348,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
             images={product.images || product.image} 
             productName={product.name}
             productDescription={product.description}
-            activeVariantImageUrl={selectedVariant?.image_url ? resolveImageUrl(selectedVariant.image_url) : null}
+            activeVariantImageUrl={selectedVariant?.variant_images?.[0]?.image_path ? resolveImageUrl(selectedVariant.variant_images[0].image_path) : selectedVariant?.image_url ? resolveImageUrl(selectedVariant.image_url) : null}
           />
         </div>
 

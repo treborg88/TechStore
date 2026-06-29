@@ -644,13 +644,14 @@
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
+  padding: 4px 0;
 }
 
 .variant-edit-fields {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
 }
 
 .variant-edit-fields label {
@@ -666,6 +667,18 @@
   border: 1px solid #ccc;
   border-radius: 5px;
   font-size: 0.85rem;
+}
+
+/* Description and gallery labels span full width in the edit grid */
+.variant-desc-label,
+.variant-gallery-label {
+  grid-column: 1 / -1;
+}
+
+.variant-desc-label .rich-text-editor-root,
+.variant-gallery-label .rich-text-editor-root {
+  width: 100%;
+  min-width: 0;
 }
 
 .variant-active-label {
@@ -813,10 +826,60 @@
   margin-top: 8px;
 }
 
+/* Inherit badge — shown on variants that have no custom data (use parent's) */
+.variant-inherit-badge {
+  font-size: 0.7rem;
+  background: #e0f2fe;
+  color: #0369a1;
+  padding: 2px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Note text in the add-variant form */
+.variant-inherit-note {
+  font-size: 0.82rem;
+  color: #888;
+  margin: 4px 0 12px;
+  padding: 8px 12px;
+  background: #f0fdf4;
+  border: 1px solid #d1fae5;
+  border-radius: 6px;
+  line-height: 1.4;
+}
+
+/* Compact fields row in the create variant form (SKU, price, stock) */
+.variant-compact-fields {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.variant-compact-fields label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.variant-compact-fields input {
+  padding: 6px 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 0.85rem;
+}
+
 /* Responsive: stack variant fields on narrow screens */
 @media (max-width: 600px) {
   .variant-edit-fields {
     grid-template-columns: 1fr;
+  }
+
+  .variant-compact-fields {
+    grid-template-columns: 1fr 1fr;
   }
 
   .variant-row {

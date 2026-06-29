@@ -352,13 +352,23 @@ const statements = {
       'SELECT * FROM product_variant_attributes WHERE variant_id = ANY($1)', [variantIds]
     );
 
+    const { rows: images } = await pool.query(
+      'SELECT * FROM variant_images WHERE variant_id = ANY($1) ORDER BY sort_order ASC, created_at ASC', [variantIds]
+    );
+
     const attrsMap = attrs.reduce((acc, a) => {
       if (!acc[a.variant_id]) acc[a.variant_id] = [];
       acc[a.variant_id].push({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null });
       return acc;
     }, {});
 
-    return variants.map(v => ({ ...v, price_override: v.price, attributes: attrsMap[v.id] || [] }));
+    const imagesMap = images.reduce((acc, img) => {
+      if (!acc[img.variant_id]) acc[img.variant_id] = [];
+      acc[img.variant_id].push({ id: img.id, image_path: img.image_path, sort_order: img.sort_order });
+      return acc;
+    }, {});
+
+    return variants.map(v => ({ ...v, price_override: v.price, attributes: attrsMap[v.id] || [], variant_images: imagesMap[v.id] || [] }));
   },
 
   getVariantById: async (variant_id) => {
@@ -368,14 +378,17 @@ const statements = {
     const { rows: attrs } = await pool.query(
       'SELECT * FROM product_variant_attributes WHERE variant_id = $1', [variant_id]
     );
-    return { ...variant, price_override: variant.price, attributes: attrs.map(a => ({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null })) };
+    const { rows: images } = await pool.query(
+      'SELECT * FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC', [variant_id]
+    );
+    return { ...variant, price_override: variant.price, attributes: attrs.map(a => ({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null })), variant_images: images };
   },
 
-  createVariant: async (product_id, { sku, price, stock, image_url, is_active = true, attributes = [] }) => {
+  createVariant: async (product_id, { sku, price, stock, image_url, description, is_active = true, attributes = [] }) => {
     const { rows } = await pool.query(
-      `INSERT INTO product_variants (product_id, sku, price, stock, image_url, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [product_id, sku || null, price ?? null, stock || 0, image_url || null, is_active]
+      `INSERT INTO product_variants (product_id, sku, price, stock, image_url, description, is_active)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [product_id, sku || null, price ?? null, stock || 0, image_url || null, description || null, is_active]
     );
     const variant = rows[0];
 
@@ -391,7 +404,7 @@ const statements = {
     return { ...variant, attributes };
   },
 
-  updateVariant: async (variant_id, { sku, price, stock, image_url, is_active, attributes }) => {
+  updateVariant: async (variant_id, { sku, price, stock, image_url, description, is_active, attributes }) => {
     const sets = ['updated_at = NOW()'];
     const vals = [];
     let idx = 1;
@@ -399,6 +412,7 @@ const statements = {
     if (price !== undefined)     { sets.push(`price = $${idx}`);     vals.push(price);     idx++; }
     if (stock !== undefined)     { sets.push(`stock = $${idx}`);     vals.push(stock);     idx++; }
     if (image_url !== undefined) { sets.push(`image_url = $${idx}`); vals.push(image_url); idx++; }
+    if (description !== undefined) { sets.push(`description = $${idx}`); vals.push(description); idx++; }
     if (is_active !== undefined) { sets.push(`is_active = $${idx}`); vals.push(is_active); idx++; }
     vals.push(variant_id);
 
@@ -420,8 +434,23 @@ const statements = {
   },
 
   deleteVariant: async (variant_id) => {
-    const { rows } = await pool.query('SELECT product_id FROM product_variants WHERE id = $1', [variant_id]);
-    const productId = rows[0]?.product_id;
+    const { rows } = await pool.query('SELECT product_id, image_url FROM product_variants WHERE id = $1', [variant_id]);
+    const variant = rows[0];
+    const productId = variant?.product_id;
+
+    // Clean up variant_images records and files
+    const { rows: varImages } = await pool.query(
+      'SELECT image_path FROM variant_images WHERE variant_id = $1', [variant_id]
+    );
+    for (const img of varImages) {
+      deleteUploadedFile(img.image_path);
+    }
+    await pool.query('DELETE FROM variant_images WHERE variant_id = $1', [variant_id]);
+
+    // Clean up variant's single image_url if it's a local file
+    if (variant?.image_url && !variant.image_url.startsWith('http')) {
+      deleteUploadedFile(variant.image_url);
+    }
 
     await pool.query('DELETE FROM product_variants WHERE id = $1', [variant_id]);
 
@@ -439,6 +468,44 @@ const statements = {
   getAttributeTypes: async () => {
     const { rows } = await pool.query('SELECT * FROM product_attribute_types ORDER BY name ASC');
     return rows;
+  },
+
+  // ── Variant Images ─────────────────────────────────────────
+  getVariantImages: async (variant_id) => {
+    const { rows } = await pool.query(
+      'SELECT * FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC', [variant_id]
+    );
+    return rows;
+  },
+  getFirstVariantImage: async (variant_id) => {
+    const { rows } = await pool.query(
+      'SELECT image_path FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC LIMIT 1', [variant_id]
+    );
+    return rows[0]?.image_path || null;
+  },
+  createVariantImage: async (variant_id, image_path, sort_order = 0) => {
+    const { rows } = await pool.query(
+      `INSERT INTO variant_images (variant_id, image_path, sort_order)
+       VALUES ($1, $2, $3) RETURNING *`,
+      [variant_id, image_path, sort_order]
+    );
+    return rows[0];
+  },
+  deleteVariantImage: async (image_id) => {
+    const { rows } = await pool.query(
+      'SELECT image_path FROM variant_images WHERE id = $1', [image_id]
+    );
+    if (rows[0]?.image_path) deleteUploadedFile(rows[0].image_path);
+    await pool.query('DELETE FROM variant_images WHERE id = $1', [image_id]);
+    return true;
+  },
+  deleteAllVariantImages: async (variant_id) => {
+    const { rows } = await pool.query(
+      'SELECT image_path FROM variant_images WHERE variant_id = $1', [variant_id]
+    );
+    rows.forEach((img) => deleteUploadedFile(img.image_path));
+    await pool.query('DELETE FROM variant_images WHERE variant_id = $1', [variant_id]);
+    return true;
   },
 
   // ── Variant Stock (atomic via RPC) ───────────────────────
@@ -460,7 +527,10 @@ const statements = {
               WHERE pi.product_id = c.product_id
               ORDER BY pi.created_at ASC LIMIT 1) AS gallery_image,
              pv.sku AS variant_sku, pv.price AS variant_price,
-             pv.stock AS variant_stock, pv.image_url AS variant_image, pv.is_active AS variant_active
+             pv.stock AS variant_stock, pv.image_url AS variant_image, pv.is_active AS variant_active,
+             (SELECT vi.image_path FROM variant_images vi
+              WHERE vi.variant_id = c.variant_id
+              ORDER BY vi.sort_order ASC, vi.created_at ASC LIMIT 1) AS variant_gallery_image
       FROM cart c
       JOIN products p ON p.id = c.product_id
       LEFT JOIN product_variants pv ON pv.id = c.variant_id
@@ -494,8 +564,8 @@ const statements = {
       // Stock: variant stock when applicable
       stock: r.variant_id ? r.variant_stock : r.stock,
       unit_type: normalizeProductUnitType(r.unit_type),
-      // Image priority: variant > gallery > legacy
-      image: r.variant_image || r.gallery_image || r.image,
+      // Image priority: variant_gallery > variant_single > product_gallery > legacy
+      image: r.variant_gallery_image || r.variant_image || r.gallery_image || r.image,
       variant_attributes: variantAttrs[r.variant_id] || null
     }));
   },

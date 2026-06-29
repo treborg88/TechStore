@@ -51,13 +51,13 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [isLoadingVariants, setIsLoadingVariants] = useState(false);
 	const [editingVariant, setEditingVariant] = useState(null); // variant being edited inline
 	// New variant form (blank template)
-	const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '' }] };
+		const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '', color_hex: '' }], description: '', imageFiles: [], imageUrls: [''] };
 	const [newVariant, setNewVariant] = useState(blankVariant);
 
-	
+
 function truncateUrl(url, maxLen = 28) {
   if (!url) return '';
-  return url.length > maxLen ? url.slice(0, maxLen) + '�' : url;
+  return url.length > maxLen ? url.slice(0, maxLen) + '…' : url;
 }
 	const confirmAction = (message) => {
 		return new Promise((resolve) => {
@@ -65,7 +65,7 @@ function truncateUrl(url, maxLen = 28) {
 				<div className="modern-confirm-toast">
 					<p>{message}</p>
 					<div className="modern-confirm-buttons">
-						<button 
+						<button
 							className="cancel-btn"
 							onClick={() => {
 								toast.dismiss(t.id);
@@ -74,7 +74,7 @@ function truncateUrl(url, maxLen = 28) {
 						>
 							Cancelar
 						</button>
-						<button 
+						<button
 							className="confirm-btn"
 							onClick={() => {
 								toast.dismiss(t.id);
@@ -85,7 +85,7 @@ function truncateUrl(url, maxLen = 28) {
 						</button>
 					</div>
 				</div>
-			), { 
+			), {
 				duration: Infinity,
 				position: 'top-center',
 				style: {
@@ -480,7 +480,9 @@ function truncateUrl(url, maxLen = 28) {
 		}
 	}, []);
 
-	// Build a pre-filled newVariant object from parent product data
+	// Build a minimal pre-fill for the new variant form — just basic overrides
+	// Description, images, and gallery are inherited from the parent product at display time.
+	// The user can explicitly edit those via the ✏️ button to store variant-specific data.
 	const getParentPrefill = () => {
 		const product = editingProduct;
 		if (!product) return blankVariant;
@@ -504,8 +506,6 @@ function truncateUrl(url, maxLen = 28) {
 		setVariantPanel(productId);
 		setEditingVariant(null);
 		await loadVariants(productId);
-		// Auto pre-fill new variant form with parent product data
-		// so the main product effectively becomes the first variant template.
 		setNewVariant(getParentPrefill());
 	};
 
@@ -572,6 +572,42 @@ function truncateUrl(url, maxLen = 28) {
 				const data = await res.json().catch(() => ({}));
 				throw new Error(data.message || 'Error actualizando variante');
 			}
+
+			// If user provided a custom description, send it
+			if (editingVariant.description) {
+				const descRes = await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}`), {
+					method: 'PUT',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ description: editingVariant.description }),
+				});
+				if (!descRes.ok) {
+					const data = await descRes.json().catch(() => ({}));
+					throw new Error(data.message || 'Error guardando descripcion');
+				}
+			}
+
+			// Upload image files to the updated variant
+			if (editingVariant.imageFiles?.length > 0) {
+				const imgFormData = new FormData();
+				for (const file of editingVariant.imageFiles) {
+					imgFormData.append('images', file);
+				}
+				await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}/images`), {
+					method: 'POST',
+					body: imgFormData,
+				});
+			}
+
+			// Upload image URLs to the updated variant
+			const validImageUrls = (editingVariant.imageUrls || []).filter(u => u && /^https?:\/\//i.test(u));
+			if (validImageUrls.length > 0) {
+				await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}/images/links`), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({ imageUrls: validImageUrls }),
+				});
+			}
+
 			toast.success('Variante actualizada');
 			setEditingVariant(null);
 			await loadVariants(productId);
@@ -665,12 +701,21 @@ function truncateUrl(url, maxLen = 28) {
 										<h4 className="variant-list-title">Variantes existentes ({variants.length})</h4>
 										{variants.map((v) => {
 											const isEditingThis = editingVariant?.id === v.id;
+											const hasCustomData = v.description || (v.variant_images && v.variant_images.length > 0);
 											return (
 												<div key={v.id} className={`variant-row ${!v.is_active ? 'inactive' : ''}`}>
 													{isEditingThis ? (
-														/* Inline edit mode */
+														/* Inline edit mode — full editing with parent pre-fill */
 														<div className="variant-edit-inline">
 															<div className="variant-edit-fields">
+																<label className="variant-desc-label">Descripción
+																	<RichTextEditor
+																		value={editingVariant.description || ''}
+																		onChange={(html) => setEditingVariant(prev => ({ ...prev, description: html }))}
+																		placeholder="Descripción de la variante (dejar vacío = hereda del producto)..."
+																		minHeight={100}
+																	/>
+																</label>
 																<label>SKU
 																	<input type="text" value={editingVariant.sku || ''} onChange={(e) => setEditingVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="SKU" />
 																</label>
@@ -680,12 +725,11 @@ function truncateUrl(url, maxLen = 28) {
 																<label>Stock
 																	<input type="number" value={editingVariant.stock || 0} onChange={(e) => setEditingVariant(prev => ({ ...prev, stock: e.target.value }))} />
 																</label>
-																<label>Imagen
+																<label>Imagen principal
 																	<input type="file" accept="image/*" onChange={(e) => {
 																		const file = e.target.files[0] || null;
 																		setEditingVariant(prev => ({ ...prev, imageFile: file }));
 																	}} />
-																	{/* Preview: new file or existing URL */}
 																	{(editingVariant.imageFile || editingVariant.image_url) && (
 																		<div className="variant-image-preview">
 																			<img
@@ -696,6 +740,50 @@ function truncateUrl(url, maxLen = 28) {
 																			<button type="button" className="variant-image-remove" onClick={() => setEditingVariant(prev => ({ ...prev, image_url: '', imageFile: null }))}>✕</button>
 																		</div>
 																	)}
+																</label>
+																<label className="variant-gallery-label">Galería de imágenes (archivos)
+																	<input type="file" accept="image/*" multiple onChange={(e) => {
+																		const files = Array.from(e.target.files || []);
+																		setEditingVariant(prev => ({ ...prev, imageFiles: [...(prev.imageFiles || []), ...files] }));
+																	}} />
+																	{(editingVariant.imageFiles || []).length > 0 && (
+																		<div className="current-images">
+																			{(editingVariant.imageFiles || []).map((f, fi) => (
+																				<div key={fi} className="image-item">
+																					<img src={URL.createObjectURL(f)} alt="" className="thumb" />
+																					<button type="button" className="delete-image-btn" onClick={() => {
+																						const keep = editingVariant.imageFiles.filter((_, i) => i !== fi);
+																						setEditingVariant(prev => ({ ...prev, imageFiles: keep }));
+																					}}>✕</button>
+																				</div>
+																			))}
+																		</div>
+																	)}
+																</label>
+																<label className="variant-gallery-label">URLs de imágenes
+																	{(editingVariant.imageUrls || ['']).map((url, ui) => (
+																		<div key={ui} className="url-input-row">
+																			<input
+																				type="url"
+																				placeholder="https://ejemplo.com/imagen.jpg"
+																				value={url}
+																				onChange={(e) => {
+																					const updated = [...(editingVariant.imageUrls || [''])];
+																					updated[ui] = e.target.value;
+																					setEditingVariant(prev => ({ ...prev, imageUrls: updated }));
+																				}}
+																			/>
+																			{(editingVariant.imageUrls || []).length > 1 && (
+																				<button type="button" className="admin-btn ghost" onClick={() => {
+																					const keep = editingVariant.imageUrls.filter((_, i) => i !== ui);
+																					setEditingVariant(prev => ({ ...prev, imageUrls: keep }));
+																				}}>✕</button>
+																			)}
+																		</div>
+																	))}
+																	<button type="button" className="admin-btn ghost" onClick={() => {
+																		setEditingVariant(prev => ({ ...prev, imageUrls: [...(prev.imageUrls || ['']), ''] }));
+																	}}>+ URL</button>
 																</label>
 																<label className="variant-active-label">
 																	<input type="checkbox" checked={editingVariant.is_active !== false} onChange={(e) => setEditingVariant(prev => ({ ...prev, is_active: e.target.checked }))} />
@@ -756,9 +844,24 @@ function truncateUrl(url, maxLen = 28) {
 																	Stock: {v.stock}
 																</span>
 																{!v.is_active && <span className="variant-inactive-badge">Inactiva</span>}
+																{!hasCustomData && <span className="variant-inherit-badge" title="Usa los datos del producto principal">Hereda del producto</span>}
 															</div>
 															<div className="variant-row-actions">
-																<button type="button" className="admin-btn ghost" onClick={() => setEditingVariant({ ...v, price: v.price ?? '' })}>✏️</button>
+																<button type="button" className="admin-btn ghost" onClick={() => {
+																	// Pre-fill editor with parent data if variant has no custom data
+																	const parentImages = editingProduct?.images || [];
+																	const fallbackImageUrl = parentImages[0] ? resolveImageUrl(parentImages[0].image_path) : '';
+																	setEditingVariant({
+																		...v,
+																		price: v.price ?? '',
+																		description: v.description || editingProduct?.description || '',
+																		image_url: v.image_url || fallbackImageUrl,
+																		imageFile: null,
+																		imageFiles: [],
+																		imageUrls: [''],
+																		attributes: v.attributes.length > 0 ? v.attributes : [{ type: '', value: '', color_hex: '' }],
+																	});
+																}}>✏️</button>
 																<button type="button" className="admin-btn danger" onClick={() => handleDeleteVariant(productId, v.id)}>🗑️</button>
 															</div>
 														</>
@@ -769,16 +872,16 @@ function truncateUrl(url, maxLen = 28) {
 									</div>
 								)}
 
-								{/* Add new variant form */}
+								{/* Add new variant form — compact: only attributes + basic overrides */}
 								<div className="variant-add-form">
 									<div className="variant-add-header">
 										<h4 className="variant-list-title">Agregar variante</h4>
-										{/* Quick button to pre-fill form with parent product data */}
-										<button type="button" className="admin-btn ghost variant-convert-btn" onClick={handleConvertParentToVariant}>
-											📋 Copiar datos del producto
-										</button>
 									</div>
-									<div className="variant-edit-fields">
+									<p className="variant-inherit-note">
+										La variante hereda automáticamente los detalles e imágenes del producto principal.
+										Usa <strong>✏️</strong> para personalizar.
+									</p>
+									<div className="variant-compact-fields">
 										<label>SKU
 											<input type="text" value={newVariant.sku} onChange={(e) => setNewVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="Opcional" />
 										</label>
@@ -787,23 +890,6 @@ function truncateUrl(url, maxLen = 28) {
 										</label>
 										<label>Stock
 											<input type="number" value={newVariant.stock} onChange={(e) => setNewVariant(prev => ({ ...prev, stock: e.target.value }))} />
-										</label>
-										<label>Imagen
-											<input type="file" accept="image/*" onChange={(e) => {
-												const file = e.target.files[0] || null;
-												setNewVariant(prev => ({ ...prev, imageFile: file, image_url: '' }));
-											}} />
-											{/* Preview: new file or pre-filled URL (from parent conversion) */}
-											{(newVariant.imageFile || newVariant.image_url) && (
-												<div className="variant-image-preview">
-													<img
-														src={newVariant.imageFile ? URL.createObjectURL(newVariant.imageFile) : newVariant.image_url}
-														alt="Preview"
-														onError={(e) => { e.currentTarget.style.display = 'none'; }}
-													/>
-													<button type="button" className="variant-image-remove" onClick={() => setNewVariant(prev => ({ ...prev, imageFile: null, image_url: '' }))}>✕</button>
-												</div>
-											)}
 										</label>
 									</div>
 									<div className="variant-attrs-edit">
@@ -1539,7 +1625,7 @@ function truncateUrl(url, maxLen = 28) {
 
 				{adminTotalPages > 1 && (
 					<div className="pagination-controls">
-						<button 
+						<button
 							className="admin-btn ghost"
 							disabled={safeAdminPage <= 1}
 							onClick={() => setAdminPage(safeAdminPage - 1)}
@@ -1547,7 +1633,7 @@ function truncateUrl(url, maxLen = 28) {
 							&laquo; Anterior
 						</button>
 						<span>Página {safeAdminPage} de {adminTotalPages}</span>
-						<button 
+						<button
 							className="admin-btn ghost"
 							disabled={safeAdminPage >= adminTotalPages}
 							onClick={() => setAdminPage(safeAdminPage + 1)}
