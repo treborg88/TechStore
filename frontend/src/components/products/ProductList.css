@@ -708,6 +708,13 @@
   background: var(--hover-bg, #eef0f2);
 }
 
+/* Product-level edit form: collapsible description spans full grid width */
+.edit-desc-collapsible {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+  margin-bottom: 8px;
+}
+
 .variant-desc-toggle .collapsible-icon {
   font-size: 1rem;
   font-weight: 700;

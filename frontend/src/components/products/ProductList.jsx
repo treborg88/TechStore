@@ -43,6 +43,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [showAddForm, setShowAddForm] = useState(false);
 	const [showCreateUrlPanel, setShowCreateUrlPanel] = useState(false);
 	const [showEditUrlPanel, setShowEditUrlPanel] = useState(false);
+	const [showEditDesc, setShowEditDesc] = useState(false); // collapsible description in product edit form
 
 	// ── Variant management state ─────────────────────────────────────────
 	const [variantPanel, setVariantPanel] = useState(null); // product id with open variant panel
@@ -296,6 +297,7 @@ function truncateUrl(url, maxLen = 28) {
 		});
 		setNewImageUrlsForEdit(['']);
 		setShowEditUrlPanel(false);
+		setShowEditDesc(false);
 	};
 
 	const handleEditField = (field, value) => {
@@ -1350,15 +1352,24 @@ function truncateUrl(url, maxLen = 28) {
 																</div>
 																{/* Variant manager */}
 																{renderVariantSection(editingProduct.id)}
-																<label>
-																	Descripción
-																	<RichTextEditor
-																		value={editingProduct.description}
-																		onChange={(html) => handleEditField('description', html)}
-																		placeholder="Descripcion del producto..."
-																		minHeight={140}
-																	/>
-																</label>
+																<div className="variant-desc-collapsible edit-desc-collapsible">
+																	<button
+																		type="button"
+																		className="variant-desc-toggle"
+																		onClick={() => setShowEditDesc(prev => !prev)}
+																	>
+																		<span>📝 Descripción</span>
+																		<span className="collapsible-icon">{showEditDesc ? '−' : '+'}</span>
+																	</button>
+																	{showEditDesc && (
+																		<RichTextEditor
+																			value={editingProduct.description}
+																			onChange={(html) => handleEditField('description', html)}
+																			placeholder="Descripcion del producto..."
+																			minHeight={140}
+																		/>
+																	)}
+																</div>
 																<div className="admin-card-actions">
 																	<button
 																		type="button"
@@ -1586,15 +1597,24 @@ function truncateUrl(url, maxLen = 28) {
 												</div>
 												{/* Variant manager */}
 												{renderVariantSection(editingProduct.id)}
-												<label>
-													Descripción
-													<RichTextEditor
-														value={editingProduct.description}
-														onChange={(html) => handleEditField('description', html)}
-														placeholder="Descripcion del producto..."
-														minHeight={140}
-													/>
-												</label>
+												<div className="variant-desc-collapsible edit-desc-collapsible">
+													<button
+														type="button"
+														className="variant-desc-toggle"
+														onClick={() => setShowEditDesc(prev => !prev)}
+													>
+														<span>📝 Descripción</span>
+														<span className="collapsible-icon">{showEditDesc ? '−' : '+'}</span>
+													</button>
+													{showEditDesc && (
+														<RichTextEditor
+															value={editingProduct.description}
+															onChange={(html) => handleEditField('description', html)}
+															placeholder="Descripcion del producto..."
+															minHeight={140}
+														/>
+													)}
+												</div>
 												<div className="admin-card-actions">
 													<button
 														type="button"
