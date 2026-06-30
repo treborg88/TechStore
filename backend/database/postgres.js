@@ -348,13 +348,23 @@ const statements = {
     if (variants.length === 0) return [];
 
     const variantIds = variants.map(v => v.id);
-    const { rows: attrs } = await pool.query(
-      'SELECT * FROM product_variant_attributes WHERE variant_id = ANY($1)', [variantIds]
-    );
+    let attrs = [];
+    try {
+      const r = await pool.query('SELECT * FROM product_variant_attributes WHERE variant_id = ANY($1)', [variantIds]);
+      attrs = r.rows;
+    } catch (err) {
+      if (err.code === '42P01') { /* table not migrated yet */ attrs = []; }
+      else throw err;
+    }
 
-    const { rows: images } = await pool.query(
-      'SELECT * FROM variant_images WHERE variant_id = ANY($1) ORDER BY sort_order ASC, created_at ASC', [variantIds]
-    );
+    let images = [];
+    try {
+      const r = await pool.query('SELECT * FROM variant_images WHERE variant_id = ANY($1) ORDER BY sort_order ASC, created_at ASC', [variantIds]);
+      images = r.rows;
+    } catch (err) {
+      if (err.code === '42P01') { /* table not migrated yet */ images = []; }
+      else throw err;
+    }
 
     const attrsMap = attrs.reduce((acc, a) => {
       if (!acc[a.variant_id]) acc[a.variant_id] = [];
@@ -375,12 +385,22 @@ const statements = {
     const { rows } = await pool.query('SELECT * FROM product_variants WHERE id = $1', [variant_id]);
     if (rows.length === 0) return null;
     const variant = rows[0];
-    const { rows: attrs } = await pool.query(
-      'SELECT * FROM product_variant_attributes WHERE variant_id = $1', [variant_id]
-    );
-    const { rows: images } = await pool.query(
-      'SELECT * FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC', [variant_id]
-    );
+    let attrs = [];
+    try {
+      const r = await pool.query('SELECT * FROM product_variant_attributes WHERE variant_id = $1', [variant_id]);
+      attrs = r.rows;
+    } catch (err) {
+      if (err.code === '42P01') { /* table not migrated yet */ attrs = []; }
+      else throw err;
+    }
+    let images = [];
+    try {
+      const r = await pool.query('SELECT * FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC', [variant_id]);
+      images = r.rows;
+    } catch (err) {
+      if (err.code === '42P01') { /* table not migrated yet */ images = []; }
+      else throw err;
+    }
     return { ...variant, price_override: variant.price, attributes: attrs.map(a => ({ type: a.attribute_type, value: a.attribute_value, color_hex: a.color_hex || null })), variant_images: images };
   },
 
@@ -466,22 +486,37 @@ const statements = {
   },
 
   getAttributeTypes: async () => {
-    const { rows } = await pool.query('SELECT * FROM product_attribute_types ORDER BY name ASC');
-    return rows;
+    try {
+      const { rows } = await pool.query('SELECT * FROM product_attribute_types ORDER BY name ASC');
+      return rows;
+    } catch (err) {
+      if (err.code === '42P01') return [];
+      throw err;
+    }
   },
 
   // ── Variant Images ─────────────────────────────────────────
   getVariantImages: async (variant_id) => {
-    const { rows } = await pool.query(
-      'SELECT * FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC', [variant_id]
-    );
-    return rows;
+    try {
+      const { rows } = await pool.query(
+        'SELECT * FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC', [variant_id]
+      );
+      return rows;
+    } catch (err) {
+      if (err.code === '42P01') return [];
+      throw err;
+    }
   },
   getFirstVariantImage: async (variant_id) => {
-    const { rows } = await pool.query(
-      'SELECT image_path FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC LIMIT 1', [variant_id]
-    );
-    return rows[0]?.image_path || null;
+    try {
+      const { rows } = await pool.query(
+        'SELECT image_path FROM variant_images WHERE variant_id = $1 ORDER BY sort_order ASC, created_at ASC LIMIT 1', [variant_id]
+      );
+      return rows[0]?.image_path || null;
+    } catch (err) {
+      if (err.code === '42P01') return null;
+      throw err;
+    }
   },
   createVariantImage: async (variant_id, image_path, sort_order = 0) => {
     const { rows } = await pool.query(
