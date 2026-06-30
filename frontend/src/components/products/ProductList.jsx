@@ -44,14 +44,15 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [showCreateUrlPanel, setShowCreateUrlPanel] = useState(false);
 	const [showEditUrlPanel, setShowEditUrlPanel] = useState(false);
 	const [showEditDesc, setShowEditDesc] = useState(false); // collapsible description in product edit form
-	const [showEditProduct, setShowEditProduct] = useState(true); // collapsible product info section (default open)
+	const [showEditProduct, setShowEditProduct] = useState(false); // collapsible product info section (default collapsed)
 
 	// ── Variant management state ─────────────────────────────────────────
-	const [variantPanel, setVariantPanel] = useState(null); // product id with open variant panel
 	const [variants, setVariants] = useState([]);
 	const [attributeTypes, setAttributeTypes] = useState([]);
 	const [isLoadingVariants, setIsLoadingVariants] = useState(false);
 	const [editingVariant, setEditingVariant] = useState(null); // variant being edited inline
+	const [expandedVariants, setExpandedVariants] = useState(new Set()); // which variant collapsibles are open
+	const [showAddVariantForm, setShowAddVariantForm] = useState(false); // add variant form collapsible state
 	const [showDescInVariant, setShowDescInVariant] = useState(false); // collapsible description in variant edit
 	// New variant form (blank template)
 		const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '', color_hex: '' }], description: '', imageFiles: [], imageUrls: [''] };
@@ -299,7 +300,11 @@ function truncateUrl(url, maxLen = 28) {
 		setNewImageUrlsForEdit(['']);
 		setShowEditUrlPanel(false);
 		setShowEditDesc(false);
-		setShowEditProduct(true);
+		setShowEditProduct(false);
+		setExpandedVariants(new Set());
+		setShowAddVariantForm(false);
+		setEditingVariant(null);
+		loadVariants(product.id);
 	};
 
 	const handleEditField = (field, value) => {
@@ -463,7 +468,8 @@ function truncateUrl(url, maxLen = 28) {
 		setNewImagesForEdit([]);
 		setNewImageUrlsForEdit(['']);
 		setShowEditUrlPanel(false);
-		setVariantPanel(null);
+		setExpandedVariants(new Set());
+		setShowAddVariantForm(false);
 		setVariants([]);
 		setEditingVariant(null);
 	};
@@ -485,6 +491,18 @@ function truncateUrl(url, maxLen = 28) {
 		}
 	}, []);
 
+	const toggleVariantExpanded = useCallback((variantId) => {
+		setExpandedVariants(prev => {
+			const next = new Set(prev);
+			if (next.has(variantId)) {
+				next.delete(variantId);
+			} else {
+				next.add(variantId);
+			}
+			return next;
+		});
+	}, []);
+
 	// Build a minimal pre-fill for the new variant form — just basic overrides
 	// Description, images, and gallery are inherited from the parent product at display time.
 	// The user can explicitly edit those via the ✏️ button to store variant-specific data.
@@ -501,17 +519,6 @@ function truncateUrl(url, maxLen = 28) {
 			imageFile: null,
 			attributes: [{ type: '', value: '', color_hex: '' }],
 		};
-	};
-
-	const toggleVariantPanel = async (productId) => {
-		if (variantPanel === productId) {
-			setVariantPanel(null);
-			return;
-		}
-		setVariantPanel(productId);
-		setEditingVariant(null);
-		await loadVariants(productId);
-		setNewVariant(getParentPrefill());
 	};
 
 	const handleCreateVariant = async (productId) => {
@@ -674,282 +681,205 @@ function truncateUrl(url, maxLen = 28) {
 		return data.image_url;
 	};
 
-	const handleConvertParentToVariant = () => {
-		if (!editingProduct) return;
-		setNewVariant(getParentPrefill());
-		toast.success('Datos del producto copiados. Asigna los atributos y crea la variante.');
-	};
-
-	// Reusable variant management section (used in both desktop + mobile edit forms)
+	// Reusable variant management section — each variant as its own collapsible row + add form
 	const renderVariantSection = (productId) => {
-		const isOpen = variantPanel === productId;
+		if (isLoadingVariants) {
+			return <div className="variant-loading"><LoadingSpinner fullPage={false} /></div>;
+		}
 		return (
-			<div className="variant-section">
-				<button
-					type="button"
-					className="variant-toggle-btn"
-					onClick={(e) => { e.preventDefault(); e.stopPropagation(); toggleVariantPanel(productId); }}
-				>
-					<span>🧩 Variantes (colores, tallas...)</span>
-					<span className="collapsible-icon">{isOpen ? '−' : '+'}</span>
-				</button>
-
-				{isOpen && (
-					<div className="variant-panel" onClick={(e) => e.stopPropagation()}>
-						{isLoadingVariants ? (
-							<div className="variant-loading"><LoadingSpinner fullPage={false} /></div>
-						) : (
-							<>
-								{/* Existing variants list */}
-								{variants.length > 0 && (
-									<div className="variant-list">
-										<h4 className="variant-list-title">Variantes existentes ({variants.length})</h4>
-										{variants.map((v) => {
-											const isEditingThis = editingVariant?.id === v.id;
-											const hasCustomData = v.description || (v.variant_images && v.variant_images.length > 0);
-											return (
-												<div key={v.id} className={`variant-row ${!v.is_active ? 'inactive' : ''}`}>
-													{isEditingThis ? (
-														/* Inline edit mode — full editing with parent pre-fill */
-														<div className="variant-edit-inline">
-															<div className="variant-edit-fields">
-																<div className="variant-desc-label variant-desc-collapsible">
-																	<button
-																		type="button"
-																		className="variant-desc-toggle"
-																		onClick={() => setShowDescInVariant(prev => !prev)}
-																	>
-																		<span>📝 Descripción</span>
-																		<span className="collapsible-icon">{showDescInVariant ? '−' : '+'}</span>
-																	</button>
-																	{showDescInVariant && (
-																		<RichTextEditor
-																			value={editingVariant.description || ''}
-																			onChange={(html) => setEditingVariant(prev => ({ ...prev, description: html }))}
-																			placeholder="Descripción de la variante (dejar vacío = hereda del producto)..."
-																			minHeight={100}
-																		/>
-																	)}
-																</div>
-																<label>SKU
-																	<input type="text" value={editingVariant.sku || ''} onChange={(e) => setEditingVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="SKU" />
-																</label>
-																<label>Precio (override)
-																	<input type="number" step="0.01" value={editingVariant.price ?? ''} onChange={(e) => setEditingVariant(prev => ({ ...prev, price: e.target.value }))} placeholder="Precio base" />
-																</label>
-																<label>Stock
-																	<input type="number" value={editingVariant.stock || 0} onChange={(e) => setEditingVariant(prev => ({ ...prev, stock: e.target.value }))} />
-																</label>
-																<label>Imagen principal
-																	<input type="file" accept="image/*" onChange={(e) => {
-																		const file = e.target.files[0] || null;
-																		setEditingVariant(prev => ({ ...prev, imageFile: file }));
-																	}} />
-																	{(editingVariant.imageFile || editingVariant.image_url) && (
-																		<div className="variant-image-preview">
-																			<img
-																				src={editingVariant.imageFile ? URL.createObjectURL(editingVariant.imageFile) : editingVariant.image_url}
-																				alt="Preview"
-																				onError={(e) => { e.currentTarget.style.display = 'none'; }}
-																			/>
-																			<button type="button" className="variant-image-remove" onClick={() => setEditingVariant(prev => ({ ...prev, image_url: '', imageFile: null }))}>✕</button>
-																		</div>
-																	)}
-																</label>
-																<label className="variant-gallery-label">Galería de imágenes (archivos)
-																	<input type="file" accept="image/*" multiple onChange={(e) => {
-																		const files = Array.from(e.target.files || []);
-																		setEditingVariant(prev => ({ ...prev, imageFiles: [...(prev.imageFiles || []), ...files] }));
-																	}} />
-																	{(editingVariant.imageFiles || []).length > 0 && (
-																		<div className="current-images">
-																			{(editingVariant.imageFiles || []).map((f, fi) => (
-																				<div key={fi} className="image-item">
-																					<img src={URL.createObjectURL(f)} alt="" className="thumb" />
-																					<button type="button" className="delete-image-btn" onClick={() => {
-																						const keep = editingVariant.imageFiles.filter((_, i) => i !== fi);
-																						setEditingVariant(prev => ({ ...prev, imageFiles: keep }));
-																					}}>✕</button>
-																				</div>
-																			))}
-																		</div>
-																	)}
-																</label>
-																<label className="variant-gallery-label">URLs de imágenes
-																	{(editingVariant.imageUrls || ['']).map((url, ui) => (
-																		<div key={ui} className="url-input-row">
-																			<input
-																				type="url"
-																				placeholder="https://ejemplo.com/imagen.jpg"
-																				value={url}
-																				onChange={(e) => {
-																					const updated = [...(editingVariant.imageUrls || [''])];
-																					updated[ui] = e.target.value;
-																					setEditingVariant(prev => ({ ...prev, imageUrls: updated }));
-																				}}
-																			/>
-																			{(editingVariant.imageUrls || []).length > 1 && (
-																				<button type="button" className="admin-btn ghost" onClick={() => {
-																					const keep = editingVariant.imageUrls.filter((_, i) => i !== ui);
-																					setEditingVariant(prev => ({ ...prev, imageUrls: keep }));
-																				}}>✕</button>
-																			)}
-																		</div>
-																	))}
-																	<button type="button" className="admin-btn ghost" onClick={() => {
-																		setEditingVariant(prev => ({ ...prev, imageUrls: [...(prev.imageUrls || ['']), ''] }));
-																	}}>+ URL</button>
-																</label>
-																<label className="variant-active-label">
-																	<input type="checkbox" checked={editingVariant.is_active !== false} onChange={(e) => setEditingVariant(prev => ({ ...prev, is_active: e.target.checked }))} />
-																	Activa
-																</label>
-															</div>
-															<div className="variant-attrs-edit">
-																<span className="variant-attrs-title">Atributos:</span>
-																{editingVariant.attributes.map((attr, idx) => (
-																	<div key={idx} className="variant-attr-row">
-																		<select value={attr.type} onChange={(e) => {
-																			const updated = [...editingVariant.attributes];
-																			updated[idx] = { ...updated[idx], type: e.target.value };
-																			setEditingVariant(prev => ({ ...prev, attributes: updated }));
-																		}}>
-																			<option value="">Tipo...</option>
-																			{attributeTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
-																		</select>
-																		<input type="text" value={attr.value} placeholder="Valor" onChange={(e) => {
-																			const updated = [...editingVariant.attributes];
-																			updated[idx] = { ...updated[idx], value: e.target.value };
-																			setEditingVariant(prev => ({ ...prev, attributes: updated }));
-																		}} />
-																		{/* Color picker — only for color_swatch attribute types */}
-																		{isColorType(attr.type) && (
-																			<input type="color" className="variant-color-picker" value={normalizeHexColor(attr.color_hex, '#000000')} title="Color del botón" onChange={(e) => {
-																				const updated = [...editingVariant.attributes];
-																				updated[idx] = { ...updated[idx], color_hex: e.target.value };
-																				setEditingVariant(prev => ({ ...prev, attributes: updated }));
-																			}} />
-																		)}
-																		{editingVariant.attributes.length > 1 && (
-																			<button type="button" className="variant-attr-remove" onClick={() => {
-																				setEditingVariant(prev => ({ ...prev, attributes: removeAttrRow(prev.attributes, idx) }));
-																			}}>✕</button>
-																		)}
-																	</div>
-																))}
-																<button type="button" className="variant-attr-add" onClick={() => {
-																	setEditingVariant(prev => ({ ...prev, attributes: addAttrRow(prev.attributes) }));
-																}}>+ Atributo</button>
-															</div>
-															<div className="variant-edit-actions">
-																<button type="button" className="admin-btn" onClick={() => handleUpdateVariant(productId, v.id)}>Guardar</button>
-																<button type="button" className="admin-btn ghost" onClick={() => setEditingVariant(null)}>Cancelar</button>
-															</div>
-														</div>
-													) : (
-														/* Read-only row */
-														<>
-															<div className="variant-row-info">
-																<span className="variant-attrs-label">{formatVariantLabel(v.attributes.map(a => ({ attribute_value: a.value })))}</span>
-																{v.sku && <span className="variant-sku">SKU: {v.sku}</span>}
-																<span className="variant-price">
-																	{v.price != null ? formatCurrency(v.price, currencyCode) : '—'}
-																</span>
-																<span className={`admin-stock ${v.stock > 0 ? 'in-stock' : 'out-stock'}`}>
-																	Stock: {v.stock}
-																</span>
-																{!v.is_active && <span className="variant-inactive-badge">Inactiva</span>}
-																{!hasCustomData && <span className="variant-inherit-badge" title="Usa los datos del producto principal">Hereda del producto</span>}
-															</div>
-															<div className="variant-row-actions">
-																<button type="button" className="admin-btn ghost" onClick={() => {
-																	// Pre-fill editor with parent data if variant has no custom data
-																	const parentImages = editingProduct?.images || [];
-																	const fallbackImageUrl = parentImages[0] ? resolveImageUrl(parentImages[0].image_path) : '';
-																	setEditingVariant({
-																		...v,
-																		price: v.price ?? '',
-																		description: v.description || editingProduct?.description || '',
-																		image_url: v.image_url || fallbackImageUrl,
-																		imageFile: null,
-																		imageFiles: [],
-																		imageUrls: [''],
-																		attributes: v.attributes.length > 0 ? v.attributes : [{ type: '', value: '', color_hex: '' }],
-																	});
-																	setShowDescInVariant(false);
-																}}>✏️</button>
-																<button type="button" className="admin-btn danger" onClick={() => handleDeleteVariant(productId, v.id)}>🗑️</button>
-															</div>
-														</>
-													)}
-												</div>
-											);
-										})}
-									</div>
-								)}
-
-								{/* Add new variant form — compact: only attributes + basic overrides */}
-								<div className="variant-add-form">
-									<div className="variant-add-header">
-										<h4 className="variant-list-title">Agregar variante</h4>
-									</div>
-									<p className="variant-inherit-note">
-										La variante hereda automáticamente los detalles e imágenes del producto principal.
-										Usa <strong>✏️</strong> para personalizar.
-									</p>
-									<div className="variant-compact-fields">
+			<>
+				{variants.map((v) => {
+					const isOpen = expandedVariants.has(v.id);
+					const hasCustomData = v.description || (v.variant_images && v.variant_images.length > 0);
+					const attrsLabel = v.attributes && v.attributes.length > 0
+						? formatVariantLabel(v.attributes.map(a => ({ attribute_value: a.value })))
+						: "🧩 Variante";
+					return (
+						<div key={v.id} className={"variant-desc-collapsible edit-variant-collapsible" + (!v.is_active ? " inactive" : "")}>
+							<button
+								type="button"
+								className="variant-desc-toggle"
+								onClick={() => {
+									toggleVariantExpanded(v.id);
+									if (!isOpen) {
+										const parentImages = editingProduct?.images || [];
+										const fallbackImageUrl = parentImages[0] ? resolveImageUrl(parentImages[0].image_path) : "";
+										setEditingVariant({
+											...v,
+											price: v.price ?? "",
+											description: v.description || editingProduct?.description || "",
+											image_url: v.image_url || fallbackImageUrl,
+											imageFile: null,
+											imageFiles: [],
+											imageUrls: [""],
+											attributes: v.attributes.length > 0 ? v.attributes : [{ type: "", value: "", color_hex: "" }],
+										});
+										setShowDescInVariant(false);
+									}
+								}}
+							>
+								<span>{attrsLabel}</span>
+								{v.sku && <span className="variant-sku" style={{marginLeft:8}}>SKU: {v.sku}</span>}
+								<span style={{marginLeft:8}}>{v.price != null ? formatCurrency(v.price, currencyCode) : "—"}</span>
+								<span className={"admin-stock " + (v.stock > 0 ? "in-stock" : "out-stock")} style={{marginLeft:8}}>Stock: {v.stock}</span>
+								{!v.is_active && <span className="variant-inactive-badge" style={{marginLeft:8}}>Inactiva</span>}
+								{!hasCustomData && <span className="variant-inherit-badge" style={{marginLeft:8}} title="Usa los datos del producto principal">Hereda</span>}
+								<span className="collapsible-icon" style={{marginLeft:"auto"}}>{isOpen ? "−" : "+"}</span>
+							</button>
+							{isOpen && editingVariant && editingVariant.id === v.id && (
+								<div className="variant-edit-inline">
+									<div className="variant-edit-fields">
+										<div className="variant-desc-label variant-desc-collapsible">
+											<button type="button" className="variant-desc-toggle" onClick={() => setShowDescInVariant(prev => !prev)}>
+												<span>📝 Descripción</span>
+												<span className="collapsible-icon">{showDescInVariant ? "−" : "+"}</span>
+											</button>
+											{showDescInVariant && (
+												<RichTextEditor
+													value={editingVariant.description || ""}
+													onChange={(html) => setEditingVariant(prev => ({ ...prev, description: html }))}
+													placeholder="Descripción de la variante (dejar vacío = hereda del producto)..."
+													minHeight={100}
+												/>
+											)}
+										</div>
 										<label>SKU
-											<input type="text" value={newVariant.sku} onChange={(e) => setNewVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="Opcional" />
+											<input type="text" value={editingVariant.sku || ""} onChange={(e) => setEditingVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="SKU" />
 										</label>
 										<label>Precio (override)
-											<input type="number" step="0.01" value={newVariant.price} onChange={(e) => setNewVariant(prev => ({ ...prev, price: e.target.value }))} placeholder="Precio base" />
+											<input type="number" step="0.01" value={editingVariant.price ?? ""} onChange={(e) => setEditingVariant(prev => ({ ...prev, price: e.target.value }))} placeholder="Precio base" />
 										</label>
 										<label>Stock
-											<input type="number" value={newVariant.stock} onChange={(e) => setNewVariant(prev => ({ ...prev, stock: e.target.value }))} />
+											<input type="number" value={editingVariant.stock || 0} onChange={(e) => setEditingVariant(prev => ({ ...prev, stock: e.target.value }))} />
+										</label>
+										<label>Imagen principal
+											<input type="file" accept="image/*" onChange={(e) => { const f = e.target.files[0] || null; setEditingVariant(prev => ({ ...prev, imageFile: f })); }} />
+											{(editingVariant.imageFile || editingVariant.image_url) && (
+												<div className="variant-image-preview">
+													<img
+														src={editingVariant.imageFile ? URL.createObjectURL(editingVariant.imageFile) : editingVariant.image_url}
+														alt="Preview"
+														onError={(e) => { e.currentTarget.style.display = "none"; }}
+													/>
+													<button type="button" className="variant-image-remove" onClick={() => setEditingVariant(prev => ({ ...prev, image_url: "", imageFile: null }))}>✕</button>
+												</div>
+											)}
+										</label>
+										<label className="variant-gallery-label">Galería de imágenes (archivos)
+											<input type="file" accept="image/*" multiple onChange={(e) => { setEditingVariant(prev => ({ ...prev, imageFiles: [...(prev.imageFiles || []), ...Array.from(e.target.files || [])] })); }} />
+											{(editingVariant.imageFiles || []).length > 0 && (
+												<div className="current-images">
+													{(editingVariant.imageFiles || []).map((f, fi) => (
+														<div key={fi} className="image-item">
+															<img src={URL.createObjectURL(f)} alt="" className="thumb" />
+															<button type="button" className="delete-image-btn" onClick={() => { setEditingVariant(prev => ({ ...prev, imageFiles: prev.imageFiles.filter((_, i) => i !== fi) })); }}>✕</button>
+														</div>
+													))}
+												</div>
+											)}
+										</label>
+										<label className="variant-gallery-label">URLs de imágenes
+											{(editingVariant.imageUrls || [""]).map((url, ui) => (
+												<div key={ui} className="url-input-row">
+													<input
+														type="url"
+														placeholder="https://ejemplo.com/imagen.jpg"
+														value={url}
+														onChange={(e) => { setEditingVariant(prev => ({ ...prev, imageUrls: (prev.imageUrls || [""]).map((u, uii) => uii === ui ? e.target.value : u) })); }}
+													/>
+													{(editingVariant.imageUrls || []).length > 1 && (
+														<button type="button" className="admin-btn ghost" onClick={() => { setEditingVariant(prev => ({ ...prev, imageUrls: (prev.imageUrls || [""]).filter((_, i) => i !== ui) })); }}>✕</button>
+													)}
+												</div>
+											))}
+											<button type="button" className="admin-btn ghost" onClick={() => { setEditingVariant(prev => ({ ...prev, imageUrls: [...(prev.imageUrls || [""]), ""] })); }}>+ URL</button>
+										</label>
+										<label className="variant-active-label">
+											<input type="checkbox" checked={editingVariant.is_active !== false} onChange={(e) => setEditingVariant(prev => ({ ...prev, is_active: e.target.checked }))} />
+											Activa
 										</label>
 									</div>
 									<div className="variant-attrs-edit">
 										<span className="variant-attrs-title">Atributos:</span>
-										{newVariant.attributes.map((attr, idx) => (
+										{editingVariant.attributes.map((attr, idx) => (
 											<div key={idx} className="variant-attr-row">
-												<select value={attr.type} onChange={(e) => {
-													const updated = updateAttrRow(newVariant.attributes, null, idx, 'type', e.target.value);
-													setNewVariant(prev => ({ ...prev, attributes: updated }));
-												}}>
+												<select value={attr.type} onChange={(e) => { setEditingVariant(prev => { const u = [...prev.attributes]; u[idx] = {...u[idx], type: e.target.value}; return {...prev, attributes: u}; }); }}>
 													<option value="">Tipo...</option>
 													{attributeTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
 												</select>
-												<input type="text" value={attr.value} placeholder="Valor (ej. Rojo, M)" onChange={(e) => {
-													const updated = updateAttrRow(newVariant.attributes, null, idx, 'value', e.target.value);
-													setNewVariant(prev => ({ ...prev, attributes: updated }));
-												}} />
-												{/* Color picker — only for color_swatch attribute types */}
+												<input type="text" value={attr.value} placeholder="Valor" onChange={(e) => { setEditingVariant(prev => { const u = [...prev.attributes]; u[idx] = {...u[idx], value: e.target.value}; return {...prev, attributes: u}; }); }} />
 												{isColorType(attr.type) && (
-													<input type="color" className="variant-color-picker" value={normalizeHexColor(attr.color_hex, '#000000')} title="Color del botón" onChange={(e) => {
-														const updated = updateAttrRow(newVariant.attributes, null, idx, 'color_hex', e.target.value);
-														setNewVariant(prev => ({ ...prev, attributes: updated }));
-													}} />
+													<input type="color" className="variant-color-picker" value={normalizeHexColor(attr.color_hex, "#000000")} title="Color del botón" onChange={(e) => { setEditingVariant(prev => { const u = [...prev.attributes]; u[idx] = {...u[idx], color_hex: e.target.value}; return {...prev, attributes: u}; }); }} />
 												)}
-												{newVariant.attributes.length > 1 && (
-													<button type="button" className="variant-attr-remove" onClick={() => {
-														setNewVariant(prev => ({ ...prev, attributes: removeAttrRow(prev.attributes, idx) }));
-													}}>✕</button>
+												{editingVariant.attributes.length > 1 && (
+													<button type="button" className="variant-attr-remove" onClick={() => { setEditingVariant(prev => ({ ...prev, attributes: removeAttrRow(prev.attributes, idx) })); }}>✕</button>
 												)}
 											</div>
 										))}
-										<button type="button" className="variant-attr-add" onClick={() => {
-											setNewVariant(prev => ({ ...prev, attributes: addAttrRow(prev.attributes) }));
-										}}>+ Atributo</button>
+										<button type="button" className="variant-attr-add" onClick={() => { setEditingVariant(prev => ({ ...prev, attributes: addAttrRow(prev.attributes) })); }}>+ Atributo</button>
 									</div>
-									<button type="button" className="admin-btn" onClick={() => handleCreateVariant(productId)}>
-										Crear Variante
-									</button>
+									<div className="variant-edit-actions">
+										<button type="button" className="admin-btn" onClick={() => handleUpdateVariant(productId, v.id)}>Guardar</button>
+										<button type="button" className="admin-btn" style={{marginLeft:8}} onClick={() => handleDeleteVariant(productId, v.id)}>🗑️ Eliminar</button>
+										<button type="button" className="admin-btn ghost" style={{marginLeft:"auto"}} onClick={() => { toggleVariantExpanded(v.id); setEditingVariant(null); }}>Cancelar</button>
+									</div>
 								</div>
-							</>
-						)}
-					</div>
-				)}
-			</div>
+							)}
+						</div>
+					);
+				})}
+				<div className="variant-desc-collapsible edit-variant-add-collapsible">
+					<button
+						type="button"
+						className="variant-desc-toggle"
+						onClick={() => setShowAddVariantForm(prev => !prev)}
+					>
+						<span>➕ Agregar variante</span>
+						<span className="collapsible-icon">{showAddVariantForm ? "−" : "+"}</span>
+					</button>
+					{showAddVariantForm && (
+						<div className="variant-add-form">
+							<p className="variant-inherit-note">
+								La variante hereda automáticamente los detalles e imágenes del producto principal.
+								Usa el editor para personalizar.
+							</p>
+							<div className="variant-compact-fields">
+								<label>SKU
+									<input type="text" value={newVariant.sku} onChange={(e) => setNewVariant(prev => ({ ...prev, sku: e.target.value }))} placeholder="Opcional" />
+								</label>
+								<label>Precio (override)
+									<input type="number" step="0.01" value={newVariant.price} onChange={(e) => setNewVariant(prev => ({ ...prev, price: e.target.value }))} placeholder="Precio base" />
+								</label>
+								<label>Stock
+									<input type="number" value={newVariant.stock} onChange={(e) => setNewVariant(prev => ({ ...prev, stock: e.target.value }))} />
+								</label>
+							</div>
+							<div className="variant-attrs-edit">
+								<span className="variant-attrs-title">Atributos:</span>
+								{newVariant.attributes.map((attr, idx) => (
+									<div key={idx} className="variant-attr-row">
+										<select value={attr.type} onChange={(e) => { const u = updateAttrRow(newVariant.attributes, null, idx, "type", e.target.value); setNewVariant(prev => ({ ...prev, attributes: u })); }}>
+											<option value="">Tipo...</option>
+											{attributeTypes.map(t => <option key={t.id} value={t.name}>{t.name}</option>)}
+										</select>
+										<input type="text" value={attr.value} placeholder="Valor (ej. Rojo, M)" onChange={(e) => { const u = updateAttrRow(newVariant.attributes, null, idx, "value", e.target.value); setNewVariant(prev => ({ ...prev, attributes: u })); }} />
+										{isColorType(attr.type) && (
+											<input type="color" className="variant-color-picker" value={normalizeHexColor(attr.color_hex, "#000000")} title="Color del botón" onChange={(e) => { const u = updateAttrRow(newVariant.attributes, null, idx, "color_hex", e.target.value); setNewVariant(prev => ({ ...prev, attributes: u })); }} />
+										)}
+										{newVariant.attributes.length > 1 && (
+											<button type="button" className="variant-attr-remove" onClick={() => { setNewVariant(prev => ({ ...prev, attributes: removeAttrRow(prev.attributes, idx) })); }}>✕</button>
+										)}
+									</div>
+								))}
+								<button type="button" className="variant-attr-add" onClick={() => { setNewVariant(prev => ({ ...prev, attributes: addAttrRow(prev.attributes) })); }}>+ Atributo</button>
+							</div>
+							<button type="button" className="admin-btn" onClick={() => handleCreateVariant(productId)}>
+								Crear Variante
+							</button>
+						</div>
+					)}
+				</div>
+			</>
 		);
 	};
 
@@ -1366,8 +1296,6 @@ function truncateUrl(url, maxLen = 28) {
 																		</>
 																	)}
 																</div>
-																{/* Variant manager */}
-																{renderVariantSection(editingProduct.id)}
 																<div className="variant-desc-collapsible edit-desc-collapsible">
 																	<button
 																		type="button"
@@ -1386,6 +1314,8 @@ function truncateUrl(url, maxLen = 28) {
 																		/>
 																	)}
 																</div>
+																{/* Variant manager */}
+																{renderVariantSection(editingProduct.id)}
 																<div className="admin-card-actions">
 																	<button
 																		type="button"
@@ -1625,8 +1555,6 @@ function truncateUrl(url, maxLen = 28) {
 														</>
 													)}
 												</div>
-												{/* Variant manager */}
-												{renderVariantSection(editingProduct.id)}
 												<div className="variant-desc-collapsible edit-desc-collapsible">
 													<button
 														type="button"
@@ -1645,6 +1573,8 @@ function truncateUrl(url, maxLen = 28) {
 														/>
 													)}
 												</div>
+												{/* Variant manager */}
+												{renderVariantSection(editingProduct.id)}
 												<div className="admin-card-actions">
 													<button
 														type="button"
