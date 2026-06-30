@@ -132,18 +132,8 @@ router.get('/:id', optionalAuth, async (req, res) => {
             let variants = [];
             let attributeTypes = [];
             if (product.has_variants) {
-                try {
-                    variants = await statements.getVariantsByProduct(productId);
-                } catch (err) {
-                    if (err.code === '42P01') { console.warn('Variant tables not found — run migration'); variants = []; }
-                    else throw err;
-                }
-                try {
-                    attributeTypes = await statements.getAttributeTypes();
-                } catch (err) {
-                    if (err.code === '42P01') { attributeTypes = []; }
-                    else throw err;
-                }
+                variants = await statements.getVariantsByProduct(productId);
+                attributeTypes = await statements.getAttributeTypes();
             }
             
             res.json({ 
