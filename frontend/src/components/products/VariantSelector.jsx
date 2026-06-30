@@ -1,7 +1,6 @@
 // VariantSelector.jsx - Selector de variantes (colores, tallas, etc.)
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import './VariantSelector.css';
-import { formatCurrency } from '../../utils/formatCurrency';
 
 /**
  * Componente para seleccionar variantes de un producto.
@@ -11,11 +10,10 @@ import { formatCurrency } from '../../utils/formatCurrency';
  * @param {Object} props
  * @param {Array}  props.variants       - Array de variantes del producto (con .attributes[])
  * @param {Array}  props.attributeTypes  - Catálogo global de tipos de atributo
- * @param {number} props.basePrice       - Precio base del producto
  * @param {string} props.currencyCode    - Código de moneda para formateo
  * @param {Function} props.onVariantChange - Callback(variant | null) cuando cambia la selección
  */
-export default function VariantSelector({ variants, attributeTypes = [], basePrice, currencyCode, onVariantChange }) {
+export default function VariantSelector({ variants, attributeTypes = [], currencyCode, onVariantChange }) {
   // Selected values keyed by attribute type name, e.g. { Color: 'Rojo', Talla: 'M' }
   const [selected, setSelected] = useState({});
 
@@ -106,11 +104,6 @@ export default function VariantSelector({ variants, attributeTypes = [], basePri
     });
   };
 
-  // Display price override vs base price
-  const priceDisplay = resolvedVariant
-    ? formatCurrency(resolvedVariant.price_override ?? basePrice, currencyCode)
-    : null;
-
   return (
     <div className="variant-selector" data-testid="variant-selector">
       {groups.map(group => (
@@ -147,11 +140,6 @@ export default function VariantSelector({ variants, attributeTypes = [], basePri
           </div>
         </div>
       ))}
-
-      {/* Variant price (only when different from base) */}
-      {resolvedVariant && resolvedVariant.price_override != null && resolvedVariant.price_override !== basePrice && (
-        <div className="variant-price">{priceDisplay}</div>
-      )}
 
       {/* Error: incomplete selection */}
       {!resolvedVariant && Object.keys(selected).length > 0 && Object.keys(selected).length < groups.length && (

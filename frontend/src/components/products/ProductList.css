@@ -1,5 +1,157 @@
 /* ProductList specific styles */
 
+/* ── Admin Table: alternating rows with theme-aware contrast ── */
+.admin-table tbody tr:nth-child(even) {
+  background: var(--gray-50, #f9fafb);
+}
+.admin-table tbody tr:hover {
+  background: color-mix(in srgb, var(--primary-color) 7%, transparent);
+}
+
+/* ── Edit Form: better field contrast ── */
+.edit-form-content input,
+.edit-form-content select,
+.edit-form-content textarea {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1.5px solid var(--gray-200);
+  background: var(--white);
+  font-size: 0.95rem;
+  color: var(--gray-800);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.edit-form-content input:focus,
+.edit-form-content select:focus,
+.edit-form-content textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 15%, transparent);
+}
+
+/* Override default border style on the edit form wrapper */
+.admin-edit-form {
+  border-color: var(--primary-color);
+  border-width: 1.5px;
+}
+
+/* ── Variant edit rows: theme-aware styling ── */
+.edit-variant-collapsible {
+  border: 1px solid var(--gray-200);
+  border-radius: 8px;
+  margin-bottom: 6px;
+  background: var(--white);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.edit-variant-collapsible:focus-within {
+  border-color: var(--primary-color);
+}
+.edit-variant-collapsible.inactive {
+  opacity: 0.65;
+  background: var(--gray-100);
+}
+.edit-variant-collapsible > .variant-desc-toggle {
+  background: var(--gray-50, #f9fafb);
+  border-bottom: 1px solid var(--gray-200);
+}
+.edit-variant-collapsible > .variant-desc-toggle:hover {
+  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+}
+
+/* Variant inline edit fields */
+.variant-edit-fields input,
+.variant-edit-fields select,
+.variant-compact-fields input,
+.variant-compact-fields select {
+  padding: 8px 10px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+  background: var(--white);
+  font-size: 0.85rem;
+  color: var(--gray-800);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.variant-edit-fields input:focus,
+.variant-edit-fields select:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+.variant-edit-fields label {
+  color: var(--gray-700);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+/* Variant attribute rows */
+.variant-attr-row select,
+.variant-attr-row input {
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+}
+.variant-attr-row select:focus,
+.variant-attr-row input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2.5px color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+
+/* Add-variant collapsible */
+.edit-variant-add-collapsible {
+  border: 1.5px dashed var(--gray-300);
+  border-radius: 8px;
+  background: var(--gray-50, #f9fafb);
+  transition: border-color 0.2s, background 0.2s;
+}
+.edit-variant-add-collapsible:hover {
+  border-color: var(--primary-color);
+  background: color-mix(in srgb, var(--primary-color) 5%, transparent);
+}
+.edit-variant-add-collapsible > .variant-desc-toggle {
+  background: transparent;
+  border: none;
+  color: var(--gray-600);
+}
+.edit-variant-add-collapsible > .variant-desc-toggle:hover {
+  color: var(--primary-color);
+}
+
+/* ── Description toggle for variant: elevated styling ── */
+.variant-desc-collapsible > .variant-desc-toggle {
+  background: var(--gray-50, #f9fafb);
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.variant-desc-collapsible > .variant-desc-toggle:hover {
+  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+  border-color: var(--primary-color);
+}
+
+/* ── Variant image preview border ── */
+.variant-image-preview img {
+  border-color: var(--gray-200);
+  border-width: 1.5px;
+}
+
+/* ── Admin buttons inside variant rows ── */
+.variant-edit-actions .admin-btn {
+  padding: 8px 18px;
+  font-weight: 600;
+}
+
+/* ── Rich Text Editor inside admin forms ── */
+.edit-form-content .rich-text-editor-root .rte-input,
+.mobile-edit-form .rich-text-editor-root .rte-input {
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+.edit-form-content .rich-text-editor-root .rte-input:focus-within,
+.mobile-edit-form .rich-text-editor-root .rte-input:focus-within {
+  border-color: var(--primary-color);
+}
+
 /* Desktop table: ensure columns fit without horizontal scroll */
 .admin-table-container {
   overflow-x: auto;
@@ -39,7 +191,9 @@
 .admin-table-name {
   font-weight: 600;
   color: var(--gray-800);
-  min-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .admin-table-description {
@@ -69,14 +223,15 @@
 
 /* Edit Form Row */
 .edit-form-row {
-  background: rgba(20, 184, 166, 0.04);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--primary-color) 6%, transparent), color-mix(in srgb, var(--accent-color) 6%, transparent));
 }
 
 .admin-edit-form {
   padding: 20px;
   background: var(--white);
   border-radius: 12px;
-  border: 1px solid rgba(37, 99, 235, 0.2);
+  border: 1.5px solid var(--primary-color);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
 }
 
 .edit-form-content {
@@ -98,15 +253,6 @@
   font-size: 0.92rem;
   color: var(--gray-700);
   font-weight: 600;
-}
-
-.edit-form-content input {
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(37, 99, 235, 0.35);
-  background: rgba(255, 255, 255, 0.95);
-  font-size: 0.95rem;
-  color: var(--gray-800);
 }
 
 .admin-form .rich-text-editor-root,
@@ -252,7 +398,6 @@
   .admin-table-container .admin-table td:nth-child(1) { width: 64px; }
 
   .admin-table-name {
-    min-width: 100px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

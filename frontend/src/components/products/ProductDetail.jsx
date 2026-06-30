@@ -113,25 +113,49 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
     const descriptionHtml = editedDescription;
     setSaving(true);
     try {
-      const response = await apiFetch(apiUrl(`/products/${id}`), {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          ...product,
-          description: descriptionHtml
-        })
-      });
-
-      if (response.ok) {
-        setProduct({ ...product, description: descriptionHtml });
-        setEditedDescription(descriptionHtml);
-        setIsEditing(false);
-        toast.success('Descripción actualizada');
-        if (onRefresh) onRefresh();
+      let response;
+      if (selectedVariant) {
+        // Save to variant endpoint
+        response = await apiFetch(apiUrl(`/products/${id}/variants/${selectedVariant.id}`), {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ description: descriptionHtml })
+        });
+        if (response.ok) {
+          // Update the variant in the product's variants array
+          const updatedVariants = (product.variants || []).map(v =>
+            v.id === selectedVariant.id ? { ...v, description: descriptionHtml } : v
+          );
+          setProduct({ ...product, variants: updatedVariants });
+          // Also update selectedVariant so the display updates immediately
+          setSelectedVariant({ ...selectedVariant, description: descriptionHtml });
+          setEditedDescription(descriptionHtml);
+          setIsEditing(false);
+          toast.success('Descripción de variante actualizada');
+          if (onRefresh) onRefresh();
+        } else {
+          throw new Error('Error al actualizar');
+        }
       } else {
-        throw new Error('Error al actualizar');
+        response = await apiFetch(apiUrl(`/products/${id}`), {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            ...product,
+            description: descriptionHtml
+          })
+        });
+        if (response.ok) {
+          setProduct({ ...product, description: descriptionHtml });
+          setEditedDescription(descriptionHtml);
+          setIsEditing(false);
+          toast.success('Descripción actualizada');
+          if (onRefresh) onRefresh();
+        } else {
+          throw new Error('Error al actualizar');
+        }
       }
     } catch {
       toast.error('No se pudo guardar la descripción');
@@ -363,10 +387,16 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
           </div>
 
           <div className="product-price-stock">
-            <div className="product-price">{formatCurrency(effectivePrice, currencyCode)}</div>
-            <div className={`stock-badge ${isOutOfStock ? 'out-of-stock' : isLowStock ? 'low-stock' : 'in-stock'}`}>
-              {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${effectiveStock} ${unitLabel}!` : '🟢 Disponible'}
-            </div>
+            {needsVariantSelection ? (
+              <div className="variant-placeholder-text">Selecciona una variante para ver precio y disponibilidad</div>
+            ) : (
+              <>
+                <div className="product-price">{formatCurrency(effectivePrice, currencyCode)}</div>
+                <div className={`stock-badge ${isOutOfStock ? 'out-of-stock' : isLowStock ? 'low-stock' : 'in-stock'}`}>
+                  {isOutOfStock ? '🔴 Agotado' : isLowStock ? `🟠 ¡Solo quedan ${effectiveStock} ${unitLabel}!` : '🟢 Disponible'}
+                </div>
+              </>
+            )}
           </div>
 
           {/* Variant selector (only when product has variants) */}
@@ -374,7 +404,6 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
             <VariantSelector
               variants={product.variants}
               attributeTypes={product.attributeTypes || []}
-              basePrice={product.price}
               currencyCode={currencyCode}
               onVariantChange={onVariantChange}
             />
@@ -382,25 +411,34 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
 
           <div className="product-description-container">
             <div className="description-header">
-              <h3 className="description-subtitle">Descripción</h3>
+              <h3 className="description-subtitle">
+                {selectedVariant?.description ? 'Descripción (variante)' : 'Descripción'}
+              </h3>
               {user && user.role === 'admin' && !isEditing && (
-                <button 
-                  className="edit-desc-btn" 
-                  onClick={() => setIsEditing(true)}
-                  title="Editar descripción"
+                <button
+                  className="edit-desc-btn"
+                  onClick={() => {
+                    if (selectedVariant?.description) {
+                      setEditedDescription(selectedVariant.description);
+                    } else {
+                      setEditedDescription(product.description || '');
+                    }
+                    setIsEditing(true);
+                  }}
+                  title={selectedVariant ? 'Editar descripción de la variante' : 'Editar descripción'}
                 >
                   ✏️
                 </button>
               )}
             </div>
-            
+
             {isEditing ? (
               <div className="edit-description-area">
                 <RichTextEditor
                   value={editedDescription}
                   onChange={setEditedDescription}
-                  placeholder="Escribe la descripción del producto..."
-                  helpText="Selecciona texto y usa la barra de formato. Se guarda como HTML simple."
+                  placeholder={selectedVariant ? "Escribe la descripción de la variante..." : "Escribe la descripción del producto..."}
+                  helpText={selectedVariant ? "Editando descripción de la variante seleccionada. Se guarda como HTML simple." : "Selecciona texto y usa la barra de formato. Se guarda como HTML simple."}
                 />
                 <div className="edit-actions">
                   <button className="save-desc-btn" onClick={handleSave} disabled={saving}>
@@ -408,18 +446,22 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
                   </button>
                   <button className="cancel-desc-btn" onClick={() => {
                     setIsEditing(false);
-                    setEditedDescription(product.description || '');
+                    if (selectedVariant?.description) {
+                      setEditedDescription(selectedVariant.description);
+                    } else {
+                      setEditedDescription(product.description || '');
+                    }
                   }}>
                     Cancelar
                   </button>
                 </div>
               </div>
             ) : (
-              <div 
-                className="product-full-description" 
+              <div
+                className="product-full-description"
                 style={{ whiteSpace: 'pre-wrap' }}
-                dangerouslySetInnerHTML={{ 
-                  __html: product.description || 'Sin descripción'
+                dangerouslySetInnerHTML={{
+                  __html: (selectedVariant?.description || product.description) || 'Sin descripción'
                 }}
               />
             )}

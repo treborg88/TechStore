@@ -426,6 +426,13 @@
   color: #dc2626;
 }
 
+.variant-placeholder-text {
+  font-size: 1rem;
+  color: #9ca3af;
+  font-style: italic;
+  padding: 0.5rem 0;
+}
+
 /* Similar Products Section */
 .similar-products-section {
   margin-top: 4rem;

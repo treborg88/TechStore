@@ -1,4 +1,4 @@
-import { useState, useMemo, Fragment, useCallback, useEffect } from 'react';
+import { useState, useMemo, Fragment, useCallback, useEffect, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { toast } from 'react-hot-toast';
 import LoadingSpinner from '../common/LoadingSpinner';
@@ -54,6 +54,9 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [expandedVariants, setExpandedVariants] = useState(new Set()); // which variant collapsibles are open
 	const [showAddVariantForm, setShowAddVariantForm] = useState(false); // add variant form collapsible state
 	const [showDescInVariant, setShowDescInVariant] = useState(false); // collapsible description in variant edit
+	// Ref to capture latest editingVariant — avoids stale-closure issues in Guardar click
+	const editingVariantRef = useRef(editingVariant);
+	useEffect(() => { editingVariantRef.current = editingVariant; }, [editingVariant]);
 	// New variant form (blank template)
 		const blankVariant = { sku: '', price: '', stock: '', image_url: '', imageFile: null, attributes: [{ type: '', value: '', color_hex: '' }], description: '', imageFiles: [], imageUrls: [''] };
 	const [newVariant, setNewVariant] = useState(blankVariant);
@@ -560,42 +563,31 @@ function truncateUrl(url, maxLen = 28) {
 	};
 
 	const handleUpdateVariant = async (productId, variantId) => {
-		if (!editingVariant) return;
-		const validAttrs = editingVariant.attributes.filter(a => a.type && a.value);
+		const current = editingVariantRef.current;
+		if (!current) return;
+		const validAttrs = current.attributes.filter(a => a.type && a.value);
 		try {
 			// Upload new image file if selected
-			let imageUrl = editingVariant.image_url || null;
-			if (editingVariant.imageFile) {
-				imageUrl = await uploadVariantImage(productId, editingVariant.imageFile);
+			let imageUrl = current.image_url || null;
+			if (current.imageFile) {
+				imageUrl = await uploadVariantImage(productId, current.imageFile);
 			}
 			const res = await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}`), {
 				method: 'PUT',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					sku: editingVariant.sku || undefined,
-					price: editingVariant.price !== '' && editingVariant.price != null ? Number(editingVariant.price) : null,
-					stock: Number(editingVariant.stock) || 0,
+					sku: current.sku || undefined,
+					price: current.price !== '' && current.price != null ? Number(current.price) : null,
+					stock: Number(current.stock) || 0,
 					image_url: imageUrl,
-					is_active: editingVariant.is_active,
+					is_active: current.is_active,
+					description: current.description || '',
 					attributes: validAttrs.length > 0 ? validAttrs : undefined
 				})
 			});
 			if (!res.ok) {
 				const data = await res.json().catch(() => ({}));
 				throw new Error(data.message || 'Error actualizando variante');
-			}
-
-			// If user provided a custom description, send it
-			if (editingVariant.description) {
-				const descRes = await apiFetch(apiUrl(`/products/${productId}/variants/${variantId}`), {
-					method: 'PUT',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({ description: editingVariant.description }),
-				});
-				if (!descRes.ok) {
-					const data = await descRes.json().catch(() => ({}));
-					throw new Error(data.message || 'Error guardando descripcion');
-				}
 			}
 
 			// Upload image files to the updated variant
