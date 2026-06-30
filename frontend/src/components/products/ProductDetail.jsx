@@ -45,6 +45,7 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
   const startXSimilar = useRef(0);
   const scrollLeftSimilar = useRef(0);
   const hasDraggedSimilar = useRef(false);
+  const dragPauseRef = useRef(0); // timestamp when user last dragged — pause auto-scroll briefly
   const [editedDescription, setEditedDescription] = useState('');
   const [saving, setSaving] = useState(false);
   // Variant state (only used when product.has_variants === true)
@@ -108,6 +109,128 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
 
     loadProduct();
   }, [id, products, navigate]);
+
+  // ── Smooth infinite circular carousel for similar products ──
+  // Only activates when items overflow the container.
+  // Renders 2 copies and silently rewinds scrollLeft past the breakpoint
+  // so the user never sees a visible jump.
+  const [hasOverflow, setHasOverflow] = useState(false);
+
+  useEffect(() => {
+    const el = similarScrollRef.current;
+    if (!el || similarProducts.length === 0) return;
+    setHasOverflow(el.scrollWidth > el.clientWidth);
+  }, [similarProducts]);
+
+  // Build duplicated items only when overflow — seamless infinite wrapping
+  const duplicatedSimilar = hasOverflow && similarProducts.length > 0
+    ? similarProducts.map((item, idx) => ({ ...item, _dupKey: `dup-0-${idx}` }))
+        .concat(similarProducts.map((item, idx) => ({ ...item, _dupKey: `dup-1-${idx}` })))
+    : [];
+
+  // Auto-scroll (gentle rotation) — scrolls for 3s, pauses for 6s, repeats.
+  // Pauses briefly after user drag, then resumes the cycle.
+  useEffect(() => {
+    if (!hasOverflow || similarProducts.length === 0) return;
+    const speed = 0.6;
+    const SCROLL_DURATION = 5000;
+    const PAUSE_DURATION = 10000;
+    let rafId;
+    let phaseStart = performance.now();
+    let scrolling = true; // start in scroll phase
+
+    const tick = (now) => {
+      const el = similarScrollRef.current;
+      if (!el) { rafId = requestAnimationFrame(tick); return; }
+
+      // User drag pause (3s) — resets the cycle after it expires
+      if (Date.now() - dragPauseRef.current < 3000) {
+        phaseStart = performance.now();
+        scrolling = true;
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+
+      const elapsed = now - phaseStart;
+
+      // Switch phases
+      if (scrolling && elapsed >= SCROLL_DURATION) {
+        scrolling = false;
+        phaseStart = now;
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+      if (!scrolling && elapsed >= PAUSE_DURATION) {
+        scrolling = true;
+        phaseStart = now;
+        rafId = requestAnimationFrame(tick);
+        return;
+      }
+
+      if (scrolling) {
+        const setWidth = el.scrollWidth / 2;
+        const maxScroll = el.scrollWidth - el.clientWidth;
+        if (maxScroll <= 0) { rafId = requestAnimationFrame(tick); return; }
+        if (el.scrollLeft >= setWidth) {
+          el.scrollLeft = el.scrollLeft - setWidth;
+        }
+        el.scrollLeft += speed;
+      }
+      rafId = requestAnimationFrame(tick);
+    };
+
+    rafId = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(rafId);
+  }, [hasOverflow, similarProducts]);
+
+  // Scroll-based wrap for manual drag interactions
+  const handleInfiniteScroll = useCallback(() => {
+    const el = similarScrollRef.current;
+    if (!el || !hasOverflow) return;
+    const setWidth = el.scrollWidth / 2;
+    if (el.scrollLeft >= setWidth) {
+      el.scrollLeft = el.scrollLeft - setWidth;
+    }
+  }, [hasOverflow]);
+
+  const handleSimilarMouseDown = useCallback((e) => {
+    const el = similarScrollRef.current;
+    if (!el) return;
+    dragPauseRef.current = Date.now();
+    isDraggingSimilar.current = true;
+    hasDraggedSimilar.current = false;
+    startXSimilar.current = e.pageX - el.offsetLeft;
+    scrollLeftSimilar.current = el.scrollLeft;
+    el.style.cursor = 'grabbing';
+  }, []);
+
+  const handleSimilarMouseLeave = useCallback(() => {
+    isDraggingSimilar.current = false;
+    if (similarScrollRef.current) similarScrollRef.current.style.cursor = 'grab';
+  }, []);
+
+  const handleSimilarMouseUp = useCallback(() => {
+    isDraggingSimilar.current = false;
+    if (similarScrollRef.current) similarScrollRef.current.style.cursor = 'grab';
+  }, []);
+
+  const handleSimilarMouseMove = useCallback((e) => {
+    if (!isDraggingSimilar.current) return;
+    e.preventDefault();
+    const el = similarScrollRef.current;
+    if (!el) return;
+    const x = e.pageX - el.offsetLeft;
+    const walk = (x - startXSimilar.current) * 2;
+    if (Math.abs(walk) > 5) hasDraggedSimilar.current = true;
+    let newLeft = scrollLeftSimilar.current - walk;
+    // Keep scroll within bounds: if past halfway, rewind by one set width
+    if (hasOverflow) {
+      const setWidth = el.scrollWidth / 2;
+      while (newLeft >= setWidth) newLeft -= setWidth;
+      while (newLeft < 0) newLeft += setWidth;
+    }
+    el.scrollLeft = newLeft;
+  }, [hasOverflow]);
 
   const handleSave = async () => {
     const descriptionHtml = editedDescription;
@@ -492,46 +615,28 @@ function ProductDetail({ products, addToCart, user, onRefresh, heroImage, heroSe
         <div className="similar-products-section">
           <h2 className="section-title">Productos Similares</h2>
           <div
-            className="similar-products-grid"
+            className="similar-products-grid infinite-carousel"
             ref={similarScrollRef}
-            onMouseDown={(e) => {
-              isDraggingSimilar.current = true;
-              hasDraggedSimilar.current = false;
-              startXSimilar.current = e.pageX - similarScrollRef.current.offsetLeft;
-              scrollLeftSimilar.current = similarScrollRef.current.scrollLeft;
-              similarScrollRef.current.style.cursor = 'grabbing';
-            }}
-            onMouseLeave={() => {
-              isDraggingSimilar.current = false;
-              if (similarScrollRef.current) similarScrollRef.current.style.cursor = 'grab';
-            }}
-            onMouseUp={() => {
-              isDraggingSimilar.current = false;
-              if (similarScrollRef.current) similarScrollRef.current.style.cursor = 'grab';
-            }}
-            onMouseMove={(e) => {
-              if (!isDraggingSimilar.current) return;
-              e.preventDefault();
-              const x = e.pageX - similarScrollRef.current.offsetLeft;
-              const walk = (x - startXSimilar.current) * 2;
-              if (Math.abs(walk) > 5) hasDraggedSimilar.current = true;
-              similarScrollRef.current.scrollLeft = scrollLeftSimilar.current - walk;
-            }}
+            onScroll={handleInfiniteScroll}
+            onMouseDown={handleSimilarMouseDown}
+            onMouseLeave={handleSimilarMouseLeave}
+            onMouseUp={handleSimilarMouseUp}
+            onMouseMove={handleSimilarMouseMove}
           >
-            {similarProducts.map(similar => (
-              <div 
-                key={similar.id} 
+            {(hasOverflow ? duplicatedSimilar : similarProducts).map((similar) => (
+              <div
+                key={hasOverflow ? similar._dupKey : similar.id}
                 className="similar-product-card"
                 draggable={false}
                 onClick={() => { if (!hasDraggedSimilar.current) navigate(`/product/${similar.id}`); }}
               >
-                <img 
+                <img
                   src={resolveImageUrl(
-                    (Array.isArray(similar.images) && similar.images.length > 0) 
-                      ? similar.images[0].image_path 
+                    (Array.isArray(similar.images) && similar.images.length > 0)
+                      ? similar.images[0].image_path
                       : similar.image
-                  )} 
-                  alt={similar.name} 
+                  )}
+                  alt={similar.name}
                   className="similar-product-image"
                   draggable={false}
                   onError={(e) => { e.target.onerror = null; e.target.src = '/images/placeholder.svg'; }}
