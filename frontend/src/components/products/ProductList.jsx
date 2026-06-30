@@ -44,6 +44,7 @@ export default function ProductList({ products, onRefresh, isLoading, pagination
 	const [showCreateUrlPanel, setShowCreateUrlPanel] = useState(false);
 	const [showEditUrlPanel, setShowEditUrlPanel] = useState(false);
 	const [showEditDesc, setShowEditDesc] = useState(false); // collapsible description in product edit form
+	const [showEditProduct, setShowEditProduct] = useState(true); // collapsible product info section (default open)
 
 	// ── Variant management state ─────────────────────────────────────────
 	const [variantPanel, setVariantPanel] = useState(null); // product id with open variant panel
@@ -298,6 +299,7 @@ function truncateUrl(url, maxLen = 28) {
 		setNewImageUrlsForEdit(['']);
 		setShowEditUrlPanel(false);
 		setShowEditDesc(false);
+		setShowEditProduct(true);
 	};
 
 	const handleEditField = (field, value) => {
@@ -1211,144 +1213,158 @@ function truncateUrl(url, maxLen = 28) {
 													<td colSpan="8">
 														<form className="admin-edit-form" onSubmit={handleUpdate}>
 															<div className="edit-form-content">
-																<div className="form-row">
-																	<label>
-																		Nombre
-																		<input
-																			type="text"
-																			value={editingProduct.name}
-																			onChange={(event) => handleEditField('name', event.target.value)}
-																			required
-																		/>
-																	</label>
-																	<label>
-																		Categoría
-																		<select
-																			value={categoryOptions.includes(editingProduct.category) ? editingProduct.category : '__custom__'}
-																			onChange={(event) => {
-																				if (event.target.value !== '__custom__') handleEditField('category', event.target.value);
-																			}}
-																			required={!editingProduct.category}
-																		>
-																			<option value="">Selecciona una categoría</option>
-																			{categoryOptions.map((option) => (
-																				<option key={option} value={option}>{option}</option>
-																			))}
-																			{editingProduct.category && !categoryOptions.includes(editingProduct.category) && (
-																				<option value="__custom__">{editingProduct.category} (personalizada)</option>
-																			)}
-																		</select>
-																	</label>
-																</div>
-																<div className="form-row">
-																	<label>
-																		Precio
-																		<input
-																			type="number"
-																			step="0.01"
-																			className="compact-input"
-																			value={editingProduct.price}
-																			onChange={(event) => handleEditField('price', event.target.value)}
-																			max={99999}
-																			inputMode="decimal"
-																			required
-																		/>
-																	</label>
-																	<label>
-																		Stock
-																		<input
-																			type="number"
-																			className="compact-input"
-																			value={editingProduct.stock}
-																			onChange={(event) => handleEditField('stock', event.target.value)}
-																			max={99999}
-																			inputMode="numeric"
-																			required
-																		/>
-																	</label>
-																	<label>
-																		Tipo de variante
-																		<select
-																			value={editingProduct.unitType}
-																			onChange={(event) => handleEditField('unitType', normalizeUnitType(event.target.value))}
-																		>
-																			{PRODUCT_UNIT_OPTIONS.map((option) => (
-																				<option key={option.value} value={option.value}>{option.label}</option>
-																			))}
-																		</select>
-																	</label>
-																</div>
-																<div className="images-section">
-																	<label>Imágenes actuales</label>
-																	<div className="current-images">
-																		{(editingProduct.images || []).map((img) => (
-																			<div key={img.id} className="image-item">
-																				<img
-																					src={resolveImageUrl(img.image_path)}
-																					alt="Producto"
-																					onError={(event) => {
-																						event.currentTarget.src = '/images/placeholder.svg';
-																					}}
+																<div className="variant-desc-collapsible edit-product-collapsible">
+																	<button
+																		type="button"
+																		className="variant-desc-toggle"
+																		onClick={() => setShowEditProduct(prev => !prev)}
+																	>
+																		<span>🏷️ Producto</span>
+																		<span className="collapsible-icon">{showEditProduct ? '−' : '+'}</span>
+																	</button>
+																	{showEditProduct && (
+																		<>
+																		<div className="form-row">
+																			<label>
+																				Nombre
+																				<input
+																					type="text"
+																					value={editingProduct.name}
+																					onChange={(event) => handleEditField('name', event.target.value)}
+																					required
 																				/>
-																				{img.id !== 'legacy' && (
-																					<button
-																						type="button"
-																						className="delete-image-btn"
-																						onClick={() => handleDeleteImage(img.id)}
-																					>
-																						✕
-																					</button>
-																				)}
-																			</div>
-																		))}
-																	</div>
-																	<label>Agregar nuevas imágenes</label>
-																	<input
-																		type="file"
-																		accept="image/*"
-																		multiple
-																		onChange={(event) => setNewImagesForEdit(Array.from(event.target.files))}
-																	/>
-																	{newImagesForEdit.length > 0 && (
-																		<button
-																			type="button"
-																			className="admin-btn"
-																			onClick={handleAddImages}
-																		>
-																			Agregar {newImagesForEdit.length} imagen(es)
-																		</button>
-																	)}
-																	<div className="url-images-panel">
-																		<button
-																			type="button"
-																			className="variant-toggle-btn"
-																			onClick={() => setShowEditUrlPanel((prev) => !prev)}
-																		>
-																			<span>🔗 Agregar imágenes por URL</span>
-																			<span className="collapsible-icon">{showEditUrlPanel ? '−' : '+'}</span>
-																		</button>
-																		{showEditUrlPanel && (
-																			<div className="url-inputs-wrap">
-																				{newImageUrlsForEdit.map((url, index) => (
-																					<div key={`edit-url-desktop-${index}`} className="url-input-row">
-																						<input
-																							type="url"
-																							placeholder="https://ejemplo.com/imagen.jpg"
-																							value={url}
-																							onChange={(event) => setEditUrlAt(index, event.target.value)}
+																			</label>
+																			<label>
+																				Categoría
+																				<select
+																					value={categoryOptions.includes(editingProduct.category) ? editingProduct.category : '__custom__'}
+																					onChange={(event) => {
+																						if (event.target.value !== '__custom__') handleEditField('category', event.target.value);
+																					}}
+																					required={!editingProduct.category}
+																				>
+																					<option value="">Selecciona una categoría</option>
+																					{categoryOptions.map((option) => (
+																						<option key={option} value={option}>{option}</option>
+																					))}
+																					{editingProduct.category && !categoryOptions.includes(editingProduct.category) && (
+																						<option value="__custom__">{editingProduct.category} (personalizada)</option>
+																					)}
+																				</select>
+																			</label>
+																		</div>
+																		<div className="form-row">
+																			<label>
+																				Precio
+																				<input
+																					type="number"
+																					step="0.01"
+																					className="compact-input"
+																					value={editingProduct.price}
+																					onChange={(event) => handleEditField('price', event.target.value)}
+																					max={99999}
+																					inputMode="decimal"
+																					required
+																				/>
+																			</label>
+																			<label>
+																				Stock
+																				<input
+																					type="number"
+																					className="compact-input"
+																					value={editingProduct.stock}
+																					onChange={(event) => handleEditField('stock', event.target.value)}
+																					max={99999}
+																					inputMode="numeric"
+																					required
+																				/>
+																			</label>
+																			<label>
+																				Tipo de variante
+																				<select
+																					value={editingProduct.unitType}
+																					onChange={(event) => handleEditField('unitType', normalizeUnitType(event.target.value))}
+																				>
+																					{PRODUCT_UNIT_OPTIONS.map((option) => (
+																						<option key={option.value} value={option.value}>{option.label}</option>
+																					))}
+																				</select>
+																			</label>
+																		</div>
+																		<div className="images-section">
+																			<label>Imágenes actuales</label>
+																			<div className="current-images">
+																				{(editingProduct.images || []).map((img) => (
+																					<div key={img.id} className="image-item">
+																						<img
+																							src={resolveImageUrl(img.image_path)}
+																							alt="Producto"
+																							onError={(event) => {
+																								event.currentTarget.src = '/images/placeholder.svg';
+																							}}
 																						/>
-																						{newImageUrlsForEdit.length > 1 && (
-																							<button type="button" className="admin-btn ghost" onClick={() => removeEditUrlInput(index)}>✕</button>
+																						{img.id !== 'legacy' && (
+																							<button
+																								type="button"
+																								className="delete-image-btn"
+																								onClick={() => handleDeleteImage(img.id)}
+																							>
+																								✕
+																							</button>
 																						)}
 																					</div>
 																				))}
-																				<div className="url-input-actions">
-																					<button type="button" className="admin-btn ghost" onClick={addEditUrlInput}>+ URL</button>
-																					<button type="button" className="admin-btn" onClick={handleAddImageUrls}>Agregar URLs</button>
-																				</div>
 																			</div>
-																		)}
-																	</div>
+																			<label>Agregar nuevas imágenes</label>
+																			<input
+																				type="file"
+																				accept="image/*"
+																				multiple
+																				onChange={(event) => setNewImagesForEdit(Array.from(event.target.files))}
+																			/>
+																			{newImagesForEdit.length > 0 && (
+																				<button
+																					type="button"
+																					className="admin-btn"
+																					onClick={handleAddImages}
+																				>
+																					Agregar {newImagesForEdit.length} imagen(es)
+																				</button>
+																			)}
+																			<div className="url-images-panel">
+																				<button
+																					type="button"
+																					className="variant-toggle-btn"
+																					onClick={() => setShowEditUrlPanel((prev) => !prev)}
+																				>
+																					<span>🔗 Agregar imágenes por URL</span>
+																					<span className="collapsible-icon">{showEditUrlPanel ? '−' : '+'}</span>
+																				</button>
+																				{showEditUrlPanel && (
+																					<div className="url-inputs-wrap">
+																						{newImageUrlsForEdit.map((url, index) => (
+																							<div key={`edit-url-desktop-${index}`} className="url-input-row">
+																								<input
+																									type="url"
+																									placeholder="https://ejemplo.com/imagen.jpg"
+																									value={url}
+																									onChange={(event) => setEditUrlAt(index, event.target.value)}
+																								/>
+																								{newImageUrlsForEdit.length > 1 && (
+																									<button type="button" className="admin-btn ghost" onClick={() => removeEditUrlInput(index)}>✕</button>
+																								)}
+																							</div>
+																						))}
+																						<div className="url-input-actions">
+																							<button type="button" className="admin-btn ghost" onClick={addEditUrlInput}>+ URL</button>
+																							<button type="button" className="admin-btn" onClick={handleAddImageUrls}>Agregar URLs</button>
+																						</div>
+																					</div>
+																				)}
+																			</div>
+																		</div>
+																		</>
+																	)}
 																</div>
 																{/* Variant manager */}
 																{renderVariantSection(editingProduct.id)}
@@ -1456,144 +1472,158 @@ function truncateUrl(url, maxLen = 28) {
 									{isEditing && (
 										<form className="admin-edit-form mobile-edit-form" onSubmit={handleUpdate}>
 											<div className="edit-form-content">
-												<div className="form-row">
-													<label>
-														Nombre
-														<input
-															type="text"
-															value={editingProduct.name}
-															onChange={(event) => handleEditField('name', event.target.value)}
-															required
-														/>
-													</label>
-													<label>
-														Categoría
-														<select
-															value={categoryOptions.includes(editingProduct.category) ? editingProduct.category : '__custom__'}
-															onChange={(event) => {
-																if (event.target.value !== '__custom__') handleEditField('category', event.target.value);
-															}}
-															required={!editingProduct.category}
-														>
-															<option value="">Selecciona una categoría</option>
-															{categoryOptions.map((option) => (
-																<option key={option} value={option}>{option}</option>
-															))}
-															{editingProduct.category && !categoryOptions.includes(editingProduct.category) && (
-																<option value="__custom__">{editingProduct.category} (personalizada)</option>
-															)}
-														</select>
-													</label>
-												</div>
-												<div className="form-row">
-													<label>
-														Precio
-														<input
-															type="number"
-															step="0.01"
-															className="compact-input"
-															value={editingProduct.price}
-															onChange={(event) => handleEditField('price', event.target.value)}
-															max={99999}
-															inputMode="decimal"
-															required
-														/>
-													</label>
-													<label>
-														Stock
-														<input
-															type="number"
-															className="compact-input"
-															value={editingProduct.stock}
-															onChange={(event) => handleEditField('stock', event.target.value)}
-															max={99999}
-															inputMode="numeric"
-															required
-														/>
-													</label>
-													<label>
-														Tipo de variante
-														<select
-															value={editingProduct.unitType}
-															onChange={(event) => handleEditField('unitType', normalizeUnitType(event.target.value))}
-														>
-															{PRODUCT_UNIT_OPTIONS.map((option) => (
-																<option key={option.value} value={option.value}>{option.label}</option>
-															))}
-														</select>
-													</label>
-												</div>
-												<div className="images-section">
-													<label>Imágenes actuales</label>
-													<div className="current-images">
-														{(editingProduct.images || []).map((img) => (
-															<div key={img.id} className="image-item">
-																<img
-																	src={resolveImageUrl(img.image_path)}
-																	alt="Producto"
-																	onError={(event) => {
-																		event.currentTarget.src = '/images/placeholder.svg';
-																	}}
+												<div className="variant-desc-collapsible edit-product-collapsible">
+													<button
+														type="button"
+														className="variant-desc-toggle"
+														onClick={() => setShowEditProduct(prev => !prev)}
+													>
+														<span>🏷️ Producto</span>
+														<span className="collapsible-icon">{showEditProduct ? '−' : '+'}</span>
+													</button>
+													{showEditProduct && (
+														<>
+														<div className="form-row">
+															<label>
+																Nombre
+																<input
+																	type="text"
+																	value={editingProduct.name}
+																	onChange={(event) => handleEditField('name', event.target.value)}
+																	required
 																/>
-																{img.id !== 'legacy' && (
-																	<button
-																		type="button"
-																		className="delete-image-btn"
-																		onClick={() => handleDeleteImage(img.id)}
-																	>
-																		✕
-																	</button>
-																)}
-															</div>
-														))}
-													</div>
-													<label>Agregar nuevas imágenes</label>
-													<input
-														type="file"
-														accept="image/*"
-														multiple
-														onChange={(event) => setNewImagesForEdit(Array.from(event.target.files))}
-													/>
-													{newImagesForEdit.length > 0 && (
-														<button
-															type="button"
-															className="admin-btn"
-															onClick={handleAddImages}
-														>
-															Agregar {newImagesForEdit.length} imagen(es)
-														</button>
-													)}
-													<div className="url-images-panel">
-														<button
-															type="button"
-															className="variant-toggle-btn"
-															onClick={() => setShowEditUrlPanel((prev) => !prev)}
-														>
-															<span>🔗 Agregar imágenes por URL</span>
-															<span className="collapsible-icon">{showEditUrlPanel ? '−' : '+'}</span>
-														</button>
-														{showEditUrlPanel && (
-															<div className="url-inputs-wrap">
-																{newImageUrlsForEdit.map((url, index) => (
-																	<div key={`edit-url-mobile-${index}`} className="url-input-row">
-																		<input
-																			type="url"
-																			placeholder="https://ejemplo.com/imagen.jpg"
-																			value={url}
-																			onChange={(event) => setEditUrlAt(index, event.target.value)}
+															</label>
+															<label>
+																Categoría
+																<select
+																	value={categoryOptions.includes(editingProduct.category) ? editingProduct.category : '__custom__'}
+																	onChange={(event) => {
+																		if (event.target.value !== '__custom__') handleEditField('category', event.target.value);
+																	}}
+																	required={!editingProduct.category}
+																>
+																	<option value="">Selecciona una categoría</option>
+																	{categoryOptions.map((option) => (
+																		<option key={option} value={option}>{option}</option>
+																	))}
+																	{editingProduct.category && !categoryOptions.includes(editingProduct.category) && (
+																		<option value="__custom__">{editingProduct.category} (personalizada)</option>
+																	)}
+																</select>
+															</label>
+														</div>
+														<div className="form-row">
+															<label>
+																Precio
+																<input
+																	type="number"
+																	step="0.01"
+																	className="compact-input"
+																	value={editingProduct.price}
+																	onChange={(event) => handleEditField('price', event.target.value)}
+																	max={99999}
+																	inputMode="decimal"
+																	required
+																/>
+															</label>
+															<label>
+																Stock
+																<input
+																	type="number"
+																	className="compact-input"
+																	value={editingProduct.stock}
+																	onChange={(event) => handleEditField('stock', event.target.value)}
+																	max={99999}
+																	inputMode="numeric"
+																	required
+																/>
+															</label>
+															<label>
+																Tipo de variante
+																<select
+																	value={editingProduct.unitType}
+																	onChange={(event) => handleEditField('unitType', normalizeUnitType(event.target.value))}
+																>
+																	{PRODUCT_UNIT_OPTIONS.map((option) => (
+																		<option key={option.value} value={option.value}>{option.label}</option>
+																	))}
+																</select>
+															</label>
+														</div>
+														<div className="images-section">
+															<label>Imágenes actuales</label>
+															<div className="current-images">
+																{(editingProduct.images || []).map((img) => (
+																	<div key={img.id} className="image-item">
+																		<img
+																			src={resolveImageUrl(img.image_path)}
+																			alt="Producto"
+																			onError={(event) => {
+																				event.currentTarget.src = '/images/placeholder.svg';
+																			}}
 																		/>
-																		{newImageUrlsForEdit.length > 1 && (
-																			<button type="button" className="admin-btn ghost" onClick={() => removeEditUrlInput(index)}>✕</button>
+																		{img.id !== 'legacy' && (
+																			<button
+																				type="button"
+																				className="delete-image-btn"
+																				onClick={() => handleDeleteImage(img.id)}
+																			>
+																				✕
+																			</button>
 																		)}
 																	</div>
 																))}
-																<div className="url-input-actions">
-																	<button type="button" className="admin-btn ghost" onClick={addEditUrlInput}>+ URL</button>
-																	<button type="button" className="admin-btn" onClick={handleAddImageUrls}>Agregar URLs</button>
-																</div>
 															</div>
-														)}
-													</div>
+															<label>Agregar nuevas imágenes</label>
+															<input
+																type="file"
+																accept="image/*"
+																multiple
+																onChange={(event) => setNewImagesForEdit(Array.from(event.target.files))}
+															/>
+															{newImagesForEdit.length > 0 && (
+																<button
+																	type="button"
+																	className="admin-btn"
+																	onClick={handleAddImages}
+																>
+																	Agregar {newImagesForEdit.length} imagen(es)
+																</button>
+															)}
+															<div className="url-images-panel">
+																<button
+																	type="button"
+																	className="variant-toggle-btn"
+																	onClick={() => setShowEditUrlPanel((prev) => !prev)}
+																>
+																	<span>🔗 Agregar imágenes por URL</span>
+																	<span className="collapsible-icon">{showEditUrlPanel ? '−' : '+'}</span>
+																</button>
+																{showEditUrlPanel && (
+																	<div className="url-inputs-wrap">
+																		{newImageUrlsForEdit.map((url, index) => (
+																			<div key={`edit-url-mobile-${index}`} className="url-input-row">
+																				<input
+																					type="url"
+																					placeholder="https://ejemplo.com/imagen.jpg"
+																					value={url}
+																					onChange={(event) => setEditUrlAt(index, event.target.value)}
+																				/>
+																				{newImageUrlsForEdit.length > 1 && (
+																					<button type="button" className="admin-btn ghost" onClick={() => removeEditUrlInput(index)}>✕</button>
+																				)}
+																			</div>
+																		))}
+																		<div className="url-input-actions">
+																			<button type="button" className="admin-btn ghost" onClick={addEditUrlInput}>+ URL</button>
+																			<button type="button" className="admin-btn" onClick={handleAddImageUrls}>Agregar URLs</button>
+																		</div>
+																	</div>
+																)}
+															</div>
+														</div>
+														</>
+													)}
 												</div>
 												{/* Variant manager */}
 												{renderVariantSection(editingProduct.id)}

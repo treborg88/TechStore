@@ -715,6 +715,15 @@
   margin-bottom: 8px;
 }
 
+/* Product-level collapsible "Producto" section */
+.edit-product-collapsible {
+  grid-column: 1 / -1;
+  margin-bottom: 8px;
+}
+.edit-product-collapsible > .variant-desc-toggle {
+  margin-bottom: 6px;
+}
+
 .variant-desc-toggle .collapsible-icon {
   font-size: 1rem;
   font-weight: 700;
