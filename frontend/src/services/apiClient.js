@@ -80,6 +80,25 @@ export const apiFetch = async (url, options = {}) => {
     headers
   });
 
+  // ── Session expiration or revoked token ──
+  // 401 = no token / token revoked, 403 = token invalid/expired
+  if ((response.status === 401 || response.status === 403) && getAuthToken()) {
+    const body = await response.clone().json().catch(() => ({}));
+    const msg = (body.message || '').toLowerCase();
+    const isAuthError = msg.includes('token') || msg.includes('sesión') || msg.includes('expir') || msg.includes('login');
+    if (isAuthError) {
+      localStorage.removeItem('authToken');
+      localStorage.removeItem('userData');
+      localStorage.removeItem('sessionId');
+      localStorage.removeItem('sessionStartTime');
+      // Dispatch custom event for useAuth to pick up
+      window.dispatchEvent(new CustomEvent('session-expired', { detail: { message: body.message } }));
+      // Prevent further processing
+      const err = new Error(body.message || 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.');
+      throw err;
+    }
+  }
+
   // Auto-retry once on CSRF failure: re-read cookie (may have been updated by another tab)
   if (response.status === 403 && !['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     const body = await response.clone().json().catch(() => ({}));

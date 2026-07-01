@@ -47,8 +47,22 @@ export function useAuth({ user, setUser, cartItems, syncLocalCart, clearCartItem
       }
     };
 
+    // Detect session expiration via apiFetch (token expired/invalid on server)
+    const handleSessionExpired = (e) => {
+      const msg = (e.detail && e.detail.message) || 'Tu sesión ha expirado. Por favor inicia sesión nuevamente.';
+      setUser(null);
+      clearCartItems();
+      localStorage.removeItem('checkout_progress');
+      toast.error(msg);
+      navigate('/login');
+    };
+
     window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    window.addEventListener('session-expired', handleSessionExpired);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('session-expired', handleSessionExpired);
+    };
   }, [user, navigate, clearCartItems, setUser]);
 
   // Verificar expiración de sesión al cargar/refresh

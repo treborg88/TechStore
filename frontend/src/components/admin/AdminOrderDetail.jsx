@@ -134,7 +134,7 @@ export default function AdminOrderDetail({
     // Subtotal calculation
     const subtotal = items.reduce((sum, item) => sum + (Number(item.price) * item.quantity), 0);
     const shippingCost = Number(order.shipping_cost) || 0;
-    const total = (Number(order.total) || 0) + shippingCost;
+    const total = Number(order.total) || 0;
 
     // PDF Download handler
     const handleDownloadPdf = useCallback(async () => {

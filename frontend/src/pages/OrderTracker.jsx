@@ -267,7 +267,7 @@ export default function OrderTracker({ user, currencyCode = 'USD', siteName = 'M
                       <strong>{order.order_number || `#${order.id}`}</strong>
                       <small>{formatDate(order.created_at)}</small>
                     </div>
-                    <span className="order-total">{formatCurrency((order.total || 0) + (order.shipping_cost || 0), currencyCode)}</span>
+                    <span className="order-total">{formatCurrency((order.total || 0), currencyCode)}</span>
                     <span className="order-arrow">›</span>
                   </div>
                 ))}

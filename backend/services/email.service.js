@@ -227,10 +227,10 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
             </tr>
         `).join('');
 
-        // Calculate shipping cost and grand total
+        // Calculate totals — order.total already includes shipping, so derive subtotal from items
         const shippingCost = Number(order.shipping_cost) || 0;
-        const subtotal = Number(order.total) || 0;
-        const grandTotal = subtotal + shippingCost;
+        const itemsSubtotal = items.reduce((sum, item) => sum + (Number(item.price) * Number(item.quantity)), 0);
+        const grandTotal = itemsSubtotal + shippingCost;
 
         // Build items table HTML with totals breakdown included
         const itemsTable = `
@@ -249,7 +249,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                 <tfoot>
                     <tr>
                         <td colspan="3" style="padding:8px 6px; text-align:right; border-top:1px solid #e5e7eb;"><strong>Subtotal:</strong></td>
-                        <td style="padding:8px 6px; text-align:right; border-top:1px solid #e5e7eb;">${formatCurrency(subtotal)}</td>
+                        <td style="padding:8px 6px; text-align:right; border-top:1px solid #e5e7eb;">${formatCurrency(itemsSubtotal)}</td>
                     </tr>
                     <tr>
                         <td colspan="3" style="padding:8px 6px; text-align:right;"><strong>Cargo por envío:</strong></td>
@@ -302,7 +302,7 @@ const sendOrderEmail = async ({ order, items, customer, shipping, attachment }) 
                 shippingAddress: shipping.address,
                 paymentMethod: order.payment_method === 'cash' ? 'Contra Entrega' : order.payment_method === 'transfer' ? 'Transferencia' : order.payment_method === 'stripe' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'paypal' ? 'PayPal' : order.payment_method === 'card' ? 'Tarjeta de Crédito/Débito' : order.payment_method === 'online' ? 'Pago en Línea' : order.payment_method,
                 status: order.status,
-                subtotal: formatCurrency(subtotal),
+                subtotal: formatCurrency(itemsSubtotal),
                 shippingCost: shippingCost > 0 ? formatCurrency(shippingCost) : 'Gratis',
                 total: formatCurrency(grandTotal),
                 itemsTable
