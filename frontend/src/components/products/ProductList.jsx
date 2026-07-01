@@ -996,8 +996,7 @@ function truncateUrl(url, maxLen = 28) {
 				<div className="admin-section-header">
 					<h3>Listado actual</h3>
 					<span>
-						Mostrando {pageProducts.length}/{filteredProducts.length} - Pág {safeAdminPage}/{adminTotalPages}
-						{adminTotalPages > 1 && <>
+						Mostrando {pageProducts.length}/{filteredProducts.length}{adminTotalPages > 1 && <> - Pág {safeAdminPage}/{adminTotalPages}
 							<button type="button" className="admin-page-arrow" disabled={safeAdminPage <= 1} onClick={() => setAdminPage(safeAdminPage - 1)}>&lt;</button>
 							<button type="button" className="admin-page-arrow" disabled={safeAdminPage >= adminTotalPages} onClick={() => setAdminPage(safeAdminPage + 1)}>&gt;</button>
 						</>}
