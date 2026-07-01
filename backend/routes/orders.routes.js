@@ -251,11 +251,12 @@ async function createOrderCore({
         }
 
         let itemPrice = product.price;
+        let variant = null;
         let variantSnapshot = null;
 
         if (item.variant_id) {
             // Variant item: decrement variant stock, resolve variant price
-            const variant = await statements.getVariantById(item.variant_id);
+            variant = await statements.getVariantById(item.variant_id);
             // Coerce to Number — DB may return string IDs vs numeric IDs
             if (!variant || Number(variant.product_id) !== Number(product.id) || !variant.is_active) {
                 const err = new Error(`Variante no válida para ${product.name}`);
