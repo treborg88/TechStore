@@ -996,7 +996,7 @@ function truncateUrl(url, maxLen = 28) {
 				<div className="admin-section-header">
 					<h3>Listado actual</h3>
 					<span>
-						{filteredProducts.length} / {products.length} productos
+						Mostrando {(safeAdminPage - 1) * ADMIN_PAGE_SIZE + 1}–{Math.min(safeAdminPage * ADMIN_PAGE_SIZE, filteredProducts.length)} de {filteredProducts.length} productos
 						{adminTotalPages > 1 && <> &mdash; Pág {safeAdminPage} de {adminTotalPages}</>}
 						{onForceRefresh && (
 							<button
