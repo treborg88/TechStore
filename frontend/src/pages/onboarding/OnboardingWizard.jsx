@@ -6,6 +6,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
 import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL, API_URL } from '../../config';
+import ProcessingOverlay from '../../components/common/ProcessingOverlay';
 
 // Color palette previews shown in the onboarding theme picker.
 // IDs must match the keys in backend/database/themes/index.js.
@@ -213,6 +214,7 @@ export default function OnboardingWizard() {
     const [domainFocused, setDomainFocused] = useState(false);
     const [storeError, setStoreError]   = useState('');
     const [submitting, setSubmitting]   = useState(false);
+    const [overlayStatus, setOverlayStatus] = useState(null); // null | 'running' | 'success'
     const [success, setSuccess]         = useState(null);
     const [themeId, setThemeId]         = useState('tech-blue');
 
@@ -233,6 +235,7 @@ export default function OnboardingWizard() {
     const strength = getStrength(password);
     const loginUrl = `${PLATFORM_PROTOCOL}//${PLATFORM_DOMAIN}/login`;
     const domainRef = useRef(null);
+    const successRef = useRef(null); // holds API result while overlay plays
 
     // Inject Inter font
     useEffect(() => {
@@ -444,6 +447,9 @@ export default function OnboardingWizard() {
         setStoreError('');
         setSubmitting(true);
 
+        // Show cool loading overlay with min 5s animation
+        setOverlayStatus('running');
+
         try {
             // Include oauth_token if coming from SSO; otherwise use email+password
             const body = oauthToken
@@ -456,57 +462,70 @@ export default function OnboardingWizard() {
                 body: JSON.stringify(body),
             });
             const data = await res.json();
-            if (!res.ok) { setStoreError(data.message || 'Error al crear la tienda'); setSubmitting(false); return; }
-            setSuccess({ storeUrl: data.storeUrl });
+            if (!res.ok) {
+                setStoreError(data.message || 'Error al crear la tienda');
+                setSubmitting(false);
+                setOverlayStatus(null);
+                return;
+            }
+            // Store result — overlay will call onComplete after min 5s
+            successRef.current = { storeUrl: data.storeUrl };
+            setOverlayStatus('success');
         } catch {
             setStoreError('Error de conexión. Intenta de nuevo.');
             setSubmitting(false);
+            setOverlayStatus(null);
         }
     };
 
-    // ── Success screen ─────────────────────────────────────────────────────────
-    if (success) {
-        return (
-            <div style={{ minHeight: '100vh', background: '#050816', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', color: '#fff' }}>
-                <div style={{ ...glass, borderRadius: '24px', padding: '3rem', maxWidth: '480px', width: '100%', textAlign: 'center' }}>
-                    <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
-                    <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 1rem', background: 'linear-gradient(to right, #22d3ee, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                        ¡Tu tienda está lista!
-                    </h1>
-                    <p style={{ color: 'rgba(255,255,255,0.6)', margin: '0 0 2rem', lineHeight: 1.6 }}>
-                        Accede a tu nueva tienda y comienza a vender hoy mismo.
-                    </p>
-                    <a href={success.storeUrl} style={{ display: 'block', padding: '14px 32px', borderRadius: '14px', background: '#22d3ee', color: '#050816', fontWeight: 700, fontSize: '1rem', textAlign: 'center', textDecoration: 'none' }}>
-                        Ir a mi tienda →
-                    </a>
+    // Called after the overlay has played for at least minDurationMs
+    const handleOverlayComplete = () => {
+        if (successRef.current) {
+            setSuccess(successRef.current);
+            setOverlayStatus(null); // Hide overlay so the success screen is visible
+        }
+    };
+
+    // ── Render ──────────────────────────────────────────────────────────────────
+    return (
+        <>
+            {success ? (
+                <div style={{ minHeight: '100vh', background: '#050816', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'Inter, sans-serif', color: '#fff' }}>
+                    <div style={{ ...glass, borderRadius: '24px', padding: '3rem', maxWidth: '480px', width: '100%', textAlign: 'center' }}>
+                        <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>🎉</div>
+                        <h1 style={{ fontSize: '2rem', fontWeight: 800, margin: '0 0 1rem', background: 'linear-gradient(to right, #22d3ee, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                            ¡Tu tienda está lista!
+                        </h1>
+                        <p style={{ color: 'rgba(255,255,255,0.6)', margin: '0 0 2rem', lineHeight: 1.6 }}>
+                            Accede a tu nueva tienda y comienza a vender hoy mismo.
+                        </p>
+                        <a href={success.storeUrl} style={{ display: 'block', padding: '14px 32px', borderRadius: '14px', background: '#22d3ee', color: '#050816', fontWeight: 700, fontSize: '1rem', textAlign: 'center', textDecoration: 'none' }}>
+                            Ir a mi tienda →
+                        </a>
+                    </div>
                 </div>
-            </div>
-        );
-    }
+            ) : step === 1 ? (
+                <PageShell step={1} loginUrl={loginUrl}>
+                    <StepDots step={1} />
 
-    // ── STEP 1 ─────────────────────────────────────────────────────────────────
-    if (step === 1) return (
-        <PageShell step={1} loginUrl={loginUrl}>
-            <StepDots step={1} />
+                    <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                        <p style={{ fontSize: '0.75rem', color: 'rgba(34,211,238,0.8)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.75rem' }}>
+                            Paso 1 de 4
+                        </p>
+                        <h1 style={{ fontSize: '2.25rem', fontWeight: 800, lineHeight: 1.25, margin: '0 0 0.75rem', color: '#fff' }}>
+                            Crea tu{' '}
+                            <span style={{ background: 'linear-gradient(to right, #22d3ee, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                                cuenta
+                            </span>
+                        </h1>
+                        <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '1rem', lineHeight: 1.625, maxWidth: '360px', margin: '0 auto' }}>
+                            Empieza gratis. Sin tarjeta de crédito, sin compromisos.
+                        </p>
+                    </div>
 
-            <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
-                <p style={{ fontSize: '0.75rem', color: 'rgba(34,211,238,0.8)', fontWeight: 600, letterSpacing: '0.1em', textTransform: 'uppercase', margin: '0 0 0.75rem' }}>
-                    Paso 1 de 4
-                </p>
-                <h1 style={{ fontSize: '2.25rem', fontWeight: 800, lineHeight: 1.25, margin: '0 0 0.75rem', color: '#fff' }}>
-                    Crea tu{' '}
-                    <span style={{ background: 'linear-gradient(to right, #22d3ee, #8b5cf6)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                        cuenta
-                    </span>
-                </h1>
-                <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '1rem', lineHeight: 1.625, maxWidth: '360px', margin: '0 auto' }}>
-                    Empieza gratis. Sin tarjeta de crédito, sin compromisos.
-                </p>
-            </div>
+                    <div style={{ ...glass, borderRadius: '24px', padding: '2rem', boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
 
-            <div style={{ ...glass, borderRadius: '24px', padding: '2rem', boxShadow: '0 25px 50px rgba(0,0,0,0.4)' }}>
-
-                {/* OAuth error (from redirect) */}
+                        {/* OAuth error (from redirect) */}
                 {oauthError && (
                     <div style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5', padding: '0.75rem 1rem', borderRadius: '12px', fontSize: '0.875rem', marginBottom: '1rem' }}>
                         {oauthError}
@@ -630,10 +649,7 @@ export default function OnboardingWizard() {
                 🔒 Tus datos están protegidos con cifrado SSL de extremo a extremo.
             </p>
         </PageShell>
-    );
-
-    // ── STEP 2 — Email verification ──────────────────────────────────────────
-    if (step === 2) return (
+    ) : step === 2 ? (
         <PageShell step={2} loginUrl={loginUrl}>
             <StepDots step={2} />
 
@@ -708,10 +724,7 @@ export default function OnboardingWizard() {
                 🔒 Tus datos están protegidos con cifrado SSL de extremo a extremo.
             </p>
         </PageShell>
-    );
-
-    // ── STEP 3 — Store name ─────────────────────────────────────────────────────────────────
-    return (
+    ) : (
         <PageShell step={3} loginUrl={loginUrl}>
             <StepDots step={3} />
 
@@ -868,5 +881,19 @@ export default function OnboardingWizard() {
                 🔒 Tus datos están protegidos con cifrado SSL de extremo a extremo.
             </p>
         </PageShell>
-    );
+    )}
+
+    {/* Processing Overlay — shows during store creation */}
+    {overlayStatus && (
+        <ProcessingOverlay
+            visible={true}
+            status={overlayStatus}
+            title={overlayStatus === 'success' ? 'Tienda creada con éxito' : 'Creando tu tienda'}
+            subtitle={overlayStatus === 'success' ? 'Todo listo. Redirigiendo...' : 'Estamos configurando tu tienda con las mejores opciones para ti.'}
+            minDurationMs={7000}
+            onComplete={handleOverlayComplete}
+        />
+    )}
+</>
+);
 }

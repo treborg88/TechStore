@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { Routes, Route, Navigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { PLATFORM_DOMAIN, PLATFORM_PROTOCOL } from '../../config';
+import { apiFetch, apiUrl } from '../../services/apiClient';
 
 const registerUrl = `${PLATFORM_PROTOCOL}//app.${PLATFORM_DOMAIN}/register`;
 
@@ -475,27 +476,19 @@ function Carousel() {
     );
 }
 
-// ── Static pricing plans ───────────────────────────────────────────────────────
-const PLANS = [
-    { name: 'Trial', subtitle: 'Prueba gratuita', price: '$0', items: ['📦 20 Productos', '🛒 50 Órdenes/mes', '💾 200 MB Almacenamiento', '✅ Funcionalidades Básicas'], btnText: 'Comenzar Prueba', featured: false, dark: false },
-    { name: 'Básico', subtitle: 'Para comenzar', price: '$19', items: ['📦 100 Productos', '🛒 500 Órdenes/mes', '💾 1000 MB Almacenamiento', '✅ Funcionalidades Estándar'], btnText: 'Elegir Plan', featured: false, dark: true },
-    { name: 'Profesional', subtitle: 'Para negocios en crecimiento', price: '$49', items: ['📦 500 Productos', '🛒 2000 Órdenes/mes', '💾 5000 MB Almacenamiento', '✅ Funcionalidades Avanzadas'], btnText: 'Elegir Plan', featured: true, dark: true },
-    { name: 'Premium', subtitle: 'Todo incluido', price: '$99', items: ['📦 Productos Ilimitados', '🛒 Órdenes Ilimitadas', '💾 20000 MB Almacenamiento', '✅ Todas las Funcionalidades'], btnText: 'Elegir Plan', featured: false, dark: true },
-];
+// ── Feature labels for the comparison table ──────────────────────────────────
+const FEATURE_LABELS = {
+  products: 'Catálogo de productos',
+  orders: 'Gestión de pedidos',
+  chatbot: 'Chatbot IA',
+  email_invoices: 'Facturas por email',
+  tracking: 'Seguimiento de envíos',
+  variants: 'Variantes de producto',
+  custom_domain: 'Dominio personalizado',
+};
+const FEATURE_ORDER = ['products', 'orders', 'chatbot', 'email_invoices', 'tracking', 'variants', 'custom_domain'];
 
-const COMPARISON_ROWS = [
-    ['Productos', '20', '100', '500', '∞'],
-    ['Órdenes/mes', '50', '500', '2000', '∞'],
-    ['Almacenamiento', '200 MB', '1000 MB', '5000 MB', '20000 MB'],
-    ['Catálogo de productos', '✅', '✅', '✅', '✅'],
-    ['Gestión de pedidos', '✅', '✅', '✅', '✅'],
-    ['Chatbot IA', '✅', '✅', '✅', '✅'],
-    ['Facturas por email', '—', '✅', '✅', '✅'],
-    ['Seguimiento de envíos', '—', '—', '✅', '✅'],
-    ['Variantes de producto', '—', '—', '✅', '✅'],
-    ['Dominio personalizado', '—', '—', '✅', '✅'],
-    ['Todas las funcionalidades', '—', '—', '—', '✅'],
-];
+const limitLabel = (v) => (v === -1 ? '∞' : v?.toLocaleString?.() ?? v);
 
 const FAQ_ITEMS = [
     { q: '¿Cómo funciona el respaldo de base de datos?', a: 'Desde el panel de administración puedes generar un respaldo completo de tu base de datos con un solo clic y descargarlo al instante. También puedes programar copias automáticas diarias o semanales, y restaurar cualquier respaldo anterior en caso de necesitarlo.' },
@@ -509,6 +502,18 @@ const FAQ_ITEMS = [
 
 // ── Home page (all sections) ───────────────────────────────────────────────────
 function SaaSHome() {
+    const [plans, setPlans] = useState([]);
+
+    // Fetch plans from the API
+    useEffect(() => {
+        (async () => {
+            try {
+                const res = await apiFetch(apiUrl('/saas/plans'));
+                if (res.ok) setPlans(await res.json());
+            } catch { /* silent fallback — no plans, pricing section won't render */ }
+        })();
+    }, []);
+
     // Show toast for store-not-found redirects
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -765,6 +770,7 @@ function SaaSHome() {
             </section>
 
             {/* ── Pricing ───────────────────────────────────────────────────── */}
+            {plans.length > 0 && (
             <section id="pricing" style={{ padding: '6rem 1.5rem' }}>
                 <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
                     <div style={{ textAlign: 'center', marginBottom: '5rem' }}>
@@ -773,36 +779,57 @@ function SaaSHome() {
                     </div>
 
                     <div className="saas-pricing-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2rem', alignItems: 'center' }}>
-                        {PLANS.map((plan, i) => (
-                            <div key={i} style={plan.featured ? {
-                                borderRadius: '32px', padding: '2rem',
-                                background: 'linear-gradient(to bottom, #22d3ee, #8b5cf6)',
-                                color: '#000', transform: 'scale(1.05)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
-                                display: 'flex', flexDirection: 'column',
-                            } : {
-                                ...glass, borderRadius: '32px', padding: '2rem', display: 'flex', flexDirection: 'column',
-                            }}>
-                                <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem', color: plan.featured ? '#000' : '#fff' }}>{plan.name}</h3>
-                                <p style={{ fontSize: '0.875rem', margin: '0 0 1.5rem', color: plan.featured ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.6)' }}>{plan.subtitle}</p>
-                                <div style={{ fontSize: '3rem', fontWeight: 900, margin: '0 0 2rem', color: plan.featured ? '#000' : '#fff' }}>
-                                    {plan.price}<span style={{ fontSize: '1.125rem', fontWeight: 400, color: plan.featured ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)' }}>/mes</span>
-                                </div>
-                                <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', flex: 1 }}>
-                                    {plan.items.map((item, j) => (
-                                        <li key={j} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: plan.featured ? '#000' : 'rgba(255,255,255,0.7)' }}>{item}</li>
-                                    ))}
-                                </ul>
-                                <button onClick={() => { window.location.href = registerUrl; }} style={{
-                                    width: '100%', marginTop: '2rem', padding: '0.75rem', borderRadius: '16px',
-                                    background: plan.dark ? '#000' : 'rgba(255,255,255,0.1)',
-                                    color: '#fff',
-                                    border: plan.dark ? 'none' : '1px solid rgba(255,255,255,0.08)',
-                                    fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem',
+                        {plans.map((plan, i) => {
+                            const isPro = plan.id === 'pro';
+                            const hasAll = Array.isArray(plan.features) && plan.features.includes('all');
+                            const featureList = Array.isArray(plan.features) ? plan.features : [];
+
+                            // Determine the button text and style
+                            let btnText = 'Elegir Plan';
+                            let darkBtn = true;
+                            if (plan.id === 'trial') { btnText = 'Comenzar Prueba'; darkBtn = false; }
+
+                            // Build items list
+                            const items = [
+                                `📦 ${limitLabel(plan.max_products)} ${plan.max_products === -1 ? 'Productos' : 'Productos'}`,
+                                `🛒 ${limitLabel(plan.max_orders_month)} ${plan.max_orders_month === -1 ? 'Órdenes/mes' : 'Órdenes/mes'}`,
+                                `💾 ${plan.max_storage_mb === -1 ? 'Almacenamiento Ilimitado' : `${plan.max_storage_mb.toLocaleString()} MB Almacenamiento`}`,
+                                `✅ ${hasAll ? 'Todas las Funcionalidades' : featureList.length > 0 ? 'Funcionalidades Esenciales' : 'Funcionalidades Básicas'}`,
+                            ];
+
+                            return (
+                                <div key={plan.id} style={isPro ? {
+                                    borderRadius: '32px', padding: '2rem',
+                                    background: 'linear-gradient(to bottom, #22d3ee, #8b5cf6)',
+                                    color: '#000', transform: 'scale(1.05)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
+                                    display: 'flex', flexDirection: 'column',
+                                } : {
+                                    ...glass, borderRadius: '32px', padding: '2rem', display: 'flex', flexDirection: 'column',
                                 }}>
-                                    {plan.btnText}
-                                </button>
-                            </div>
-                        ))}
+                                    <h3 style={{ fontSize: '1.5rem', fontWeight: 700, margin: '0 0 0.5rem', color: isPro ? '#000' : '#fff' }}>{plan.name}</h3>
+                                    <p style={{ fontSize: '0.875rem', margin: '0 0 1.5rem', color: isPro ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.6)' }}>
+                                        {plan.id === 'trial' ? 'Prueba gratuita' : plan.id === 'basic' ? 'Para comenzar' : plan.id === 'pro' ? 'Para negocios en crecimiento' : 'Todo incluido'}
+                                    </p>
+                                    <div style={{ fontSize: '3rem', fontWeight: 900, margin: '0 0 2rem', color: isPro ? '#000' : '#fff' }}>
+                                        ${plan.price_monthly > 0 ? plan.price_monthly : '0'}<span style={{ fontSize: '1.125rem', fontWeight: 400, color: isPro ? 'rgba(0,0,0,0.7)' : 'rgba(255,255,255,0.5)' }}>{plan.price_monthly > 0 ? '/mes' : ''}</span>
+                                    </div>
+                                    <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 auto', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem', flex: 1 }}>
+                                        {items.map((item, j) => (
+                                            <li key={j} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isPro ? '#000' : 'rgba(255,255,255,0.7)' }}>{item}</li>
+                                        ))}
+                                    </ul>
+                                    <button onClick={() => { window.location.href = registerUrl; }} style={{
+                                        width: '100%', marginTop: '2rem', padding: '0.75rem', borderRadius: '16px',
+                                        background: darkBtn ? '#000' : 'rgba(255,255,255,0.1)',
+                                        color: '#fff',
+                                        border: darkBtn ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                                        fontWeight: 600, cursor: 'pointer', fontSize: '0.875rem',
+                                    }}>
+                                        {btnText}
+                                    </button>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {/* Comparison table */}
@@ -813,24 +840,52 @@ function SaaSHome() {
                                 <table className="saas-comparison-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                                     <thead>
                                         <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                                            {['Característica', 'Trial', 'Básico', 'Profesional', 'Premium'].map((h, i) => (
-                                                <th key={i} style={{ padding: '1.5rem', textAlign: i === 0 ? 'left' : 'center', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                                            <th style={{ padding: '1.5rem', textAlign: 'left', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>Característica</th>
+                                            {plans.map((p) => (
+                                                <th key={p.id} style={{ padding: '1.5rem', textAlign: 'center', color: '#fff', fontWeight: 600, whiteSpace: 'nowrap' }}>{p.name}</th>
                                             ))}
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {COMPARISON_ROWS.map((row, ri) => (
-                                            <tr key={ri} style={{ borderBottom: ri < COMPARISON_ROWS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none' }}>
-                                                {row.map((cell, ci) => (
-                                                    <td key={ci} style={{
-                                                        padding: '1.5rem',
-                                                        textAlign: ci === 0 ? 'left' : 'center',
-                                                        color: cell === '✅' ? '#4ade80' : cell === '—' ? '#f87171' : ci === 0 ? 'rgba(255,255,255,0.8)' : 'rgba(255,255,255,0.7)',
-                                                        whiteSpace: 'nowrap',
-                                                    }}>{cell}</td>
-                                                ))}
-                                            </tr>
-                                        ))}
+                                        {/* Metric rows */}
+                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <td style={{ padding: '1.5rem', textAlign: 'left', color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap' }}>Productos</td>
+                                            {plans.map((p) => (
+                                                <td key={p.id} style={{ padding: '1.5rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap' }}>{limitLabel(p.max_products)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <td style={{ padding: '1.5rem', textAlign: 'left', color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap' }}>Órdenes/mes</td>
+                                            {plans.map((p) => (
+                                                <td key={p.id} style={{ padding: '1.5rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap' }}>{limitLabel(p.max_orders_month)}</td>
+                                            ))}
+                                        </tr>
+                                        <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                            <td style={{ padding: '1.5rem', textAlign: 'left', color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap' }}>Almacenamiento</td>
+                                            {plans.map((p) => (
+                                                <td key={p.id} style={{ padding: '1.5rem', textAlign: 'center', color: 'rgba(255,255,255,0.7)', whiteSpace: 'nowrap' }}>{p.max_storage_mb === -1 ? 'Ilimitado' : `${p.max_storage_mb.toLocaleString()} MB`}</td>
+                                            ))}
+                                        </tr>
+                                        {/* Feature rows */}
+                                        {FEATURE_ORDER.map((featKey) => {
+                                            const label = FEATURE_LABELS[featKey];
+                                            return (
+                                                <tr key={featKey} style={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                                                    <td style={{ padding: '1.5rem', textAlign: 'left', color: 'rgba(255,255,255,0.8)', whiteSpace: 'nowrap' }}>{label}</td>
+                                                    {plans.map((p) => {
+                                                        const hasFeature = Array.isArray(p.features) && (p.features.includes(featKey) || p.features.includes('all'));
+                                                        return (
+                                                            <td key={p.id} style={{
+                                                                padding: '1.5rem',
+                                                                textAlign: 'center',
+                                                                color: hasFeature ? '#4ade80' : '#f87171',
+                                                                whiteSpace: 'nowrap',
+                                                            }}>{hasFeature ? '✅' : '—'}</td>
+                                                        );
+                                                    })}
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>
@@ -838,6 +893,7 @@ function SaaSHome() {
                     </div>
                 </div>
             </section>
+            )}
 
             {/* ── CTA ───────────────────────────────────────────────────────── */}
             <section style={{ padding: '0 1.5rem 6rem' }}>

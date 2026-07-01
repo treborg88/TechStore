@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { apiFetch, apiUrl } from '../../services/apiClient';
+import ProcessingOverlay from '../common/ProcessingOverlay';
 
 function DatabaseManager() {
   const MIN_RESTORE_ANIMATION_MS = 30000;
@@ -256,70 +257,10 @@ function DatabaseManager() {
       color: type === 'error' ? '#991b1b' : '#065f46',
       border: `1px solid ${type === 'error' ? '#fca5a5' : '#6ee7b7'}`
     }),
-    overlay: {
-      position: 'fixed',
-      inset: 0,
-      zIndex: 9999,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px',
-      backdropFilter: 'blur(10px)',
-      background: 'radial-gradient(circle at 20% 20%, rgba(245, 158, 11, 0.25), transparent 40%), radial-gradient(circle at 80% 30%, rgba(16, 185, 129, 0.2), transparent 45%), rgba(15, 23, 42, 0.68)'
-    },
-    overlayCard: {
-      width: 'min(560px, 100%)',
-      borderRadius: '20px',
-      border: '1px solid rgba(255,255,255,0.2)',
-      background: 'linear-gradient(165deg, rgba(255,255,255,0.16), rgba(255,255,255,0.06))',
-      color: '#f8fafc',
-      boxShadow: '0 25px 60px rgba(2, 6, 23, 0.45)',
-      padding: '26px 24px',
-      textAlign: 'center',
-      position: 'relative',
-      overflow: 'hidden'
-    },
-    overlayTitle: {
-      fontSize: 'clamp(22px, 4vw, 34px)',
-      fontWeight: 800,
-      margin: '0 0 8px'
-    },
-    overlaySubtitle: {
-      margin: '0 auto 18px',
-      maxWidth: '460px',
-      color: '#e2e8f0',
-      fontSize: '14px',
-      lineHeight: 1.45
-    },
-    orbField: {
-      position: 'relative',
-      width: '220px',
-      height: '220px',
-      margin: '12px auto 8px'
-    }
   };
 
   return (
     <>
-      <style>{`
-        @keyframes restore-spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        @keyframes restore-pulse {
-          0%, 100% { transform: scale(0.92); opacity: 0.55; }
-          50% { transform: scale(1.08); opacity: 1; }
-        }
-        @keyframes restore-wave {
-          0% { transform: scale(0.4); opacity: 0.75; }
-          100% { transform: scale(1.35); opacity: 0; }
-        }
-        @keyframes restore-fade-up {
-          from { transform: translateY(8px); opacity: 0; }
-          to { transform: translateY(0); opacity: 1; }
-        }
-      `}</style>
-
       <div style={s.wrapper}>
         <div style={s.header} onClick={() => setCollapsed((p) => !p)}>
           <span style={s.headerTitle}>💾 Gestor de Backups</span>
@@ -425,27 +366,18 @@ function DatabaseManager() {
       </div>
 
       {restoreOverlay.visible && (
-        <div style={s.overlay}>
-          <div style={s.overlayCard}>
-            <div style={{ position: 'absolute', inset: '-35% auto auto -20%', width: '260px', height: '260px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(245, 158, 11, 0.38), transparent 70%)', animation: 'restore-pulse 3s ease-in-out infinite' }} />
-            <div style={{ position: 'absolute', inset: 'auto -18% -40% auto', width: '260px', height: '260px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(16, 185, 129, 0.34), transparent 72%)', animation: 'restore-pulse 3.7s ease-in-out infinite' }} />
-
-            <h3 style={{ ...s.overlayTitle, animation: 'restore-fade-up 500ms ease-out both' }}>{restoreOverlay.title}</h3>
-            <p style={{ ...s.overlaySubtitle, animation: 'restore-fade-up 650ms ease-out both' }}>{restoreOverlay.subtitle}</p>
-
-            <div style={s.orbField}>
-              <div style={{ position: 'absolute', inset: 0, borderRadius: '999px', border: '2px solid rgba(255,255,255,0.25)', animation: 'restore-spin 4s linear infinite' }} />
-              <div style={{ position: 'absolute', inset: '16px', borderRadius: '999px', border: '1px dashed rgba(255,255,255,0.4)', animation: 'restore-spin 6s linear reverse infinite' }} />
-              <div style={{ position: 'absolute', inset: '44px', borderRadius: '999px', background: 'radial-gradient(circle, rgba(255,255,255,0.96), rgba(209,250,229,0.75) 55%, rgba(16,185,129,0.35) 100%)', boxShadow: '0 0 42px rgba(209, 250, 229, 0.8)', animation: 'restore-pulse 2.2s ease-in-out infinite' }} />
-              <div style={{ position: 'absolute', inset: '26px', borderRadius: '999px', border: '2px solid rgba(255,255,255,0.22)', animation: 'restore-wave 2.6s ease-out infinite' }} />
-              <div style={{ position: 'absolute', inset: '26px', borderRadius: '999px', border: '2px solid rgba(255,255,255,0.22)', animation: 'restore-wave 2.6s ease-out infinite 1.3s' }} />
-            </div>
-
-            <p style={{ margin: '8px 0 0', fontSize: '13px', letterSpacing: '0.02em', color: '#d1fae5' }}>
-              {restoreOverlay.status === 'success' ? 'Todo quedo sincronizado.' : 'No cierres esta ventana, estamos finalizando detalles.'}
-            </p>
-          </div>
-        </div>
+        <ProcessingOverlay
+          visible={true}
+          status={restoreOverlay.status}
+          title={restoreOverlay.title}
+          subtitle={restoreOverlay.subtitle}
+          minDurationMs={MIN_RESTORE_ANIMATION_MS}
+          onComplete={() => {
+            if (restoreOverlay.status === 'success') {
+              setTimeout(() => window.location.reload(), 1800);
+            }
+          }}
+        />
       )}
     </>
   );
