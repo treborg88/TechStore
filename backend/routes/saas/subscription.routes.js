@@ -7,6 +7,7 @@ const fs = require('fs').promises;
 const { pool, withTenantSchema, UPLOADS_DIR } = require('../../database');
 const config = require('../../config');
 const { authenticateToken, requireAdmin } = require('../../middleware/auth');
+const { sendMailWithSettings } = require('../../services/email.service');
 
 const router = Router();
 
@@ -146,6 +147,64 @@ router.get('/usage', async (req, res) => {
 });
 
 /**
+ * GET /api/subscription/change-preview
+ * Preview plan change info (new plan details + billing date) before confirming
+ */
+router.get('/change-preview', async (req, res) => {
+  try {
+    if (!req.tenant) {
+      return res.status(400).json({ message: 'No tenant context' });
+    }
+
+    const planId = req.query.planId;
+    if (!planId) {
+      return res.status(400).json({ message: 'planId es requerido' });
+    }
+
+    // Fetch the target plan
+    const planResult = await pool.query(
+      `SELECT id, name, price_monthly, max_products, max_orders_month, max_storage_mb, features
+       FROM public.plans WHERE id = $1 AND is_active = true`,
+      [planId]
+    );
+    if (planResult.rows.length === 0) {
+      return res.status(404).json({ message: 'Plan no encontrado' });
+    }
+
+    // Fetch current billing period end
+    const subResult = await pool.query(
+      `SELECT s.current_period_end, s.current_period_start
+       FROM public.subscriptions s
+       WHERE s.tenant_id = $1
+       ORDER BY s.created_at DESC LIMIT 1`,
+      [req.tenant.id]
+    );
+
+    // Fetch current plan for comparison
+    const currentPlan = await pool.query(
+      `SELECT p.id, p.name, p.price_monthly, p.max_products, p.max_orders_month, p.max_storage_mb, p.features FROM public.plans p
+       JOIN public.tenants t ON t.plan_id = p.id
+       WHERE t.id = $1`,
+      [req.tenant.id]
+    );
+
+    res.json({
+      newPlan: planResult.rows[0],
+      currentPlan: currentPlan.rows[0] || null,
+      billing: subResult.rows[0]
+        ? {
+            period_start: subResult.rows[0].current_period_start,
+            period_end: subResult.rows[0].current_period_end,
+          }
+        : null,
+    });
+  } catch (err) {
+    console.error('[subscription/change-preview]', err);
+    res.status(500).json({ message: 'Error al obtener vista previa del cambio' });
+  }
+});
+
+/**
  * POST /api/subscription/change-plan
  * Upgrade or downgrade tenant plan
  */
@@ -160,14 +219,32 @@ router.post('/change-plan', async (req, res) => {
       return res.status(400).json({ message: 'planId es requerido' });
     }
 
-    // Verify plan exists and is active
+    // Verify plan exists and get full details
     const planResult = await pool.query(
-      'SELECT id, name FROM public.plans WHERE id = $1 AND is_active = true',
+      `SELECT id, name, price_monthly, max_products, max_orders_month, max_storage_mb, features
+       FROM public.plans WHERE id = $1 AND is_active = true`,
       [planId]
     );
     if (planResult.rows.length === 0) {
       return res.status(404).json({ message: 'Plan no encontrado o no disponible' });
     }
+
+    const newPlan = planResult.rows[0];
+
+    // Fetch current plan + tenant info (for email)
+    const currentInfo = await pool.query(
+      `SELECT t.id, t.name AS tenant_name, t.owner_email,
+              p.name AS current_plan_name,
+              s.current_period_end
+       FROM public.tenants t
+       LEFT JOIN public.plans p ON p.id = t.plan_id
+       LEFT JOIN public.subscriptions s ON s.tenant_id = t.id AND s.id = (
+         SELECT id FROM public.subscriptions WHERE tenant_id = t.id ORDER BY created_at DESC LIMIT 1
+       )
+       WHERE t.id = $1`,
+      [req.tenant.id]
+    );
+    const tenantInfo = currentInfo.rows[0] || {};
 
     const client = await pool.connect();
     try {
@@ -195,9 +272,93 @@ router.post('/change-plan', async (req, res) => {
 
       await client.query('COMMIT');
 
+      // ── Send plan change notification email ──
+      const recipientEmail = tenantInfo.owner_email || req.user?.email;
+      if (recipientEmail) {
+        try {
+          const { getSettingsMap, formatCurrency } = require('../../services/email.service');
+          const settings = await getSettingsMap();
+          const siteName = settings.siteName || tenantInfo.tenant_name || config.BRAND;
+
+          const currency = (value) => {
+            const n = Number(value) || 0;
+            return n.toLocaleString('es-DO', { style: 'currency', currency: 'USD' });
+          };
+
+          const featureList = Array.isArray(newPlan.features) && newPlan.features.length
+            ? newPlan.features.map((f) => `<li style="margin-bottom:4px;">✅ ${f.replace(/_/g, ' ')}</li>`).join('')
+            : '<li style="color:#888;">Sin características adicionales</li>';
+
+          const billingDate = tenantInfo.current_period_end
+            ? new Date(tenantInfo.current_period_end).toLocaleDateString('es-DO', {
+                year: 'numeric', month: 'long', day: 'numeric',
+              })
+            : 'N/A';
+
+          const html = `
+            <div style="font-family:Arial,sans-serif;color:#111827;line-height:1.6;max-width:560px;">
+              <div style="background:#111827;color:#fff;padding:16px 20px;border-radius:10px 10px 0 0;">
+                <h2 style="margin:0;">${siteName}</h2>
+                <p style="margin:4px 0 0;">Cambio de plan completado</p>
+              </div>
+              <div style="border:1px solid #e5e7eb;border-top:none;padding:20px;border-radius:0 0 10px 10px;">
+                <p>Hola,</p>
+                <p>El plan de tu tienda ha sido cambiado exitosamente.</p>
+
+                <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Plan anterior</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;font-weight:600;">${tenantInfo.current_plan_name || 'N/A'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Plan nuevo</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#4f46e5;">${newPlan.name}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Precio</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${newPlan.price_monthly > 0 ? currency(newPlan.price_monthly) + '/mes' : 'Gratis'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Productos</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${newPlan.max_products === -1 ? 'Ilimitados' : newPlan.max_products}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Órdenes/mes</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${newPlan.max_orders_month === -1 ? 'Ilimitadas' : newPlan.max_orders_month}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Almacenamiento</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;">${newPlan.max_storage_mb === -1 ? 'Ilimitado' : newPlan.max_storage_mb + ' MB'}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;color:#6b7280;">Próxima fecha de facturación</td>
+                    <td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;font-weight:600;">${billingDate}</td>
+                  </tr>
+                </table>
+
+                <h4 style="margin:16px 0 8px;">Características incluidas</h4>
+                <ul style="padding-left:20px;">${featureList}</ul>
+
+                <p style="margin-top:16px;">Gracias por confiar en nosotros.</p>
+              </div>
+            </div>
+          `;
+
+          await sendMailWithSettings({
+            to: recipientEmail,
+            subject: `✅ Plan actualizado a ${newPlan.name} — ${siteName}`,
+            html,
+          });
+          console.log(`[subscription] Plan change email sent to ${recipientEmail}`);
+        } catch (emailErr) {
+          // Email is non-critical — log but don't fail the request
+          console.error('[subscription] Failed to send plan change email:', emailErr.message);
+        }
+      }
+
       res.json({
-        message: `Plan actualizado a ${planResult.rows[0].name}`,
-        plan: planResult.rows[0],
+        message: `Plan actualizado a ${newPlan.name}`,
+        plan: { id: newPlan.id, name: newPlan.name },
       });
     } catch (err) {
       await client.query('ROLLBACK');

@@ -33,6 +33,150 @@ function UsageBar({ label, used, max, icon }) {
   );
 }
 
+// ── Plan change confirmation modal ──────────────────────────────────────────
+function PlanChangeConfirmModal({ preview, onConfirm, onCancel, changing }) {
+  if (!preview || !preview.newPlan) return null;
+
+  const { newPlan, currentPlan, billing } = preview;
+  const fmt = (value) => {
+    const n = Number(value) || 0;
+    return n.toLocaleString('es-DO', { style: 'currency', currency: 'USD' });
+  };
+
+  const billingDate = billing?.period_end
+    ? new Date(billing.period_end).toLocaleDateString('es-DO', {
+        year: 'numeric', month: 'long', day: 'numeric',
+      })
+    : 'N/A';
+
+  const limitLabel = (v) => (v === -1 ? 'Ilimitado' : v);
+
+  // Detect upgrade vs downgrade
+  const priceDiff = Number(newPlan.price_monthly) - Number(currentPlan?.price_monthly || 0);
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        zIndex: 1100, padding: '1rem',
+      }}
+      onClick={onCancel}
+    >
+      <div
+        style={{
+          background: '#fff', borderRadius: '16px', padding: '2rem',
+          maxWidth: '500px', width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ margin: '0 0 0.25rem' }}>🔄 Confirmar cambio de plan</h3>
+        <p style={{ color: '#888', fontSize: '0.9rem', margin: '0 0 1.25rem' }}>
+          Revisa los detalles antes de continuar.
+        </p>
+
+        {/* Upgrade / downgrade tag */}
+        {priceDiff > 0 && (
+          <div style={{
+            background: '#eef2ff', color: '#4338ca', borderRadius: '8px',
+            padding: '0.5rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600,
+          }}>
+            ↑ El nuevo plan tiene un costo adicional de {fmt(Math.abs(priceDiff))}/mes
+          </div>
+        )}
+        {priceDiff < 0 && (
+          <div style={{
+            background: '#d4edda', color: '#155724', borderRadius: '8px',
+            padding: '0.5rem 1rem', marginBottom: '1rem', fontSize: '0.85rem', fontWeight: 600,
+          }}>
+            ↓ Ahorras {fmt(Math.abs(priceDiff))}/mes con el nuevo plan
+          </div>
+        )}
+
+        {/* Plan comparison table */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem', marginBottom: '1rem' }}>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'left', padding: '6px 8px', borderBottom: '2px solid #e0e0e0' }}></th>
+              <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '2px solid #e0e0e0', color: '#888' }}>
+                {currentPlan?.name || 'Actual'}
+              </th>
+              <th style={{ textAlign: 'center', padding: '6px 8px', borderBottom: '2px solid #4338ca', color: '#4338ca', fontWeight: 700 }}>
+                {newPlan.name}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0' }}>Precio</td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center' }}>
+                {currentPlan?.price_monthly > 0 ? `$${currentPlan.price_monthly}/mes` : 'Gratis'}
+              </td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600 }}>
+                {newPlan.price_monthly > 0 ? `$${newPlan.price_monthly}/mes` : 'Gratis'}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0' }}>Productos</td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center' }}>{limitLabel(currentPlan?.max_products)}</td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600 }}>{limitLabel(newPlan.max_products)}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0' }}>Órdenes/mes</td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center' }}>{limitLabel(currentPlan?.max_orders_month)}</td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600 }}>{limitLabel(newPlan.max_orders_month)}</td>
+            </tr>
+            <tr>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0' }}>Almacenamiento</td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center' }}>
+                {currentPlan?.max_storage_mb === -1 ? 'Ilimitado' : currentPlan?.max_storage_mb ? `${currentPlan.max_storage_mb} MB` : '—'}
+              </td>
+              <td style={{ padding: '6px 8px', borderBottom: '1px solid #f0f0f0', textAlign: 'center', fontWeight: 600 }}>
+                {newPlan.max_storage_mb === -1 ? 'Ilimitado' : `${newPlan.max_storage_mb} MB`}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* Billing date */}
+        <div style={{
+          background: '#f8f9fa', borderRadius: '8px', padding: '0.75rem 1rem',
+          marginBottom: '1.25rem', fontSize: '0.85rem',
+        }}>
+          <div style={{ color: '#888', marginBottom: '2px' }}>Próxima fecha de facturación</div>
+          <div style={{ fontWeight: 600, color: '#111' }}>{billingDate}</div>
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <button
+            onClick={onCancel}
+            disabled={changing}
+            style={{
+              flex: 1, padding: '0.7rem', borderRadius: '8px', border: '2px solid #e74c3c',
+              background: '#fef2f2', color: '#b91c1c', fontWeight: 600, cursor: 'pointer',
+              fontSize: '0.95rem', opacity: changing ? 0.6 : 1,
+            }}
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={onConfirm}
+            disabled={changing}
+            style={{
+              flex: 1, padding: '0.7rem', borderRadius: '8px', border: 'none',
+              background: '#4f46e5', color: '#fff', fontWeight: 600, cursor: 'pointer', fontSize: '0.95rem',
+              opacity: changing ? 0.6 : 1,
+            }}
+          >
+            {changing ? 'Cambiando...' : '✅ Confirmar cambio'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function SubscriptionPanel() {
   const tenantCtx = useTenant();
   const [data, setData] = useState(null);
@@ -42,6 +186,10 @@ export default function SubscriptionPanel() {
   const [changing, setChanging] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  // Confirmation dialog state
+  const [confirmPlanId, setConfirmPlanId] = useState(null);
+  const [confirmPreview, setConfirmPreview] = useState(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
   // Custom domain state
   const [domainData, setDomainData] = useState(null);
   const [domainInput, setDomainInput] = useState('');
@@ -103,17 +251,40 @@ export default function SubscriptionPanel() {
     Promise.all([loadSubscription(), loadUsage(), loadDomain()]).finally(() => setLoading(false));
   }, [loadSubscription, loadUsage, loadDomain]);
 
-  // Change plan handler
-  const handleChangePlan = async (planId) => {
+  // Step 1: User clicks a plan — fetch preview and show confirmation dialog
+  const handleRequestChange = async (planId) => {
     if (planId === data?.plan?.id) return;
-    setChanging(true);
     setError('');
     setSuccessMsg('');
+    setConfirmPlanId(planId);
+    setConfirmPreview(null);
+    setConfirmLoading(true);
+    try {
+      const res = await apiFetch(apiUrl(`/subscription/change-preview?planId=${planId}`));
+      if (res.ok) {
+        setConfirmPreview(await res.json());
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setError(err.message || 'Error al obtener vista previa');
+        setConfirmPlanId(null);
+      }
+    } catch {
+      setError('Error de conexión');
+      setConfirmPlanId(null);
+    }
+    setConfirmLoading(false);
+  };
+
+  // Step 2: User confirms — execute the plan change
+  const handleConfirmChange = async () => {
+    if (!confirmPlanId) return;
+    setChanging(true);
+    setError('');
     try {
       const res = await apiFetch(apiUrl('/subscription/change-plan'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planId }),
+        body: JSON.stringify({ planId: confirmPlanId }),
       });
       const result = await res.json();
       if (!res.ok) {
@@ -121,6 +292,8 @@ export default function SubscriptionPanel() {
       } else {
         setSuccessMsg(result.message);
         setShowPlans(false);
+        setConfirmPlanId(null);
+        setConfirmPreview(null);
         // Reload subscription data + usage counts, then refresh tenant context
         await Promise.all([loadSubscription(), loadUsage()]);
         tenantCtx?.refreshSubscription?.();
@@ -129,6 +302,11 @@ export default function SubscriptionPanel() {
       setError('Error de conexión');
     }
     setChanging(false);
+  };
+
+  const handleCancelConfirm = () => {
+    setConfirmPlanId(null);
+    setConfirmPreview(null);
   };
 
   // Open plan comparison modal and load plans
@@ -450,7 +628,7 @@ export default function SubscriptionPanel() {
                     </div>
                     <button
                       disabled={isCurrent || changing}
-                      onClick={() => handleChangePlan(p.id)}
+                      onClick={() => handleRequestChange(p.id)}
                       style={{
                         width: '100%', padding: '0.5rem',
                         background: isCurrent ? '#ccc' : '#4f46e5',
@@ -467,6 +645,31 @@ export default function SubscriptionPanel() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Plan change confirmation modal */}
+      {confirmPlanId && confirmLoading && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          zIndex: 1100, padding: '1rem',
+        }}>
+          <div style={{
+            background: '#fff', borderRadius: '16px', padding: '2rem',
+            textAlign: 'center', color: '#888',
+          }}>
+            Cargando información del plan...
+          </div>
+        </div>
+      )}
+
+      {confirmPlanId && confirmPreview && !confirmLoading && (
+        <PlanChangeConfirmModal
+          preview={confirmPreview}
+          onConfirm={handleConfirmChange}
+          onCancel={handleCancelConfirm}
+          changing={changing}
+        />
       )}
     </div>
   );
