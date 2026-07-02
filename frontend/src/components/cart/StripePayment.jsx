@@ -266,7 +266,8 @@ const CheckoutForm = ({
     currency = 'DOP',
     onProcessingStart,
     onProcessingComplete,
-    onProcessingError
+    onProcessingError,
+    clientSecret,
 }) => {
     const stripe = useStripe();
     const elements = useElements();
@@ -325,7 +326,6 @@ const CheckoutForm = ({
 
         if (!stripe || !elements) return;
         if (!validate()) {
-            // Focus the card number element if validation fails visually
             elements.getElement(CardNumberElement)?.focus();
             return;
         }
@@ -335,22 +335,25 @@ const CheckoutForm = ({
         if (onProcessingStart) onProcessingStart();
 
         try {
-            const { error, paymentIntent } = await stripe.confirmPayment({
-                elements,
-                confirmParams: {
-                    payment_method_data: {
+            // confirmCardPayment is required when using individual Elements
+            // (CardNumberElement, CardExpiryElement, CardCvcElement).
+            // confirmPayment only works with PaymentElement.
+            const cardElement = elements.getElement(CardNumberElement);
+
+            const { error, paymentIntent } = await stripe.confirmCardPayment(
+                clientSecret,
+                {
+                    payment_method: {
+                        card: cardElement,
                         billing_details: {
                             name: cardholderName.trim(),
                         },
                     },
-                    return_url: window.location.origin + '/order-confirmation',
-                },
-                redirect: 'if_required',
-            });
+                }
+            );
 
             if (error) {
                 setMessage(error.message || 'Error al procesar el pago');
-                // Map Stripe errors to specific fields
                 if (error.code === 'incomplete_number' || error.code === 'invalid_number') {
                     setErrors(prev => ({ ...prev, card: error.message }));
                 } else if (error.code === 'incomplete_expiry' || error.code === 'invalid_expiry') {
@@ -681,6 +684,7 @@ const StripePayment = ({
                     onProcessingStart={handleProcessingStart}
                     onProcessingComplete={handleProcessingComplete}
                     onProcessingError={handleProcessingError}
+                    clientSecret={clientSecret}
                 />
             </Elements>
 
