@@ -97,14 +97,6 @@ const StripeField = React.memo(({ label, element: Element, options, error, requi
     const [filled, setFilled] = useState(false);
     const hasError = !!error;
 
-    // Stable callbacks — prevent Stripe Element iframe reconnections
-    const handleFocus = useCallback(() => setFocused(true), []);
-    const handleBlur = useCallback(() => setFocused(false), []);
-    const handleChange = useCallback((e) => {
-        setFilled(e.complete || (e.value && e.value.length > 0));
-        if (onChange) onChange(e);
-    }, [onChange]);
-
     const cls = [
         'custom-card-field',
         focused ? 'focused' : '',
@@ -118,9 +110,12 @@ const StripeField = React.memo(({ label, element: Element, options, error, requi
             <div className="card-element-wrap">
                 <Element
                     options={options}
-                    onFocus={handleFocus}
-                    onBlur={handleBlur}
-                    onChange={handleChange}
+                    onFocus={() => setFocused(true)}
+                    onBlur={() => setFocused(false)}
+                    onChange={(e) => {
+                        setFilled(e.complete || (e.value && e.value.length > 0));
+                        if (onChange) onChange(e);
+                    }}
                 />
             </div>
             {hasError && <span className="card-field-error">{error}</span>}
@@ -284,7 +279,6 @@ const CheckoutForm = ({
     const cardNumberOptions = useMemo(() => ({
         placeholder: '1234 5678 9012 3456',
         style: STRIPE_ELEMENT_STYLES,
-        disableLink: true,
     }), []);
 
     const expiryOptions = useMemo(() => ({

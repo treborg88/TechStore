@@ -188,11 +188,9 @@
     background: #f8fafc;
     border: 1.5px solid #e2e8f0;
     border-radius: 10px;
-    padding: 0.75rem 0.875rem;
+    padding: 0.5rem 0.875rem;
     transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-    min-height: 48px;
-    display: flex;
-    align-items: center;
+    min-height: 44px;
 }
 
 .custom-card-field.focused .card-element-wrap {
