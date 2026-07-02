@@ -97,13 +97,34 @@ router.post('/create-intent', async (req, res) => {
         // Convert amount to cents (Stripe uses smallest currency unit)
         const amountInCents = Math.round(amount * 100);
 
-        // Create PaymentIntent
+        // Create or retrieve Stripe Customer for saved cards / future payments
+        let customerId = null;
+        if (customerEmail) {
+            const existingCustomers = await stripe.customers.list({
+                email: customerEmail,
+                limit: 1
+            });
+            if (existingCustomers.data.length > 0) {
+                customerId = existingCustomers.data[0].id;
+            } else {
+                const newCustomer = await stripe.customers.create({
+                    email: customerEmail,
+                    metadata: { source: 'eonsclover_checkout' }
+                });
+                customerId = newCustomer.id;
+            }
+        }
+
+        // Create PaymentIntent with setup_future_usage so cards
+        // can be reused for recurring SaaS billing or faster future checkout
         const paymentIntent = await stripe.paymentIntents.create({
             amount: amountInCents,
             currency: currency.toLowerCase(),
             automatic_payment_methods: {
                 enabled: true,
             },
+            setup_future_usage: 'off_session',
+            customer: customerId || undefined,
             metadata: {
                 orderId: orderId || '',
                 ...metadata

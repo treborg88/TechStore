@@ -1066,6 +1066,7 @@ return (
                                         currency="dop"
                                         orderId={null}
                                         customerEmail={formData.email}
+                                        parentProcessing={isSubmitting}
                                         onSuccess={async (paymentIntent) => {
                                             // Payment confirmed - NOW create the order
                                             try {

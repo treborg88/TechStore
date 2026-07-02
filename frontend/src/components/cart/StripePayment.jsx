@@ -8,30 +8,44 @@ import {
 } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
 import { apiFetch, apiUrl } from '../../services/apiClient';
+import ProcessingOverlay from '../common/ProcessingOverlay';
 import './StripePayment.css';
 
-// Stripe promise - will be initialized with publishable key
-let stripePromise = null;
+// Stripe promise cache with TTL — automatically re-fetches when admin
+// changes the publishable key in Settings, avoiding stale-key errors
+let stripeCache = { key: null, promise: null, fetchedAt: 0 };
+const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Initialize Stripe with publishable key from backend
+ * Cache is invalidated after CACHE_TTL_MS or when the key changes
  */
 const getStripePromise = async () => {
-    if (stripePromise) return stripePromise;
-    
+    const now = Date.now();
+    // Use cached promise if still fresh
+    if (stripeCache.promise && (now - stripeCache.fetchedAt) < CACHE_TTL_MS) {
+        return stripeCache.promise;
+    }
+
     try {
         const res = await apiFetch(apiUrl('/payments/config'));
         if (res.ok) {
             const { publishableKey } = await res.json();
-            if (publishableKey) {
-                stripePromise = loadStripe(publishableKey);
-                return stripePromise;
+            // Only rebuild if the key actually changed or cache expired
+            if (publishableKey && (publishableKey !== stripeCache.key || !stripeCache.promise)) {
+                stripeCache = {
+                    key: publishableKey,
+                    promise: loadStripe(publishableKey),
+                    fetchedAt: Date.now()
+                };
             }
+            return stripeCache.promise;
         }
     } catch (error) {
         console.error('Error loading Stripe config:', error);
     }
-    return null;
+    // Fall back to expired cache if fetch fails (better than breaking checkout)
+    return stripeCache.promise;
 };
 
 /**
@@ -297,7 +311,15 @@ const SecurityBadges = () => (
 /**
  * Stripe checkout form component
  */
-const CheckoutForm = ({ onSuccess, onError, amount, currency = 'DOP' }) => {
+const CheckoutForm = ({
+    onSuccess,
+    onError,
+    amount,
+    currency = 'DOP',
+    onProcessingStart,
+    onProcessingComplete,
+    onProcessingError
+}) => {
     const stripe = useStripe();
     const elements = useElements();
     const [isProcessing, setIsProcessing] = useState(false);
@@ -314,6 +336,8 @@ const CheckoutForm = ({ onSuccess, onError, amount, currency = 'DOP' }) => {
         setIsProcessing(true);
         setMessage('');
         setPaymentStep(2);
+        // Notify wrapper to show full-screen overlay
+        if (onProcessingStart) onProcessingStart();
 
         try {
             const { error, paymentIntent } = await stripe.confirmPayment({
@@ -327,20 +351,19 @@ const CheckoutForm = ({ onSuccess, onError, amount, currency = 'DOP' }) => {
             if (error) {
                 setPaymentStep(1);
                 setMessage(error.message || 'Error al procesar el pago');
+                if (onProcessingError) onProcessingError();
                 if (onError) onError(error);
             } else if (paymentIntent && paymentIntent.status === 'succeeded') {
-                setPaymentStep(3);
-                setMessage('¡Pago completado exitosamente!');
-                // Small delay to show success state before callback
-                setTimeout(() => {
-                    if (onSuccess) onSuccess(paymentIntent);
-                }, 1500);
+                // Call parent immediately so overlay transitions to success
+                // and parent can start order creation without delay
+                if (onProcessingComplete) onProcessingComplete(paymentIntent);
             } else if (paymentIntent) {
                 setMessage(`Estado del pago: ${paymentIntent.status}`);
             }
         } catch (err) {
             setPaymentStep(1);
             setMessage('Error inesperado al procesar el pago');
+            if (onProcessingError) onProcessingError();
             if (onError) onError(err);
         }
 
@@ -456,19 +479,21 @@ const CheckoutForm = ({ onSuccess, onError, amount, currency = 'DOP' }) => {
 /**
  * Main Stripe Payment wrapper component
  */
-const StripePayment = ({ 
-    amount, 
+const StripePayment = ({
+    amount,
     currency = 'dop',
     orderId,
     customerEmail,
-    onSuccess, 
+    onSuccess,
     onError,
-    onCancel 
+    onCancel,
+    parentProcessing = false
 }) => {
     const [clientSecret, setClientSecret] = useState('');
     const [stripeReady, setStripeReady] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [overlayState, setOverlayState] = useState('idle'); // 'idle' | 'processing' | 'success'
 
     useEffect(() => {
         const initializePayment = async () => {
@@ -654,21 +679,60 @@ const StripePayment = ({
         appearance,
     };
 
+    // Overlay callbacks — connect CheckoutForm's submit cycle to the overlay
+    const handleProcessingStart = useCallback(() => setOverlayState('processing'), []);
+    const handleProcessingError = useCallback(() => setOverlayState('idle'), []);
+    const handleProcessingComplete = useCallback((paymentIntent) => {
+        setOverlayState('success');
+        // Fire parent callback immediately so it can start order creation
+        if (onSuccess) onSuccess(paymentIntent);
+    }, [onSuccess]);
+
+    // Determine overlay state: 'running' during payment or order creation,
+    // 'success' briefly after payment confirms before parent starts processing
+    const isOverlayVisible = overlayState !== 'idle' || parentProcessing;
+    const overlayStatus = (overlayState === 'success' && !parentProcessing) ? 'success' : 'running';
+    const overlayTitle = overlayState === 'processing'
+        ? 'Procesando pago...'
+        : overlayState === 'success' && parentProcessing
+            ? 'Creando tu orden...'
+            : overlayState === 'success'
+                ? '¡Pago completado!'
+                : 'Procesando...';
+    const overlaySubtitle = overlayState === 'processing'
+        ? 'Estamos confirmando tu pago con Stripe. No cierres esta ventana.'
+        : overlayState === 'success' && parentProcessing
+            ? 'Finalizando los detalles de tu orden.'
+            : overlayState === 'success'
+                ? 'Todo listo. Redirigiendo...'
+                : 'No cierres esta ventana, estamos procesando tu pago.';
+
     return (
         <div className="stripe-payment-wrapper">
+            {/* Full-screen processing overlay */}
+            <ProcessingOverlay
+                visible={isOverlayVisible}
+                status={overlayStatus}
+                title={overlayTitle}
+                subtitle={overlaySubtitle}
+            />
+
             {/* Saved Cards Management Section */}
             <SavedCardsManager />
-            
+
             {/* Key forces remount when clientSecret changes to avoid mutable prop warning */}
             <Elements key={clientSecret} stripe={stripePromise} options={options}>
-                <CheckoutForm 
-                    onSuccess={onSuccess}
+                <CheckoutForm
+                    onSuccess={handleProcessingComplete}
                     onError={onError}
                     amount={amount}
                     currency={currency.toUpperCase()}
+                    onProcessingStart={handleProcessingStart}
+                    onProcessingComplete={handleProcessingComplete}
+                    onProcessingError={handleProcessingError}
                 />
             </Elements>
-            
+
             {onCancel && (
                 <button onClick={onCancel} className="change-payment-btn">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
