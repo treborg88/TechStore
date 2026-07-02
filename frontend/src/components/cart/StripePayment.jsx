@@ -97,6 +97,14 @@ const StripeField = React.memo(({ label, element: Element, options, error, requi
     const [filled, setFilled] = useState(false);
     const hasError = !!error;
 
+    // Stable callbacks — prevent Stripe Element iframe reconnections
+    const handleFocus = useCallback(() => setFocused(true), []);
+    const handleBlur = useCallback(() => setFocused(false), []);
+    const handleChange = useCallback((e) => {
+        setFilled(e.complete || (e.value && e.value.length > 0));
+        if (onChange) onChange(e);
+    }, [onChange]);
+
     const cls = [
         'custom-card-field',
         focused ? 'focused' : '',
@@ -110,12 +118,9 @@ const StripeField = React.memo(({ label, element: Element, options, error, requi
             <div className="card-element-wrap">
                 <Element
                     options={options}
-                    onFocus={() => setFocused(true)}
-                    onBlur={() => setFocused(false)}
-                    onChange={(e) => {
-                        setFilled(e.complete || (e.value && e.value.length > 0));
-                        if (onChange) onChange(e);
-                    }}
+                    onFocus={handleFocus}
+                    onBlur={handleBlur}
+                    onChange={handleChange}
                 />
             </div>
             {hasError && <span className="card-field-error">{error}</span>}
@@ -278,6 +283,7 @@ const CheckoutForm = ({
     const cardNumberOptions = useMemo(() => ({
         placeholder: '1234 5678 9012 3456',
         style: STRIPE_ELEMENT_STYLES,
+        disableLink: true,
     }), []);
 
     const expiryOptions = useMemo(() => ({
@@ -572,8 +578,8 @@ const StripePayment = ({
     const handleProcessingError = useCallback(() => setOverlayState('idle'), []);
     const handleProcessingComplete = useCallback((paymentIntent) => {
         setOverlayState('success');
-        if (onSuccess) onSuccess(paymentIntent);
-    }, [onSuccess]);
+        if (onSuccessRef.current) onSuccessRef.current(paymentIntent);
+    }, []);
 
     const overlayVisible = overlayState !== 'idle' || parentProcessing;
     const overlayStatus = (overlayState === 'success' && !parentProcessing) ? 'success' : 'running';
@@ -659,13 +665,13 @@ const StripePayment = ({
         );
     }
 
-    const options = { clientSecret };
+    const elementsOptions = useMemo(() => ({ clientSecret }), [clientSecret]);
 
     return (
         <div className="stripe-payment-wrapper">
             <ProcessingOverlay visible={overlayVisible} status={overlayStatus} title={overlayTitle} subtitle={overlaySubtitle} />
             <SavedCardsManager />
-            <Elements key={clientSecret} stripe={stripePromise} options={options}>
+            <Elements stripe={stripePromise} options={elementsOptions}>
                 <CheckoutForm
                     onSuccess={handleProcessingComplete}
                     onError={onError}
