@@ -598,6 +598,9 @@ const StripePayment = ({
                 ? 'Todo listo. Redirigiendo...'
                 : 'No cierres esta ventana, estamos procesando tu pago.';
 
+    // ── Elements options (must be before early returns — hooks rule) ─────────────
+    const elementsOptions = useMemo(() => ({ clientSecret }), [clientSecret]);
+
     // ── Early returns (hooks already executed) ─────────────────────────────────
     if (loading) {
         return (
@@ -664,8 +667,6 @@ const StripePayment = ({
             </>
         );
     }
-
-    const elementsOptions = useMemo(() => ({ clientSecret }), [clientSecret]);
 
     return (
         <div className="stripe-payment-wrapper">
