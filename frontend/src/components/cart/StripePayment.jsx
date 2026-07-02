@@ -1,5 +1,5 @@
 // components/cart/StripePayment.jsx - Custom card form with Stripe Elements
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
     Elements,
     CardNumberElement,
@@ -91,8 +91,8 @@ const AcceptedBrands = () => (
     </div>
 );
 
-// ── Stripe field wrapper (label + element + error) ─────────────────────────────
-const StripeField = ({ label, element: Element, options, error, required = true, onChange }) => {
+// ── Stripe field wrapper (label + element + error) — memoized ──────────────────
+const StripeField = React.memo(({ label, element: Element, options, error, required = true, onChange }) => {
     const [focused, setFocused] = useState(false);
     const [filled, setFilled] = useState(false);
     const hasError = !!error;
@@ -109,10 +109,7 @@ const StripeField = ({ label, element: Element, options, error, required = true,
             <label className="card-field-label">{label}{required && <span className="required-mark">*</span>}</label>
             <div className="card-element-wrap">
                 <Element
-                    options={{
-                        ...options,
-                        style: STRIPE_ELEMENT_STYLES,
-                    }}
+                    options={options}
                     onFocus={() => setFocused(true)}
                     onBlur={() => setFocused(false)}
                     onChange={(e) => {
@@ -124,7 +121,7 @@ const StripeField = ({ label, element: Element, options, error, required = true,
             {hasError && <span className="card-field-error">{error}</span>}
         </div>
     );
-};
+});
 
 // ── Saved cards manager ────────────────────────────────────────────────────────
 const SavedCardsManager = ({ onCardsChange, onSelectCard }) => {
@@ -276,19 +273,37 @@ const CheckoutForm = ({
     const [cardBrand, setCardBrand] = useState(null);
     const [errors, setErrors] = useState({});
 
+    // Pre-merged stable options so Stripe Elements never see a new object reference.
+    // This keeps their internal iframes alive instead of reconnecting on every keystroke.
+    const cardNumberOptions = useMemo(() => ({
+        placeholder: '1234 5678 9012 3456',
+        style: STRIPE_ELEMENT_STYLES,
+    }), []);
+
+    const expiryOptions = useMemo(() => ({
+        placeholder: 'MM / AA',
+        style: STRIPE_ELEMENT_STYLES,
+    }), []);
+
+    const cvcOptions = useMemo(() => ({
+        placeholder: '123',
+        style: STRIPE_ELEMENT_STYLES,
+    }), []);
+
+    // Stable callbacks — use functional updater so they never change reference.
+    // This prevents Stripe Elements from detecting new props and reconnecting iframes.
     const handleCardNumberChange = useCallback((e) => {
         setCardBrand(e.brand || null);
-        // Clear card number error on change
-        if (errors.card) setErrors(prev => ({ ...prev, card: undefined }));
-    }, [errors.card]);
+        setErrors(prev => prev.card ? { ...prev, card: undefined } : prev);
+    }, []);
 
     const handleExpiryChange = useCallback(() => {
-        if (errors.expiry) setErrors(prev => ({ ...prev, expiry: undefined }));
-    }, [errors.expiry]);
+        setErrors(prev => prev.expiry ? { ...prev, expiry: undefined } : prev);
+    }, []);
 
     const handleCvcChange = useCallback(() => {
-        if (errors.cvc) setErrors(prev => ({ ...prev, cvc: undefined }));
-    }, [errors.cvc]);
+        setErrors(prev => prev.cvc ? { ...prev, cvc: undefined } : prev);
+    }, []);
 
     // Validate fields before submit
     const validate = () => {
@@ -414,10 +429,7 @@ const CheckoutForm = ({
                     element={CardNumberElement}
                     error={errors.card}
                     onChange={handleCardNumberChange}
-                    options={{
-                        placeholder: '1234 5678 9012 3456',
-                        showIcon: true,
-                    }}
+                    options={cardNumberOptions}
                 />
 
                 {/* Expiry + CVC side by side */}
@@ -428,7 +440,7 @@ const CheckoutForm = ({
                             element={CardExpiryElement}
                             error={errors.expiry}
                             onChange={handleExpiryChange}
-                            options={{ placeholder: 'MM / AA' }}
+                            options={expiryOptions}
                         />
                     </div>
                     <div style={{ flex: 1 }}>
@@ -437,7 +449,7 @@ const CheckoutForm = ({
                             element={CardCvcElement}
                             error={errors.cvc}
                             onChange={handleCvcChange}
-                            options={{ placeholder: '123' }}
+                            options={cvcOptions}
                         />
                     </div>
                 </div>
