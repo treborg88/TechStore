@@ -14,6 +14,7 @@ import './StripePayment.css';
 // Stripe promise cache with TTL — automatically re-fetches when admin
 // changes the publishable key in Settings, avoiding stale-key errors
 let stripeCache = { key: null, promise: null, fetchedAt: 0 };
+let stripePromise = null; // Kept in sync with stripeCache for the <Elements> prop
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -24,6 +25,7 @@ const getStripePromise = async () => {
     const now = Date.now();
     // Use cached promise if still fresh
     if (stripeCache.promise && (now - stripeCache.fetchedAt) < CACHE_TTL_MS) {
+        stripePromise = stripeCache.promise; // Ensure sync
         return stripeCache.promise;
     }
 
@@ -33,11 +35,13 @@ const getStripePromise = async () => {
             const { publishableKey } = await res.json();
             // Only rebuild if the key actually changed or cache expired
             if (publishableKey && (publishableKey !== stripeCache.key || !stripeCache.promise)) {
+                const promise = loadStripe(publishableKey);
                 stripeCache = {
                     key: publishableKey,
-                    promise: loadStripe(publishableKey),
+                    promise,
                     fetchedAt: Date.now()
                 };
+                stripePromise = promise; // Sync for <Elements> prop
             }
             return stripeCache.promise;
         }
@@ -45,6 +49,7 @@ const getStripePromise = async () => {
         console.error('Error loading Stripe config:', error);
     }
     // Fall back to expired cache if fetch fails (better than breaking checkout)
+    stripePromise = stripeCache.promise;
     return stripeCache.promise;
 };
 
@@ -495,6 +500,7 @@ const StripePayment = ({
     const [error, setError] = useState('');
     const [overlayState, setOverlayState] = useState('idle'); // 'idle' | 'processing' | 'success'
 
+    // ── All hooks go BEFORE any early return (Rules of Hooks) ────────────────
     useEffect(() => {
         const initializePayment = async () => {
             setLoading(true);
@@ -543,81 +549,114 @@ const StripePayment = ({
         }
     }, [amount, currency, orderId, customerEmail, onError]);
 
-    // Loading state
+    // Overlay callbacks — always before early returns
+    const handleProcessingStart = useCallback(() => setOverlayState('processing'), []);
+    const handleProcessingError = useCallback(() => setOverlayState('idle'), []);
+    const handleProcessingComplete = useCallback((paymentIntent) => {
+        setOverlayState('success');
+        if (onSuccess) onSuccess(paymentIntent);
+    }, [onSuccess]);
+
+    // Derived overlay state — always before early returns
+    const overlayVisible = overlayState !== 'idle' || parentProcessing;
+    const overlayStatus = (overlayState === 'success' && !parentProcessing) ? 'success' : 'running';
+    const overlayTitle = overlayState === 'processing'
+        ? 'Procesando pago...'
+        : overlayState === 'success' && parentProcessing
+            ? 'Creando tu orden...'
+            : overlayState === 'success'
+                ? '¡Pago completado!'
+                : 'Procesando...';
+    const overlaySubtitle = overlayState === 'processing'
+        ? 'Estamos confirmando tu pago con Stripe. No cierres esta ventana.'
+        : overlayState === 'success' && parentProcessing
+            ? 'Finalizando los detalles de tu orden.'
+            : overlayState === 'success'
+                ? 'Todo listo. Redirigiendo...'
+                : 'No cierres esta ventana, estamos procesando tu pago.';
+
+    // ── Then early returns (all hooks already executed) ──────────────────────
     if (loading) {
         return (
-            <div className="stripe-payment-wrapper">
-                <div className="stripe-loading-state">
-                    <div className="loading-animation">
-                        <div className="loading-card">
-                            <div className="card-shine"></div>
+            <>
+                <ProcessingOverlay visible={overlayVisible} status={overlayStatus} title={overlayTitle} subtitle={overlaySubtitle} />
+                <div className="stripe-payment-wrapper">
+                    <div className="stripe-loading-state">
+                        <div className="loading-animation">
+                            <div className="loading-card">
+                                <div className="card-shine"></div>
+                            </div>
                         </div>
+                        <h4>Preparando el formulario de pago</h4>
+                        <p>Esto solo tomará un momento...</p>
                     </div>
-                    <h4>Preparando el formulario de pago</h4>
-                    <p>Esto solo tomará un momento...</p>
                 </div>
-            </div>
+            </>
         );
     }
 
-    // Error state
     if (error) {
         return (
-            <div className="stripe-payment-wrapper">
-                <div className="stripe-error-state">
-                    <div className="error-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <circle cx="12" cy="12" r="10"/>
-                            <line x1="12" y1="8" x2="12" y2="12"/>
-                            <line x1="12" y1="16" x2="12.01" y2="16"/>
-                        </svg>
-                    </div>
-                    <h4>No se pudo cargar el formulario de pago</h4>
-                    <p>{error}</p>
-                    <div className="error-actions">
-                        <button onClick={() => window.location.reload()} className="retry-btn">
+            <>
+                <ProcessingOverlay visible={overlayVisible} status={overlayStatus} title={overlayTitle} subtitle={overlaySubtitle} />
+                <div className="stripe-payment-wrapper">
+                    <div className="stripe-error-state">
+                        <div className="error-icon">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <polyline points="23 4 23 10 17 10"/>
-                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                <circle cx="12" cy="12" r="10"/>
+                                <line x1="12" y1="8" x2="12" y2="12"/>
+                                <line x1="12" y1="16" x2="12.01" y2="16"/>
                             </svg>
-                            Reintentar
-                        </button>
+                        </div>
+                        <h4>No se pudo cargar el formulario de pago</h4>
+                        <p>{error}</p>
+                        <div className="error-actions">
+                            <button onClick={() => window.location.reload()} className="retry-btn">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="23 4 23 10 17 10"/>
+                                    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                </svg>
+                                Reintentar
+                            </button>
+                            {onCancel && (
+                                <button onClick={onCancel} className="back-btn">
+                                    Usar otro método de pago
+                                </button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </>
+        );
+    }
+
+    if (!stripeReady || !clientSecret) {
+        return (
+            <>
+                <ProcessingOverlay visible={overlayVisible} status={overlayStatus} title={overlayTitle} subtitle={overlaySubtitle} />
+                <div className="stripe-payment-wrapper">
+                    <div className="stripe-error-state">
+                        <div className="error-icon warning">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                                <line x1="12" y1="9" x2="12" y2="13"/>
+                                <line x1="12" y1="17" x2="12.01" y2="17"/>
+                            </svg>
+                        </div>
+                        <h4>Servicio temporalmente no disponible</h4>
+                        <p>El procesador de pagos no está disponible. Por favor, intenta otro método de pago.</p>
                         {onCancel && (
                             <button onClick={onCancel} className="back-btn">
-                                Usar otro método de pago
+                                ← Elegir otro método de pago
                             </button>
                         )}
                     </div>
                 </div>
-            </div>
+            </>
         );
     }
 
-    // Not ready state
-    if (!stripeReady || !clientSecret) {
-        return (
-            <div className="stripe-payment-wrapper">
-                <div className="stripe-error-state">
-                    <div className="error-icon warning">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
-                            <line x1="12" y1="9" x2="12" y2="13"/>
-                            <line x1="12" y1="17" x2="12.01" y2="17"/>
-                        </svg>
-                    </div>
-                    <h4>Servicio temporalmente no disponible</h4>
-                    <p>El procesador de pagos no está disponible. Por favor, intenta otro método de pago.</p>
-                    {onCancel && (
-                        <button onClick={onCancel} className="back-btn">
-                            ← Elegir otro método de pago
-                        </button>
-                    )}
-                </div>
-            </div>
-        );
-    }
-
-    // Stripe appearance customization (only supported properties)
+    // ── Stripe appearance customization ─────────────────────────────────────
     const appearance = {
         theme: 'stripe',
         variables: {
@@ -679,39 +718,11 @@ const StripePayment = ({
         appearance,
     };
 
-    // Overlay callbacks — connect CheckoutForm's submit cycle to the overlay
-    const handleProcessingStart = useCallback(() => setOverlayState('processing'), []);
-    const handleProcessingError = useCallback(() => setOverlayState('idle'), []);
-    const handleProcessingComplete = useCallback((paymentIntent) => {
-        setOverlayState('success');
-        // Fire parent callback immediately so it can start order creation
-        if (onSuccess) onSuccess(paymentIntent);
-    }, [onSuccess]);
-
-    // Determine overlay state: 'running' during payment or order creation,
-    // 'success' briefly after payment confirms before parent starts processing
-    const isOverlayVisible = overlayState !== 'idle' || parentProcessing;
-    const overlayStatus = (overlayState === 'success' && !parentProcessing) ? 'success' : 'running';
-    const overlayTitle = overlayState === 'processing'
-        ? 'Procesando pago...'
-        : overlayState === 'success' && parentProcessing
-            ? 'Creando tu orden...'
-            : overlayState === 'success'
-                ? '¡Pago completado!'
-                : 'Procesando...';
-    const overlaySubtitle = overlayState === 'processing'
-        ? 'Estamos confirmando tu pago con Stripe. No cierres esta ventana.'
-        : overlayState === 'success' && parentProcessing
-            ? 'Finalizando los detalles de tu orden.'
-            : overlayState === 'success'
-                ? 'Todo listo. Redirigiendo...'
-                : 'No cierres esta ventana, estamos procesando tu pago.';
-
     return (
         <div className="stripe-payment-wrapper">
             {/* Full-screen processing overlay */}
             <ProcessingOverlay
-                visible={isOverlayVisible}
+                visible={overlayVisible}
                 status={overlayStatus}
                 title={overlayTitle}
                 subtitle={overlaySubtitle}
