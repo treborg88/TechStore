@@ -518,6 +518,15 @@ const StripePayment = ({
     const [error, setError] = useState('');
     const [overlayState, setOverlayState] = useState('idle');
 
+    // ── Stable refs for callback props to prevent effect re-runs ────────────────
+    // Inline callbacks from parent (Checkout.jsx) change on every render.
+    // Without refs, the initialization effect would re-run on every change,
+    // creating a new PaymentIntent and reloading the form continuously.
+    const onErrorRef = useRef(onError);
+    const onSuccessRef = useRef(onSuccess);
+    onErrorRef.current = onError;
+    onSuccessRef.current = onSuccess;
+
     // ── All hooks before early returns ─────────────────────────────────────────
     useEffect(() => {
         const initialize = async () => {
@@ -548,12 +557,16 @@ const StripePayment = ({
             } catch (err) {
                 console.error('Error initializing payment:', err);
                 setError(err.message || 'No se pudo inicializar el formulario de pago');
-                if (onError) onError(err);
+                if (onErrorRef.current) onErrorRef.current(err);
             }
             setLoading(false);
         };
         if (amount > 0) initialize();
-    }, [amount, currency, orderId, customerEmail, onError]);
+        // Intentionally omit onError/onSuccess — they change reference on every
+        // parent render and would cause an infinite reload loop. Refs keep them
+        // accessible without triggering re-initialization.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [amount, currency, orderId, customerEmail]);
 
     const handleProcessingStart = useCallback(() => setOverlayState('processing'), []);
     const handleProcessingError = useCallback(() => setOverlayState('idle'), []);
